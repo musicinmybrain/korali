@@ -19,6 +19,7 @@ void __className__::initialize()
   if (_k->_isInitialized == true) return;
 
   // Check whether the minibatch size (N) can be divided by the requested concurrency
+  if (!_problem->_trainingBatchSize) KORALI_LOG_ERROR("Training Batch Size is not set.");
   if (_problem->_trainingBatchSize % _batchConcurrency > 0) KORALI_LOG_ERROR("The training concurrency requested (%lu) does not divide the training mini batch size (%lu) perfectly.", _batchConcurrency, _problem->_trainingBatchSize);
   // Determining batch sizes
   std::vector<size_t> batchSizes = {_problem->_trainingBatchSize};
