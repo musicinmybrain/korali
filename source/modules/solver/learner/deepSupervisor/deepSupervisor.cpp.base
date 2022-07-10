@@ -339,13 +339,13 @@ std::vector<std::vector<float>> &__className__::getEvaluation(const std::vector<
   return _neuralNetwork->getOutputValues(N);
 }
 
-std::vector<float> __className__::backwardGradients(const std::vector<std::vector<float>> &gradients)
+std::vector<float> __className__::backwardGradients(const std::vector<std::vector<float>> &dloss)
 {
   // Grabbing constants
-  const size_t N = gradients.size();
+  const size_t N = dloss.size();
 
   // Running the input values through the neural network
-  _neuralNetwork->backward(gradients);
+  _neuralNetwork->backward(dloss);
   // Getting NN hyperparameter gradients
   auto hyperparameterGradients = _neuralNetwork->getHyperparameterGradients(N);
 

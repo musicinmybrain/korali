@@ -43,12 +43,26 @@ class __className__ : public __parentClassName__
   void initialize() override;
   void runGeneration() override;
   void runTrainingGeneration();
+  /**
+  * @brief splits up the test input - further into minibatches and runs just the forward pass.
+  */
   void runTestingGeneration();
   void printGenerationBefore() override;
   void printGenerationAfter() override;
-
-  std::vector<float> backwardGradients(const std::vector<std::vector<float>> &gradients);
-
+  /**
+  * @brief Calculates the loss function.
+  * @param y the ground truth y of size N*OC
+  * @param yhat of our model N*OC.
+  * @return the loss function of size N*OC
+  */
+  /**
+  * @brief Calculates the neural network hyperparamter gradients.
+  * @details dloss is a wrapper function that runs the backward pipeline of the neural network by passing
+  *          it the derivative of the output loss function and returns the gradients of the hyperparameters.
+  * @param dloss BatchSize x OC derivatives of the output loss function phi'(z^{(L+1)})
+  * @return hyperparamter gradients
+  */
+  std::vector<float> backwardGradients(const std::vector<std::vector<float>> &dloss);
   /**
    * @brief Run the training pipeline of the network given an input and return the output.
    * @param sample A sample containing the NN's input BxTxIC (B: Batch Size, T: Time steps, IC: Input channels) and solution BxOC data (B: Batch Size, OC: Output channels)
@@ -61,6 +75,11 @@ class __className__ : public __parentClassName__
    */
   void runEvaluationOnWorker(korali::Sample &sample);
 
+  /**
+   * @brief Run one iteration of forward backward loop on a worker
+   * @param sample A sample containing the NN's input BxTxIC (B: Batch Size, T: Time steps, IC: Input channels)
+   */
+  void runIteration(korali::Sample &sample);
   /**
    * @brief Update the hyperparameters for the neural network after an update for every worker.
    * @param sample A sample containing the new NN's hyperparameters
