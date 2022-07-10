@@ -2,6 +2,7 @@ subdir('plot')
 subdir('profiler')
 subdir('rlview')
 subdir('cxx')
+subdir('auxiliar')
 
 # pure python sources
 python_sources = files([
