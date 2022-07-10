@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import korali
+from korali.auxiliar.printing import *
 import argparse
 k = korali.Engine()
 
@@ -58,8 +59,8 @@ if len(sys.argv) != 0:
 args = parser.parse_args()
 sys.argv = tmp
 
-print("Running FNN solver with arguments:")
-print(args)
+print_header('Korali', color=bcolors.HEADER, width=140)
+print_args(vars(args), sep=' ', header_width=140)
 
 scaling = 5.0
 np.random.seed(0xC0FFEE)
@@ -144,6 +145,7 @@ print("MSE on test set: {}".format(mse))
 
 if (mse > args.testMSEThreshold):
  print("Fail: MSE does not satisfy threshold: " + str(args.testMSEThreshold))
+ print_header(width=140)
  exit(-1)
 
 ### Plotting Results
@@ -152,3 +154,5 @@ if (args.plot):
  plt.plot(testInputSet, testOutputSet, "o")
  plt.plot(testInputSet, testInferredSet, "x")
  plt.show()
+
+print_header(width=140)
