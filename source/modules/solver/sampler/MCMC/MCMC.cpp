@@ -139,8 +139,7 @@ void MCMC::choleskyDecomp(const std::vector<double> &inC, std::vector<double> &o
 
 double MCMC::recursiveAlpha(double &denominator, const double leaderLoglikelihood, const double *loglikelihoods, size_t N) const
 {
-  // recursive formula from Trias[2009]
-
+  // recursive formula from Trias [2009] (https://arxiv.org/pdf/0904.2207.pdf)
   if (N == 0)
   {
     denominator = exp(leaderLoglikelihood);
