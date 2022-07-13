@@ -21,7 +21,6 @@ def modelWithGradients(s, X):
   a = s["Parameters"][0]
   b = s["Parameters"][1]
   sig = s["Parameters"][2]
-  sig = s["Parameters"][2]
 
   s["Reference Evaluations"] = []
   s["Standard Deviation"] = []
