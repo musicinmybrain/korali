@@ -38,13 +38,13 @@ class __className__ : public __parentClassName__
    * @brief Pre-calculated value for Output Image Width
    */
   ssize_t OW;
+#ifdef _KORALI_USE_ONEDNN
   /**
    * @brief Defines the resampling method to use either of type oneDNN or cuDNN.
    */
   std::variant<dnnl::algorithm, size_t> _algorithm_t;
   // std::variant<dnnl::algorithm, cudnnResampleMode_t> _algorithm_t;
 
-#ifdef _KORALI_USE_ONEDNN
   /**
    * @brief Memory descriptor for the 2D mapping of the scalar input channels
    */

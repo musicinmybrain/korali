@@ -32,7 +32,7 @@ parser.add_argument(
 parser.add_argument(
     '--trainingBatchSize',
     help='Batch size to use for training data',
-    default=50,
+    default=80,
     required=False)
 parser.add_argument(
     '--testBatchSize',
@@ -91,7 +91,7 @@ e["Solver"]["Type"] = "Learner/DeepSupervisor"
 e["Solver"]["Mode"] = "Training"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
 e["Solver"]["Learning Rate"] = float(args.learningRate)
-#e["Solver"]["Batch Concurrency"] = 2
+e["Solver"]["Batch Concurrency"] = 1
 
 ### Defining the shape of the neural network
 
@@ -112,7 +112,7 @@ e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tan
 
 ### Configuring output
 
-e["Console Output"]["Frequency"] = 100
+e["Console Output"]["Frequency"] = 1
 e["Console Output"]["Verbosity"] = "Normal"
 e["File Output"]["Enabled"] = False
 e["Random Seed"] = 0xC0FFEE
@@ -120,7 +120,8 @@ e["Random Seed"] = 0xC0FFEE
 ### Training the neural network
 
 e["Solver"]["Termination Criteria"]["Max Generations"] = int(args.maxGenerations)
-#k["Conduit"]["Type"] = "Sequential"
+k["Conduit"]["Type"] = "Sequential"
+# k["Conduit"]["Concurrent Jobs"] = 2
 #k["Conduit"]["Type"] = "Distributed"
 #k.setMPIComm(MPI.COMM_WORLD)
 k.run(e)
@@ -133,13 +134,12 @@ testOutputSet = [ x[0][0] for x in np.tanh(np.exp(np.sin(testInputSet))) * scali
 
 e["Solver"]["Mode"] = "Testing"
 e["Problem"]["Input"]["Data"] = testInputSet
-
 ### Running Testing and getting results
 k.run(e)
 testInferredSet = [ x[0] for x in e["Solver"]["Evaluation"] ]
 print("training finished")
 
-### Calc MSE on test set
+# ### Calc MSE on test set
 mse = np.mean((np.array(testInferredSet) - np.array(testOutputSet))**2)
 print("MSE on test set: {}".format(mse))
 
@@ -148,8 +148,7 @@ if (mse > args.testMSEThreshold):
  print_header(width=140)
  exit(-1)
 
-### Plotting Results
-
+# ### Plotting Results
 if (args.plot):
  plt.plot(testInputSet, testOutputSet, "o")
  plt.plot(testInputSet, testInferredSet, "x")

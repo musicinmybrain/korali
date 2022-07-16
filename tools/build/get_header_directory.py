@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""Adds the files to the base path after source
+   Example: source/something/file.cpp
+            base_path/something/file.cpp
+Args:
+    argv[1] header install directory
+    argv[2] absolute path of current header directory
+"""
 import pathlib
 import sys
 import os

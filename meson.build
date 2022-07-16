@@ -15,7 +15,6 @@ summary({
 
 # compiler object
 cpp = meson.get_compiler('cpp')
-
 if get_option('buildtype').startswith('debug')
   add_project_arguments('-DDEBUG', language : 'cpp')
 endif
@@ -34,6 +33,12 @@ summary({
   'prefix': korali_install_base,
   'python': python.language_version()
   }, section: 'Python')
+
+
+summary({
+  'headers': korali_install_headers,
+  'compiler': cpp.get_id()
+  }, section: 'C++')
 
 # Code coverage configuration
 if get_option('b_coverage')

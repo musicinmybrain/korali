@@ -9,6 +9,8 @@
 #include "modules/solver/learner/deepSupervisor/optimizers/fGradientBasedOptimizer.hpp"
 #include "modules/solver/learner/deepSupervisor/optimizers/fMadGrad.hpp"
 #include "modules/solver/learner/deepSupervisor/optimizers/fRMSProp.hpp"
+// #include "modules/solver/learner/deepSupervisor/loss_functions/loss.hpp"
+// #include "modules/solver/learner/deepSupervisor/loss_functions/mse.hpp"
 #include "modules/solver/learner/learner.hpp"
 
 __startNamespace__;
@@ -32,16 +34,44 @@ class __className__ : public __parentClassName__
   korali::fGradientBasedOptimizer *_optimizer;
 
   /**
+   * @brief loss function object.
+   */
+  // korali::loss::Loss *_loss;
+
+  /**
    * @brief A neural network to be trained based on inputs and solutions
    */
   NeuralNetwork *_neuralNetwork;
 
+  /**
+   * @brief nn wrapper function.
+   * @details
+   * 1. Forwards input through neural network.
+   * 2. Obtains output values of the nn.
+   * @param input 3D vector of size [N, T, IC]
+   * @return returns 2D output vector of size [N, OC]
+   */
   std::vector<std::vector<float>> &getEvaluation(const std::vector<std::vector<std::vector<float>>> &input) override;
   std::vector<float> getHyperparameters() override;
   void setHyperparameters(const std::vector<float> &hyperparameters) override;
 
   void initialize() override;
   void runGeneration() override;
+
+  /**
+  * @brief runs an epoch
+  * @details Runs samples/batch_size iterations of forward/backward pass
+  */
+  void runEpoch();
+  /**
+  * @brief splits up the training input - a minibatch further into superminibatches and runs a forward/backward pass.
+  * @details
+  * 1. Runs the forward pass of the neural network to get the output
+  * 2. Calculates the derivative of the output loss function given its input value
+  * 3. Runs the backward pass of the neural network
+  * 4. Runs the given optimizer to optimize the hyperparameters of the neural network
+  * 5. Updates the hyperparameters of the neural network
+  */
   void runTrainingGeneration();
   /**
   * @brief splits up the test input - further into minibatches and runs just the forward pass.
@@ -50,19 +80,19 @@ class __className__ : public __parentClassName__
   void printGenerationBefore() override;
   void printGenerationAfter() override;
   /**
-  * @brief Calculates the loss function.
-  * @param y the ground truth y of size N*OC
-  * @param yhat of our model N*OC.
-  * @return the loss function of size N*OC
-  */
-  /**
-  * @brief Calculates the neural network hyperparamter gradients.
-  * @details dloss is a wrapper function that runs the backward pipeline of the neural network by passing
-  *          it the derivative of the output loss function and returns the gradients of the hyperparameters.
-  * @param dloss BatchSize x OC derivatives of the output loss function phi'(z^{(L+1)})
-  * @return hyperparamter gradients
-  */
+   * @brief backpropagates gradients
+   * @details
+   * @param input 2D vector of size [N, T, IC]
+   * @return
+   */
   std::vector<float> backwardGradients(const std::vector<std::vector<float>> &dloss);
+  /**
+  * @brief flattens a 2d vector \todo{make it generic for containers}.
+  * @param 2d/3d vector
+  * @return flattend vector.
+  */
+  std::vector<float> flatten(const std::vector<std::vector<float>> &vec) const;
+  std::vector<float> flatten(const std::vector<std::vector<std::vector<float>>> &vec) const;
   /**
    * @brief Run the training pipeline of the network given an input and return the output.
    * @param sample A sample containing the NN's input BxTxIC (B: Batch Size, T: Time steps, IC: Input channels) and solution BxOC data (B: Batch Size, OC: Output channels)

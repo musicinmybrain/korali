@@ -4,6 +4,9 @@
 * @brief Include header for the Korali Engine
 */
 
+#include <pybind11/functional.h>
+#include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
 #include "config.hpp"
 #include "auxiliar/MPIUtils.hpp"
 #include "modules/conduit/conduit.hpp"
