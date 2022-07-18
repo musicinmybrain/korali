@@ -17,7 +17,7 @@ parser.add_argument(
 parser.add_argument(
     '--maxGenerations',
     help='Maximum Number of generations to run',
-    default=200,
+    default=1200,
     required=False)    
 parser.add_argument(
     '--optimizer',
@@ -47,7 +47,7 @@ parser.add_argument(
 parser.add_argument(
     '--plot',
     help='Indicates whether to plot results after testing',
-    default=True,
+    default=False,
     required=False)
 
 # In case of iPython need to temporaily set sys.args to [''] in order to parse them
@@ -113,7 +113,7 @@ e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tan
 ### Configuring output
 
 e["Console Output"]["Frequency"] = 100
-e["Console Output"]["Verbosity"] = "Detailed"
+e["Console Output"]["Verbosity"] = "Normal"
 e["File Output"]["Enabled"] = False
 e["Random Seed"] = 0xC0FFEE
 
