@@ -456,11 +456,35 @@ void __className__::runEvaluationOnWorker(korali::Sample &sample)
   sample["Evaluation"] = getEvaluation(input);
 }
 
+void __className__::printGenerationBefore(){
+
+}
+
+
 void __className__::printGenerationAfter()
 {
-  // Printing results so far
-  if (_lossFunction == "Mean Squared Error") _k->_logger->logInfo("Normal", " + Training Loss: %.15f\n", _currentLoss);
-  if (_lossFunction == "Direct Gradient") _k->_logger->logInfo("Normal", " + Gradient L2-Norm: %.15f\n", std::sqrt(_currentLoss));
+  if (_mode == "Training")
+  {
+    // Printing results so far
+    size_t width = 60;
+    char bar[width];
+    size_t epoch = _k->_currentGeneration;
+    _k->_logger->progressBar(epoch/(float)_maxGenerations, bar, width);
+    if(_problem->_validationBatchSize)
+      _k->_logger->logInfo("Normal", "\r[Korali] Epoch %zu/%zu %s Loss: %f\r", epoch, _maxGenerations, bar, _currentLoss);
+    else
+      _k->_logger->logInfo("Normal", "\r[Korali] Epoch %zu/%zu %s Train Loss: %f\r", epoch, _maxGenerations, bar, _currentLoss);
+    if(epoch==_maxGenerations){
+      printf("\n"); fflush(stdout);
+    }
+  }
+  if (_mode == "Testing")
+  {
+    // TODO
+    // Printing results so far
+    // if (_lossFunction == "Mean Squared Error") _k->_logger->logInfo("Normal", " + Testing Loss: %.15f", _currentTrainingLoss);
+    // if (_lossFunction == "Direct Gradient") _k->_logger->logInfo("Normal", " + Gradient L2-Norm: %.15f", std::sqrt(_currentTrainingLoss));
+  }
 }
 
 __moduleAutoCode__;

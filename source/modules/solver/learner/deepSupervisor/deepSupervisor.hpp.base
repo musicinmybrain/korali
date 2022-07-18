@@ -44,6 +44,7 @@ class __className__ : public __parentClassName__
   void runGeneration() override;
   void runTrainingGeneration();
   void runTestingGeneration();
+  void printGenerationBefore() override;
   void printGenerationAfter() override;
 
   std::vector<float> backwardGradients(const std::vector<std::vector<float>> &gradients);
