@@ -7,6 +7,7 @@ import korali
 from korali.auxiliar.printing import *
 import argparse
 k = korali.Engine()
+e = korali.Experiment()
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -17,7 +18,7 @@ parser.add_argument(
 parser.add_argument(
     '--maxGenerations',
     help='Maximum Number of generations to run',
-    default=1200,
+    default=1300,
     required=False)    
 parser.add_argument(
     '--optimizer',
@@ -73,8 +74,6 @@ trainingInputSet = [ [ [ i ] ] for i in trainingInputSet.tolist() ]
 trainingSolutionSet = [ [ i ] for i in trainingSolutionSet.tolist() ]
 
 ### Defining a learning problem to infer values of sin(x)
-
-e = korali.Experiment()
 e["Problem"]["Type"] = "Supervised Learning"
 e["Problem"]["Max Timesteps"] = 1
 e["Problem"]["Training Batch Size"] = args.trainingBatchSize
@@ -86,15 +85,12 @@ e["Problem"]["Solution"]["Data"] = trainingSolutionSet
 e["Problem"]["Solution"]["Size"] = 1
 
 ### Using a neural network solver (deep learning) for training
-
 e["Solver"]["Type"] = "Learner/DeepSupervisor"
 e["Solver"]["Mode"] = "Training"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
 e["Solver"]["Learning Rate"] = float(args.learningRate)
 e["Solver"]["Batch Concurrency"] = 1
-
 ### Defining the shape of the neural network
-
 e["Solver"]["Neural Network"]["Engine"] = args.engine
 e["Solver"]["Neural Network"]["Optimizer"] = args.optimizer
 
