@@ -44,4 +44,5 @@ python_extension = python.extension_module('lib' + korali,
   dependencies: [korali_deps, python.dependency()],
   install: true,
   install_dir: korali_install_base,
+  link_args : ['-ltbb']
 )
