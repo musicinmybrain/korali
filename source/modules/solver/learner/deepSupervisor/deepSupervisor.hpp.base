@@ -9,8 +9,8 @@
 #include "modules/solver/learner/deepSupervisor/optimizers/fGradientBasedOptimizer.hpp"
 #include "modules/solver/learner/deepSupervisor/optimizers/fMadGrad.hpp"
 #include "modules/solver/learner/deepSupervisor/optimizers/fRMSProp.hpp"
-// #include "modules/solver/learner/deepSupervisor/loss_functions/loss.hpp"
-// #include "modules/solver/learner/deepSupervisor/loss_functions/mse.hpp"
+#include "modules/solver/learner/deepSupervisor/loss_functions/loss.hpp"
+#include "modules/solver/learner/deepSupervisor/loss_functions/mse.hpp"
 #include "modules/solver/learner/learner.hpp"
 
 __startNamespace__;
@@ -36,13 +36,17 @@ class __className__ : public __parentClassName__
   /**
    * @brief loss function object.
    */
-  // korali::loss::Loss *_loss;
+  korali::loss::Loss *_loss;
 
   /**
    * @brief A neural network to be trained based on inputs and solutions
    */
   NeuralNetwork *_neuralNetwork;
 
+  /**
+    * @brief [Internal Use] current number of finished epochs.
+    */
+  size_t _epochCount{};
   /**
    * @brief nn wrapper function.
    * @details
@@ -109,7 +113,7 @@ class __className__ : public __parentClassName__
    * @brief Run one iteration of forward backward loop on a worker
    * @param sample A sample containing the NN's input BxTxIC (B: Batch Size, T: Time steps, IC: Input channels)
    */
-  void runIteration(korali::Sample &sample);
+  void runDistributedSGDOnWorker(korali::Sample &sample);
   /**
    * @brief Update the hyperparameters for the neural network after an update for every worker.
    * @param sample A sample containing the new NN's hyperparameters

@@ -233,7 +233,7 @@ void __className__::forward(const std::vector<std::vector<std::vector<float>>> &
 
     for (size_t t = 0; t < inputValues[b].size(); t++)
       if (inputValues[b][t].size() != IC)
-        KORALI_LOG_ERROR("Input size of input batch (%lu), timestep (%lu) is different (%lu) than input channels configured (%lu).\n", b, t, inputValues[b][t].size(), IC);
+        KORALI_LOG_ERROR("Input size of input batch (%lu), timestep (%lu) is (%lu) - different than input channels configured by user (%lu).\n", b, t, inputValues[b][t].size(), IC);
   }
 
   // First, re-setting all input values to zero
