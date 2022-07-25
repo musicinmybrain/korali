@@ -19,14 +19,17 @@ namespace korali
         [] (auto y, auto yhat) { return std::pow(y - yhat, 2); }) / (2.0f*y_true.size());
     }
 
-    void MSE::dloss(const std::vector<float>& y_true, std::vector<float>& y_pred){
+    std::vector<float> MSE::dloss(const std::vector<float>& y_true, const std::vector<float>& y_pred){
+      std::vector<float> dloss;
+      dloss.reserve(y_true.size());
       std::transform(
         // std::execution::par_unseq,
         std::begin(y_true),
         std::end(y_true),
         std::begin(y_pred),
-        std::begin(y_pred),
+        std::begin(dloss),
         [] (auto y, auto yhat) { return y-yhat; });
+      return dloss;
     }
 
   } // namespace loss

@@ -28,7 +28,7 @@ namespace korali
       * @param gradient The gradient of the objective function at the current set of parameters
       */
       virtual float loss(const std::vector<float>& y_true, const std::vector<float>& y_pred) = 0;
-      virtual void dloss(const std::vector<float>& y_true, std::vector<float>& y_pred) = 0;
+      virtual std::vector<float> dloss(const std::vector<float>& y_true, const std::vector<float>& y_pred) = 0;
     };
 
   } // namespace loss

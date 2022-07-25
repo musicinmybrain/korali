@@ -12,7 +12,7 @@ namespace korali
         class MSE: public Loss
         {
             virtual float loss(const std::vector<float>& y_true, const std::vector<float>& y_pred) override;
-            virtual void dloss(const std::vector<float>& y_true, std::vector<float>& y_pred) override;
+            virtual std::vector<float> dloss(const std::vector<float>& y_true, const std::vector<float>& y_pred) override;
         };
     } // namespace loss
 } // namespace korali
