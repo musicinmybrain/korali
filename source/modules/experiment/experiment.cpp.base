@@ -30,9 +30,10 @@ cothread_t __returnThread;
  */
 void threadWrapper()
 {
+  // e = this
   auto e = __expPointer;
   e->run();
-
+  // After the run is finished makes the main execution thread again active
   co_switch(e->_engine->_thread);
   KORALI_LOG_ERROR("Trying to continue finished Experiment thread.\n");
 }
@@ -167,8 +168,12 @@ void __className__::initialize()
   _resultSavingTime = 0.0;
 
   __expPointer = this;
+  // Allocates a new cothread with 1MB from the Heap Memory for the corthreads stack and
+  // makes the function threadWrapper the function to be executed.
   _thread = co_create(1 << 20, threadWrapper);
+  // returns and stores a handle to the currently actively running thread
   __returnThread = co_active();
+  // Makes _thread the currently active thread and puts __returnThread to sleep
   co_switch(_thread);
 
   // Clearning sample and previous result information
