@@ -4,4 +4,4 @@
 tmp/
 
 ./*.cpp
-*.hpp
+./*.hpp
