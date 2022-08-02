@@ -58,7 +58,7 @@ e["Solver"]["Mode"] = "Training"
 ### Using a neural network solver (deep learning) for inference
 e["Solver"]["Termination Criteria"]["Max Generations"] = 1
 e["Solver"]["Type"] = "Learner/DeepSupervisor"
-e["Solver"]["Loss Function"] = "Mean Squared Error"
+e["Solver"]["Loss"]["Type"] = "Mean Squared Error"
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 
@@ -214,8 +214,8 @@ e["Solver"]["Neural Network"]["Hidden Layers"][11]["Output Channels"]   = 1*28*2
 
 ### Configuring output
 
-e["Console Output"]["Verbosity"] = "Silent"
-e["File Output"]["Enabled"] = False
+e["Console Output"]["Verbosity"] = "Normal"
+e["File Output"]["Enabled"] = True
 e["Random Seed"] = 0xC0FFEE
 
 ### Printing Configuration
@@ -257,13 +257,13 @@ for epoch in range(epochs):
     print("[Korali] --------------------------------------------------")
     print("[Korali] Epoch: " + str(epoch) + "/" + str(epochs))
     print("[Korali] Learning Rate: " + str(learningRate))
-    print("[Korali] Current Training Loss: " + str(e["Solver"]["Current Loss"]))
+    print("[Korali] Current Training Loss: " + str(e["Solver"]["Current Training Loss"]))
     learningRate = learningRate * (1.0 / (1.0 + decay * (epoch + 1)))
     # Evaluating testing set
     e["Problem"]["Input"]["Data"] = testingImageVector
     e["Problem"]["Solution"]["Data"] = [img[0] for img in testingImageVector]
     e["Solver"]["Mode"] = "Testing"
-    k.run(e)
+    # k.run(e)
     testingInferredVector = testInferredSet = e["Solver"]["Evaluation"]
     # Getting MSE loss for testing set
     squaredMeanError = 0.0
