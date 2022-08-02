@@ -87,7 +87,7 @@ e["Problem"]["Solution"]["Size"] = 1
 ### Using a neural network solver (deep learning) for training
 e["Solver"]["Type"] = "Learner/DeepSupervisor"
 e["Solver"]["Mode"] = "Training"
-e["Solver"]["Loss Function"] = "Mean Squared Error"
+e["Solver"]["Loss"]["Type"] = "Mean Squared Error"
 e["Solver"]["Learning Rate"] = float(args.learningRate)
 e["Solver"]["Batch Concurrency"] = 1
 ### Defining the shape of the neural network
