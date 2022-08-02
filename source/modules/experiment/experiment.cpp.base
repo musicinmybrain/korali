@@ -70,7 +70,6 @@ void __className__::run()
     // Timing and Profiling Start
     auto t0 = std::chrono::system_clock::now();
     _solver->runGeneration();
-
     // Timing and Profiling End
     auto t1 = std::chrono::system_clock::now();
 
@@ -112,7 +111,11 @@ void __className__::run()
 
   _logger->logInfo("Minimal", "--------------------------------------------------------------------\n");
   _logger->logInfo("Minimal", "%s finished correctly.\n", _solver->getType().c_str());
-  for (size_t i = 0; i < _solver->_terminationCriteria.size(); i++) _logger->logInfo("Normal", "Termination Criterion Met: %s\n", _solver->_terminationCriteria[i].c_str());
+  while (!_solver->_terminationCriteria.empty())
+  {
+    _logger->logInfo("Normal", "Termination Criterion Met: %s\n", _solver->_terminationCriteria.back().c_str());
+    _solver->_terminationCriteria.pop_back();
+  }
   _logger->logInfo("Normal", "Final Generation: %lu\n", _currentGeneration);
   _logger->logInfo("Normal", "Elapsed Time: %.3fs\n", std::chrono::duration<double>(t1 - t0).count());
 }
