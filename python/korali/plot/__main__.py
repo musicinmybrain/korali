@@ -35,7 +35,9 @@ def get_generation_dicts(gen_result_files, configRunId):
   del genList[0]
   return genList
 
-def main(path, test, output, plotAll=False):
+
+
+def main(exec_path, test, output, plotAll=False, others = None):
 
   if test or output:
     matplotlib.use('Agg')
@@ -140,6 +142,6 @@ if __name__ == '__main__':
       '--output', help='save figure to file', type=str, default="")
   parser.add_argument(
       '--all', help='plot all generations', action='store_true', required=False)
-  args = parser.parse_args()
+  args, unknown = parser.parse_known_args()
 
-  main(args.dir, args.test, args.output, args.all)
+  main(args.dir, args.test, args.output, args.all, unknown)
