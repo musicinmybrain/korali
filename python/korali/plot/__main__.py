@@ -103,13 +103,20 @@ def main(exec_path, test, output, plotAll=False, others = None):
    solverDir = curdir + '/TMCMC'
    moduleName = '.TMCMC'
 
+  if ("deepsupervisor" in solverName):
+   solverDir = curdir + '/DEEPSUPERVISOR'
+   moduleName = '.deepSupervisor'
+
   if (solverDir == ""):
    print("[Korali] Solver '{0}' does not provide support for plotting.".format(solverName))
    exit(0)
 
   sys.path.append(solverDir)
   solverLib = importlib.import_module(moduleName, package="plot")
-  solverLib.plot(genList, plotAll=plotAll )
+  if ("deepsupervisor" in solverName):
+    solverLib.plot(genList, config, others)
+  else:
+    solverLib.plot(genList, plotAll=plotAll)
 
   if not output:
     plt.show()
