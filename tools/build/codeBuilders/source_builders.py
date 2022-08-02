@@ -105,7 +105,12 @@ def saveValue(base, path, varName, varType):
     return sString
 
   if ('korali::' in varType):
-    sString = ' if(' + varName + ' != NULL) ' + varName + '->getConfiguration(' + base + path + ');\n'
+    if(varName == "_problem"):
+      sString = ' if(' + varName + ' != NULL && (_saveProblem || _isFinished || (_currentGeneration == 0))) ' + varName + '->getConfiguration(' + base + path + ');\n'
+    elif(varName == "_solver"):
+      sString = ' if(' + varName + ' != NULL && (_saveSolver || _isFinished || (_currentGeneration == 0))) ' + varName + '->getConfiguration(' + base + path + ');\n'
+    else:
+      sString = ' if(' + varName + ' != NULL) ' + varName + '->getConfiguration(' + base + path + ');\n'
     return sString
 
   sString = '   ' + base + path + ' = ' + varName + ';\n'
