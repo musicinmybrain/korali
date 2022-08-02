@@ -208,13 +208,15 @@ def createGetConfiguration(module):
                               vr.getCXXVariableName(v["Name"]), vr.getVariableType(v))
 
   if 'Variables Configuration' in module:
-    codeString += SEP + 'for (size_t i = 0; i <  _k->_variables.size(); i++) { \n'
+    if module["Variables Configuration"]:
+      codeString += SEP + 'for (size_t i = 0; i <  _k->_variables.size(); i++) { \n'
     for v in module["Variables Configuration"]:
       codeString += saveValue(
           '_k->_js["Variables"][i]', vr.getVariablePath(v),
           '_k->_variables[i]->' + vr.getCXXVariableName(v["Name"]),
           vr.getVariableType(v))
-    codeString += ' } \n'
+    if module["Variables Configuration"]:
+      codeString += ' } \n'
 
   if 'Conditional Variables' in module:
     for v in module["Conditional Variables"]:
