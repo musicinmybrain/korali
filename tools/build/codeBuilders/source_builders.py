@@ -2,6 +2,8 @@ from . import variables as vr
 from . import auxiliar as aux
 import json
 import sys
+# Seperation for code generation
+SEP = 2*' '
 
 def checkSourceTemplateString( moduleConfig, templateFilePath, moduleTemplate ):
   """These keywords shouls appear only once"""
@@ -16,24 +18,24 @@ def consumeValue(base, moduleName, path, varName, varType, isMandatory, options)
   detectedKoraliType = False
 
   # Checking whether its defined
-  cString = ' if (isDefined(' + base + ', ' + path.replace('][', ", ").replace('[', '').replace(']', '') + '))\n'
-  cString += ' {\n'
+  cString = SEP + 'if (isDefined(' + base + ', ' + path.replace('][', ", ").replace('[', '').replace(']', '') + '))\n'
+  cString += SEP + '{\n'
 
   if ('korali::Sample' in varType and not detectedKoraliType):
-    cString += ' ' + varName + '._js.getJson() = ' + base + path + ';\n'
+    cString += SEP + varName + '._js.getJson() = ' + base + path + ';\n'
     detectedKoraliType = True
 
   if ('std::vector<korali::' in varType and not detectedKoraliType):
     baseType = varType.replace('std::vector<', '').replace('>', '')
-    cString += ' ' + varName + '.resize(' + base + path + '.size());\n'
-    cString += ' for(size_t i = 0; i < ' + base + path + '.size(); i++)'
-    cString += ' {\n'
-    cString += '   ' + varName + '[i] = (' + baseType + ') korali::Module::getModule(' + base + path + '[i], _k);\n'
+    cString += SEP + varName + '.resize(' + base + path + '.size());\n'
+    cString += SEP + 'for(size_t i = 0; i < ' + base + path + '.size(); i++)'
+    cString += SEP + '{\n'
+    cString += 2*SEP + varName + '[i] = (' + baseType + ') korali::Module::getModule(' + base + path + '[i], _k);\n'
     if (not 'Experiment' in varType):
-     cString += '   ' + varName + '[i]->applyVariableDefaults();\n'
-     cString += '   ' + varName + '[i]->applyModuleDefaults(' + base + path + '[i]);\n'
-     cString += '   ' + varName + '[i]->setConfiguration(' + base + path + '[i]);\n'
-    cString += ' }\n'
+     cString += 2*SEP + varName + '[i]->applyVariableDefaults();\n'
+     cString += 2*SEP + varName + '[i]->applyModuleDefaults(' + base + path + '[i]);\n'
+     cString += 2*SEP + varName + '[i]->setConfiguration(' + base + path + '[i]);\n'
+    cString += SEP + '}\n'
     detectedKoraliType = True
 
   if ('korali::' in varType and not detectedKoraliType):
@@ -53,25 +55,32 @@ def consumeValue(base, moduleName, path, varName, varType, isMandatory, options)
     if ('gsl_rng*' in varType): rhs = 'setRange(' + base + path + '.get<std::string>());\n'
 
     if ('knlohmann::json' in varType):
-     cString += ' ' + varName + ' = ' + rhs + '\n'
+     cString += SEP + varName + ' = ' + rhs + '\n'
     else:
-     cString += ' try { ' + varName + ' = ' + rhs + '} catch (const std::exception& e)\n'
-     cString += ' { KORALI_LOG_ERROR(" + Object: [ ' + moduleName + ' ] \\n + Key:    ' + path.replace('"', "'") + '\\n%s", e.what()); } \n'
-     
-    if (options):
-      cString += '{\n'
-      validVarName = 'validOption'
-      cString += ' bool ' + validVarName + ' = false; \n'
-      for v in options:  cString += ' if (' + varName + ' == "' + v + '") ' + validVarName + ' = true; \n'
-      cString += ' if (' + validVarName + ' == false) KORALI_LOG_ERROR(" + Unrecognized value (%s) provided for mandatory setting: ' + path.replace('"', "'") + ' required by ' + moduleName + '.\\n", ' + varName + '.c_str()); \n'
-      cString += '}\n'
+     cString += 2*SEP + 'try\n'
+     cString += 2*SEP + '{\n'
+     cString += 3*SEP + varName + ' = ' + rhs
+     cString += 2*SEP + '} catch (const std::exception& e) {\n'
+     cString += 3*SEP + 'KORALI_LOG_ERROR(" + Object: [ ' + moduleName + ' ] \\n + Key:    ' + path.replace('"', "'") + '\\n%s", e.what());\n'
+     cString += 2*SEP + '}\n'
 
-  cString += '   eraseValue(' + base + ', ' + path.replace('][', ", ").replace('[', '').replace(']', '') + ');\n'
-  cString += ' }\n'
+    if (options):
+      cString += 3*SEP + '{\n'
+      validVarName = 'validOption'
+      cString += 4*SEP + 'bool ' + validVarName + ' = false; \n'
+      for v in options:  cString += 4*SEP + 'if (' + varName + ' == "' + v + '") ' + validVarName + ' = true; \n'
+      cString += 4*SEP + 'if (' + validVarName + ' == false)'
+      cString += ' KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ' + path.replace('"', "'") + ' required by ' + moduleName + '.\\n Valid Options are:\\n'
+      for v in options: cString += '  - ' + v + '\\n'
+      cString += '",'  + varName + '.c_str()); \n'
+      cString += 3*SEP + '}\n'
+
+  cString += 2*SEP + 'eraseValue(' + base + ', ' + path.replace('][', ", ").replace('[', '').replace(']', '') + ');\n'
+  cString += SEP + '}'
 
   if (isMandatory):
-    cString += '  else '
-    cString += '  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ' + path.replace('"', "'") + ' required by ' + moduleName + '.\\n"); \n'
+    cString += SEP + 'else'
+    cString += SEP + 'KORALI_LOG_ERROR(" + No value provided for mandatory setting: ' + path.replace('"', "'") + ' required by ' + moduleName + '.\\n"); \n'
 
   cString += '\n'
   return cString
@@ -106,7 +115,7 @@ def saveValue(base, path, varName, varType):
 def createSetConfiguration(module):
   codeString = 'void ' + module["Class Name"] + '::setConfiguration(knlohmann::json& js) \n{\n'
 
-  codeString += ' if (isDefined(js, "Results"))  eraseValue(js, "Results");\n\n'
+  codeString += SEP + 'if (isDefined(js, "Results"))  eraseValue(js, "Results");\n\n'
 
   # Consume Internal Settings
   if 'Internal Settings' in module:
@@ -175,7 +184,7 @@ def createSetConfiguration(module):
 def createGetConfiguration(module):
   codeString = 'void ' + module["Class Name"] + '::getConfiguration(knlohmann::json& js) \n{\n\n'
 
-  codeString += ' js["Type"] = _type;\n'
+  codeString += SEP + 'js["Type"] = _type;\n'
 
   if 'Configuration Settings' in module:
     for v in module["Configuration Settings"]:
@@ -194,7 +203,7 @@ def createGetConfiguration(module):
                               vr.getCXXVariableName(v["Name"]), vr.getVariableType(v))
 
   if 'Variables Configuration' in module:
-    codeString += ' for (size_t i = 0; i <  _k->_variables.size(); i++) { \n'
+    codeString += SEP + 'for (size_t i = 0; i <  _k->_variables.size(); i++) { \n'
     for v in module["Variables Configuration"]:
       codeString += saveValue(
           '_k->_js["Variables"][i]', vr.getVariablePath(v),
@@ -254,21 +263,21 @@ def createApplyVariableDefaults(module):
 def createCheckTermination(module):
   codeString = 'bool ' + module["Class Name"] + '::checkTermination()\n'
   codeString += '{\n'
-  codeString += ' bool hasFinished = false;\n\n'
+  codeString += SEP + 'bool hasFinished = false;\n\n'
 
   if 'Termination Criteria' in module:
     for v in module["Termination Criteria"]:
-      codeString += ' if (' + v["Criteria"] + ')\n'
-      codeString += ' {\n'
-      codeString += '  _terminationCriteria.push_back("' + module["Name"] + vr.getVariablePath(v).replace('"', "'") + ' = " + std::to_string(' + vr.getCXXVariableName(v["Name"]) + ') + ".");\n'
-      codeString += '  hasFinished = true;\n'
-      codeString += ' }\n\n'
+      codeString += SEP + 'if (' + v["Criteria"] + ')\n'
+      codeString += SEP + '{\n'
+      codeString += 2*SEP + '_terminationCriteria.push_back("' + module["Name"] + vr.getVariablePath(v).replace('"', "'") + ' = " + std::to_string(' + vr.getCXXVariableName(v["Name"]) + ') + ".");\n'
+      codeString += 2*SEP + 'hasFinished = true;\n'
+      codeString += SEP + '}\n\n'
 
-  codeString += ' hasFinished = hasFinished || ' + module["Parent Class Name"] + '::checkTermination();\n'
-  codeString += ' return hasFinished;\n'
-  codeString += '}\n\n'
+    codeString += SEP + 'hasFinished = hasFinished || ' + module["Parent Class Name"] + '::checkTermination();\n'
+    codeString += SEP + 'return hasFinished;\n'
+    codeString += '}\n\n'
 
-  return codeString
+    return codeString
 
 
 def createRunOperation(module):
