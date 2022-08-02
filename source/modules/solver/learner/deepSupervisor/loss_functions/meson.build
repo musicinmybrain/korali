@@ -8,6 +8,7 @@ install_headers(deep_learner_loss_header,
 
 deep_learner_loss_source = files([
   'mse.cpp',
+  'loss.cpp',
 ])
 
 korali_source += deep_learner_loss_header
