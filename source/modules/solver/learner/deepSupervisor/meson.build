@@ -23,3 +23,4 @@ korali_config += module_config
 subdir('optimizers')
 subdir('loss_functions')
 subdir('regularizers')
+subdir('learning_rate')
