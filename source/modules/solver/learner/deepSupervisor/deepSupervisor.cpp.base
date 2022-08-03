@@ -153,17 +153,17 @@ void __className__::initialize()
   _neuralNetwork->setConfiguration(trainingNeuralNetworkConfig);
   _neuralNetwork->initialize();
   (*_k)["Results"]["Problem"]["Description"] = _problem->_description;
-  /*****************************************************************
-   * Setting up the loss function
-   *****************************************************************/
-  if (_lossType == "Direct Gradient" || _lossType.empty())
+  /*****************************************************************************
+   * Setting up the LOSS FUNCTION
+   *****************************************************************************/
+  if (_lossFunction == "Direct Gradient" || _lossFunction.empty())
     _loss = NULL;
-  else if (_lossType == "Mean Squared Error")
+  else if (_lossFunction == "Mean Squared Error")
     _loss = new korali::loss::MSE();
   else
-    KORALI_LOG_ERROR("Unkown Loss Type %s", _lossType.c_str());
+    KORALI_LOG_ERROR("Unkown Loss Function %s", _lossFunction.c_str());
   if(_loss)
-    (*_k)["Results"]["Loss"]["Type"] = _lossType;
+    (*_k)["Results"]["Loss Function"] = _lossFunction;
   /*****************************************************************
    * Setting up possible regularizers
    *****************************************************************/
@@ -382,10 +382,6 @@ void DeepSupervisor::runEpoch()
       }
     }
     (*_k)["Results"]["Epoch"] = _epochCount;
-    if(_loss){
-      _currentTrainingLoss = _currentTrainingLoss/ (float)(_batchConcurrency*IforE);
-      (*_k)["Results"]["Training Loss"] = _currentTrainingLoss;
-    }
     // TODO: take care of remainder ==========================================================================================
     // =======================================================================================================================
     // Calculate the average validation loss
@@ -394,6 +390,10 @@ void DeepSupervisor::runEpoch()
       auto y_val = getEvaluation(_problem->_dataValidationInput);
       _currentValidationLoss = _loss->loss(y_val, _problem->_dataValidationSolution);
       (*_k)["Results"]["Validation Loss"] = _currentValidationLoss;
+    }
+    if(_loss){
+      _currentTrainingLoss = _currentTrainingLoss/ (float)(_batchConcurrency*IforE);
+      (*_k)["Results"]["Training Loss"] = _currentTrainingLoss;
     }
     // // Passing hyperparameter gradients through a gradient descent update
     _optimizer->processResult(0.0f, nnHyperparameterGradients);

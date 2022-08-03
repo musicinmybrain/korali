@@ -42,7 +42,7 @@ def plot(gen_dicts, config, others, **kwargs):
     ValidationLoss = [gen["Results"]["Validation Loss"] for gen in gen_dicts.values()]
     ax.plot(gen_dicts.keys(), ValidationLoss ,'-', label="Validation Loss", color=palette_tab10[1])
   ax.set_xlabel('Epochs')
-  ylabel = config['Results']['Loss']['Type']
+  ylabel = config['Results']['Loss Function']
   if "Regularizer" in config["Results"]:
     ylabel+= " + " + config["Results"]["Regularizer"]["Type"]
   ax.set_ylabel(ylabel)
