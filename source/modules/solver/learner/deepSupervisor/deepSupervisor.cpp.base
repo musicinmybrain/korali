@@ -398,7 +398,9 @@ void DeepSupervisor::runEpoch()
     // // Passing hyperparameter gradients through a gradient descent update
     _optimizer->processResult(0.0f, nnHyperparameterGradients);
     // // Getting new set of hyperparameters from the gradient descent algorithm
-    _neuralNetwork->setHyperparameters(_optimizer->_currentValue);
+    auto &new_hyperparameters = _optimizer->_currentValue;
+    _hyperparameters = new_hyperparameters;
+    _neuralNetwork->setHyperparameters(new_hyperparameters);
     ++_epochCount;
     (*_k)["Results"]["Mode"] = _mode;
 }
