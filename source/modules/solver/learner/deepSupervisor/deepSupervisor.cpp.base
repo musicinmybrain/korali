@@ -167,7 +167,7 @@ void __className__::initialize()
   /*****************************************************************
    * Setting up possible regularizers
    *****************************************************************/
-  if(_regularizerType.empty())
+  if(_regularizerType.empty() || _regularizerType == "None")
     _regularizer = NULL;
   else if (_regularizerType == "L1")
     _regularizer = new korali::regularizer::L1(_regularizerCoefficient);
