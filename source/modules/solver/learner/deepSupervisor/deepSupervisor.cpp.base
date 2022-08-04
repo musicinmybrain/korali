@@ -391,6 +391,11 @@ void DeepSupervisor::runEpoch()
       _currentValidationLoss = _loss->loss(y_val, _problem->_dataValidationSolution);
       (*_k)["Results"]["Validation Loss"] = _currentValidationLoss;
     }
+    if(_regularizer){
+      _currentTrainingLoss += _regularizer->penality(_neuralNetwork->getHyperparameters());
+      auto d_penalty = _regularizer->d_penality(_neuralNetwork->getHyperparameters());
+      std::transform(std::execution::par_unseq, std::begin(nnHyperparameterGradients), std::end(nnHyperparameterGradients), std::begin(d_penalty), std::begin(nnHyperparameterGradients), std::plus<float>());
+    }
     if(_loss){
       _currentTrainingLoss = _currentTrainingLoss/ (float)(_batchConcurrency*IforE);
       (*_k)["Results"]["Training Loss"] = _currentTrainingLoss;
@@ -546,13 +551,6 @@ void __className__::runTrainingOnWorker(korali::Sample &sample)
   }
   // BACKPROPAGATE the derivative of the output loss
   auto hyperparameterGradients = backwardGradients(dloss);
-  if(_regularizer){
-    // TODO add forward move constructor here for getHyperparameters
-    _currentTrainingLoss += _regularizer->penality(_neuralNetwork->getHyperparameters());
-    auto d_penalty = _regularizer->d_penality(_neuralNetwork->getHyperparameters());
-    std::transform(std::execution::par_unseq,
-                   std::begin(hyperparameterGradients), std::end(hyperparameterGradients), std::begin(d_penalty), std::begin(hyperparameterGradients), std::plus<float>());
-  }
   sample["Hyperparameter Gradients"] = hyperparameterGradients;
   if(_loss)
     sample["Training Loss"] = _currentTrainingLoss;
