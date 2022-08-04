@@ -11,7 +11,7 @@ curdir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 
 # Check if name has .png ending
 def validateOutput(output):
-  if not (output.endswith(".png") or output.endswith(".eps") or output.endswith(".svg")):
+  if not (output.endswith(".png") or output.endswith(".eps") or output.endswith(".svg") or "None"):
     print("[Korali] Error: Outputfile '{0}' must end with '.eps', '.png' or '.svg' suffix.".format(output))
     sys.exit(-1)
 
@@ -39,7 +39,7 @@ def get_generation_dicts(gen_result_files, configRunId):
 
 def main(exec_path, test, output, plotAll=False, others = None):
 
-  if test or output:
+  if test or output and output != "None":
     matplotlib.use('Agg')
 
   if output:
@@ -120,6 +120,8 @@ def main(exec_path, test, output, plotAll=False, others = None):
 
   if not output:
     plt.show()
+  elif output == "None":
+    pass
   else:
       if output.endswith('.eps'):
         plt.savefig(output, format='eps')
