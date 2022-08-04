@@ -394,7 +394,7 @@ void DeepSupervisor::runEpoch()
     if(_regularizer){
       _currentTrainingLoss += _regularizer->penality(_neuralNetwork->getHyperparameters());
       auto d_penalty = _regularizer->d_penality(_neuralNetwork->getHyperparameters());
-      std::transform(std::execution::par_unseq, std::begin(nnHyperparameterGradients), std::end(nnHyperparameterGradients), std::begin(d_penalty), std::begin(nnHyperparameterGradients), std::plus<float>());
+      std::transform(std::execution::par_unseq, std::begin(nnHyperparameterGradients), std::end(nnHyperparameterGradients), std::begin(d_penalty), std::begin(nnHyperparameterGradients), std::minus<float>());
     }
     if(_loss){
       _currentTrainingLoss = _currentTrainingLoss/ (float)(_batchConcurrency*IforE);
