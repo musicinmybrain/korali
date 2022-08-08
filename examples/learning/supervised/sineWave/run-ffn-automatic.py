@@ -26,24 +26,40 @@ parser.add_argument(
     help='Optimizer to use for NN parameter updates',
     default='Adam',
     required=False)
+# Learning Rate ==================================================
 parser.add_argument(
-    '--learningRate',
+    '--initialLearningRate',
     help='Learning rate for the selected optimizer',
-    default=0.005,
+    default=0.0001,
+    type=float,
     required=False)
 parser.add_argument(
     '--learningRateType',
     help='Learning rate type for the selected optimizer',
-    default="",
+    default="Const",
     required=False)
 parser.add_argument(
-    '--learningRateDecay',
+    '--learningRateDecayFactor',
     help='Learning rate decay factor for the selected optimizer',
     default=10,
+    type=float,
     required=False)
 parser.add_argument(
+    '--learningRateSteps',
+    help='Steps until we reduce the learning rate.',
+    default=10,
+    type=float,
+    required=False)
+parser.add_argument(
+    '--learningRateLowerBound',
+    help='Learning rate decay factor for the selected optimizer',
+    default=0.00001,
+    type=float,
+    required=False)
+# ================================================================
+parser.add_argument(
     '--trainingSetSize',
-    help='Batch size to use for training data',
+    help='Total size of the training set.',
     default=500,
     required=False)
 parser.add_argument(
@@ -146,15 +162,17 @@ e["Problem"]["Data"]["Validation"]["Solution"] = validationSolutionSet
 
 e["Solver"]["Type"] = "Learner/DeepSupervisor"
 e["Solver"]["Mode"] = "Training"
-e["Solver"]["Loss"]["Type"] = "Mean Squared Error"
+e["Solver"]["Loss Function"] = "Mean Squared Error"
 if args.regularizer:
     e["Solver"]["Regularizer"]["Type"] = "L2"
     e["Solver"]["Regularizer"]["Coefficient"] = args.regularizerCoefficient
 
-e["Solver"]["Learning Rate"] = float(args.learningRate)
-if args.learningRateType:
+e["Solver"]["Learning Rate"] = args.initialLearningRate
+if args.learningRateType != "":
     e["Solver"]["Learning Rate Type"] = args.learningRateType
-    e["Solver"]["Learning Rate Decay Factor"] = args.learningRateDecay
+    e["Solver"]["Learning Rate Decay Factor"] = args.learningRateDecayFactor
+    e["Solver"]["Learning Rate Lower Bound"] = args.learningRateLowerBound
+    e["Solver"]["Learning Rate Steps"] = args.learningRateSteps
     e["Solver"]["Learning Rate Save"] = True
 
 e["Solver"]["Batch Concurrency"] = 1
@@ -177,7 +195,6 @@ e["Solver"]["Neural Network"]["Hidden Layers"][3]["Type"] = "Layer/Activation"
 e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tanh"
 
 ### Configuring output
-
 e["Console Output"]["Frequency"] = 1
 e["Console Output"]["Verbosity"] = "Normal"
 e["File Output"]["Enabled"] = args.save
