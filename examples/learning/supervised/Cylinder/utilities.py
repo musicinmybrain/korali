@@ -38,7 +38,7 @@ def initialize_constants():
     global DETAILED
     DETAILED = "Detailed"
     global SCRATCH
-    SCRATCH = os.environ['SCRATCH'] if "SCRATCH" in os.environ else False
+    SCRATCH = os.environ['SCRATCH'] if "SCRATCH" in os.environ else ""
     global HOME
     HOME = os.environ['HOME']
     global DATE_FORMAT
@@ -52,15 +52,17 @@ def initialize_constants():
     global RE100
     RE100 = "RE100"
     global PATH_DATA_TEST_1000
-    BASE_PROJECT_PATH = os.path.normpath("/project/s929/pollakg/cyl/_data")
+    # BASE_PROJECT_PATH = os.path.normpath("/project/s929/pollakg/cyl/_data")
+    BASE_PROJECT_PATH = os.path.normpath("/home/pollakg/polybox/CSE/master/6th_term/master_thesis/korali/examples/learning/supervised/Cylinder/_data/")
     PATH_DATA_TEST_1000 = os.path.join(BASE_PROJECT_PATH, "data.pickle")
     global PATH_DATA_TEST_128
     PATH_DATA_TEST_128 = os.path.join(BASE_PROJECT_PATH, "test.pickle")
     global PATH_DATA_RE100
-    PATH_DATA_RE100 = "/project/s929/pollakg/cyl/cylRe100HR/Data/"
+    # PATH_DATA_RE100 = "/project/s929/pollakg/cyl/cylRe100HR/Data/"
+    PATH_DATA_RE100 = os.path.join(BASE_PROJECT_PATH, "cylRe100HR/Data")
     global PATH_DATA_RE1000
-    PATH_DATA_RE1000 = "/project/s929/pollakg/cyl/cylRe1000HR/Data/test/"
-
+    # PATH_DATA_RE1000 = "/project/s929/pollakg/cyl/cylRe1000HR/Data/test/"
+    PATH_DATA_RE1000 = os.path.join(BASE_PROJECT_PATH, "cylRe1000HR/Data/test")
 
 def min_max_scalar(arr):
     """Scales data to [0, 1] range.
@@ -71,48 +73,6 @@ def min_max_scalar(arr):
     """
     return (arr - arr.min()) / (arr.max() - arr.min())
 
-
-def print_header(text="", width=80, sep="=", color=None):
-    """Print header with seperator.
-
-    :param text:
-    :param width:
-    :param sep:
-    :returns:
-    """
-    if len(text) == 0:
-        text = sep*width
-        if color:
-            text = color + text + bcolors.ENDC
-        print(text)
-    else:
-        txt_legnth = len(text)+2
-        fill_width = int((width-txt_legnth)/2)
-        if color:
-            text = color + text + bcolors.ENDC
-        print(sep*fill_width+" "+text+" "+sep*fill_width)
-
-
-def print_args(d, header_text="Running with args", color=None, width=30, header_width=80, sep="="):
-    """Print args from args parser formated nicely.
-
-    :param d:
-    :param heder_text:
-    :param width:
-    :param header_width:
-    :param sep:
-    :returns:
-    """
-    print_header(header_text, color=color)
-    for key, value in d.items():
-        # print('\t' * indent + str(key))
-        # if isinstance(value, dict):
-        #    pretty(value, indent+1)
-        # else:
-        #     print('\t' * (indent+1) + str(value))
-        out_string = '\t{:<{width}} {:<}'.format(key, value, width=width)
-        print(out_string)
-    print_header()
 
 def get_output_dim(I, P1, P2, K, S):
     img = (I+P1+P2-K)
@@ -175,7 +135,6 @@ class bcolors:
 
     Example: print(bcolors.WARNING + "Warning" + bcolors.ENDC)
     """
-
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
     OKCYAN = '\033[96m'
@@ -190,7 +149,10 @@ class bcolors:
 def exp_dir_str(args):
     """Return experiments output file path relative to the current script directory.
 
-    :param args: argument parser
+    :param args: expect argument parser agument with:
+    - model name
+    - latent dim
+    - possibly empty string that may be append such as the date
     :returns: path
     """
     return os.path.join("_korali_result", args.model, f"lat{args.latent_dim}", args.output_dir_append)
@@ -203,12 +165,11 @@ def make_parser():
         "--engine", help="NN backend to use", default="OneDNN", required=False
     )
     parser.add_argument(
-        "--max-generations",
-        help="Maximum Number of generations to run",
-        default=1,
-        type=int,
-        required=False,
-    )
+    '--epochs',
+    help='Maximum Number of epochs to run',
+    default=1000,
+    type=int,
+    required=False)
     parser.add_argument(
         "--optimizer",
         help="Optimizer to use for NN parameter updates",
@@ -235,26 +196,51 @@ def make_parser():
         required=False,
     )
     parser.add_argument(
-        "--train-split", help="If 0<--train-split<=1 fraction of training samples; \
+        "--train-split", help="Split into training and testing for test data TEST128 and TEST1000\
+        If 0<--train-split<=1 fraction of training samples; \
         else number of training samples",
         default=6*128,
         required=False,
         type=float
     )
     parser.add_argument(
-        "--learning-rate",
-        help="Learning rate for the selected optimizer",
-        default=0.0001,
+        "--validation-split", help="If 0<--validation-split<=1 fraction of training samples; \
+        else number of training samples",
+        default=6*128,
         required=False,
         type=float
     )
+    # Learning Rate ==================================================
     parser.add_argument(
-        "--decay",
-        help="Decay of the learning rate.",
+        '--initialLearningRate',
+        help='Learning rate for the selected optimizer',
         default=0.0001,
-        required=False,
-        type=float
-    )
+        type=float,
+        required=False)
+    parser.add_argument(
+        '--learningRateType',
+        help='Learning rate type for the selected optimizer',
+        default="Time Based",
+        required=False)
+    parser.add_argument(
+        '--learningRateDecayFactor',
+        help='Learning rate decay factor for the selected optimizer',
+        default=10,
+        type=float,
+        required=False)
+    parser.add_argument(
+        '--learningRateSteps',
+        help='Steps until we reduce the learning rate.',
+        default=10,
+        type=float,
+        required=False)
+    parser.add_argument(
+        '--learningRateLowerBound',
+        help='Learning rate decay factor for the selected optimizer',
+        default=0.00001,
+        type=float,
+        required=False)
+    # ================================================================
     parser.add_argument(
         "--training-batch-size",
         help="Batch size to use for training data; must divide the --train-split",
@@ -275,13 +261,16 @@ def make_parser():
         default="",
         required=False,
     )
-    parser.add_argument("--epochs", help="Number of epochs", default=100, type=int, required=False)
     parser.add_argument(
         "--latent-dim",
         help="Latent dimension of the encoder",
         default=10,
         required=False,
-        # [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 20, 24, 28, 32, 36, 40, 64]
+        type=int
+        # 7
+        # 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 20, 24, 28, 32, 36, 40, 64
+        # 1:5
+        # 1:6:2
     )
     parser.add_argument(
         "--conduit",
@@ -291,8 +280,12 @@ def make_parser():
         required=False,
     )
     parser.add_argument("--test", action="store_true")
-    parser.add_argument("--overwrite", action="store_true")
-    parser.add_argument("--file-output", action="store_true")
+    parser.add_argument(
+        "--file-output",
+        help="Whether to save results to result file.",
+        required=False,
+        action="store_true"
+    )
     parser.add_argument(
         "--frequency",
         help="Change output frequency [per generation]",
@@ -314,12 +307,32 @@ def make_parser():
     )
     return parser
 
+def remove_argument(parser, arg):
+    """Removes an element from an argparser object.
 
-def get_prediction(X):
+    :param parser: argsparser object.
+    :param arg: dest argument to be removed without the dashes.
+    """
+    for action in parser._actions:
+        opts = action.option_strings
+        if (opts and opts[0] == arg) or action.dest == arg:
+            parser._remove_action(action)
+            break
+        else:
+            print(f"Action {arg} not found in parser.")
+            return
+
+    for action in parser._action_groups:
+        for group_action in action._group_actions:
+            if group_action.dest == arg:
+                action._group_actions.remove(group_action)
+                return
+
+def get_last_timestep(X):
     """Return the output of the last timestep.
 
     :param X: list of samples X[sample][timesteps][features]
-    :returns: list of X[time][-1][features]
+    :returns: list of X[Samples][-1][features]
     """
     return [x[-1] for x in X]
 
