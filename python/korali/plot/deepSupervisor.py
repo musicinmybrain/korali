@@ -52,7 +52,7 @@ def plot(gen_dicts, config, others, **kwargs):
     ylabel+= " + " + config["Results"]["Regularizer"]["Type"]
   ax.set_ylabel(ylabel)
   if "Description" in config["Results"]:
-    ax.set_title(config["Results"]["Description"])
+    ax.set_title(config["Results"]["Description"].capitalize())
   plt.legend()
   if 'Learning Rate' in config['Results']:
     ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis

@@ -154,7 +154,7 @@ void __className__::initialize()
   _neuralNetwork->applyModuleDefaults(trainingNeuralNetworkConfig);
   _neuralNetwork->setConfiguration(trainingNeuralNetworkConfig);
   _neuralNetwork->initialize();
-  (*_k)["Results"]["Problem"]["Description"] = _problem->_description;
+  (*_k)["Results"]["Description"] = _problem->_description;
   /*****************************************************************************
    * Setting up the LOSS FUNCTION
    *****************************************************************************/
