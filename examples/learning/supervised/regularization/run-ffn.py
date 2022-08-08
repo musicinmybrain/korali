@@ -11,7 +11,12 @@ import copy
 import argparse
 import seaborn as sns
 sns.set()
-palette_tab10 = sns.color_palette("tab10", 10)
+palette = sns.color_palette("tab10")
+train_c = palette[2]
+val_c = palette[3]
+lr_c = palette[5]
+test_c = palette[4]
+f_c = palette[0]
 plt.rcParams['text.usetex'] = True
 
 def set_complex_model(e, input_dims):
@@ -68,7 +73,7 @@ parser.add_argument(
 parser.add_argument(
     '--epochs',
     help='Maximum Number of epochs to run',
-    default=30000,
+    default=10000,
     type=int,
     required=False)    
 parser.add_argument(
@@ -76,10 +81,12 @@ parser.add_argument(
     help='Optimizer to use for NN parameter updates',
     default='Adam',
     required=False)
+# Learning Rate ==================================================
 parser.add_argument(
-    '--learningRate',
+    '--initialLearningRate',
     help='Learning rate for the selected optimizer',
-    default=0.005,
+    default=0.001,
+    type=float,
     required=False)
 parser.add_argument(
     '--learningRateType',
@@ -87,19 +94,38 @@ parser.add_argument(
     default="Const",
     required=False)
 parser.add_argument(
-    '--learningRateDecay',
+    '--learningRateDecayFactor',
     help='Learning rate decay factor for the selected optimizer',
     default=10,
+    type=float,
     required=False)
+parser.add_argument(
+    '--learningRateSteps',
+    help='Steps until we reduce the learning rate.',
+    default=300,
+    type=float,
+    required=False)
+parser.add_argument(
+    '--learningRateLowerBound',
+    help='Learning rate decay factor for the selected optimizer',
+    default=0.00001,
+    type=float,
+    required=False)
+# ================================================================
 parser.add_argument(
     '--trainingSetSize',
     help='Batch size to use for training data',
-    default=50,
+    default=100,
     required=False)
 parser.add_argument(
     '--trainingBatchSize',
     help='Batch size to use for training data',
     default=20,
+    required=False)
+parser.add_argument(
+    '--validationSplit',
+    help='Batch size to use for validation data',
+    default=0.1,
     required=False)
 parser.add_argument(
     '--testBatchSize',
@@ -118,18 +144,6 @@ parser.add_argument(
     default=0.05,
     type=float,
     required=False)
-parser.add_argument(
-    '--validationSplit',
-    help='Batch size to use for validation data',
-    default=0.1,
-    required=False)
-parser.add_argument(
-    "-n",
-    "--noise",
-    help="Indicates",
-    required=False,
-    action="store_true"
-)
 parser.add_argument(
     "-p",
     "--plot",
@@ -191,8 +205,8 @@ X_test_k = X_test.flatten().tolist()
 y_train_k = y_train.flatten().tolist()
 y_test_k = y_test.flatten().tolist()
 X_train_k = [ [[x]] for x in X_train_k ]
-X_test_k = [ [[x]] for x in X_test_k ]
 y_train_k = [ [y] for y in y_train_k ]
+X_test_k = [ [[x]] for x in X_test_k ]
 y_test_k = [ [y] for y in y_test_k ]
 
 
@@ -214,19 +228,18 @@ for i, path in enumerate(["_korali_result", "_korali_resultL2"]):
     e["Problem"]["Input"]["Size"] = 1
     e["Problem"]["Solution"]["Data"] = y_train_k
     e["Problem"]["Solution"]["Size"] = 1
-
-    # e["Problem"]["Data"]["Validation"]["Input"] = validationInputSet
     e["Solver"]["Data"]["Validation"]["Split"] = args.validationSplit
-    # ### Using a neural network solver (deep learning) for training
 
     e["Solver"]["Type"] = "Learner/DeepSupervisor"
     e["Solver"]["Mode"] = "Training"
-    e["Solver"]["Loss"]["Type"] = "Mean Squared Error"
+    e["Solver"]["Loss Function"] = "Mean Squared Error"
 
-    e["Solver"]["Learning Rate"] = float(args.learningRate)
+    e["Solver"]["Learning Rate"] = args.initialLearningRate
     if args.learningRateType:
         e["Solver"]["Learning Rate Type"] = args.learningRateType
-        e["Solver"]["Learning Rate Decay Factor"] = args.learningRateDecay
+        e["Solver"]["Learning Rate Decay Factor"] = args.learningRateDecayFactor
+        e["Solver"]["Learning Rate Lower Bound"] = args.learningRateLowerBound
+        e["Solver"]["Learning Rate Steps"] = args.learningRateSteps
         e["Solver"]["Learning Rate Save"] = True
 
     e["Solver"]["Batch Concurrency"] = 1
@@ -242,13 +255,13 @@ for i, path in enumerate(["_korali_result", "_korali_resultL2"]):
     e["Console Output"]["Frequency"] = 1
     e["Console Output"]["Verbosity"] = "Normal"
     e["File Output"]["Enabled"] = args.save
-    e["File Output"]["Frequency"] = 1 if args.epochs <= 100 else args.epochs/100
+    # e["File Output"]["Frequency"] = 1 if args.epochs <= 100 else args.epochs/10
     e["File Output"]["Path"] = path
     e["Save"]["Problem"] = False
     e["Save"]["Solver"] = False
     e["Random Seed"] = 0xC0FFEE
 
-    ### Training the neural network
+    ### Loading previous models
     if(args.load_model):
         args.validationSplit = 0.0
         isStateFound = e.loadState("_korali_result/latest")
@@ -263,32 +276,40 @@ for i, path in enumerate(["_korali_result", "_korali_resultL2"]):
     eList.append(e)
 k.run(eList)
 
-for i in range(2):
+# ### Plotting Training Results
+fig, axes = plt.subplots(2)
+if (args.plot):
+    for i, type in enumerate(["","$+ \\lambda||w||^2$"]):
+        axes[i].plot(np.linspace(x_min, x_max, 400), f(np.linspace(x_min, x_max, 400)), label="$f(x)$", color = f_c)
+        axes[i].scatter(eList[i]["Problem"]["Input"]["Data"], eList[i]["Problem"]["Solution"]["Data"], label="$y_{\\textrm{train}}=f(x)+\\epsilon$", color=train_c)
+        axes[i].scatter(eList[i]["Problem"]["Data"]["Validation"]["Input"], eList[i]["Problem"]["Data"]["Validation"]["Solution"], label="$y_{\\textrm{val}}=f(x)+\\epsilon$", color=val_c)
+
+for i, _ in enumerate(eList):
     # # ### Obtaining inferred results from the NN and comparing them to the actual solution
     eList[i]["Solver"]["Mode"] = "Predict"
     eList[i]["Problem"]["Input"]["Data"] = X_test_k
     # ### Running Testing and getting results
     eList[i]["File Output"]["Enabled"] = False
 k.run(eList)
+
 yhat = []
 weight_sum = []
-for i in range(2):
+for i, _ in enumerate(eList):
     yhat.append([ y[0] for y in eList[i]["Solver"]["Evaluation"] ])
     weight_sum.append(sum([ w**2 for w in eList[i]["Solver"]["Hyperparameters"] ]))
 
-# ### Plotting Results
+# ### Plotting Testing Results
 if (args.plot):
-    fig, axes = plt.subplots(2)
     for i, type in enumerate(["","$+ \\lambda||w||^2$"]):
-        axes[i].plot(np.linspace(x_min, x_max, 400), f(np.linspace(x_min, x_max, 400)), label="$f(x)$")
-        axes[i].scatter(X_train, y_train, label="$f(x)+\\epsilon$", color='orange')
+    # for i, type in enumerate([""]):
         l = "" if type == "" else " and $\\lambda = $" + f'{args.regularizerCoefficient:.4f}'
-        axes[i].plot(X_test, yhat[i], label="$\\hat{y}(x)$ "+type+" with $||w||^2 = $ " + f'{weight_sum[i]:.4f}'+l, color='green')
+        axes[i].plot(X_test, yhat[i], label="$\\hat{y}(x)$ "+type+" with $||w||^2 = $ " + f'{weight_sum[i]:.4f}'+l, color=test_c)
         axes[i].legend()
         axes[i].set_yscale("linear")
     for p in ["_korali_result", "_korali_resultL2"]:
+    # for p in ["_korali_result"]:
         SAVE_PLOT = "None"
-        main(p, False, SAVE_PLOT, False, ["--yscale", "log"])
+        main(p, False, SAVE_PLOT, False, ["--yscale", "linear"])
     plt.show()
 
 print_header(width=140)
