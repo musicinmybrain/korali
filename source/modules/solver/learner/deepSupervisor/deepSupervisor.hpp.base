@@ -18,6 +18,8 @@
 #include "modules/solver/learner/deepSupervisor/regularizers/l1.hpp"
 #include "modules/solver/learner/deepSupervisor/learning_rate/learning_rate.hpp"
 #include "modules/solver/learner/deepSupervisor/learning_rate/decay.hpp"
+#include "modules/solver/learner/deepSupervisor/learning_rate/step_based_decay.hpp"
+#include "modules/solver/learner/deepSupervisor/learning_rate/time_based_decay.hpp"
 
 __startNamespace__;
 

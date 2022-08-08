@@ -177,17 +177,24 @@ void __className__::initialize()
     KORALI_LOG_ERROR("Unkown Regularizer Type %s", _regularizerType.c_str());
   if(_regularizer)
     (*_k)["Results"]["Regularizer"]["Type"] = _regularizerType;
-  /*****************************************************************
-   * Setting up the learning rate (function)
-   *****************************************************************/
-  if (_learningRateType == "Const")
+  /*****************************************************************************
+   * Setting up the LEARNING RATE (function)
+   *****************************************************************************/
+  if (_learningRateType == "Const" || _learningRateType.empty()){
     _learning_rate = new korali::learning_rate::LearningRate(_learningRate);
-  else if (_learningRateType == "Decay"){
-    if(_learningRateMin)
-      _learning_rate = new korali::learning_rate::Decay(_learningRate, _learningRateDecayFactor, _learningRateMin);
-    else
-      _learning_rate = new korali::learning_rate::Decay(_learningRate, _learningRateDecayFactor);
-  } else
+  } else if (_learningRateType == "Step Based"){
+    _learning_rate = new korali::learning_rate::StepDecay(_learningRate, _learningRateDecayFactor, _learningRateSteps);
+  } else if (_learningRateType == "Time Based"){
+    _learning_rate = new korali::learning_rate::TimeDecay(_learningRate, _learningRateDecayFactor);
+  }
+    // else if (_learningRateType == "Decay"){
+    //   if(_learningRateLowerBound)
+    //     _learning_rate = new korali::learning_rate::Decay(_learningRate, _learningRateDecayFactor, _learningRateLowerBound);
+    //   else
+      // _learning_rate = new korali::learning_rate::Decay(_learningRate, _learningRateDecayFactor);
+    // } else if (_learningRateType == "Custom")
+    // TODO possibility to add custom functions
+  else
     KORALI_LOG_ERROR("Unkown learning rate type provided %s", _learningRateType.c_str());
   /*****************************************************************
    * Initializing NN hyperparameters
@@ -300,6 +307,7 @@ void DeepSupervisor::runEpoch()
     if (_batchConcurrency > _k->_engine->_conduit->getWorkerCount()) KORALI_LOG_ERROR("The batch concurrency requested (%lu) exceeds the number of Korali workers defined in the conduit type/configuration (%lu).", _batchConcurrency, _k->_engine->_conduit->getWorkerCount());
     // Updating solver's learning rate, if changed
     _optimizer->_eta = _learning_rate->get(_epochCount);
+    _optimizer->_eta = _learning_rate->get(this);
     if(_learningRateSave)
       (*_k)["Results"]["Learning Rate"] = _optimizer->_eta;
     // Checking that incoming data has a correct format
