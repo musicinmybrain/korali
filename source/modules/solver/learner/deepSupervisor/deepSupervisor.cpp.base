@@ -23,6 +23,15 @@ void __className__::initialize()
   // Don't reinitialize if experiment was already initialized
   if (_k->_isInitialized == true) return;
 
+  if(_dataInputShuffel){
+    std::random_device r;
+    std::seed_seq seed{r(), r(), r(), r(), r(), r(), r(), r()};
+    // create two random engines with the same state
+    input_reng = std::mt19937(seed);
+    solution_reng = input_reng;
+    shuffle(_problem->_inputData.begin(), _problem->_inputData.end(), input_reng);
+    shuffle(_problem->_solutionData.begin(), _problem->_solutionData.end(), solution_reng);
+  }
   // Data ========================================================================
   std::vector<size_t> batchSizes;
   // VALIDATION SET ======
@@ -31,8 +40,7 @@ void __className__::initialize()
     NV = _problem->_dataValidationInput.size();
     if((_problem->_dataValidationInput.size() || _problem->_dataValidationSolution.size()) && _dataValidationSplit )
       KORALI_LOG_ERROR("You cannot have a validation set as input as well as a validation split to split the training data.");
-    // Split validation set here =======================
-    // TODO: shuffel
+    // Validation Split is given ===========================================================================
     if(_dataValidationSplit) {
       if(0 < _dataValidationSplit &&  _dataValidationSplit < 1){
         // Choose fraction from training data for validation split
@@ -58,6 +66,7 @@ void __className__::initialize()
       assert(N == _problem->_inputData.size());
       assert(N == _problem->_solutionData.size());
     }
+    // =====================================================================================================
     batchSizes.push_back(NV);
     if (_batchConcurrency > 1){
       // If we parallize by _batchConcurrency workers, we need to support the split up batch size as well
@@ -85,13 +94,6 @@ void __className__::initialize()
   }
   if(_learningRateSave)
     (*_k)["Results"]["Learning Rate"] = true;
-  if(_dataTrainingShuffel){
-    std::random_device r;
-    std::seed_seq seed{r(), r(), r(), r(), r(), r(), r(), r()};
-    // create two random engines with the same state
-    input_reng = std::mt19937(seed);
-    solution_reng = input_reng;
-  }
   // ================================================================================================
 
   /*****************************************************************
@@ -324,7 +326,6 @@ void DeepSupervisor::runEpoch()
     // =============================================================================
     size_t IforE = N / BS;
     const auto nnHyperparameters = _neuralNetwork->getHyperparameters();
-    // TODO: check if we can avoide this
     if(_dataTrainingShuffel){
       shuffle(_problem->_inputData.begin(), _problem->_inputData.end(), input_reng);
       shuffle(_problem->_solutionData.begin(), _problem->_solutionData.end(), solution_reng);
