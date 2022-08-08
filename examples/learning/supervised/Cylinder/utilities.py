@@ -199,28 +199,36 @@ def make_parser():
         "--train-split", help="Split into training and testing for test data TEST128 and TEST1000\
         If 0<--train-split<=1 fraction of training samples; \
         else number of training samples",
-        default=6*128,
+        default=128,
         required=False,
         type=float
     )
     parser.add_argument(
+        "--training-batch-size",
+        help="Batch size to use for training data; must divide the --train-split",
+        type=int,
+        default=28,
+        required=False,
+    )
+    parser.add_argument(
         "--validation-split", help="If 0<--validation-split<=1 fraction of training samples; \
         else number of training samples",
-        default=6*128,
+        default=128-4*28,
         required=False,
         type=float
     )
     # Learning Rate ==================================================
     parser.add_argument(
-        '--initialLearningRate',
-        help='Learning rate for the selected optimizer',
-        default=0.0001,
-        type=float,
-        required=False)
-    parser.add_argument(
         '--learningRateType',
         help='Learning rate type for the selected optimizer',
-        default="Time Based",
+        default="Const",
+        choices=["", "Const", "Time Based", "Step Based"],
+        required=False)
+    parser.add_argument(
+        '--initialLearningRate',
+        help='Learning rate for the selected optimizer',
+        default=0.001,
+        type=float,
         required=False)
     parser.add_argument(
         '--learningRateDecayFactor',
@@ -237,17 +245,10 @@ def make_parser():
     parser.add_argument(
         '--learningRateLowerBound',
         help='Learning rate decay factor for the selected optimizer',
-        default=0.00001,
+        default=0.0000001,
         type=float,
         required=False)
     # ================================================================
-    parser.add_argument(
-        "--training-batch-size",
-        help="Batch size to use for training data; must divide the --train-split",
-        type=int,
-        default=4,
-        required=False,
-    )
     parser.add_argument(
         "--batch-concurrency",
         help="Batch Concurrency for the minibatches",
@@ -281,8 +282,14 @@ def make_parser():
     )
     parser.add_argument("--test", action="store_true")
     parser.add_argument(
-        "--file-output",
+        "--save",
         help="Whether to save results to result file.",
+        required=False,
+        action="store_true"
+    )
+    parser.add_argument(
+        "--overwrite",
+        help="Whether to overwrite the current results file.",
         required=False,
         action="store_true"
     )
@@ -298,11 +305,18 @@ def make_parser():
                         help='Model to use.', default=AUTOENCODER)
     parser.add_argument('--verbosity',
                         choices=[SILENT, NORMAL, DETAILED],
-                        help='Verbosity Level', default="Detailed")
+                        help='Verbosity Level', default="Normal")
+    parser.add_argument(
+        "-l",
+        "--load-model",
+        help="Whether to load the model from a previous run.",
+        required=False,
+        action="store_true"
+    )
     parser.add_argument(
         "--plot",
         help="Indicates whether to plot results after testing",
-        default=False,
+        action="store_true",
         required=False,
     )
     return parser
@@ -537,9 +551,9 @@ class DataLoader():
         - X_val (if available)
         """
         self.load_data()
-        assert len(self.X_train) % self.training_batch_size == 0, \
-            "Batch Size {} must divide the number of training samples {}"\
-            .format(self.training_batch_size, len(self.X_train))
+        # assert len(self.X_train) % self.training_batch_size == 0, \
+        #     "Batch Size {} must divide the number of training samples {}"\
+        #     .format(self.training_batch_size, len(self.X_train))
 
     def __len__(self):
         """Return the number of samples."""
@@ -598,7 +612,7 @@ class HDF5Dataset(data.Dataset):
         """Wrapper Class for better item access.
 
         Allows us to access items as data[sample][time]
-        wher both sample and time are integers.
+        where both sample and time are integers.
         Gets returned from __getitem__ of HDF5Dataset.
         """
 

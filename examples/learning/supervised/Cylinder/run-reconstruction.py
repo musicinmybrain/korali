@@ -6,6 +6,7 @@ from sklearn.preprocessing import MinMaxScaler
 import korali
 import shutil
 import time
+import matplotlib.pyplot as plt
 from mpi4py import MPI
 sys.path.append('./_models')
 sys.path.append('./_scripts')
@@ -32,12 +33,17 @@ parser = make_parser()
 isMaster = lambda: args.conduit != constants.DISTRIBUTED or (args.conduit == constants.DISTRIBUTED and MPIrank == MPIroot)
 
 iPython = True
-if len(sys.argv) != 0:
-    if sys.argv[0] in ["/usr/bin/ipython", "/users/pollakg/.local/bin/ipython"]:
-        sys.argv = ['']
-        ipython = True
+if sys.argv[0] in ["/usr/bin/ipython", "/users/pollakg/.local/bin/ipython"]:
+    a = ['--data-type', 'test128', '--plot', '--epochs', '50', '--save', '--overwrite', '--learningRateType', 'Time Based', '--initialLearningRate', '0.01', '--learningRateDecayFactor', '0.001', '--learningRateLowerBound', '0.001']
+    ipython = True
+    args = parser.parse_args(a)
+else:
+    args = parser.parse_args()
 
-args = parser.parse_args()
+if args.learningRateType == "" or args.learningRateType == "Const":
+    del args.learningRateDecayFactor
+    del args.learningRateLowerBound
+    del args.learningRateSteps
 
 if args.verbosity != constants.SILENT and isMaster():
     print_header('Korali', color=bcolors.HEADER, width=140)
@@ -99,26 +105,33 @@ RESULT_DIR_ON_HOME = os.path.join(constants.HOME, RESULT_DIR_WITHOUT_SCRATCH)
 
 e = korali.Experiment()
 
-if args.file_output:
+if args.save:
     # Note: korali appends ./ => requires relative path i.e. ../../../..
-    e["File Output"]["Path"] = RESULT_DIR
+    e["File Output"]["Path"] = EXPERIMENT_DIR
     if isMaster():
+        if args.overwrite:
+            shutil.rmtree(RESULT_DIR, ignore_errors=True)
         os.makedirs(RESULT_DIR, exist_ok=True)
         if constants.SCRATCH:
             os.makedirs(RESULT_DIR_ON_HOME, exist_ok=True)
 
 # Loading previous models ==================================================
-# isStateFound = e.loadState(os.path.join(RESULT_DIR, "/latest"))
-# if isMaster() and isStateFound and args.verbosity != constants.SILENT:
-#     print("[Script] Evaluating previous run...\n")
+isStateFound = False
+if args.load_model:
+    model_file = os.path.join(RESULT_DIR, 'latest')
+    isStateFound = e.loadState(model_file)
+    if not isStateFound:
+        sys.exit(f"No model file for {model_file} found")
+    if isMaster() and isStateFound and args.verbosity != constants.SILENT:
+        print("[Script] Evaluating previous run...\n")
 e["Random Seed"] = 0xC0FFEE
 k["Conduit"]["Type"] = args.conduit
 
-e["Problem"]["Description"] = "Autoencoder - Flow behind the cylinder."
+e["Problem"]["Description"] = f"{args.model} with encoder dim {args.latent_dim} trained on data {args.data_type}"
 e["Problem"]["Type"] = "Supervised Learning"
 e["Problem"]["Max Timesteps"] = TIMESTEPS+1
 e["Problem"]["Training Batch Size"] = args.training_batch_size
-# e["Problem"]["Testing Batch Size"] = testingBatchSize
+e["Problem"]["Testing Batch Size"] = nb_test_samples
 
 e["Problem"]["Input"]["Data"] = X_train
 e["Problem"]["Input"]["Size"] = timesteps*input_channels*img_width*img_height
@@ -131,10 +144,14 @@ e["Solver"]["Mode"] = "Training"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
 e["Solver"]["Neural Network"]["Engine"] = args.engine
 e["Solver"]["Batch Concurrency"] = args.batch_concurrency
-e["Solver"]["Data"]["Validation"]["Split"] = args.validation_split
+if isStateFound:
+    # Use validation and input set from previous run
+    e["Solver"]["Data"]["Validation"]["Split"] = 0.0
+else:
+    e["Solver"]["Data"]["Validation"]["Split"] = args.validation_split
 # Learning Rate =====================================================
 e["Solver"]["Learning Rate"] = args.initialLearningRate
-if args.learningRateType != "":
+if not args.learningRateType or args.learningRateType != "Const":
     e["Solver"]["Learning Rate Type"] = args.learningRateType
     e["Solver"]["Learning Rate Decay Factor"] = args.learningRateDecayFactor
     e["Solver"]["Learning Rate Lower Bound"] = args.learningRateLowerBound
@@ -143,57 +160,19 @@ if args.learningRateType != "":
 # ====================================================================
 e["Solver"]["Neural Network"]["Optimizer"] = args.optimizer
 e["Solver"]["Termination Criteria"]["Epochs"] = args.epochs
-# e["Problem"]["Input"]["Data"] = X_test
-# e["Problem"]["Solution"]["Data"] = y_test
 
 # ===================== Model Selection ====================================
-# if args.model == constants.AUTOENCODER:
-#     configure_autencoder(e, img_width, img_height, TIMESTEPS, input_channels, args.latent_dim)
-# else:
-#     configure_cnn_autencoder(e, args.latent_dim, img_width, img_height, input_channels)
-
-input_size = output_size = img_width*img_height*input_channels
-img_height_red = img_height/2
-img_width_red = img_width/2
-# ===================== Input Layer
-e["Problem"]["Input"]["Size"] = input_size
-# ===================== Down Sampling
-e["Solver"]["Neural Network"]["Hidden Layers"][0]["Resampling Type"] = "Linear"
-e["Solver"]["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Resampling"
-e["Solver"]["Neural Network"]["Hidden Layers"][0]["Image Width"] = img_width
-e["Solver"]["Neural Network"]["Hidden Layers"][0]["Image Height"] = img_height
-e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Width"] = img_width_red
-e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Height"] = img_height_red
-e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Channels"] = input_channels*img_height_red*img_width_red
-# ===================== Encoder
-e["Solver"]["Neural Network"]["Hidden Layers"][1]["Type"] = "Layer/Linear"
-e["Solver"]["Neural Network"]["Hidden Layers"][1]["Output Channels"] = args.latent_dim
-## Activation ========================
-e["Solver"]["Neural Network"]["Hidden Layers"][2]["Type"] = "Layer/Activation"
-e["Solver"]["Neural Network"]["Hidden Layers"][2]["Function"] = "Elementwise/ReLU"
-##  =================== Decoder
-e["Solver"]["Neural Network"]["Hidden Layers"][3]["Type"] = "Layer/Linear"
-e["Solver"]["Neural Network"]["Hidden Layers"][3]["Output Channels"] = input_channels*img_height_red*img_width_red
-# ===================== Up Sampling
-e["Solver"]["Neural Network"]["Output Layer"]["Resampling Type"] = "Linear"
-e["Solver"]["Neural Network"]["Output Layer"]["Type"] = "Layer/Resampling"
-e["Solver"]["Neural Network"]["Output Layer"]["Image Width"] = img_width_red
-e["Solver"]["Neural Network"]["Output Layer"]["Image Height"] = img_height_red
-e["Solver"]["Neural Network"]["Output Layer"]["Output Width"] = img_width
-e["Solver"]["Neural Network"]["Output Layer"]["Output Height"] = img_height
-e["Solver"]["Neural Network"]["Output Layer"]["Output Channels"] = input_channels*img_width*img_height
-# Activation ========================
-e["Solver"]["Neural Network"]["Output Activation"] = "Elementwise/Logistic"
-e["Problem"]["Solution"]["Size"] = output_size
-
+if args.model == constants.AUTOENCODER:
+    configure_autencoder(e, img_width, img_height, TIMESTEPS, input_channels, args.latent_dim)
+else:
+    configure_cnn_autencoder(e, args.latent_dim, img_width, img_height, input_channels)
 ### Configuring output
 e["Console Output"]["Verbosity"] = "Normal"
 ### Configuring output
-e["File Output"]["Enabled"] = args.file_output
-e["Console Output"]["Verbosity"] = args.verbosity
 e["Console Output"]["Frequency"] = 1
-e["Console Output"]["Verbosity"] = "Normal"
-e["File Output"]["Frequency"] = 1 if args.epochs <= 100 else args.epochs/100
+e["Console Output"]["Verbosity"] = args.verbosity
+e["File Output"]["Enabled"] = args.save
+e["File Output"]["Frequency"] = 1 if args.epochs <= 100 else args.epochs/10
 e["Save"]["Problem"] = False
 e["Save"]["Solver"] = False
 
@@ -202,19 +181,29 @@ if args.conduit == constants.DISTRIBUTED:
 
 # TRAINING ===============================================================================
 k.run(e)
-# # TESTING ================================================================================
-# e["Solver"]["Mode"] = "Testing"
-# k.run(e)
+# Predicting ================================================================================
+e["Problem"]["Input"]["Data"] = X_test
+e["Solver"]["Mode"] = "Predict"
+k.run(e)
 
 # Move Result dir back to HOME ===========================================================
 if isMaster():
-    if args.file_output:
+    if args.save:
         # Writing testing error to output
         if constants.SCRATCH:
             # move_dir(RESULT_DIR, RESULT_DIR_ON_HOME)
             # copy_dir(RESULT_DIR, RESULT_DIR_ON_HOME)
             pass
 # Plotting      ===========================================================================
+SAMPLES_TO_DISPLAY = 4
 if args.plot:
-    pass
+    arr_to_img = lambda img : np.reshape(img, (32, 64))
+    fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
+    for idx, row in enumerate(axes):
+        row[0].imshow(arr_to_img(e["Problem"]["Solution"]["Data"][idx]))
+        row[1].imshow(arr_to_img(e["Solver"]["Evaluation"][idx]))
+    SAVE_PLOT = "None"
+    main(RESULT_DIR, False, SAVE_PLOT, False, ["--yscale", "linear"])
+    plt.show()
 print_header(width=140)
+
