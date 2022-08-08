@@ -306,8 +306,7 @@ void DeepSupervisor::runEpoch()
     // Check whether training concurrency exceeds the number of workers
     if (_batchConcurrency > _k->_engine->_conduit->getWorkerCount()) KORALI_LOG_ERROR("The batch concurrency requested (%lu) exceeds the number of Korali workers defined in the conduit type/configuration (%lu).", _batchConcurrency, _k->_engine->_conduit->getWorkerCount());
     // Updating solver's learning rate, if changed
-    _optimizer->_eta = _learning_rate->get(_epochCount);
-    _optimizer->_eta = _learning_rate->get(this);
+    _optimizer->_eta = std::max(_learning_rate->get(this), _learningRateLowerBound);
     if(_learningRateSave)
       (*_k)["Results"]["Learning Rate"] = _optimizer->_eta;
     // Checking that incoming data has a correct format
