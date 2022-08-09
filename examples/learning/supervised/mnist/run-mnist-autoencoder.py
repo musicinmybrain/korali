@@ -142,7 +142,10 @@ testingImages, _ = mndata.load_testing()
 loading_time = (time.time_ns()-t0) / (float) (10 ** 9) # convert to floating-point second
 ### Lading data ==============================================================================
 args.dataLoadTime = f"{loading_time} s"
+img_width = 28
+img_height = 28
 img_size = len(trainingImages[0])
+assert img_width*img_height == img_size
 args.imgSize = img_size
 # Normalize Training Images
 trainingImages = [[p/MAX_RGB for p in img] for img in trainingImages]
@@ -367,8 +370,24 @@ print_header('Korali', color=bcolors.HEADER, width=140)
 print_args(vars(args), sep=' ', header_width=140)
 # print_args(vars(args), sep=' ', header_width=140)
 k.run(e)
+# PREDICTING ================================================================================
+e["Problem"]["Input"]["Data"] = testingImages
+e["Solver"]["Mode"] = "Predict"
+k.run(e)
+# Plotting Results
 if (args.plot):
     SAVE_PLOT = False
-    main("_korali_result", False, SAVE_PLOT, False, ["--yscale", "log"])
+# Plotting      ===========================================================================
+SAMPLES_TO_DISPLAY = 4
+if args.plot:
+    arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
+    fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
+    for idx, row in enumerate(axes):
+        row[0].imshow(arr_to_img(e["Problem"]["Solution"]["Data"][idx]))
+        row[1].imshow(arr_to_img(e["Solver"]["Evaluation"][idx]))
+    SAVE_PLOT = "None"
+    main("_korali_result", False, SAVE_PLOT, False, ["--yscale", "linear"])
+    plt.show()
+print_header(width=140)
 
 print_header(width=140)
