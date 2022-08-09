@@ -174,10 +174,20 @@ trainingTargets = trainingImages
 trainingImages = add_time_dimension(trainingImages)
 testingImages = add_time_dimension(testingImages)
 
+### Print Header
+print_header('Korali', color=bcolors.HEADER, width=140)
+print_args(vars(args), sep=' ', header_width=140)
+### Load Previous model if desired
+isStateFound = False
+if args.load_model:
+    args.validationSplit = 0.0
+    isStateFound = e.loadState("_korali_result/latest")
+    if not isStateFound:
+        sys.exit("No model file for _korali_result/latest found")
+    if(isStateFound):
+        print("[Script] Evaluating previous run...\n")
+
 k["Conduit"]["Type"] = "Sequential"
-# e["File Output"]["Path"] = "resultsPath"
-# Loading previous results, if they exist.
-# found = e.loadState()
 
 ### Configuring general problem settings
 e["Problem"]["Type"] = "Supervised Learning"
@@ -361,14 +371,6 @@ e["Random Seed"] = 0xC0FFEE
 e["File Output"]["Enabled"] = args.save
 e["Save"]["Problem"] = False
 e["Save"]["Solver"] = False
-if(args.load_model):
-    args.validationSplit = 0.0
-    isStateFound = e.loadState("_korali_result/latest")
-    if(isStateFound):
-        print("[Script] Evaluating previous run...\n")
-print_header('Korali', color=bcolors.HEADER, width=140)
-print_args(vars(args), sep=' ', header_width=140)
-# print_args(vars(args), sep=' ', header_width=140)
 k.run(e)
 # PREDICTING ================================================================================
 e["Problem"]["Input"]["Data"] = testingImages
