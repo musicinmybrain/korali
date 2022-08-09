@@ -16,6 +16,11 @@ import time
 # from korali.auxiliar.printing import print_args, print_header
 parser = argparse.ArgumentParser()
 parser.add_argument(
+    '--mode',
+    help='Mode to use, train, predict or all',
+    default='all',
+    required=False)
+parser.add_argument(
     '--engine',
     help='NN backend to use',
     default='OneDNN',
@@ -211,7 +216,6 @@ if args.learningRateType != "":
     e["Solver"]["Learning Rate Steps"] = args.learningRateSteps
     e["Solver"]["Learning Rate Save"] = True
 
-e["Solver"]["Mode"] = "Training"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
@@ -371,11 +375,20 @@ e["Random Seed"] = 0xC0FFEE
 e["File Output"]["Enabled"] = args.save
 e["Save"]["Problem"] = False
 e["Save"]["Solver"] = False
-k.run(e)
+
+if args.mode in ["all", "train"]:
+    e["Solver"]["Mode"] = "Training"
+    k.run(e)
 # PREDICTING ================================================================================
-e["Problem"]["Input"]["Data"] = testingImages
-e["Solver"]["Mode"] = "Predict"
-k.run(e)
+e["File Output"]["Enabled"] = False
+if args.mode in ["all", "test"]:
+    if args.mode == "test" and not isStateFound:
+        sys.exit("Cannot predict without loading or training a model.")
+
+    e["Problem"]["Input"]["Data"] = testingImages
+    e["Solver"]["Mode"] = "Predict"
+    k.run(e)
+
 # Plotting Results
 if (args.plot):
     SAVE_PLOT = False

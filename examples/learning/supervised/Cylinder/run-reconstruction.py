@@ -140,7 +140,6 @@ e["Problem"]["Solution"]["Size"] = input_channels*img_width*img_height
 
 # Solver =====================================================
 e["Solver"]["Type"] = "Learner/DeepSupervisor"
-e["Solver"]["Mode"] = "Training"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
 e["Solver"]["Neural Network"]["Engine"] = args.engine
 e["Solver"]["Batch Concurrency"] = args.batch_concurrency
@@ -180,11 +179,18 @@ if args.conduit == constants.DISTRIBUTED:
     k.setMPIComm(MPI.COMM_WORLD)
 
 # TRAINING ===============================================================================
-k.run(e)
+if args.mode in ["all", "train"]:
+    e["Solver"]["Mode"] = "Training"
+    k.run(e)
 # PREDICTING ================================================================================
-e["Problem"]["Input"]["Data"] = X_test
-e["Solver"]["Mode"] = "Predict"
-k.run(e)
+e["File Output"]["Enabled"] = False
+if args.mode in ["all", "test"]:
+    if args.mode == "test" and not isStateFound:
+        sys.exit("Cannot predict without loading or training a model.")
+
+    e["Problem"]["Input"]["Data"] = X_test
+    e["Solver"]["Mode"] = "Predict"
+    k.run(e)
 
 # Move Result dir back to HOME ===========================================================
 if isMaster():
@@ -197,7 +203,7 @@ if isMaster():
 # Plotting      ===========================================================================
 SAMPLES_TO_DISPLAY = 4
 if args.plot:
-    arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
+    arr_to_img = lambda img : np.reshape(img, (img_width, img_height))
     fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
     for idx, row in enumerate(axes):
         row[0].imshow(arr_to_img(e["Problem"]["Solution"]["Data"][idx]))

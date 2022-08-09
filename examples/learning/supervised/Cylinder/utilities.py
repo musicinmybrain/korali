@@ -314,6 +314,12 @@ def make_parser():
         action="store_true"
     )
     parser.add_argument(
+        '--mode',
+        help='Mode to use, train, predict or all',
+        default='all',
+        required=False
+    )
+    parser.add_argument(
         "--plot",
         help="Indicates whether to plot results after testing",
         action="store_true",
