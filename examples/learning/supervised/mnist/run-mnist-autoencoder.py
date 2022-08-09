@@ -61,6 +61,11 @@ parser.add_argument(
     type=float,
     required=False)
 parser.add_argument(
+    '--trainingSetSize',
+    help='Batch size to use for training data',
+    default="all",
+    required=False)
+parser.add_argument(
     '--trainingBatchSize',
     help='Batch size to use for training data',
     default=60,
@@ -117,6 +122,7 @@ parser.add_argument(
     default=0.1,
     required=False)
 
+add_time_dimension = lambda l : [ [y] for y in l]
 
 args = parser.parse_args()
 k = korali.Engine()
@@ -126,6 +132,7 @@ e = korali.Experiment()
 MAX_RGB = 255.0
 ### Lading data ==============================================================================
 ###Loading MNIST data [28x28 images with {0,..,9} as label - http://yann.lecun.com/exdb/mnist/]
+### Total 60 000 training samples
 # Data ==================================================================================
 t0 = time.time_ns()
 mndata = MNIST("./_data")
@@ -148,15 +155,21 @@ if len(sys.argv) != 0:
         sys.argv = ['']
         IPYTHON = True
 sys.argv = tmp
+
 if args.test:
     args.epochs = 30
-    nb_training_samples = 260
+    args.trainingSetSize = 260
     args.trainingBatchSize = 50
-    trainingImages = trainingImages[:nb_training_samples]
     args.validationSplit = 60
+
+if args.trainingSetSize != "all":
+    nb_training_samples = int(args.trainingSetSize)
+    trainingImages = trainingImages[:nb_training_samples]
+
 ### Converting images to Korali form (requires a time dimension)
-flattendTrainingSamples = [[img] for img in trainingImages]
-flattendTrainingTargets = trainingImages
+trainingTargets = trainingImages
+trainingImages = add_time_dimension(trainingImages)
+testingImages = add_time_dimension(testingImages)
 
 k["Conduit"]["Type"] = "Sequential"
 # e["File Output"]["Path"] = "resultsPath"
@@ -166,9 +179,10 @@ k["Conduit"]["Type"] = "Sequential"
 ### Configuring general problem settings
 e["Problem"]["Type"] = "Supervised Learning"
 e["Solver"]["Type"] = "Learner/DeepSupervisor"
-e["Problem"]["Input"]["Data"] = flattendTrainingSamples
-e["Problem"]["Solution"]["Data"] = flattendTrainingTargets
+e["Problem"]["Input"]["Data"] = trainingImages
+e["Problem"]["Solution"]["Data"] = trainingTargets
 e["Problem"]["Training Batch Size"] = args.trainingBatchSize
+e["Problem"]["Testing Batch Size"] = len(testingImages)
 e["Problem"]["Max Timesteps"] = 1
 e["Problem"]["Input"]["Size"] = img_size
 e["Problem"]["Solution"]["Size"] = img_size
