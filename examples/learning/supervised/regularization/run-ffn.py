@@ -120,6 +120,7 @@ parser.add_argument(
 parser.add_argument(
     '--trainingBatchSize',
     help='Batch size to use for training data',
+    type=int,
     default=20,
     required=False)
 parser.add_argument(
@@ -255,7 +256,7 @@ for i, path in enumerate(["_korali_result", "_korali_resultL2"]):
     e["Console Output"]["Frequency"] = 1
     e["Console Output"]["Verbosity"] = "Normal"
     e["File Output"]["Enabled"] = args.save
-    # e["File Output"]["Frequency"] = 1 if args.epochs <= 100 else args.epochs/10
+    e["File Output"]["Frequency"] = 1 if args.epochs <= 100 else args.epochs/10
     e["File Output"]["Path"] = path
     e["Save"]["Problem"] = False
     e["Save"]["Solver"] = False

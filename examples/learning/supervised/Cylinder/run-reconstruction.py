@@ -181,7 +181,7 @@ if args.conduit == constants.DISTRIBUTED:
 
 # TRAINING ===============================================================================
 k.run(e)
-# Predicting ================================================================================
+# PREDICTING ================================================================================
 e["Problem"]["Input"]["Data"] = X_test
 e["Solver"]["Mode"] = "Predict"
 k.run(e)
@@ -197,7 +197,7 @@ if isMaster():
 # Plotting      ===========================================================================
 SAMPLES_TO_DISPLAY = 4
 if args.plot:
-    arr_to_img = lambda img : np.reshape(img, (32, 64))
+    arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
     fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
     for idx, row in enumerate(axes):
         row[0].imshow(arr_to_img(e["Problem"]["Solution"]["Data"][idx]))
