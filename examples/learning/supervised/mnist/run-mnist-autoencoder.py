@@ -64,6 +64,7 @@ parser.add_argument(
     '--trainingBatchSize',
     help='Batch size to use for training data',
     default=60,
+    type=int,
     required=False)
 parser.add_argument(
     '--regularizer',
@@ -112,6 +113,7 @@ parser.add_argument(
 parser.add_argument(
     '--validationSplit',
     help='Batch size to use for validation data',
+    type=float,
     default=0.1,
     required=False)
 
@@ -351,41 +353,6 @@ print_header('Korali', color=bcolors.HEADER, width=140)
 print_args(vars(args), sep=' ', header_width=140)
 # print_args(vars(args), sep=' ', header_width=140)
 k.run(e)
-# #Evaluating testing set
-# e["Problem"]["Input"]["Data"] = flattendTestingSamples
-# e["Solver"]["Mode"] = "Testing"
-# k.run(e)
-
-# img = e["Solver"]["Evaluation"][0]
-# pixels = first_image.reshape((28, 28))
-# images_real = [np.array(img[0]).reshape((28,28)) for img in flattendTestingSamples]  # N x C
-# images = [np.array(img).reshape((28, 28))  for img in e["Solver"]["Evaluation"]]
-
-# f, axarr = plt.subplots(nb_testing_samples, 2)
-# for i, (img, img_real) in enumerate(zip(images, images_real)):
-#     plt.imshow(img, cmap='gray')
-#     axarr[i,0].imshow(img_real, cmap='gray')
-#     axarr[i,1].imshow(img, cmap='gray')
-
-# plt.show()
-
-# k.run(e)
-# Getting MSE loss for testing set
-# mse = 0.0
-# for i, yhat in enumerate(e["Solver"]["Evaluation"]):
-#   y = flattendTestingSamples[i][0]
-#   mse.append(mean([(img-imghat)*(img-imghat) for (img, imghat) in zip(y, yhat)]))
-# for i, yhat in enumerate(e["Solver"]["Evaluation"]):
-#     y = flattendTestingSamples[i][0]
-#     mse += sum([(px - pxhat) * (px - pxhat) for (px, pxhat) in zip(y, yhat)])
-
-# mse = mse / (nb_testing_samples * 2)
-# print("[Korali] Current Testing Loss:  " + str(mse))
-
-# Adjusting learning rate via decay
-
-# for i, yhat in enumerate(e["Solver"]["Evaluation"]):
-# ### Plotting Results
 if (args.plot):
     SAVE_PLOT = False
     main("_korali_result", False, SAVE_PLOT, False, ["--yscale", "log"])
