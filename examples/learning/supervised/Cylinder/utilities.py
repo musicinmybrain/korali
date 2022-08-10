@@ -515,7 +515,7 @@ class DataLoader():
         X_test = trajectories[~train_idx].tolist()
         self.X_train = self.add_time_dimension(X_train)
         self.X_test = self.add_time_dimension(X_test)
-        self.dim = (1, 1, img_height, img_width)
+        self.dim = (1, 1, img_width, img_height)
 
     def load_hdf5(self):
         """Load hdf5 data set and convert it to a list.
