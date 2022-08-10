@@ -41,7 +41,7 @@ class __className__ : public __parentClassName__
   /**
    * @brief Defines the resampling method to use either of type oneDNN or cuDNN.
    */
-  std::variant<dnnl::algorithm, size_t> _algorithm_t;
+  std::variant<dnnl::algorithm, cudnnResampleMode_t> _algorithm_t;
   // std::variant<dnnl::algorithm, cudnnResampleMode_t> _algorithm_t;
 
 #ifdef _KORALI_USE_ONEDNN
@@ -75,7 +75,9 @@ class __className__ : public __parentClassName__
   /**
    * @brief cuDNN Descriptor for the resampling function
    */
-  cudnnActivationDescriptor_t _activationDesc;
+  cudnnBackendDescriptor_t _cuDNNDesc;
+  // cudnnActivationDescriptor_t _activationDesc;
+    // cudnnBackendCreateDescriptor(CUDNN_BACKEND_RESAMPLE_DESCRIPTOR, &desc);
 
 #endif
 

@@ -43,12 +43,12 @@ void __className__::initialize()
 #endif
 
 #ifdef _KORALI_USE_CUDNN
-  // if (_nn->_engine == "CuDNN")
-  // {
-  //   if (_resamplingType == "Linear") _algorithm_t = CUDNN_RESAMPLE_BILINEAR;
-  //   else if (_resamplingType == "Nearest") _algorithm_t = CUDNN_RESAMPLE_NEAREST;
-  //   else KORALI_LOG_ERROR("[Layer %zu] resmpling method \"%s\" is not a valid option [\"Linear\", \"Nearest\"].\n", _index-1, _resamplingType.c_str());
-  // }
+  if (_nn->_engine == "CuDNN")
+  {
+    if (_resamplingType == "Linear") _algorithm_t = CUDNN_RESAMPLE_BILINEAR;
+    else if (_resamplingType == "Nearest") _algorithm_t = CUDNN_RESAMPLE_NEAREST;
+    else KORALI_LOG_ERROR("[Layer %zu] resmpling method \"%s\" is not a valid option [\"Linear\", \"Nearest\"].\n", _index-1, _resamplingType.c_str());
+  }
 #endif
 }
 
@@ -85,6 +85,8 @@ void __className__::createForwardPipeline()
   if (_nn->_engine == "CuDNN")
   {
     // TODO
+    cudnnBackendCreateDescriptor(CUDNN_BACKEND_RESAMPLE_DESCRIPTOR, &_cuDNNDesc);
+    // std::get<dnnl::algorithm>(_algorithm_t)
   }
 #endif
 }
@@ -121,7 +123,7 @@ void __className__::createBackwardPipeline()
   if (_nn->_engine == "CuDNN")
   {
     // TODO
-    // cudnnBackendCreateDescriptor(CUDNN_BACKEND_RESAMPLE_DESCRIPTOR, &desc);
+    // cudnnBackendCreateDescriptor(CUDNN_BACKEND_RESAMPLE_DESCRIPTOR, _cuDNNDesc);
   }
 #endif
 }
