@@ -15,7 +15,6 @@ summary({
 
 # compiler object
 cpp = meson.get_compiler('cpp')
-
 if get_option('buildtype').startswith('debug')
   add_project_arguments('-DDEBUG', language : 'cpp')
 endif
@@ -34,6 +33,12 @@ summary({
   'prefix': korali_install_base,
   'python': python.language_version()
   }, section: 'Python')
+
+
+summary({
+  'headers': korali_install_headers,
+  'compiler': cpp.get_id()
+  }, section: 'C++')
 
 # Code coverage configuration
 if get_option('b_coverage')
@@ -60,6 +65,8 @@ korali_deps = []
 # (needs benchmark: gslcblas versus system cblas (and possibly ATLAS))
 korali_deps += dependency('gsl', fallback: ['gsl', 'gsl_dep'], version : '>=2.5', required: true)
 korali_deps += dependency('eigen3', fallback: ['eigen', 'eigen_dep'], required: true)
+korali_deps += dependency('tbb', fallback: ['tbb', 'tbb_dep'], required: true)
+korali_deps += dependency('range-v3', fallback: ['range-v3', 'range_dep'], required: true)
 
 # Process pybind11
 pybind11_dep = dependency('pybind11', fallback: ['pybind11', 'pybind11_dep'], required: true)

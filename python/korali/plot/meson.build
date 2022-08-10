@@ -7,6 +7,7 @@ python_sources = files([
   'MOCMAES.py',
   'Nested.py',
   'TMCMC.py',
+  'deepSupervisor.py',
   '__init__.py',
   '__main__.py',
   'helpers.py',

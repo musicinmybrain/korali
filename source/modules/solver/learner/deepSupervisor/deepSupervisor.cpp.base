@@ -2,8 +2,13 @@
 #include "modules/experiment/experiment.hpp"
 #include "modules/solver/learner/deepSupervisor/deepSupervisor.hpp"
 #include "sample/sample.hpp"
+#include <random>
+#include <cmath>
+#include <cstdio>
 #include <omp.h>
-#include<csignal>
+#include <execution>
+#include <range/v3/view/join.hpp>
+#include <range/v3/range/conversion.hpp>
 
 __startNamespace__;
 
@@ -18,21 +23,78 @@ void __className__::initialize()
   // Don't reinitialize if experiment was already initialized
   if (_k->_isInitialized == true) return;
 
-  // Check whether the minibatch size (N) can be divided by the requested concurrency
+  if(_dataInputShuffel){
+    std::random_device r;
+    std::seed_seq seed{r(), r(), r(), r(), r(), r(), r(), r()};
+    // create two random engines with the same state
+    input_reng = std::mt19937(seed);
+    solution_reng = input_reng;
+    shuffle(_problem->_inputData.begin(), _problem->_inputData.end(), input_reng);
+    shuffle(_problem->_solutionData.begin(), _problem->_solutionData.end(), solution_reng);
+  }
+  // Data ========================================================================
+  std::vector<size_t> batchSizes;
+  // VALIDATION SET ======
+  _hasValidationSet = (_problem->_dataValidationInput.size() || _dataValidationSplit ) ? true : false;
+  if(_hasValidationSet){
+    NV = _problem->_dataValidationInput.size();
+    if((_problem->_dataValidationInput.size() || _problem->_dataValidationSolution.size()) && _dataValidationSplit )
+      KORALI_LOG_ERROR("You cannot have a validation set as input as well as a validation split to split the training data.");
+    // Validation Split is given ===========================================================================
+    if(_dataValidationSplit) {
+      if(0 < _dataValidationSplit &&  _dataValidationSplit < 1){
+        // Choose fraction from training data for validation split
+        NV = (int) _problem->_inputData.size()*_dataValidationSplit;
+        N = _problem->_inputData.size()-NV;
+        _problem->_dataValidationInput = {_problem->_inputData.begin()+N, _problem->_inputData.end()};
+        _problem->_dataValidationSolution = {_problem->_solutionData.begin()+N, _problem->_solutionData.end()};
+        _problem->_inputData = {_problem->_inputData.begin(), _problem->_inputData.begin()+N};
+        _problem->_solutionData = {_problem->_solutionData.begin(), _problem->_solutionData.begin()+N};
+      } else if(1 < _dataValidationSplit &&  _problem->_inputData.size() > _dataValidationSplit){
+        // Choose samples from training data for validation split
+        NV = _dataValidationSplit;
+        N = _problem->_inputData.size()-NV;
+        if(N < 1)
+          KORALI_LOG_ERROR("Validation Split to large, no training samples left.");
+        _problem->_dataValidationInput = {_problem->_inputData.begin()+N, _problem->_inputData.end()};
+        _problem->_dataValidationSolution = {_problem->_solutionData.begin()+N, _problem->_solutionData.end()};
+        _problem->_inputData = {_problem->_inputData.begin(), _problem->_inputData.begin()+N};
+        _problem->_solutionData = {_problem->_solutionData.begin(), _problem->_solutionData.begin()+N};
+      }
+      assert(NV == _problem->_dataValidationInput.size());
+      assert(NV == _problem->_dataValidationSolution.size());
+      assert(N == _problem->_inputData.size());
+      assert(N == _problem->_solutionData.size());
+    }
+    // =====================================================================================================
+    batchSizes.push_back(NV);
+    if (_batchConcurrency > 1){
+      // If we parallize by _batchConcurrency workers, we need to support the split up batch size as well
+      if (NV % _batchConcurrency > 0) KORALI_LOG_ERROR("The batch concurrency requested (%lu) does not divide the validation set size (%lu) perfectly.", _batchConcurrency, NV);
+      batchSizes.push_back(NV / _batchConcurrency);
+    }
+    (*_k)["Results"]["Validation Loss"] = true;
+  }
+  // =============================================================================
+  if (!_problem->_trainingBatchSize) KORALI_LOG_ERROR("Training Batch Size is not set.");
+  // Check whether the minibatch size (N) can be divided by the requested concurrency TODO make this a warning and add batch size for reminder Need to also adapt verifyData() of supervisedLearning problem.
   if (_problem->_trainingBatchSize % _batchConcurrency > 0) KORALI_LOG_ERROR("The training concurrency requested (%lu) does not divide the training mini batch size (%lu) perfectly.", _batchConcurrency, _problem->_trainingBatchSize);
-  // Determining batch sizes
-  std::vector<size_t> batchSizes = {_problem->_trainingBatchSize};
-
-  // If parallelizing training, we need to support the split batch size as well
+  // BATCH SIZES needed for the neual network architecture ==========================================
+  // TRAINING ========
+  batchSizes.push_back(_problem->_trainingBatchSize);
+  // If we parallize by _batchConcurrency workers, we need to support the split up batch size as well
   if (_batchConcurrency > 1) batchSizes.push_back(_problem->_trainingBatchSize / _batchConcurrency);
-
+  // TESTING =========
   if (_problem->_testingBatchSize){
-    // Check whether the minibatch size (N) can be divided by the requested concurrency
+    // Check whether the minibatch size (N) can be divided by the requested concurrency TODO make this a warning and add batch size for reminder
     if (_problem->_testingBatchSize % _batchConcurrency > 0) KORALI_LOG_ERROR("The Testing concurrency requested (%lu) does not divide the training mini batch size (%lu) perfectly.", _batchConcurrency, _problem->_testingBatchSize);
     batchSizes.push_back(_problem->_testingBatchSize);
-    // If parallelizing training, we need to support the split batch size as well
+    // If we parallize by _batchConcurrency workers, we need to support the split up batch size as well
     if (_batchConcurrency > 1) batchSizes.push_back(_problem->_testingBatchSize / _batchConcurrency);
   }
+  if(_learningRateSave)
+    (*_k)["Results"]["Learning Rate"] = true;
+  // ================================================================================================
 
   /*****************************************************************
    * Setting up Neural Networks
@@ -92,8 +154,50 @@ void __className__::initialize()
   _neuralNetwork->applyModuleDefaults(trainingNeuralNetworkConfig);
   _neuralNetwork->setConfiguration(trainingNeuralNetworkConfig);
   _neuralNetwork->initialize();
-  // _neuralNetwork->print();
-
+  (*_k)["Results"]["Description"] = _problem->_description;
+  /*****************************************************************************
+   * Setting up the LOSS FUNCTION
+   *****************************************************************************/
+  if (_lossFunction == "Direct Gradient" || _lossFunction.empty())
+    _loss = NULL;
+  else if (_lossFunction == "Mean Squared Error")
+    _loss = new korali::loss::MSE();
+  else
+    KORALI_LOG_ERROR("Unkown Loss Function %s", _lossFunction.c_str());
+  if(_loss)
+    (*_k)["Results"]["Loss Function"] = _lossFunction;
+  /*****************************************************************************
+   * Setting up possible REGULARIZERS
+   *****************************************************************************/
+  if(_regularizerType == "None" || _regularizerType.empty())
+    _regularizer = NULL;
+  else if (_regularizerType == "L1")
+    _regularizer = new korali::regularizer::L1(_regularizerCoefficient);
+  else if (_regularizerType == "L2")
+    _regularizer = new korali::regularizer::L2(_regularizerCoefficient);
+  else
+    KORALI_LOG_ERROR("Unkown Regularizer Type %s", _regularizerType.c_str());
+  if(_regularizer)
+    (*_k)["Results"]["Regularizer"]["Type"] = _regularizerType;
+  /*****************************************************************************
+   * Setting up the LEARNING RATE (function)
+   *****************************************************************************/
+  if (_learningRateType == "Const" || _learningRateType.empty()){
+    _learning_rate = new korali::learning_rate::LearningRate(_learningRate);
+  } else if (_learningRateType == "Step Based"){
+    _learning_rate = new korali::learning_rate::StepDecay(_learningRate, _learningRateDecayFactor, _learningRateSteps);
+  } else if (_learningRateType == "Time Based"){
+    _learning_rate = new korali::learning_rate::TimeDecay(_learningRate, _learningRateDecayFactor);
+  }
+    // else if (_learningRateType == "Decay"){
+    //   if(_learningRateLowerBound)
+    //     _learning_rate = new korali::learning_rate::Decay(_learningRate, _learningRateDecayFactor, _learningRateLowerBound);
+    //   else
+      // _learning_rate = new korali::learning_rate::Decay(_learningRate, _learningRateDecayFactor);
+    // } else if (_learningRateType == "Custom")
+    // TODO possibility to add custom functions
+  else
+    KORALI_LOG_ERROR("Unkown learning rate type provided %s", _learningRateType.c_str());
   /*****************************************************************
    * Initializing NN hyperparameters
    *****************************************************************/
@@ -118,14 +222,17 @@ void __className__::initialize()
   _optimizer->reset();
 
   // Setting current loss
-  _currentLoss = 0.0f;
+  _currentTrainingLoss = 0.0f;
+  _currentValidationLoss = 0.0f;
 }
 
 void __className__::runGeneration()
 {
-  if (_mode == "Training") runTrainingGeneration();
+  if (_mode == "Training") runEpoch();
+  if (_mode == "Predict") runPrediction();
   if (_mode == "Testing") runTestingGeneration();
 }
+
 
 void __className__::runTestingGeneration()
 {
@@ -137,7 +244,7 @@ void __className__::runTestingGeneration()
     KORALI_LOG_ERROR("'Testing Batch Size' has not been defined.\n");
   // Checking that incoming data has a correct format
   if (_problem->_testingBatchSize != _problem->_inputData.size())
-    KORALI_LOG_ERROR("Testing Batch size %lu different than that of input data (%lu).\n", _problem->_inputData.size(), _problem->_testingBatchSize);
+    KORALI_LOG_ERROR("Testing Batch size %lu different than that of input data (%lu).\n", _problem->_testingBatchSize, _problem->_inputData.size());
 
   // In case we run Mean Squared Error with concurrency, distribute the work among samples
   if (_batchConcurrency > 1)
@@ -156,6 +263,8 @@ void __className__::runTestingGeneration()
     for (size_t sId = 0; sId < _batchConcurrency; sId++)
     {
       // Carving part of the batch data that corresponds to this sample
+      // NW = N/_batchConcurrency
+      // inputData[NxTxIC]
       auto workerInputDataFlat = std::vector<float>(NW * IC * T);
       for (size_t i = 0; i < NW; i++)
         for (size_t j = 0; j < T; j++)
@@ -194,122 +303,183 @@ void __className__::runTestingGeneration()
   }
 }
 
-void __className__::runTrainingGeneration()
+void DeepSupervisor::runEpoch()
 {
-  // Grabbing batch size
-  const size_t N = _problem->_trainingBatchSize;
-
-  // Check whether training concurrency exceeds the number of workers
-  if (_batchConcurrency > _k->_engine->_conduit->getWorkerCount()) KORALI_LOG_ERROR("The batch concurrency requested (%lu) exceeds the number of Korali workers defined in the conduit type/configuration (%lu).", _batchConcurrency, _k->_engine->_conduit->getWorkerCount());
-
-  // Updating solver's learning rate, if changed
-  _optimizer->_eta = _learningRate;
-
-  // Checking that incoming data has a correct format
-  _problem->verifyData();
-
-  // Hyperparameter gradient storage
-  std::vector<float> nnHyperparameterGradients;
-
-  // In case we run Mean Squared Error with concurrency, distribute the work among samples
-  if (_lossFunction == "Mean Squared Error" && _batchConcurrency > 1)
-  {
-    // Calculating per worker dimensions
-    size_t NW = _problem->_trainingBatchSize / _batchConcurrency;
-    size_t T = _problem->_inputData[0].size();
-    size_t IC = _problem->_inputData[0][0].size();
-    size_t OC = _problem->_solutionData[0].size();
-
-    // Getting current NN hyperparameters
+    // Check whether training concurrency exceeds the number of workers
+    if (_batchConcurrency > _k->_engine->_conduit->getWorkerCount()) KORALI_LOG_ERROR("The batch concurrency requested (%lu) exceeds the number of Korali workers defined in the conduit type/configuration (%lu).", _batchConcurrency, _k->_engine->_conduit->getWorkerCount());
+    // Updating solver's learning rate, if changed
+    _optimizer->_eta = std::max(_learning_rate->get(this), _learningRateLowerBound);
+    if(_learningRateSave)
+      (*_k)["Results"]["Learning Rate"] = _optimizer->_eta;
+    // Checking that incoming data has a correct format
+    _problem->verifyData();
+    // Data ========================================================================
+    BS = _problem->_trainingBatchSize;
+    NW = BS / _batchConcurrency;
+    N = _problem->_inputData.size();
+    T = _problem->_inputData[0].size();
+    IC = _problem->_inputData[0][0].size();
+    OC = _problem->_solutionData[0].size();
+    // Remainder for unequal batch sizes
+    // size_t remainder = N % BS;
+    // Iterations for epoch (without remainder)
+    // =============================================================================
+    size_t IforE = N / BS;
     const auto nnHyperparameters = _neuralNetwork->getHyperparameters();
-
-    // Sending input to workers for parallel processing
-    std::vector<Sample> samples(_batchConcurrency);
-#pragma omp parallel for
-    for (size_t sId = 0; sId < _batchConcurrency; sId++)
-    {
-      // Carving part of the batch data that corresponds to this sample
-      auto workerInputDataFlat = std::vector<float>(NW * IC * T);
-      for (size_t i = 0; i < NW; i++)
-        for (size_t j = 0; j < T; j++)
-          for (size_t k = 0; k < IC; k++)
-            workerInputDataFlat[i * T * IC + j * IC + k] = _problem->_inputData[sId * NW + i][j][k];
-
-      auto workerSolutionDataFlat = std::vector<float>(NW * IC * T);
-      for (size_t i = 0; i < NW; i++)
-        for (size_t j = 0; j < OC; j++)
-          workerSolutionDataFlat[i * OC + j] = _problem->_solutionData[sId * NW + i][j];
-
-      // Setting up sample
-      samples[sId]["Sample Id"] = sId;
-      samples[sId]["Module"] = "Solver";
-      samples[sId]["Operation"] = "Run Training On Worker";
-      samples[sId]["Input Data"] = workerInputDataFlat;
-      samples[sId]["Input Dims"] = std::vector<size_t>({NW, T, IC});
-      samples[sId]["Solution Data"] = workerSolutionDataFlat;
-      samples[sId]["Solution Dims"] = std::vector<size_t>({NW, OC});
-      samples[sId]["Hyperparameters"] = nnHyperparameters;
+    if(_dataTrainingShuffel){
+      shuffle(_problem->_inputData.begin(), _problem->_inputData.end(), input_reng);
+      shuffle(_problem->_solutionData.begin(), _problem->_solutionData.end(), solution_reng);
     }
-
-    // Launching samples
-    for (size_t i = 0; i < _batchConcurrency; i++) KORALI_START(samples[i]);
-
-    // Waiting for samples to finish
-    KORALI_WAITALL(samples);
-
-    // Assembling hyperparameters and the total mean squared loss
-    _currentLoss = 0.0f;
-    nnHyperparameterGradients = std::vector<float>(_neuralNetwork->_hyperparameterCount, 0.0f);
-    for (size_t i = 0; i < _batchConcurrency; i++)
-    {
-      _currentLoss += KORALI_GET(float, samples[i], "Squared Loss");
-      const auto workerGradients = KORALI_GET(std::vector<float>, samples[i], "Hyperparameter Gradients");
-      for (size_t i = 0; i < workerGradients.size(); i++) nnHyperparameterGradients[i] += workerGradients[i];
-    }
-    _currentLoss = _currentLoss / ((float)N * 2.0f);
-  }
-
-  // If we use an MSE loss function, we need to update the gradient vector with its difference with each of batch's last timestep of the NN output
-  if (_lossFunction == "Mean Squared Error" && _batchConcurrency == 1)
-  {
-    // Grabbing constants
-    const size_t OC = _problem->_solutionSize;
-
-    // Making a copy of the solution data for MSE calculation
-    auto MSEVector = _problem->_solutionData;
-
-    // Getting a reference to the neural network output
-    const auto &results = getEvaluation(_problem->_inputData);
-
-    // Calculating gradients via the loss function
-    #pragma omp parallel for simd
-    for (size_t b = 0; b < N; b++)
-      for (size_t i = 0; i < OC; i++)
-        // Gradient of the MSE loss function
-        MSEVector[b][i] = MSEVector[b][i] - results[b][i];
-
-    for (size_t b = 0; b < N; b++)
-      for (size_t i = 0; i < OC; i++)
-        _currentLoss += MSEVector[b][i] * MSEVector[b][i];
-    _currentLoss = _currentLoss / ((float)N * 2.0f);
-
-    // Running back propagation on the MSE vector
-    nnHyperparameterGradients = backwardGradients(MSEVector);
+    auto inputDataFlat = flatten(_problem->_inputData);
+    auto solutionDataFlat = flatten(_problem->_solutionData);
 #ifdef DEBUG
-    if(std::any_of(nnHyperparameterGradients.begin(), nnHyperparameterGradients.end(), [](const float v) { return !std::isfinite(v);}))
-        KORALI_LOG_ERROR("Non-finite nnHyperparameterGradients exist.");
+    if(std::any_of(inputDataFlat.begin(), inputDataFlat.end(), [](const float v) { return !std::isfinite(v);}))
+      KORALI_LOG_ERROR("Non finite input training values");
+    if(std::any_of(solutionDataFlat.begin(), solutionDataFlat.end(), [](const float v) { return !std::isfinite(v);}))
+      KORALI_LOG_ERROR("Non finite input solution values");
 #endif
-  }
+    // Running epochs
+    size_t bId; // batch id
+    size_t wId; // worker id
+    std::vector<Sample> samples(_batchConcurrency);
+    auto nnHyperparameterGradients = std::vector<float>(_neuralNetwork->_hyperparameterCount, 0.0f);
+    _currentTrainingLoss = 0.0f;
+    size_t input_size_per_BS = T*OC;
+    size_t solution_size_per_BS = T*IC;
+    for (bId = 0; bId < IforE; bId++)
+    {
+      for (wId = 0; wId < _batchConcurrency; wId++)
+      {
+        // TODO: add different distribution strategies for workers
+        // ==========================================================================================================
+        samples[wId]["Sample Id"] = wId;
+        samples[wId]["Module"] = "Solver";
+        samples[wId]["Operation"] = "Run Training On Worker";
+        // Problem: wrong sizes here!!!
+        // wId*NW*input_size_per_BS, (wId+1)*NW*input_size_per_BS
+        // samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+bId*BS*input_size_per_BS+wId*NW*input_size_per_BS, inputDataFlat.begin()+bId*BS*input_size_per_BS+(wId+1)*NW*input_size_per_BS);
+        // samples[wId]["Solution Data"] = std::vector<float>(solutionDataFlat.begin()+bId*BS*solution_size_per_BS+wId*NW*solution_size_per_BS, solutionDataFlat.begin()+bId*BS*solution_size_per_BS+(wId+1)*NW*solution_size_per_BS);
+        samples[wId]["Hyperparameters"] = nnHyperparameters;
+        if(_batchConcurrency==1){
+          samples[wId]["Input Dims"] = std::vector<size_t> {BS, T, IC};
+          samples[wId]["Solution Dims"] = std::vector<size_t> {BS, OC};
+          samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+bId*BS*input_size_per_BS, inputDataFlat.begin()+(bId+1)*BS*input_size_per_BS);
+          samples[wId]["Solution Data"] = std::vector<float>(solutionDataFlat.begin()+bId*BS*solution_size_per_BS, solutionDataFlat.begin()+(bId+1)*BS*solution_size_per_BS);
+        } else{
+          samples[wId]["Input Dims"] = std::vector<size_t> {NW, T, IC};
+          samples[wId]["Solution Dims"] = std::vector<size_t> {NW, OC};
+          samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+(bId*BS+wId*NW)*input_size_per_BS, inputDataFlat.begin()+(bId*BS+(wId+1)*NW)*input_size_per_BS);
+          samples[wId]["Solution Data"] = std::vector<float>(solutionDataFlat.begin()+(bId*BS + wId*NW)*solution_size_per_BS, solutionDataFlat.begin()+(bId*BS + (wId+1)*NW)*solution_size_per_BS);
+        }
+      }
+      if(_batchConcurrency > 1){
+        for (wId = 0; wId < _batchConcurrency; wId++) KORALI_START(samples[wId]);
+        // Waiting for samples to finish
+        KORALI_WAITALL(samples);
+      } else{
+        // Do not run on other workers
+        runTrainingOnWorker(samples[0]);
+      }
+      for (wId = 0; wId < _batchConcurrency; wId++){
+        if(_loss)
+          _currentTrainingLoss += KORALI_GET(float, samples[wId], "Training Loss");
+        const auto dloss = KORALI_GET(std::vector<float>, samples[wId], "Hyperparameter Gradients");
+        assert(dloss.size() ==  nnHyperparameterGradients.size());
+        // Calculate the sum of the gradient batches/mean would only change the learning rate.
+        std::transform(nnHyperparameterGradients.begin(), nnHyperparameterGradients.end(), dloss.begin(), nnHyperparameterGradients.begin(), std::plus<float>());
+      }
+    }
+    (*_k)["Results"]["Epoch"] = _epochCount;
+    // TODO: take care of remainder ==========================================================================================
+    // =======================================================================================================================
+    // Calculate the average validation loss
+    if(_hasValidationSet && _loss){
+      _currentValidationLoss = 0.0f;
+      auto y_val = getEvaluation(_problem->_dataValidationInput);
+      _currentValidationLoss = _loss->loss(y_val, _problem->_dataValidationSolution);
+      (*_k)["Results"]["Validation Loss"] = _currentValidationLoss;
+    }
+    if(_regularizer){
+      _currentTrainingLoss += _regularizer->penality(_neuralNetwork->getHyperparameters());
+      auto d_penalty = _regularizer->d_penality(_neuralNetwork->getHyperparameters());
+      std::transform(std::execution::par_unseq, std::begin(nnHyperparameterGradients), std::end(nnHyperparameterGradients), std::begin(d_penalty), std::begin(nnHyperparameterGradients), std::minus<float>());
+    }
+    if(_loss){
+      _currentTrainingLoss = _currentTrainingLoss/ (float)(_batchConcurrency*IforE);
+      (*_k)["Results"]["Training Loss"] = _currentTrainingLoss;
+    }
+    // // Passing hyperparameter gradients through a gradient descent update
+    _optimizer->processResult(0.0f, nnHyperparameterGradients);
+    // // Getting new set of hyperparameters from the gradient descent algorithm
+    auto &new_hyperparameters = _optimizer->_currentValue;
+    _hyperparameters = new_hyperparameters;
+    _neuralNetwork->setHyperparameters(new_hyperparameters);
+    ++_epochCount;
+    (*_k)["Results"]["Mode"] = _mode;
+}
 
-
-  // If the solution represents the gradients, just pass them on
-  if (_lossFunction == "Direct Gradient") nnHyperparameterGradients = backwardGradients(_problem->_solutionData);
-
-  // Passing hyperparameter gradients through a gradient descent update
-  _optimizer->processResult(0.0f, nnHyperparameterGradients);
-
-  // Getting new set of hyperparameters from the gradient descent algorithm
-  _neuralNetwork->setHyperparameters(_optimizer->_currentValue);
+void DeepSupervisor::runPrediction()
+{
+    // Check whether training concurrency exceeds the number of workers
+    if (_batchConcurrency > _k->_engine->_conduit->getWorkerCount()) KORALI_LOG_ERROR("The batch concurrency requested (%lu) exceeds the number of Korali workers defined in the conduit type/configuration (%lu).", _batchConcurrency, _k->_engine->_conduit->getWorkerCount());
+    // Checking that incoming data has a correct format
+    if(!_problem->_testingBatchSize){
+      _k->_logger->logWarning("Normal","'Testing Batch Size' has not been defined.\n");
+      if(!_problem->_inputData.size()){
+        KORALI_LOG_ERROR("No input supplied for prediction.");
+      }
+      BS = _problem->_inputData.size();
+    } else{
+      // Checking that incoming data has a correct format
+      if (_problem->_testingBatchSize != _problem->_inputData.size())
+        KORALI_LOG_ERROR("Testing Batch size %lu different than that of input data (%lu).\n", _problem->_testingBatchSize, _problem->_inputData.size());
+      BS = _problem->_testingBatchSize;
+    }
+    // Data ========================================================================
+    N = _problem->_inputData.size();
+    NW = BS / _batchConcurrency;
+    T = _problem->_inputData[0].size();
+    IC = _problem->_inputData[0][0].size();
+    // =============================================================================
+    const auto nnHyperparameters = _neuralNetwork->getHyperparameters();
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // TODO: shuffel testing data
+    // shuffle(_problem->_inputData.begin(), _problem->_inputData.end(), std::default_random_engine(seed));
+    // shuffle(_problem->_solutionData.begin(), _problem._solutionData.end(), std::default_random_engine(seed));
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // Calculating per worker dimensions
+    auto inputDataFlat = flatten(_problem->_inputData);
+    // Running epochs
+    size_t wId; // worker id
+    std::vector<Sample> samples(_batchConcurrency);
+    for (wId = 0; wId < _batchConcurrency; wId++)
+    {
+      samples[wId]["Sample Id"] = wId;
+      samples[wId]["Module"] = "Solver";
+      samples[wId]["Operation"] = "Forward Data";
+      samples[wId]["Input Dims"] = std::vector<size_t> {NW, T, IC};
+      samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+wId*NW*T*IC, inputDataFlat.begin()+(wId+1)*NW*T*IC);
+      samples[wId]["Hyperparameters"] = nnHyperparameters;
+    }
+    if(_batchConcurrency > 1){
+      for (wId = 0; wId < _batchConcurrency; wId++) KORALI_START(samples[wId]);
+      // Waiting for samples to finish
+      KORALI_WAITALL(samples);
+    } else{
+      runForwardData(samples[0]);
+    }
+    _evaluation.clear();
+    for (wId = 0; wId < _batchConcurrency; wId++){
+      const auto ypred = KORALI_GET(std::vector<std::vector<float>>, samples[wId], "Evaluation");
+      _evaluation.insert(_evaluation.end(), ypred.begin(), ypred.end());
+    }
+    // TODO fix
+    if(_mode == "Testing" && _loss){
+      _testingLoss = 0.0f;
+      auto y_val = getEvaluation(_problem->_inputData);
+      _testingLoss = _loss->loss(y_val, _problem->_solutionData);
+    }
+    _isPredictionFinished = true;
 }
 
 std::vector<float> __className__::getHyperparameters()
@@ -338,128 +508,162 @@ std::vector<std::vector<float>> &__className__::getEvaluation(const std::vector<
   return _neuralNetwork->getOutputValues(N);
 }
 
-std::vector<float> __className__::backwardGradients(const std::vector<std::vector<float>> &gradients)
+std::vector<float> __className__::backwardGradients(const std::vector<std::vector<float>> &dloss)
 {
   // Grabbing constants
-  const size_t N = gradients.size();
+  const size_t N = dloss.size();
 
   // Running the input values through the neural network
-  _neuralNetwork->backward(gradients);
+  _neuralNetwork->backward(dloss);
   // Getting NN hyperparameter gradients
   auto hyperparameterGradients = _neuralNetwork->getHyperparameterGradients(N);
 
-  // If required, apply L2 Normalization to the network's hyperparameters
-  if (_l2RegularizationEnabled)
-  {
-    const auto nnHyperparameters = _neuralNetwork->getHyperparameters();
-#pragma omp parallel for simd
-    for (size_t i = 0; i < hyperparameterGradients.size(); i++)
-      hyperparameterGradients[i] -= _l2RegularizationImportance * nnHyperparameters[i];
-  }
-
-  // Returning the hyperparameter gradients
   return hyperparameterGradients;
 }
 
+
 void __className__::runTrainingOnWorker(korali::Sample &sample)
 {
-  // Updating hyperparameters in the worker's NN
+  // Copy hyperparameters to workers neural network
   auto nnHyperparameters = KORALI_GET(std::vector<float>, sample, "Hyperparameters");
+  // TODO use std move here
   _neuralNetwork->setHyperparameters(nnHyperparameters);
   sample._js.getJson().erase("Hyperparameters");
-
-  // Getting input from sample
+  // Getting input batch from sample
   auto inputDataFlat = KORALI_GET(std::vector<float>, sample, "Input Data");
   sample._js.getJson().erase("Input Data");
-
   // Getting solution from sample
   auto solutionDataFlat = KORALI_GET(std::vector<float>, sample, "Solution Data");
   sample._js.getJson().erase("Solution Data");
-
-  // Getting input dimensions
+  // Getting input/solution dimensions
   auto inputDims = KORALI_GET(std::vector<size_t>, sample, "Input Dims");
-  size_t N = inputDims[0];
+  auto solutionDims = KORALI_GET(std::vector<size_t>, sample, "Solution Dims");
+  sample._js.getJson().erase("Input Dims");
+  sample._js.getJson().erase("Solution Dims");
+  size_t BS = inputDims[0];
   size_t T = inputDims[1];
   size_t IC = inputDims[2];
-  sample._js.getJson().erase("Input Dims");
-
-  // De-flattening input
-  auto input = std::vector<std::vector<std::vector<float>>>(N, std::vector<std::vector<float>>(T, std::vector<float>(IC)));
-  for (size_t i = 0; i < N; i++)
-    for (size_t j = 0; j < T; j++)
-      for (size_t k = 0; k < IC; k++)
-        input[i][j][k] = inputDataFlat[i * T * IC + j * IC + k];
-
-  // Getting solution dimensions
-  auto solutionDims = KORALI_GET(std::vector<size_t>, sample, "Solution Dims");
   size_t OC = solutionDims[1];
-  sample._js.getJson().erase("Solution Dims");
-
-  // De-flattening solution
-  auto solution = std::vector<std::vector<float>>(N, std::vector<float>(OC));
-  for (size_t i = 0; i < N; i++)
-    for (size_t j = 0; j < OC; j++)
-      solution[i][j] = solutionDataFlat[i * OC + j];
-
-  // Getting a reference to the neural network output
-  const auto &results = getEvaluation(input);
-
-  // Running Mean squared error function
-  float squaredLoss = 0.0f;
-
-// Calculating gradients via the loss function
-#pragma omp parallel for simd
-  for (size_t b = 0; b < N; b++)
-    for (size_t i = 0; i < OC; i++)
-      solution[b][i] = solution[b][i] - results[b][i];
-
-  // Adding square losses
-  for (size_t b = 0; b < N; b++)
-    for (size_t i = 0; i < OC; i++)
-      squaredLoss += solution[b][i] * solution[b][i];
-
-  // Running the input values through the neural network
-  backwardGradients(solution);
-
-  // Storing the output values for the last given timestep
-  sample["Hyperparameter Gradients"] = _neuralNetwork->getHyperparameterGradients(N);
-  sample["Squared Loss"] = squaredLoss;
+  // De-flattening input and solution vectors
+  auto input = deflatten(inputDataFlat, BS, T, IC);
+  auto y = deflatten(solutionDataFlat, BS, OC);
+  // FORWARD neural network on input data
+  const auto yhat = getEvaluation(input);
+  // TODO maybe add loss rather to problem than as part of learner ?
+  // Making a copy of the solution data where we will store the derivative of the output data
+  auto& dloss = y;
+  _currentTrainingLoss = 0.0;
+  if(_loss){
+    _currentTrainingLoss = _loss->loss(y, yhat);
+    dloss = _loss->dloss(y, yhat);
+  }
+  // BACKPROPAGATE the derivative of the output loss
+  auto hyperparameterGradients = backwardGradients(dloss);
+  sample["Hyperparameter Gradients"] = hyperparameterGradients;
+  if(_loss)
+    sample["Training Loss"] = _currentTrainingLoss;
 }
 
-void __className__::runEvaluationOnWorker(korali::Sample &sample)
+void __className__::runForwardData(korali::Sample &sample)
 {
-  // Updating hyperparameters in the worker's NN
+  // Copy hyperparameters to workers neural network
   auto nnHyperparameters = KORALI_GET(std::vector<float>, sample, "Hyperparameters");
   _neuralNetwork->setHyperparameters(nnHyperparameters);
   sample._js.getJson().erase("Hyperparameters");
-
-  // Getting input from sample
   auto inputDataFlat = KORALI_GET(std::vector<float>, sample, "Input Data");
   sample._js.getJson().erase("Input Data");
-
   // Getting input dimensions
   auto inputDims = KORALI_GET(std::vector<size_t>, sample, "Input Dims");
-  size_t N = inputDims[0];
+  sample._js.getJson().erase("Input Dims");
+  size_t BS = inputDims[0];
   size_t T = inputDims[1];
   size_t IC = inputDims[2];
-  sample._js.getJson().erase("Input Dims");
-
   // De-flattening input
-  auto input = std::vector<std::vector<std::vector<float>>>(N, std::vector<std::vector<float>>(T, std::vector<float>(IC)));
-  for (size_t i = 0; i < N; i++)
-    for (size_t j = 0; j < T; j++)
-      for (size_t k = 0; k < IC; k++)
-        input[i][j][k] = inputDataFlat[i * T * IC + j * IC + k];
-
-  // Storing the output values for the last given timestep
+  auto input = deflatten(inputDataFlat, BS, T, IC);
   sample["Evaluation"] = getEvaluation(input);
 }
 
+void __className__::finalize() {
+  if(_mode == "Predict"){
+    // Use tmp variable to check if last generation was testing
+    _isPredictionFinished = false;
+  }
+}
+
+
+void __className__::printGenerationBefore(){
+
+}
+
+
 void __className__::printGenerationAfter()
 {
-  // Printing results so far
-  if (_lossFunction == "Mean Squared Error") _k->_logger->logInfo("Normal", " + Training Loss: %.15f\n", _currentLoss);
-  if (_lossFunction == "Direct Gradient") _k->_logger->logInfo("Normal", " + Gradient L2-Norm: %.15f\n", std::sqrt(_currentLoss));
+  if (_mode == "Training")
+  {
+    // Printing results so far
+    size_t width = 60;
+    char bar[width];
+    _k->_logger->progressBar(_epochCount/(float)_epochs, bar, width);
+    if(_hasValidationSet)
+      _k->_logger->logInfo("Normal", "\r[Korali] Epoch %zu/%zu %s Train Loss: %f | Val. Loss: %f | Learning Rate: %f\r", _epochCount, _epochs, bar, _currentTrainingLoss, _currentValidationLoss, _optimizer->_eta);
+    else
+      _k->_logger->logInfo("Normal", "\r[Korali] Epoch %zu/%zu %s Train Loss: %f | Learning Rate: %f\r", _epochCount, _epochs, bar, _currentTrainingLoss, _optimizer->_eta);
+    if(_epochCount>=_epochs){
+      printf("\n"); fflush(stdout);
+    }
+  }
+  if (_mode == "Predict")
+  {
+    // TODO: do if metric like accuracy or somethign like that is set
+  }
+}
+
+std::vector<float> __className__::flatten(const std::vector<std::vector<float>> &vec) const{
+  auto N = vec.size();
+  auto OC = vec[0].size();
+  std::vector<float> vec_flat;
+  vec_flat.reserve(N*OC);
+  #pragma omp parallel for simd collapse(2)
+  for (size_t i = 0; i < N; i++)
+    for (size_t j = 0; j < OC; j++)
+      vec_flat[i * OC + j] = vec[i][j];
+  return vec_flat;
+}
+
+std::vector<float> __className__::flatten(const std::vector<std::vector<std::vector<float>>> &vec) const{
+  auto N = vec.size();
+  auto T = vec[0].size();
+  auto IC = vec[0][0].size();
+  std::vector<float> vec_flat;
+  vec_flat.reserve(N*T*IC);
+  #pragma omp parallel for simd collapse(3)
+  for (size_t i = 0; i < N; i++){
+    for (size_t j = 0; j < T; j++){
+      for (size_t k = 0; k < IC; k++){
+        vec_flat[i * T * IC + j * IC + k] = vec[i][j][k];
+      }
+    }
+  }
+  return vec_flat;
+}
+
+std::vector<std::vector<float>> __className__::deflatten(const std::vector<float> &vec_flat, size_t BS, size_t OC) const{
+  auto vec = std::vector<std::vector<float>>(BS, std::vector<float>(OC));
+  #pragma omp parallel for simd collapse(2)
+  for (size_t i = 0; i < BS; i++)
+    for (size_t j = 0; j < OC; j++)
+      vec[i][j] = vec_flat[i * OC + j];
+  return vec;
+}
+
+std::vector<std::vector<std::vector<float>>> __className__::deflatten(const std::vector<float> &vec_flat, size_t BS, size_t T, size_t IC) const{
+  auto vec = std::vector<std::vector<std::vector<float>>>(BS, std::vector<std::vector<float>>(T, std::vector<float>(IC)));
+  #pragma omp parallel for simd collapse(3)
+  for (size_t i = 0; i < BS; i++)
+    for (size_t j = 0; j < T; j++)
+      for (size_t k = 0; k < IC; k++)
+        vec[i][j][k] = vec_flat[i * T * IC + j * IC + k];
+  return vec;
 }
 
 __moduleAutoCode__;

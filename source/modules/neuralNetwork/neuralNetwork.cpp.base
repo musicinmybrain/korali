@@ -193,8 +193,10 @@ std::vector<float> __className__::generateInitialHyperparameters()
   {
     auto layerParameters = _pipelines[0][0]._layerVector[i]->generateInitialHyperparameters();
     // Safty check is any not finite value exists
+#ifdef DEBUG
     if(std::any_of(layerParameters.begin(), layerParameters.end(), [](const float v) { return !std::isfinite(v);}))
-        KORALI_LOG_ERROR("[Layer %zu/Type %s] Non-finite value assigned to inital hyperparameters.", i, _pipelines[0][0]._layerVector[i]->_type.c_str());
+      KORALI_LOG_ERROR("[Layer %zu/Type %s] Non-finite value assigned to inital hyperparameters.", i, _pipelines[0][0]._layerVector[i]->_type.c_str());
+#endif
     initialHyperparameters.insert(initialHyperparameters.end(), layerParameters.begin(), layerParameters.end());
   }
 
@@ -232,7 +234,7 @@ void __className__::forward(const std::vector<std::vector<std::vector<float>>> &
 
     for (size_t t = 0; t < inputValues[b].size(); t++)
       if (inputValues[b][t].size() != IC)
-        KORALI_LOG_ERROR("Input size of input batch (%lu), timestep (%lu) is different (%lu) than input channels configured (%lu).\n", b, t, inputValues[b][t].size(), IC);
+        KORALI_LOG_ERROR("Input size of input batch (%lu), timestep (%lu) is (%lu) - different than input channels configured by user (%lu).\n", b, t, inputValues[b][t].size(), IC);
   }
 
   // First, re-setting all input values to zero
@@ -251,6 +253,7 @@ void __className__::forward(const std::vector<std::vector<std::vector<float>>> &
   // Forward propagate layers, once per timestep
   for (size_t t = 0; t < T; t++)
     for (size_t i = 0; i < layerCount; i++)
+      // TODO here we need to get the somehow recieve the data
       p->_layerVector[i]->forwardData(t);
 
 #pragma omp parallel for
@@ -332,8 +335,8 @@ void __className__::backward(const std::vector<std::vector<float>> &outputGradie
       auto index = p->_layerVector[i]->_hyperparameterIndex;
       if (T == 1) p->_layerVector[i]->getHyperparameterGradients(&p->_hyperparameterGradients[index]);
 #ifdef DEBUG
-    bool isNonfin = std::any_of(&p->_hyperparameterGradients[index], &p->_hyperparameterGradients[index+p->_layerVector[i]->_hyperparameterCount], [](const float v) { return !std::isfinite(v);});
-    if(isNonfin)
+      bool isNonfin = std::any_of(&p->_hyperparameterGradients[index], &p->_hyperparameterGradients[index+p->_layerVector[i]->_hyperparameterCount], [](const float v) { return !std::isfinite(v);});
+      if(isNonfin)
         KORALI_LOG_ERROR("[Layer %zu] Non-finite value inside %s hyperparametergradients.", i-1, p->_layerVector[i]->_type.c_str());
 #endif
       if (T > 1) p->_layerVector[i]->getHyperparameterGradients(&batchHyperparameterGradients[index]);

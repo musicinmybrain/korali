@@ -17,7 +17,7 @@ void Conduit::coroutineWrapper()
   // Getting pointers for sample and engine
   Sample *sample = _currentSample;
   Engine *engine = _engineStack.top();
-
+  // Recieve the next available engine and run the sample
   engine->_conduit->runSample(sample, engine);
 
   // Now that the sample is finished, set its state to finished and come back to the experiment thread

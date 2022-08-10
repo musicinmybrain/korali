@@ -30,9 +30,10 @@ cothread_t __returnThread;
  */
 void threadWrapper()
 {
+  // e = this
   auto e = __expPointer;
   e->run();
-
+  // After the run is finished makes the main execution thread again active
   co_switch(e->_engine->_thread);
   KORALI_LOG_ERROR("Trying to continue finished Experiment thread.\n");
 }
@@ -60,8 +61,6 @@ void __className__::run()
     if (_consoleOutputFrequency > 0)
       if (_currentGeneration % _consoleOutputFrequency == 0)
       {
-        _logger->logInfo("Minimal", "--------------------------------------------------------------------\n");
-        _logger->logInfo("Minimal", "Current Generation: #%zu\n", _currentGeneration);
         _solver->printGenerationBefore();
       }
 
@@ -71,7 +70,6 @@ void __className__::run()
     // Timing and Profiling Start
     auto t0 = std::chrono::system_clock::now();
     _solver->runGeneration();
-
     // Timing and Profiling End
     auto t1 = std::chrono::system_clock::now();
 
@@ -113,7 +111,11 @@ void __className__::run()
 
   _logger->logInfo("Minimal", "--------------------------------------------------------------------\n");
   _logger->logInfo("Minimal", "%s finished correctly.\n", _solver->getType().c_str());
-  for (size_t i = 0; i < _solver->_terminationCriteria.size(); i++) _logger->logInfo("Normal", "Termination Criterion Met: %s\n", _solver->_terminationCriteria[i].c_str());
+  while (!_solver->_terminationCriteria.empty())
+  {
+    _logger->logInfo("Normal", "Termination Criterion Met: %s\n", _solver->_terminationCriteria.back().c_str());
+    _solver->_terminationCriteria.pop_back();
+  }
   _logger->logInfo("Normal", "Final Generation: %lu\n", _currentGeneration);
   _logger->logInfo("Normal", "Elapsed Time: %.3fs\n", std::chrono::duration<double>(t1 - t0).count());
 }
@@ -169,8 +171,12 @@ void __className__::initialize()
   _resultSavingTime = 0.0;
 
   __expPointer = this;
+  // Allocates a new cothread with 1MB from the Heap Memory for the corthreads stack and
+  // makes the function threadWrapper the function to be executed.
   _thread = co_create(1 << 20, threadWrapper);
+  // returns and stores a handle to the currently actively running thread
   __returnThread = co_active();
+  // Makes _thread the currently active thread and puts __returnThread to sleep
   co_switch(_thread);
 
   // Clearning sample and previous result information

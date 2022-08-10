@@ -18,6 +18,8 @@ korali_header = files([
   'engine.hpp',
   'korali.hpp',
 ])
+ 
+# install korali header files to install directory
 install_headers(korali_header,
   install_dir: run_command(header_path, [korali_install_headers, meson.current_source_dir()]).stdout().strip()
 )
@@ -42,4 +44,5 @@ python_extension = python.extension_module('lib' + korali,
   dependencies: [korali_deps, python.dependency()],
   install: true,
   install_dir: korali_install_base,
+  link_args : ['-ltbb']
 )

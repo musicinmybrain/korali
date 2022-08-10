@@ -4,8 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 import korali
+from korali.auxiliar.printing import *
 import argparse
 k = korali.Engine()
+e = korali.Experiment()
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -16,7 +18,7 @@ parser.add_argument(
 parser.add_argument(
     '--maxGenerations',
     help='Maximum Number of generations to run',
-    default=200,
+    default=1300,
     required=False)    
 parser.add_argument(
     '--optimizer',
@@ -31,7 +33,7 @@ parser.add_argument(
 parser.add_argument(
     '--trainingBatchSize',
     help='Batch size to use for training data',
-    default=50,
+    default=80,
     required=False)
 parser.add_argument(
     '--testBatchSize',
@@ -46,7 +48,7 @@ parser.add_argument(
 parser.add_argument(
     '--plot',
     help='Indicates whether to plot results after testing',
-    default=True,
+    default=False,
     required=False)
 
 # In case of iPython need to temporaily set sys.args to [''] in order to parse them
@@ -58,8 +60,8 @@ if len(sys.argv) != 0:
 args = parser.parse_args()
 sys.argv = tmp
 
-print("Running FNN solver with arguments:")
-print(args)
+print_header('Korali', color=bcolors.HEADER, width=140)
+print_args(vars(args), sep=' ', header_width=140)
 
 scaling = 5.0
 np.random.seed(0xC0FFEE)
@@ -72,8 +74,6 @@ trainingInputSet = [ [ [ i ] ] for i in trainingInputSet.tolist() ]
 trainingSolutionSet = [ [ i ] for i in trainingSolutionSet.tolist() ]
 
 ### Defining a learning problem to infer values of sin(x)
-
-e = korali.Experiment()
 e["Problem"]["Type"] = "Supervised Learning"
 e["Problem"]["Max Timesteps"] = 1
 e["Problem"]["Training Batch Size"] = args.trainingBatchSize
@@ -85,15 +85,12 @@ e["Problem"]["Solution"]["Data"] = trainingSolutionSet
 e["Problem"]["Solution"]["Size"] = 1
 
 ### Using a neural network solver (deep learning) for training
-
 e["Solver"]["Type"] = "Learner/DeepSupervisor"
 e["Solver"]["Mode"] = "Training"
-e["Solver"]["Loss Function"] = "Mean Squared Error"
+e["Solver"]["Loss"]["Type"] = "Mean Squared Error"
 e["Solver"]["Learning Rate"] = float(args.learningRate)
-#e["Solver"]["Batch Concurrency"] = 2
-
+e["Solver"]["Batch Concurrency"] = 1
 ### Defining the shape of the neural network
-
 e["Solver"]["Neural Network"]["Engine"] = args.engine
 e["Solver"]["Neural Network"]["Optimizer"] = args.optimizer
 
@@ -111,15 +108,16 @@ e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tan
 
 ### Configuring output
 
-e["Console Output"]["Frequency"] = 100
-e["Console Output"]["Verbosity"] = "Detailed"
+e["Console Output"]["Frequency"] = 1
+e["Console Output"]["Verbosity"] = "Normal"
 e["File Output"]["Enabled"] = False
 e["Random Seed"] = 0xC0FFEE
 
 ### Training the neural network
 
 e["Solver"]["Termination Criteria"]["Max Generations"] = int(args.maxGenerations)
-#k["Conduit"]["Type"] = "Sequential"
+k["Conduit"]["Type"] = "Sequential"
+# k["Conduit"]["Concurrent Jobs"] = 2
 #k["Conduit"]["Type"] = "Distributed"
 #k.setMPIComm(MPI.COMM_WORLD)
 k.run(e)
@@ -132,23 +130,24 @@ testOutputSet = [ x[0][0] for x in np.tanh(np.exp(np.sin(testInputSet))) * scali
 
 e["Solver"]["Mode"] = "Testing"
 e["Problem"]["Input"]["Data"] = testInputSet
-
 ### Running Testing and getting results
 k.run(e)
 testInferredSet = [ x[0] for x in e["Solver"]["Evaluation"] ]
 print("training finished")
 
-### Calc MSE on test set
+# ### Calc MSE on test set
 mse = np.mean((np.array(testInferredSet) - np.array(testOutputSet))**2)
 print("MSE on test set: {}".format(mse))
 
 if (mse > args.testMSEThreshold):
  print("Fail: MSE does not satisfy threshold: " + str(args.testMSEThreshold))
+ print_header(width=140)
  exit(-1)
 
-### Plotting Results
-
+# ### Plotting Results
 if (args.plot):
  plt.plot(testInputSet, testOutputSet, "o")
  plt.plot(testInputSet, testInferredSet, "x")
  plt.show()
+
+print_header(width=140)

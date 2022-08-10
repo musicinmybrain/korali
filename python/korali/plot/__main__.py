@@ -11,14 +11,35 @@ curdir = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
 
 # Check if name has .png ending
 def validateOutput(output):
-  if not (output.endswith(".png") or output.endswith(".eps") or output.endswith(".svg")):
+  if not (output.endswith(".png") or output.endswith(".eps") or output.endswith(".svg") or "None"):
     print("[Korali] Error: Outputfile '{0}' must end with '.eps', '.png' or '.svg' suffix.".format(output))
     sys.exit(-1)
 
+def get_generation_dicts(gen_result_files, configRunId):
+  """Stores the json objects of the generations files files inside a dict
+     and deletes the first generation that is saved before the first run().
+  :param gen_result_files: file paths to the generation files
+  :param configRunId: experiment id
+  :returns: dicts of the generation files.
 
-def main(path, test, output, plotAll=False):
+  """
+  genList = {}
+  for file in gen_result_files:
+    with open(file) as f:
+      genJs = json.load(f)
+      solverRunId = genJs['Run ID']
+      if (configRunId == solverRunId):
+        curGen = genJs['Current Generation']
+        genList[curGen] = genJs
 
-  if test or output:
+  del genList[0]
+  return genList
+
+
+
+def main(exec_path, test, output, plotAll=False, others = None):
+
+  if test or output and output != "None":
     matplotlib.use('Agg')
 
   if output:
@@ -29,35 +50,24 @@ def main(path, test, output, plotAll=False):
 
   signal.signal(signal.SIGINT, lambda x, y: exit(0))
 
-  configFile = path + '/gen00000000.json'
+  configFile = exec_path + '/gen00000000.json'
   if (not os.path.isfile(configFile)):
-    print("[Korali] Error: Did not find any results in the {0} folder...".format(path))
+    print("[Korali] Error: Did not find any results in the {0} folder...".format(exec_path))
     exit(-1)
 
   with open(configFile) as f:
-    js = json.load(f)
-  configRunId = js['Run ID']
+    config = json.load(f)
+  configRunId = config['Run ID']
 
   resultFiles = [
-      f for f in os.listdir(path)
-      if os.path.isfile(os.path.join(path, f)) and f.startswith('gen')
+      os.path.join(exec_path, f) for f in os.listdir(exec_path)
+      if os.path.isfile(os.path.join(exec_path, f)) and f.startswith('gen')
   ]
   resultFiles = sorted(resultFiles)
 
-  genList = {}
+  genList = get_generation_dicts(resultFiles, configRunId)
 
-  for file in resultFiles:
-    with open(path + '/' + file) as f:
-      genJs = json.load(f)
-      solverRunId = genJs['Run ID']
-
-      if (configRunId == solverRunId):
-        curGen = genJs['Current Generation']
-        genList[curGen] = genJs
-
-  del genList[0]
-
-  solverName = js['Solver']['Type'].lower()
+  solverName = config['Solver']['Type'].lower()
   solverDir = ""
   moduleName = ""
 
@@ -93,16 +103,25 @@ def main(path, test, output, plotAll=False):
    solverDir = curdir + '/TMCMC'
    moduleName = '.TMCMC'
 
+  if ("deepsupervisor" in solverName):
+   solverDir = curdir + '/DEEPSUPERVISOR'
+   moduleName = '.deepSupervisor'
+
   if (solverDir == ""):
    print("[Korali] Solver '{0}' does not provide support for plotting.".format(solverName))
    exit(0)
 
   sys.path.append(solverDir)
   solverLib = importlib.import_module(moduleName, package="plot")
-  solverLib.plot(genList, plotAll=plotAll )
+  if ("deepsupervisor" in solverName):
+    solverLib.plot(genList, config, others)
+  else:
+    solverLib.plot(genList, plotAll=plotAll)
 
   if not output:
     plt.show()
+  elif output == "None":
+    pass
   else:
       if output.endswith('.eps'):
         plt.savefig(output, format='eps')
@@ -132,6 +151,6 @@ if __name__ == '__main__':
       '--output', help='save figure to file', type=str, default="")
   parser.add_argument(
       '--all', help='plot all generations', action='store_true', required=False)
-  args = parser.parse_args()
+  args, unknown = parser.parse_known_args()
 
-  main(args.dir, args.test, args.output, args.all)
+  main(args.dir, args.test, args.output, args.all, unknown)
