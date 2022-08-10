@@ -281,6 +281,7 @@ def make_parser():
         help="Latent dimension of the encoder",
         default=10,
         required=False,
+        type=int,
         # [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 20, 24, 28, 32, 36, 40, 64]
     )
     parser.add_argument(

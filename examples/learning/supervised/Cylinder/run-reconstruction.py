@@ -6,7 +6,7 @@ from sklearn.preprocessing import MinMaxScaler
 import korali
 import shutil
 import time
-from mpi4py import MPI
+# from mpi4py import MPI
 sys.path.append('./_models')
 sys.path.append('./_scripts')
 from cnn_autoencoder import configure_cnn_autencoder
@@ -32,18 +32,18 @@ TIMESTEPS = 0
 parser = make_parser()
 isMaster = lambda: args.conduit != constants.DISTRIBUTED or (args.conduit == constants.DISTRIBUTED and MPIrank == MPIroot)
 
-iPython = True
+iPython = False
 if len(sys.argv) != 0:
     if sys.argv[0] in ["/usr/bin/ipython", "/users/pollakg/.local/bin/ipython"]:
+        tmp_args = sys.argv
         sys.argv = ['']
-        ipython = True
+        iPython = True
 
 args = parser.parse_args()
 # TODO: move this into argparser
 args.latent_dim = int(args.latent_dim)
 if iPython:
-    pass
-
+    sys.argv = tmp_args
 
 k = korali.Engine()
 # = Initalize Korali Engine
@@ -91,7 +91,7 @@ input_size = output_size = len(y_train[0])
 stepsPerEpoch = int(nb_train_samples / args.training_batch_size)
 testingBatchSize = nb_test_samples
 # == If this is test mode, run only one epoch
-if False:
+if args.test:
     args.epochs = 1
     stepsPerEpoch = 1
 

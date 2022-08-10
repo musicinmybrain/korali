@@ -86,9 +86,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.conduit == constants.DISTRIBUTED:
-        assert(2*args.nodes == args.batch_concurrency)
+        assert 2*args.nodes == args.batch_concurrency
+    # COPY EXECUTABLE, UTILITIES And MODELS to SCRATCH ==================================================
     EXECUTABLE = "run-reconstruction.py"
     UTILITIES = "utilities.py"
+    MODELS = "_models"
     SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     os.chdir(SCRIPT_DIR)
     CWD = os.getcwd()
@@ -98,17 +100,16 @@ if __name__ == "__main__":
     SCRIPT_DIR_ON_SCRATCH = os.path.join(SCRATCH, SCRIPT_DIR_WITHOUT_HOME)
     now = datetime.now().strftime(constants.DATE_FORMAT)
     args.output_dir_append = now
-    # Copy executable to scratch for performance reasons.
     mkdir_p(SCRIPT_DIR_ON_SCRATCH)
     shutil.copy(os.path.join(SCRIPT_DIR, EXECUTABLE), os.path.join(SCRIPT_DIR_ON_SCRATCH, EXECUTABLE))
     shutil.copy(os.path.join(SCRIPT_DIR, UTILITIES), os.path.join(SCRIPT_DIR_ON_SCRATCH, UTILITIES))
-    copy_dir(os.path.join(SCRIPT_DIR, "_models"), os.path.join(SCRIPT_DIR_ON_SCRATCH, "_models"))
+    copy_dir(os.path.join(SCRIPT_DIR, MODELS), os.path.join(SCRIPT_DIR_ON_SCRATCH, MODELS))
+    # ===================================================================================================
     # CREATE RESULT_DIR
     latent_dims = get_latent_dims(args)
     for latent_dim in latent_dims:
-        args.latent_dim = latent_dim
-        args.latent_dim = latent_dim
         # pattern: _korali_result/model/lat10/timepoint
+        args.latent_dim = latent_dim
         EXPERIMENT_DIR = exp_dir_str(args)
         RESULT_DIR = os.path.join(CWD, EXPERIMENT_DIR)
         JOB_DIRECTORY = RESULT_DIR
@@ -116,9 +117,9 @@ if __name__ == "__main__":
         lat_dim_str = str(latent_dim).zfill(2)
         jname = f"{args.model}_lat{lat_dim_str}_test" if args.test else f"{args.model}_lat{lat_dim_str}"
         jfile = os.path.join(JOB_DIRECTORY, "%s.job" % jname)
-        RUNPATH = os.path.join(SCRATCH, )
-        # Create batch file
+        # CREATE SBATCH FILES ======================================================================
         with open(jfile, "w+") as fh:
+            # Set CLUSTER CONFIGURARTIONS ==========================================================
             fh.writelines("#!/bin/bash\n")
             fh.writelines(f"#SBATCH --chdir={SCRIPT_DIR_ON_SCRATCH}\n")
             fh.writelines(f"#SBATCH --job-name={jname}.job\n")
@@ -139,6 +140,7 @@ if __name__ == "__main__":
             fh.writelines("#SBATCH --mail-type=ALL\n")
             fh.writelines("#SBATCH --mail-user=$USER@student.ethz.ch\n")
             fh.writelines("#export OMP_NUM_THREADS=12\n")
+            # Set python run commands ===============================================================
             command = (
                 f"srun python {EXECUTABLE}"
                 f" --engine {args.engine}"
@@ -171,7 +173,7 @@ if __name__ == "__main__":
             if args.overwrite:
                 command += " --file-overwrite"
             fh.writelines(command)
-
+        # SUBMIT JOBS ===============================================================
         print(f"Submitting job {jname}")
         if args.verbosity != constants.SILENT and len(latent_dims) == 1:
             print_args(vars(args), color=bcolors.HEADER)
