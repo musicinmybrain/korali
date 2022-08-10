@@ -69,22 +69,21 @@ if __name__ == "__main__":
         required=False,
         action="store_true"
     )
+    # Need latent-dim of type string to parse different options
+    # 7
+    # 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 16, 20, 24, 28, 32, 36, 40, 64
+    # 1:5
+    # 1:6:2
+    # but the main script expects one value as int
+    remove_argument(parser, "latent_dim")
+    parser.add_argument(
+        "--latent-dim",
+        help="Latent dimension of the encoder",
+        default=10,
+        required=False,
+        type=str,
+    )
     args = parser.parse_args()
-    latent_dims = []
-    # Check what kind of latent dimension: can pass range and others
-    if hasattr(args.latent_dim, '__iter__'):
-        if ":" in args.latent_dim:
-            latent_dims = args.latent_dim.split(",")
-            if len(latent_dims) == 2:
-                latent_dims = range(latent_dims[0], latent_dims[1])
-            if len(latent_dims) == 3:
-                latent_dims = range(latent_dims[0], latent_dims[1], latent_dims[2])
-        elif " " in args.latent_dim:
-            latent_dims = [int(e) for e in args.latent_dim.split(" ")]
-        else:
-            latent_dims = [int(args.latent_dim)]
-    else:
-        latent_dims = [int(args.latent_dim)]
 
     if args.conduit == constants.DISTRIBUTED:
         assert(2*args.nodes == args.batch_concurrency)
@@ -105,6 +104,7 @@ if __name__ == "__main__":
     shutil.copy(os.path.join(SCRIPT_DIR, UTILITIES), os.path.join(SCRIPT_DIR_ON_SCRATCH, UTILITIES))
     copy_dir(os.path.join(SCRIPT_DIR, "_models"), os.path.join(SCRIPT_DIR_ON_SCRATCH, "_models"))
     # CREATE RESULT_DIR
+    latent_dims = get_latent_dims(args)
     for latent_dim in latent_dims:
         args.latent_dim = latent_dim
         args.latent_dim = latent_dim

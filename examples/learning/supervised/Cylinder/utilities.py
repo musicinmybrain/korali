@@ -315,6 +315,31 @@ def make_parser():
     return parser
 
 
+def get_latent_dims(args):
+    """Returns the latent dims to use for the experiment.
+
+    :param args: argparser containing latent_dim object.
+    :returns: list of latent dimensions.
+    """
+    if hasattr(args.latent_dim, '__iter__'):
+        if ":" in args.latent_dim:
+            latent_dims = args.latent_dim.split(",")
+            # if given as min:max:1
+            if len(latent_dims) == 2:
+                return range(latent_dims[0], latent_dims[1])
+            # if given as min:max:step
+            if len(latent_dims) == 3:
+                return range(latent_dims[0], latent_dims[1], latent_dims[2])
+        elif " " in args.latent_dim:
+            # if given as lat1 lat2 lat3 ....
+            return [int(e) for e in args.latent_dim.split(" ")]
+        else:
+            # if given as lat
+            return [int(args.latent_dim)]
+    else:
+        return [int(args.latent_dim)]
+
+
 def get_prediction(X):
     """Return the output of the last timestep.
 
