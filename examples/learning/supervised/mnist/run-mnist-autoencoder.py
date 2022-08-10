@@ -385,6 +385,7 @@ if args.mode in ["all", "test"]:
     if args.mode == "test" and not isStateFound:
         sys.exit("Cannot predict without loading or training a model.")
 
+    testImage = trainingImages[:args.testBatchSize]
     e["Problem"]["Input"]["Data"] = testingImages
     e["Solver"]["Mode"] = "Predict"
     k.run(e)
@@ -393,13 +394,15 @@ if args.mode in ["all", "test"]:
 if (args.plot):
     SAVE_PLOT = False
 # Plotting      ===========================================================================
-SAMPLES_TO_DISPLAY = 4
 if args.plot:
+    results = list(zip(e["Problem"]["Solution"]["Data"], e["Solver"]["Evaluation"]))
+    SAMPLES_TO_DISPLAY = 4
     arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
     fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
-    for idx, row in enumerate(axes):
-        row[0].imshow(arr_to_img(e["Problem"]["Solution"]["Data"][idx]))
-        row[1].imshow(arr_to_img(e["Solver"]["Evaluation"][idx]))
+    for ax in axes.flatten():
+        y, yhat = random.choice(results)
+        ax.imshow(arr_to_img(y), cmap='gist_gray')
+        ax.imshow(arr_to_img(yhat), cmap='gist_gray')
     SAVE_PLOT = "None"
     main("_korali_result", False, SAVE_PLOT, False, ["--yscale", "linear"])
     plt.show()
