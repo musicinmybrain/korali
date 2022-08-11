@@ -20,12 +20,12 @@ parser.add_argument(
 parser.add_argument(
     '--maxGenerations',
      help='Maximum Number of generations to run',
-     default=10,
+     default=1000,
      required=False)   
 parser.add_argument(
     '--rnnType',
     help='Type of the RNN (GRU or LSTM)',
-    default='GRU',
+    default='LSTM',
     required=False)
 parser.add_argument(
     '--learningRate',
@@ -35,7 +35,7 @@ parser.add_argument(
 parser.add_argument(
     '--trainingBatchSize',
     help='Batch size to use for training data',
-    default=500,
+    default=128,
     required=False)
 parser.add_argument(
     '--testBatchSize',
@@ -71,7 +71,8 @@ a = 1.0 # Scaling
 def y(x, t): return np.sin(x * s +  w * t)  
 
 X = np.random.uniform(0, np.pi*2, args.trainingBatchSize)
-T = np.arange(0, tf, dt)
+# T = np.arange(0, tf, dt)
+T = np.linspace(0, tf, 40)
 
 # Providing inputs batches with varying timesequence lengths
 trainingInputSetX = [ ]
@@ -80,14 +81,14 @@ for j, x in enumerate(X):
  trainingInputSetX.append([ ])
  trainingInputSetT.append([ ])
  for t in range(randrange(len(T)) + 1):
-  trainingInputSetX[j].append([x])
+  trainingInputSetX[j].append([x, x])
   trainingInputSetT[j].append([T[t]])
 
 # Giving the solution for the last time step of each batch sequence
 trainingSolutionSet = [ ]
 for j, x in enumerate(X):
  t = trainingInputSetT[j][-1][0]
- trainingSolutionSet.append([ y(x, t) ]) 
+ trainingSolutionSet.append([ y(x, t), y(x,t) ]) 
 
 ### Defining a learning problem to infer values of sin(x,t)
 
@@ -95,17 +96,17 @@ e = korali.Experiment()
 e["Problem"]["Type"] = "Supervised Learning"
 e["Problem"]["Max Timesteps"] = len(T)
 e["Problem"]["Training Batch Size"] = args.trainingBatchSize
-e["Problem"]["Inference Batch Size"] = args.testBatchSize
+e["Problem"]["Testing Batch Size"] = args.testBatchSize
 e["Problem"]["Input"]["Data"] = trainingInputSetX
-e["Problem"]["Input"]["Size"] = 1
+e["Problem"]["Input"]["Size"] = 2
 e["Problem"]["Solution"]["Data"] = trainingSolutionSet
-e["Problem"]["Solution"]["Size"] = 1
+e["Problem"]["Solution"]["Size"] = 2
  
 ### Using a neural network solver (deep learning) for inference
 
 e["Solver"]["Type"] = "Learner/DeepSupervisor"
+e["Solver"]["Mode"] = "Training"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
-e["Solver"]["Steps Per Generation"] = 20
 e["Solver"]["Learning Rate"] = float(args.learningRate)
 
 ### Defining the shape of the neural network
@@ -114,12 +115,11 @@ e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
 e["Solver"]["Neural Network"]["Optimizer"] = args.optimizer
 
 e["Solver"]["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear"
-e["Solver"]["Neural Network"]["Hidden Layers"][0]["Depth"] = 1
-e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 32
+e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 128
 
 e["Solver"]["Neural Network"]["Hidden Layers"][1]["Type"] = "Layer/Recurrent/" + args.rnnType
 e["Solver"]["Neural Network"]["Hidden Layers"][1]["Depth"] = 1
-e["Solver"]["Neural Network"]["Hidden Layers"][1]["Output Channels"] = 32
+e["Solver"]["Neural Network"]["Hidden Layers"][1]["Output Channels"] = 128
 
 ### Configuring output 
 
@@ -138,49 +138,51 @@ if len(sys.argv) == 2:
 e["Random Seed"] = 0xC0FFEE
 k.run(e)
 
-### Obtaining inferred results from the NN and comparing them to the actual solution
+# ### Obtaining inferred results from the NN and comparing them to the actual solution
 
-X = np.random.uniform(0, np.pi*2, args.testBatchSize)
+# X = np.random.uniform(0, np.pi*2, args.testBatchSize)
 
-# Providing inputs batches with varying timesequence lengths
-testInputSetX = [ ]
-testInputSetT = [ ]
-for j, x in enumerate(X):
- testInputSetX.append([ ])
- testInputSetT.append([ ])
- for t in range(randrange(len(T)) + 1):
-  testInputSetX[j].append([x])
-  testInputSetT[j].append([T[t]])
+# # Providing inputs batches with varying timesequence lengths
+# testInputSetX = [ ]
+# testInputSetT = [ ]
+# for j, x in enumerate(X):
+#  testInputSetX.append([ ])
+#  testInputSetT.append([ ])
+#  for t in range(randrange(len(T)) + 1):
+#   testInputSetX[j].append([x])
+#   testInputSetT[j].append([T[t]])
 
-# Giving the solution for the last time step of each batch sequence
-testSolutionSet = [ ]
-for j, x in enumerate(X):
- t = testInputSetT[j][-1][0]
- testSolutionSet.append([ y(x, t) ]) 
-testInferredSet = e.getEvaluation(testInputSetX) 
+# # Giving the solution for the last time step of each batch sequence
+# testSolutionSet = [ ]
+# for j, x in enumerate(X):
+#  t = testInputSetT[j][-1][0]
+#  testSolutionSet.append([ y(x, t) ]) 
 
-### Calc MSE on test set
+# e["Solver"]["Mode"] = "Testing"
+# e["Problem"]["Input"]["Data"] = testInputSetX
 
-mse = np.mean((np.array(testInferredSet) - np.array(testSolutionSet))**2)
-print("MSE on test set: {}".format(mse))
+# ### Running Testing and getting results
+# k.run(e)
+# testInferredSet = [ x[0] for x in e["Solver"]["Evaluation"] ]
 
-if (mse > args.testMSEThreshold):
- print("Fail: MSE does not satisfy threshold: " + str(args.testMSEThreshold))
- exit(-1)
+# ### Calc MSE on test set
+
+# mse = np.mean((np.array(testInferredSet) - np.array(testSolutionSet))**2)
+# print("MSE on test set: {}".format(mse))
  
-### Plotting inferred result
-if args.plot:
- cmap = cm.get_cmap(name='Set1')
- xAxis = [ x[-1][0] for x in testInputSetX ]
+# ### Plotting inferred result
+# if args.plot:
+#  cmap = cm.get_cmap(name='Set1')
+#  xAxis = [ x[-1][0] for x in testInputSetX ]
 
- for i, x in enumerate(testInputSetX):
-  t = len(x)-1  
-  plt.plot(xAxis[i], testSolutionSet[i], "o", color=cmap(t))
-  plt.plot(xAxis[i], testInferredSet[i], "x", color=cmap(t))
+#  for i, x in enumerate(testInputSetX):
+#   t = len(x)-1  
+#   plt.plot(xAxis[i], testSolutionSet[i], "o", color=cmap(t))
+#   plt.plot(xAxis[i], testInferredSet[i], "x", color=cmap(t))
  
- labelPatches = [ ] 
- for i, t in enumerate(T):
-  labelPatches.append(mpatch.Patch(color=cmap(i), label='Seq Length: ' + str(i+1)))
- plt.legend(handles=labelPatches, loc='lower right')
+#  labelPatches = [ ] 
+#  for i, t in enumerate(T):
+#   labelPatches.append(mpatch.Patch(color=cmap(i), label='Seq Length: ' + str(i+1)))
+#  plt.legend(handles=labelPatches, loc='lower right')
 
- plt.show()
+#  plt.show()
