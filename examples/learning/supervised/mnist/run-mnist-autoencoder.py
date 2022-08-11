@@ -15,7 +15,7 @@ e = korali.Experiment()
  
 learningRate = 0.0001
 decay = 0.0001
-trainingBatchSize = 12
+trainingBatchSize = 128
 epochs = 90
 
 ### Loading MNIST data [28x28 images with {0,..,9} as label - http://yann.lecun.com/exdb/mnist/]
@@ -50,7 +50,7 @@ if len(sys.argv) == 2:
 e["Problem"]["Type"] = "Supervised Learning"
 e["Problem"]["Max Timesteps"] = 1
 e["Problem"]["Training Batch Size"] = trainingBatchSize
-e["Problem"]["Inference Batch Size"] = testingBatchSize
+e["Problem"]["Testing Batch Size"] = testingBatchSize
 e["Problem"]["Input"]["Size"] = len(trainingImages[0])
 e["Problem"]["Solution"]["Size"] = len(trainingImages[0])
 
@@ -59,9 +59,9 @@ e["Problem"]["Solution"]["Size"] = len(trainingImages[0])
 e["Solver"]["Termination Criteria"]["Max Generations"] = 1
 e["Solver"]["Type"] = "Learner/DeepSupervisor"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
-e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
+e["Solver"]["Neural Network"]["Engine"] = "CuDNN"
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
-
+e["Solver"]["Mode"] = "Training"
 
 ### Defining the shape of the neural network [autoencoder version of LeNet-1 - http://yann.lecun.com/exdb/publis/pdf/lecun-90c.pdf (fig. 2)]
 ## Convolutional Layer with tanh activation function [1x28x28] -> [6x24x24]
