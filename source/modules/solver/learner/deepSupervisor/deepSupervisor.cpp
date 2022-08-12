@@ -236,7 +236,7 @@ void DeepSupervisor::runGeneration()
 {
   if (_mode == "Training") runEpoch();
   if (_mode == "Predict") runPrediction();
-  if (_mode == "Testing") runTestingGeneration();
+  if (_mode == "Testing") runPrediction();
 }
 
 
@@ -479,11 +479,11 @@ void DeepSupervisor::runPrediction()
       const auto ypred = KORALI_GET(std::vector<std::vector<float>>, samples[wId], "Evaluation");
       _evaluation.insert(_evaluation.end(), ypred.begin(), ypred.end());
     }
-    // TODO fix
     if(_mode == "Testing" && _loss){
       _testingLoss = 0.0f;
       auto y_val = getEvaluation(_problem->_inputData);
       _testingLoss = _loss->loss(y_val, _problem->_solutionData);
+      (*_k)["Results"]["Testing Loss"] = _testingLoss;
     }
     _isPredictionFinished = true;
 }
@@ -590,7 +590,7 @@ void DeepSupervisor::runForwardData(korali::Sample &sample)
 }
 
 void DeepSupervisor::finalize() {
-  if(_mode == "Predict"){
+  if(_mode == "Predict" or _mode == "Testing"){
     // Use tmp variable to check if last generation was testing
     _isPredictionFinished = false;
   }
