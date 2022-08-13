@@ -62,6 +62,17 @@ void SupervisedLearning::setConfiguration(knlohmann::json& js)
     eraseValue(js, "Training Batch Size");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Training Batch Size'] required by supervisedLearning.\n"); 
 
+  if (isDefined(js, "Testing Batch Sizes"))
+  {
+    try
+    {
+      _testingBatchSizes = js["Testing Batch Sizes"].get<std::vector<size_t>>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ supervisedLearning ] \n + Key:    ['Testing Batch Sizes']\n%s", e.what());
+    }
+    eraseValue(js, "Testing Batch Sizes");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Testing Batch Sizes'] required by supervisedLearning.\n"); 
+
   if (isDefined(js, "Testing Batch Size"))
   {
     try
@@ -173,6 +184,7 @@ void SupervisedLearning::getConfiguration(knlohmann::json& js)
 
   js["Type"] = _type;
    js["Training Batch Size"] = _trainingBatchSize;
+   js["Testing Batch Sizes"] = _testingBatchSizes;
    js["Testing Batch Size"] = _testingBatchSize;
    js["Max Timesteps"] = _maxTimesteps;
    js["Input"]["Data"] = _inputData;
@@ -187,7 +199,7 @@ void SupervisedLearning::getConfiguration(knlohmann::json& js)
 void SupervisedLearning::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Max Timesteps\": 1, \"Input\": {\"Data\": []}, \"Solution\": {\"Data\": []}, \"Data\": {\"Validation\": {\"Input\": [], \"Solution\": []}}, \"Training Batch Size\": 0, \"Testing Batch Size\": 0}";
+ std::string defaultString = "{\"Max Timesteps\": 1, \"Input\": {\"Data\": []}, \"Solution\": {\"Data\": []}, \"Data\": {\"Validation\": {\"Input\": [], \"Solution\": []}}, \"Training Batch Size\": 0, \"Testing Batch Sizes\": [], \"Testing Batch Size\": 0}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Problem::applyModuleDefaults(js);

@@ -23,9 +23,6 @@ void DeepSupervisor::initialize()
   // Getting problem pointer
   _problem = dynamic_cast<problem::SupervisedLearning *>(_k->_problem);
 
-  // Fixing termination criteria for testing mode
-  if (_mode == "Testing") _maxGenerations = _k->_currentGeneration + 1;
-
   // Don't reinitialize if experiment was already initialized
   if (_k->_isInitialized == true) return;
 
@@ -91,12 +88,25 @@ void DeepSupervisor::initialize()
   // If we parallize by _batchConcurrency workers, we need to support the split up batch size as well
   if (_batchConcurrency > 1) batchSizes.push_back(_problem->_trainingBatchSize / _batchConcurrency);
   // TESTING =========
-  if (_problem->_testingBatchSize){
+  if (!_problem->_testingBatchSizes.empty()){
     // Check whether the minibatch size (N) can be divided by the requested concurrency TODO make this a warning and add batch size for reminder
-    if (_problem->_testingBatchSize % _batchConcurrency > 0) KORALI_LOG_ERROR("The Testing concurrency requested (%lu) does not divide the training mini batch size (%lu) perfectly.", _batchConcurrency, _problem->_testingBatchSize);
-    batchSizes.push_back(_problem->_testingBatchSize);
-    // If we parallize by _batchConcurrency workers, we need to support the split up batch size as well
-    if (_batchConcurrency > 1) batchSizes.push_back(_problem->_testingBatchSize / _batchConcurrency);
+    for (auto bs : _problem->_testingBatchSizes){
+      if (bs % _batchConcurrency > 0)
+        KORALI_LOG_ERROR("The Testing concurrency requested (%lu) does not divide the training mini batch size (%lu) perfectly.", _batchConcurrency, bs);
+      batchSizes.push_back(bs);
+      // If we parallize by _batchConcurrency workers, we need to support the split up batch size as well
+      if (_batchConcurrency > 1)
+        batchSizes.push_back(bs / _batchConcurrency);
+    }
+  } else {
+    if (_problem->_testingBatchSize){
+      // Check whether the minibatch size (N) can be divided by the requested concurrency TODO make this a warning and add batch size for reminder
+      if (_problem->_testingBatchSize % _batchConcurrency > 0)
+        KORALI_LOG_ERROR("The Testing concurrency requested (%lu) does not divide the training mini batch size (%lu) perfectly.", _batchConcurrency, _problem->_testingBatchSize);
+      batchSizes.push_back(_problem->_testingBatchSize);
+      // If we parallize by _batchConcurrency workers, we need to support the split up batch size as well
+      if (_batchConcurrency > 1) batchSizes.push_back(_problem->_testingBatchSize / _batchConcurrency);
+    }
   }
   if(_learningRateSave)
     (*_k)["Results"]["Learning Rate"] = true;
@@ -234,79 +244,11 @@ void DeepSupervisor::initialize()
 
 void DeepSupervisor::runGeneration()
 {
-  if (_mode == "Training") runEpoch();
+  if (_mode == "Training" || _mode == "Automatic Training") runEpoch();
   if (_mode == "Predict") runPrediction();
   if (_mode == "Testing") runPrediction();
-}
-
-
-void DeepSupervisor::runTestingGeneration()
-{
-  // Check whether training concurrency exceeds the number of workers
-  if (_batchConcurrency > _k->_engine->_conduit->getWorkerCount()) KORALI_LOG_ERROR("The batch concurrency requested (%lu) exceeds the number of Korali workers defined in the conduit type/configuration (%lu).", _batchConcurrency, _k->_engine->_conduit->getWorkerCount());
-
-  // Checking that incoming data has a correct format
-  if(!_problem->_testingBatchSize)
-    KORALI_LOG_ERROR("'Testing Batch Size' has not been defined.\n");
-  // Checking that incoming data has a correct format
-  if (_problem->_testingBatchSize != _problem->_inputData.size())
-    KORALI_LOG_ERROR("Testing Batch size %lu different than that of input data (%lu).\n", _problem->_testingBatchSize, _problem->_inputData.size());
-
-  // In case we run Mean Squared Error with concurrency, distribute the work among samples
-  if (_batchConcurrency > 1)
-  {
-    // Calculating per worker dimensions
-    size_t NW = _problem->_testingBatchSize / _batchConcurrency;
-    size_t T = _problem->_inputData[0].size();
-    size_t IC = _problem->_inputData[0][0].size();
-
-    // Getting current NN hyperparameters
-    const auto nnHyperparameters = _neuralNetwork->getHyperparameters();
-
-    // Sending input to workers for parallel processing
-    std::vector<Sample> samples(_batchConcurrency);
-#pragma omp parallel for
-    for (size_t sId = 0; sId < _batchConcurrency; sId++)
-    {
-      // Carving part of the batch data that corresponds to this sample
-      // NW = N/_batchConcurrency
-      // inputData[NxTxIC]
-      auto workerInputDataFlat = std::vector<float>(NW * IC * T);
-      for (size_t i = 0; i < NW; i++)
-        for (size_t j = 0; j < T; j++)
-          for (size_t k = 0; k < IC; k++)
-            workerInputDataFlat[i * T * IC + j * IC + k] = _problem->_inputData[sId * NW + i][j][k];
-
-      // Setting up sample
-      samples[sId]["Sample Id"] = sId;
-      samples[sId]["Module"] = "Solver";
-      samples[sId]["Operation"] = "Run Evaluation On Worker";
-      samples[sId]["Input Data"] = workerInputDataFlat;
-      samples[sId]["Input Dims"] = std::vector<size_t>({NW, T, IC});
-      samples[sId]["Hyperparameters"] = nnHyperparameters;
-    }
-
-    // Launching samples
-    for (size_t i = 0; i < _batchConcurrency; i++) KORALI_START(samples[i]);
-
-    // Waiting for samples to finish
-    KORALI_WAITALL(samples);
-
-    // Assembling hyperparameters and the total mean squared loss
-    _evaluation.clear();
-    for (size_t i = 0; i < _batchConcurrency; i++)
-    {
-      const auto workerEvaluations = KORALI_GET(std::vector<std::vector<float>>, samples[i], "Evaluation");
-      _evaluation.insert(_evaluation.end(), workerEvaluations.begin(), workerEvaluations.end());
-    }
-  }
-
-  // If we use an MSE loss function, we need to update the gradient vector with its difference with each of batch's last timestep of the NN output
-  if (_batchConcurrency == 1)
-  {
-    // Getting a reference to the neural network output
-    _evaluation = getEvaluation(_problem->_inputData);
-  }
+  if(_mode == "Predict" or _mode == "Testing" or _mode == "Training")
+    _isOneEpochFinished = true;
 }
 
 void DeepSupervisor::runEpoch()
@@ -429,6 +371,11 @@ void DeepSupervisor::runPrediction()
     // Check whether training concurrency exceeds the number of workers
     if (_batchConcurrency > _k->_engine->_conduit->getWorkerCount()) KORALI_LOG_ERROR("The batch concurrency requested (%lu) exceeds the number of Korali workers defined in the conduit type/configuration (%lu).", _batchConcurrency, _k->_engine->_conduit->getWorkerCount());
     // Checking that incoming data has a correct format
+
+    if(_problem->_testingBatchSize && !_problem->_testingBatchSizes.empty()){
+      if(std::find(_problem->_testingBatchSizes.begin(), _problem->_testingBatchSizes.end(), _problem->_testingBatchSize) == _problem->_testingBatchSizes.end())
+        KORALI_LOG_ERROR("Testing Batch size (%lu) different than that of any of the confiure testing batch sizes.\n", _problem->_testingBatchSize);
+    }
     if(!_problem->_testingBatchSize){
       _k->_logger->logWarning("Normal","'Testing Batch Size' has not been defined.\n");
       if(!_problem->_inputData.size()){
@@ -437,9 +384,10 @@ void DeepSupervisor::runPrediction()
       BS = _problem->_inputData.size();
     } else{
       // Checking that incoming data has a correct format
-      if (_problem->_testingBatchSize != _problem->_inputData.size())
-        KORALI_LOG_ERROR("Testing Batch size %lu different than that of input data (%lu).\n", _problem->_testingBatchSize, _problem->_inputData.size());
-      BS = _problem->_testingBatchSize;
+      if(std::find(_problem->_testingBatchSizes.begin(), _problem->_testingBatchSizes.end(), _problem->_inputData.size()) == _problem->_testingBatchSizes.end())
+        KORALI_LOG_ERROR("Testing Batch sizes different than that of input data (%lu).\n", _problem->_inputData.size());
+        // KORALI_LOG_ERROR("Testing Batch size %lu different than that of input data (%lu).\n", _problem->_testingBatchSize, _problem->_inputData.size());
+      BS = _problem->_inputData.size();
     }
     // Data ========================================================================
     N = _problem->_inputData.size();
@@ -485,7 +433,6 @@ void DeepSupervisor::runPrediction()
       _testingLoss = _loss->loss(y_val, _problem->_solutionData);
       (*_k)["Results"]["Testing Loss"] = _testingLoss;
     }
-    _isPredictionFinished = true;
 }
 
 std::vector<float> DeepSupervisor::getHyperparameters()
@@ -590,9 +537,9 @@ void DeepSupervisor::runForwardData(korali::Sample &sample)
 }
 
 void DeepSupervisor::finalize() {
-  if(_mode == "Predict" or _mode == "Testing"){
-    // Use tmp variable to check if last generation was testing
-    _isPredictionFinished = false;
+  if(_mode == "Predict" or _mode == "Testing" or _mode == "Training"){
+    // Variable to check if run only one epoch
+    _isOneEpochFinished = false;
   }
 }
 
@@ -604,7 +551,7 @@ void DeepSupervisor::printGenerationBefore(){
 
 void DeepSupervisor::printGenerationAfter()
 {
-  if (_mode == "Training")
+  if (_mode == "Automatic Training")
   {
     // Printing results so far
     size_t width = 60;
@@ -615,7 +562,7 @@ void DeepSupervisor::printGenerationAfter()
     else
       _k->_logger->logInfo("Normal", "\r[Korali] Epoch %zu/%zu %s Train Loss: %f | Learning Rate: %f\r", _epochCount, _epochs, bar, _currentTrainingLoss, _optimizer->_eta);
     if(_epochCount>=_epochs){
-      printf("\n"); fflush(stdout);
+      _k->_logger->logInfo("Normal", "\n");
     }
   }
   if (_mode == "Predict")
@@ -794,10 +741,11 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
     }
       {
         bool validOption = false; 
+        if (_mode == "Automatic Training") validOption = true; 
         if (_mode == "Training") validOption = true; 
         if (_mode == "Predict") validOption = true; 
         if (_mode == "Testing") validOption = true; 
-        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Mode'] required by deepSupervisor.\n Valid Options are:\n  - Training\n  - Predict\n  - Testing\n",_mode.c_str()); 
+        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Mode'] required by deepSupervisor.\n Valid Options are:\n  - Automatic Training\n  - Training\n  - Predict\n  - Testing\n",_mode.c_str()); 
       }
     eraseValue(js, "Mode");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Mode'] required by deepSupervisor.\n"); 
@@ -1074,16 +1022,16 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
     eraseValue(js, "Termination Criteria", "Target Loss");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Termination Criteria']['Target Loss'] required by deepSupervisor.\n"); 
 
-  if (isDefined(js, "Termination Criteria", "Is Prediction Finished"))
+  if (isDefined(js, "Termination Criteria", "Is One Epoch Finished"))
   {
     try
     {
-      _isPredictionFinished = js["Termination Criteria"]["Is Prediction Finished"].get<int>();
+      _isOneEpochFinished = js["Termination Criteria"]["Is One Epoch Finished"].get<int>();
     } catch (const std::exception& e) {
-      KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Termination Criteria']['Is Prediction Finished']\n%s", e.what());
+      KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Termination Criteria']['Is One Epoch Finished']\n%s", e.what());
     }
-    eraseValue(js, "Termination Criteria", "Is Prediction Finished");
-  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Termination Criteria']['Is Prediction Finished'] required by deepSupervisor.\n"); 
+    eraseValue(js, "Termination Criteria", "Is One Epoch Finished");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Termination Criteria']['Is One Epoch Finished'] required by deepSupervisor.\n"); 
 
  if (isDefined(_k->_js.getJson(), "Variables"))
  for (size_t i = 0; i < _k->_js["Variables"].size(); i++) { 
@@ -1097,7 +1045,7 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
 void DeepSupervisor::getConfiguration(knlohmann::json& js) 
 {
 
-  js["Type"] = _type;
+   js["Type"] = _type;
    js["Mode"] = _mode;
    js["Neural Network"]["Hidden Layers"] = _neuralNetworkHiddenLayers;
    js["Neural Network"]["Output Activation"] = _neuralNetworkOutputActivation;
@@ -1122,7 +1070,7 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
    js["Data"]["Training"]["Shuffel"] = _dataTrainingShuffel;
    js["Termination Criteria"]["Epochs"] = _epochs;
    js["Termination Criteria"]["Target Loss"] = _targetLoss;
-   js["Termination Criteria"]["Is Prediction Finished"] = _isPredictionFinished;
+   js["Termination Criteria"]["Is One Epoch Finished"] = _isOneEpochFinished;
    js["Evaluation"] = _evaluation;
    js["Data"]["Validation"]["Split"] = _dataValidationSplit;
    js["Validation Set"]["Solution"] = _validationSetSolution;
@@ -1139,7 +1087,7 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
 void DeepSupervisor::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Regularizer\": {\"Coefficient\": 0.0001, \"Type\": \"None\"}, \"Loss Function\": \"Direct Gradient\", \"Learning Rate Type\": \"Const\", \"Learning Rate Save\": true, \"Learning Rate Decay Factor\": 100, \"Learning Rate Steps\": 0, \"Learning Rate Lower Bound\": -10000000000, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}}, \"Termination Criteria\": {\"Epochs\": 10000000000, \"Is Prediction Finished\": false, \"Target Loss\": -1.0}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1, \"Epoch Count\": 0, \"Data\": {\"Validation\": {\"Split\": 0.0}, \"Training\": {\"Shuffel\": true}, \"Input\": {\"Shuffel\": true}}}";
+ std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Regularizer\": {\"Coefficient\": 0.0001, \"Type\": \"None\"}, \"Loss Function\": \"Direct Gradient\", \"Learning Rate Type\": \"Const\", \"Learning Rate Save\": true, \"Learning Rate Decay Factor\": 100, \"Learning Rate Steps\": 0, \"Learning Rate Lower Bound\": -10000000000, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}}, \"Termination Criteria\": {\"Epochs\": 10000000000, \"Is One Epoch Finished\": false, \"Target Loss\": -1.0, \"Max Generations\": 10000000000}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1, \"Epoch Count\": 1, \"Data\": {\"Validation\": {\"Split\": 0.0}, \"Training\": {\"Shuffel\": true}, \"Input\": {\"Shuffel\": true}}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Learner::applyModuleDefaults(js);
@@ -1160,7 +1108,7 @@ bool DeepSupervisor::checkTermination()
 {
   bool hasFinished = false;
 
-  if ((_epochCount >= _epochs) && (_mode == "Training"))
+  if ((_epochCount >= _epochs) && (_mode == "Automatic Training"))
   {
     _terminationCriteria.push_back("deepSupervisor['Epochs'] = " + std::to_string(_epochs) + ".");
     hasFinished = true;
@@ -1172,9 +1120,9 @@ bool DeepSupervisor::checkTermination()
     hasFinished = true;
   }
 
-  if (_isPredictionFinished && (_mode == "Predict" || _mode == "Testing"))
+  if (_isOneEpochFinished && (_mode == "Predict" || _mode == "Testing" || _mode == "Training"))
   {
-    _terminationCriteria.push_back("deepSupervisor['Is Prediction Finished'] = " + std::to_string(_isPredictionFinished) + ".");
+    _terminationCriteria.push_back("deepSupervisor['Is One Epoch Finished'] = " + std::to_string(_isOneEpochFinished) + ".");
     hasFinished = true;
   }
 

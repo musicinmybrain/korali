@@ -31,6 +31,10 @@ class SupervisedLearning : public Problem
   */
    size_t _trainingBatchSize;
   /**
+  * @brief Stores the allowed Testing Batch Sizes for the testing dataset.
+  */
+   std::vector<size_t> _testingBatchSizes;
+  /**
   * @brief Stores the batch size of the testing dataset.
   */
    size_t _testingBatchSize;

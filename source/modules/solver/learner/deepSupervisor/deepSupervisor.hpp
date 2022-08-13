@@ -184,9 +184,9 @@ class DeepSupervisor : public Learner
   */
    float _targetLoss;
   /**
-  * @brief [Termination Criteria] Stops prediction after the first generation by setting isPredictionDone to bool
+  * @brief [Termination Criteria] Stops prediction after the first generation by setting _isOneEpochFinished to bool
   */
-   int _isPredictionFinished;
+   int _isOneEpochFinished;
   
  
   /**
