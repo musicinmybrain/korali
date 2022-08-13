@@ -618,6 +618,14 @@ void __className__::printGenerationAfter()
   }
 }
 
+void __className__::printRunAfter(){
+  if(_mode == "Automatic Training"){
+    Solver::printRunAfter();
+  } else if(_mode == "Training" && _epochCount>=_epochs){
+    Solver::printRunAfter();
+  }
+}
+
 std::vector<float> __className__::flatten(const std::vector<std::vector<float>> &vec) const{
   auto N = vec.size();
   auto OC = vec[0].size();

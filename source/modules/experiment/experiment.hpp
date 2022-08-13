@@ -187,6 +187,10 @@ class Experiment : public Module
    * @brief [Profiling] Measures the amount of time taken by saving results
    */
   double _resultSavingTime;
+  /**
+   * @brief Time it took for the current generation to finish.
+   */
+  double _genTime;
 
   /**
    * @brief For testing purposes, this field establishes whether the engine is the one to run samples (default = false) or a custom function (true)

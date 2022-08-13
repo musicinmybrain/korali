@@ -131,6 +131,11 @@ class Solver : public Module
   virtual void printGenerationAfter();
 
   /**
+   * @brief Prints solver information after a run finishes.
+   */
+  virtual void printRunAfter();
+
+  /**
    * @brief Runs the current generation.
    */
   virtual void runGeneration() = 0;

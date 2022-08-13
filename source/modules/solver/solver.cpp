@@ -17,6 +17,18 @@ void Solver::printGenerationBefore(){
  */
 void Solver::printGenerationAfter(){};
 
+void Solver::printRunAfter(){
+    _k->_logger->logInfo("Minimal", "--------------------------------------------------------------------\n");
+    _k->_logger->logInfo("Minimal", "%s finished correctly.\n", this->getType().c_str());
+    while (!_terminationCriteria.empty())
+    for(auto &crit : _terminationCriteria)
+    {
+        _k->_logger->logInfo("Normal", "Termination Criterion Met: %s\n", crit.c_str());
+    }
+    _k->_logger->logInfo("Normal", "Final Generation: %lu\n", _k->_currentGeneration);
+    _k->_logger->logInfo("Normal", "Elapsed Time: %.3fs\n", _k->_genTime);
+};
+
 /**
  * @brief Initializes the solver with starting values for the first generation.
  */

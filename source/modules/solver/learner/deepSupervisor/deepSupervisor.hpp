@@ -385,6 +385,10 @@ class DeepSupervisor : public Learner
     * @brief function that can be used to print after a generation.
     */
     void printGenerationAfter() override;
+    /**
+    * @brief function that can be used to print after a run.
+    */
+    void printRunAfter() override;
 };
 
 } //learner

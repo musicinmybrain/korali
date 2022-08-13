@@ -624,6 +624,14 @@ void DeepSupervisor::printGenerationAfter()
   }
 }
 
+void DeepSupervisor::printRunAfter(){
+  if(_mode == "Automatic Training"){
+    Solver::printRunAfter();
+  } else if(_mode == "Training" && _epochCount>=_epochs){
+    Solver::printRunAfter();
+  }
+}
+
 std::vector<float> DeepSupervisor::flatten(const std::vector<std::vector<float>> &vec) const{
   auto N = vec.size();
   auto OC = vec[0].size();

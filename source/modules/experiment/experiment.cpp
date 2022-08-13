@@ -110,16 +110,9 @@ void Experiment::run()
   _timestamp = getTimestamp();
   getConfiguration(_js.getJson());
   if (_fileOutputEnabled) saveState();
-
-  _logger->logInfo("Minimal", "--------------------------------------------------------------------\n");
-  _logger->logInfo("Minimal", "%s finished correctly.\n", _solver->getType().c_str());
-  while (!_solver->_terminationCriteria.empty())
-  {
-    _logger->logInfo("Normal", "Termination Criterion Met: %s\n", _solver->_terminationCriteria.back().c_str());
-    _solver->_terminationCriteria.pop_back();
-  }
-  _logger->logInfo("Normal", "Final Generation: %lu\n", _currentGeneration);
-  _logger->logInfo("Normal", "Elapsed Time: %.3fs\n", std::chrono::duration<double>(t1 - t0).count());
+  _genTime = std::chrono::duration<double>(t1 - t0).count();
+  _solver->printRunAfter();
+  _solver->_terminationCriteria.clear();
 }
 
 void Experiment::saveState()
