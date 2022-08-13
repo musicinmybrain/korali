@@ -145,6 +145,7 @@ e["File Output"]["Path"] = "_korali_result_pytorch"
 e["Save"]["Problem"] = False
 e["Save"]["Solver"] = False
 
+#  Training ==================================================================
 if args.mode in ["all", "train"]:
     e["Solver"]["Mode"] = "Training"
     k.run(e)
@@ -177,4 +178,3 @@ if args.plot:
     plt.show()
 print_header(width=140)
 
-print_header(width=140)

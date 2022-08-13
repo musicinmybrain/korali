@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 import sys
+import random
 import os
 import matplotlib.pyplot as plt # plotting library
 import numpy as np # this module is useful to work with numerical arrays
@@ -14,8 +15,8 @@ from torch import _pin_memory, nn
 import torch.optim as optim
 sys.path.append(os.path.abspath('./_models'))
 sys.path.append(os.path.abspath('..'))
-from cnn import Encoder
-from cnn import Decoder
+# from cnn import Encoder, Decoder
+from linear_autoencoder import Encoder, Decoder
 from utilities import make_parser
 import time
 import argparse
@@ -147,4 +148,16 @@ if args.plot:
     plt.xlabel('Epoch')
     plt.ylabel('Average Loss')
     plt.legend()
+#  Plot Images ===============================================================
+    SAMPLES_TO_DISPLAY = 6
+    fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
+    for ax in axes:
+        img = random.choice(test_dataset)[0].unsqueeze(0).to(device)
+        encoder.eval()
+        decoder.eval()
+        with torch.no_grad():
+            rec_img  = decoder(encoder(img))
+        ax[0].imshow(img.cpu().squeeze().numpy(), cmap='gist_gray')
+        ax[1].imshow(rec_img.cpu().squeeze().numpy(), cmap='gist_gray')
     plt.show()
+print_header(width=140)

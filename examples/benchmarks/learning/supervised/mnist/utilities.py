@@ -26,6 +26,7 @@ def make_parser():
         '--testingBS',
         help='Batch size to use for test data',
         default=256,
+        type=int,
         required=False)
     parser.add_argument(
         '--optimizer',

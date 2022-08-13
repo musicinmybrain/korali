@@ -12,7 +12,8 @@ from korali.plot.__main__ import main
 from mnist import MNIST
 sys.path.append(os.path.abspath('./_models'))
 sys.path.append(os.path.abspath('..'))
-from autoencoder import configure_autencoder
+# from cnn_autoencoder import configure_autencoder as autoencoder
+from linear_autoencoder import configure_autencoder as autoencoder
 from utilities import make_parser
 #  Arguments =================================================================
 parser = make_parser()
@@ -72,14 +73,18 @@ args.img_size = img_height*img_width
 random.shuffle(trainingImages)
 #  Calculate number of samples that is fitting to the BS =====================
 nb_training_samples = len(trainingImages)
-nb_training_samples = 256*5
-nb_training_samples = int((nb_training_samples-nb_training_samples*args.validationSplit)/args.trainingBS)*args.trainingBS
-nb_validation_samples = int(int(nb_training_samples*args.validationSplit)/args.testingBS)*args.testingBS
+# nb_training_samples = 256*4
+nb_training_samples = int((nb_training_samples*(1-args.validationSplit))/args.trainingBS)*args.trainingBS
+print(f'{nb_training_samples} training samples')
+print(f'Discarding {int(len(trainingImages)*(1-args.validationSplit)-nb_training_samples)} training samples')
+nb_validation_samples = int((len(trainingImages)*args.validationSplit)/args.testingBS)*args.testingBS
+print(f'{nb_validation_samples} validation samples')
+print(f'Discarding {int(len(trainingImages)*args.validationSplit-nb_validation_samples)} validation samples')
 trainingImages = trainingImages[:(nb_training_samples+nb_validation_samples)]
 trainingImages = [[p/MAX_RGB for p in img] for img in trainingImages]
+testingImages = [[p/MAX_RGB for p in img] for img in testingImages]
 ### Converting images to Korali form (requires a time dimension)
 trainingImages = add_time_dimension(trainingImages)
-testingImages = add_time_dimension(testingImages)
 # Split train data into validation and train data ==============================================
 validationImages = trainingImages[:nb_training_samples]
 trainingImages = trainingImages[nb_validation_samples:]
@@ -103,13 +108,13 @@ k["Conduit"]["Type"] = "Sequential"
 e["Problem"]["Type"] = "Supervised Learning"
 e["Solver"]["Type"] = "Learner/DeepSupervisor"
 e["Problem"]["Training Batch Size"] = args.trainingBS
-e["Problem"]["Testing Batch Size"] = args.testingBS
+e["Problem"]["Testing Batch Sizes"] = [1, args.testingBS]
 e["Problem"]["Max Timesteps"] = 1
 e["Problem"]["Input"]["Size"] = img_size
 e["Problem"]["Solution"]["Size"] = img_size
 ### Using a neural network solver (deep learning) for inference
-# e["Solver"]["Termination Criteria"]["Epochs"] = 30
-e["Solver"]["Termination Criteria"]["Max Generations"] = 1
+e["Solver"]["Data"]["Input"]["Shuffel"] = False
+e["Solver"]["Data"]["Training"]["Shuffel"] = False
 
 e["Solver"]["Learning Rate"] = args.learningRate
 e["Solver"]["Learning Rate Type"] = args.learningRateType
@@ -119,18 +124,28 @@ e["Solver"]["Loss Function"] = "Mean Squared Error"
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 # MODEL DEFINTION ================================================================================
-configure_autencoder(e, img_width, img_height, input_channels, args.latentDim)
+autoencoder(e, img_width, img_height, input_channels, args.latentDim)
 # ================================================================================
 ### Configuring output
 e["Console Output"]["Verbosity"] = "Normal"
 e["Random Seed"] = args.seed
-e["File Output"]["Enabled"] = False
 e["File Output"]["Path"] = "_korali_result"
+e["File Output"]["Enabled"] = False
 # e["Save"]["Problem"] = False
 # e["Save"]["Solver"] = False
+# e["File Output"]["Frequency"] = 0
+
+def loss_MSE(yhat_batch, y_batch):
+    squaredMeanError = 0.0
+    for yhat, y in list(zip(yhat_batch, y_batch)):
+        for yhat_val, y_val in list(zip(yhat, y)):
+            diff = yhat_val - y_val
+            squaredMeanError += diff * diff
+        squaredMeanError = squaredMeanError / (float(len(yhat)))
+    return squaredMeanError
 
 #  Define the training and testing loop ======================================
-def train_epoch(e):
+def train_epoch(e, save_last_model = False):
     e["Solver"]["Mode"] = "Training"
     # Set train mode for both the encoder and the decoder
     train_loss = []
@@ -139,18 +154,22 @@ def train_epoch(e):
     for step in range(stepsPerEpoch):
         # Creating minibatch
         image_batch = trainingImages[step * args.trainingBS : (step+1) * args.trainingBS] # N x T x C
-        imgage_batch_target = [ x[0] for x in image_batch ] # N x C
+        y = [ x[0] for x in image_batch ] # N x C
         # Passing minibatch to Korali
+        if save_last_model and step == stepsPerEpoch-1:
+           e["File Output"]["Enabled"] = True
         e["Problem"]["Input"]["Data"] = image_batch
-        e["Problem"]["Solution"]["Data"] = imgage_batch_target
+        e["Problem"]["Solution"]["Data"] = y
         k.run(e)
-        e["Solver"]["Termination Criteria"]["Max Generations"] = e["Solver"]["Termination Criteria"]["Max Generations"]+1
         loss = e["Results"]["Training Loss"]
-        print(f'Step {step+1} / {stepsPerEpoch}\t Loss {loss}')
+        # yhat = e["Solver"]["Evaluation"]
+        # loss = loss_MSE(y, yhat)
+        # print(f'Step {step+1} / {stepsPerEpoch}\t Training Loss {loss}')
         train_loss.append(loss)
     return np.mean(train_loss).item()
 
 def test_epoch(e):
+    e["Problem"]["Testing Batch Size"] = args.testingBS
     e["Solver"]["Mode"] = "Testing"
     # Set train mode for both the encoder and the decoder
     validation_loss = []
@@ -160,33 +179,33 @@ def test_epoch(e):
     for step in range(stepsPerEpoch):
         # Creating minibatch
         image_batch = validationImages[step * args.testingBS : (step+1) * args.testingBS] # N x T x C
-        imgage_batch_target = [ x[0] for x in image_batch ] # N x C
+        y = [ x[0] for x in image_batch ] # N x C
         # Passing minibatch to Korali
         e["Problem"]["Input"]["Data"] = image_batch
-        e["Problem"]["Solution"]["Data"] = imgage_batch_target
+        e["Problem"]["Solution"]["Data"] = y
         # Evaluate loss
-        # loss = loss_fn(decoded_data, image_batch)
-        e["Solver"]["Termination Criteria"]["Max Generations"] = e["Solver"]["Termination Criteria"]["Max Generations"]+1
         k.run(e)
-        print(f'Testing Loss {e["Results"]["Testing Loss"]}')
-        validation_loss.append(e["Results"]["Testing Loss"])
+        loss = e["Results"]["Testing Loss"]
+        # print(f'Step {step+1} / {stepsPerEpoch}\t Testing Loss {loss}')
+        validation_loss.append(loss)
     return np.mean(validation_loss).item()
 
+#  Training Loop =============================================================
 history={'train_loss':[],'val_loss':[], 'time_per_epoch': []}
 if args.mode in ["all", "train"]:
     for epoch in range(args.epochs):
         tp_start = time.time()
-        train_loss = train_epoch(e)
+        savLastModel = True if epoch == args.epochs-1 else False
+        train_loss = train_epoch(e, savLastModel)
         tp = time.time()-tp_start
+        e["File Output"]["Enabled"] = False
         val_loss = test_epoch(e)
         print(f'EPOCH {epoch + 1}/{args.epochs} {tp:.3f}s \t train loss {train_loss:.3f} \t val loss {val_loss:.3f}')
         history['train_loss'].append(train_loss)
         history['val_loss'].append(val_loss)
         history['time_per_epoch'].append(tp)
 
-if args.save:
-    with open('_results/latest', 'w') as file:
-        file.write(json.dumps(history))
+# Plotting      ===========================================================================
 if args.plot:
     plt.figure(figsize=(10,8))
     plt.semilogy(history['train_loss'], label='Train')
@@ -194,4 +213,38 @@ if args.plot:
     plt.xlabel('Epoch')
     plt.ylabel('Average Loss')
     plt.legend()
+
+#  Plot Reconstructed Images =================================================
+    SAMPLES_TO_DISPLAY = 12
+    arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
+    fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
+    random.shuffle(testingImages)
+    e["Problem"]["Testing Batch Size"] = args.testingBS
+    e["Solver"]["Mode"] = "Predict"
+    y = [random.choice(testingImages) for i in range(args.testingBS)]
+    e["Problem"]["Input"]["Data"] = add_time_dimension(y)
+    k.run(e)
+    yhat = e["Solver"]["Evaluation"]
+    for y, yhat, ax in list(zip(y[:SAMPLES_TO_DISPLAY], yhat[:SAMPLES_TO_DISPLAY], axes)):
+        ax[0].imshow(arr_to_img(y), cmap='gist_gray')
+        ax[1].imshow(arr_to_img(yhat), cmap='gist_gray')
+    # SAMPLES_TO_DISPLAY = 12
+    # arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
+    # fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
+    # random.shuffle(testingImages)
+    # e["File Output"]["Enabled"] = False
+    # e["Problem"]["Testing Batch Size"] = 1
+    # e["Solver"]["Mode"] = "Predict"
+    # for ax in axes:
+    #     y = [random.choice(testingImages)]
+    #     e["Problem"]["Input"]["Data"] = add_time_dimension(y)
+    #     k.run(e)
+    #     yhat = e["Solver"]["Evaluation"]
+    #     ax[0].imshow(arr_to_img(y), cmap='gist_gray')
+    #     ax[1].imshow(arr_to_img(yhat), cmap='gist_gray')
     plt.show()
+print_header(width=140)
+
+if args.save:
+    with open('_results/latest', 'w') as file:
+        file.write(json.dumps(history))
