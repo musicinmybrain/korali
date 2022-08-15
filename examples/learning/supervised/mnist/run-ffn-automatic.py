@@ -17,6 +17,12 @@ from linear_autoencoder import configure_autencoder as autoencoder
 from utilities import make_parser
 parser = make_parser()
 parser.add_argument(
+    '--validationBS',
+    help='Batch Size to use for the validation set',
+    default=256,
+    type=int,
+    required=False)
+parser.add_argument(
     '--mode',
     help='Mode to use, train, predict or all',
     default='all',
@@ -96,17 +102,6 @@ if len(sys.argv) != 0:
         IPYTHON = True
 sys.argv = tmp
 
-# if args.test:
-#     args.epochs = 30
-#     args.trainingSetSize = 260
-#     args.trainingBatchSize = 50
-#     args.validationSplit = 60
-
-# if args.trainingSetSize != "all":
-#     nb_training_samples = int(args.trainingSetSize)
-#     trainingImages = trainingImages[:nb_training_samples]
-
-
 ### Print Header
 print_header('Korali', color=bcolors.HEADER, width=140)
 print_args(vars(args), sep=' ', header_width=140)
@@ -114,7 +109,7 @@ print_args(vars(args), sep=' ', header_width=140)
 isStateFound = False
 if args.load_model:
     args.validationSplit = 0.0
-    isStateFound = e.loadState("_korali_result/latest")
+    isStateFound = e.loadState("_korali_result_automatic/latest")
     if not isStateFound:
         sys.exit("No model file for _korali_result/latest found")
     if(isStateFound):
@@ -133,8 +128,9 @@ e["Problem"]["Max Timesteps"] = 1
 e["Problem"]["Input"]["Size"] = img_size
 e["Problem"]["Solution"]["Size"] = img_size
 ### Using a neural network solver (deep learning) for inference
-# e["Problem"]["Data"]["Validation"]["Input"] = add_time_dimension(validationImages)
-# e["Problem"]["Data"]["Validation"]["Solution"] = validationImages
+e["Problem"]["Data"]["Validation"]["Input"] = add_time_dimension(validationImages)
+e["Problem"]["Data"]["Validation"]["Solution"] = validationImages
+e["Problem"]["Validation Batch Size"] = args.validationBS
 # e["Solver"]["Data"]["Validation"]["Split"] = args.validationSplit
 e["Solver"]["Termination Criteria"]["Epochs"] = args.epochs
 
@@ -151,8 +147,11 @@ autoencoder(e, img_width, img_height, input_channels, args.latentDim)
 ### Configuring output
 e["Console Output"]["Verbosity"] = "Normal"
 e["Random Seed"] = 0xC0FFEE
-e["File Output"]["Enabled"] = False
-e["File Output"]["Path"] = "_korali_result_pytorch"
+if args.save:
+    e["File Output"]["Enabled"] = True
+else:
+    e["File Output"]["Enabled"] = False
+e["File Output"]["Path"] = "_korali_result_automatic"
 e["Save"]["Problem"] = False
 e["Save"]["Solver"] = False
 
@@ -161,18 +160,35 @@ if args.mode in ["all"]:
     e["Solver"]["Mode"] = "Automatic Training"
     k.run(e)
 
-# PREDICTING ================================================================================
-e["File Output"]["Enabled"] = False
-if args.mode in ["all", "predict"]:
-    if args.mode == "test" and not isStateFound:
-        sys.exit("Cannot predict without loading or training a model.")
-    testImage = trainingImages[:args.testingBS]
-    e["Problem"]["Input"]["Data"] = add_time_dimension(testImage)
-    e["Problem"]["Solution"]["Data"] = testImage
-    e["Solver"]["Mode"] = "Testing"
-    k.run(e)
+# # PREDICTING ================================================================================
+# e["File Output"]["Enabled"] = False
+# if args.mode in ["all", "predict"]:
+#     if args.mode == "test" and not isStateFound:
+#         sys.exit("Cannot predict without loading or training a model.")
+#     testImage = trainingImages[:args.testingBS]
+#     e["Problem"]["Input"]["Data"] = add_time_dimension(testImage)
+#     e["Problem"]["Solution"]["Data"] = testImage
+#     e["Solver"]["Mode"] = "Testing"
+#     k.run(e)
 
 # # Plotting Results
+if (args.plot):
+    SAMPLES_TO_DISPLAY = 8
+    arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
+    fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
+    random.shuffle(testingImages)
+    e["Problem"]["Testing Batch Size"] = args.testingBS
+    e["Solver"]["Mode"] = "Predict"
+    y = [random.choice(testingImages) for i in range(args.testingBS)]
+    e["Problem"]["Input"]["Data"] = add_time_dimension(y)
+    k.run(e)
+    yhat = e["Solver"]["Evaluation"]
+    for y, yhat, ax in list(zip(y[:SAMPLES_TO_DISPLAY], yhat[:SAMPLES_TO_DISPLAY], axes)):
+        ax[0].imshow(arr_to_img(y), cmap='gist_gray')
+        ax[1].imshow(arr_to_img(yhat), cmap='gist_gray')
+    SAVE_PLOT = "None"
+    main("_korali_result_automatic", False, SAVE_PLOT, False, ["--yscale", "linear"])
+    plt.show()
 # if (args.plot):
 #     SAVE_PLOT = False
 # # Plotting      ===========================================================================
