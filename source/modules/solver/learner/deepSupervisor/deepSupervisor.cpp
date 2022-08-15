@@ -255,6 +255,14 @@ void DeepSupervisor::runGeneration()
     _isOneEpochFinished = true;
 }
 
+void DeepSupervisor::updateWeights(std::vector<float> &nnHyperparameterGradients){
+  _optimizer->processResult(0.0f, nnHyperparameterGradients);
+  // // Getting new set of hyperparameters from the gradient descent algorithm
+  auto &new_hyperparameters = _optimizer->_currentValue;
+  _hyperparameters = new_hyperparameters;
+  _neuralNetwork->setHyperparameters(new_hyperparameters);
+}
+
 void DeepSupervisor::runEpoch()
 {
     // Check whether training concurrency exceeds the number of workers
@@ -277,7 +285,7 @@ void DeepSupervisor::runEpoch()
     // Iterations for epoch (without remainder)
     // =============================================================================
     size_t IforE = N / BS;
-    const auto nnHyperparameters = _neuralNetwork->getHyperparameters();
+    auto nnHyperparameters = _neuralNetwork->getHyperparameters();
     if(_dataTrainingShuffel){
       shuffle(_problem->_inputData.begin(), _problem->_inputData.end(), input_reng);
       shuffle(_problem->_solutionData.begin(), _problem->_solutionData.end(), solution_reng);
@@ -298,11 +306,17 @@ void DeepSupervisor::runEpoch()
     _currentTrainingLoss = 0.0f;
     size_t input_size_per_BS = T*OC;
     size_t solution_size_per_BS = T*IC;
+    // printf("\nBS %zu IforE %zu\n", BS, IforE); fflush(stdout);
     for (bId = 0; bId < IforE; bId++)
     {
+      if(_mode == "Automatic Training"){
+        nnHyperparameters = _neuralNetwork->getHyperparameters();
+        nnHyperparameterGradients = std::vector<float>(_neuralNetwork->_hyperparameterCount, 0.0f);
+      }
       for (wId = 0; wId < _batchConcurrency; wId++)
       {
-        // TODO: add different distribution strategies for workers
+        // printf("wId %zu\n", wId); fflush(stdout);
+        // TODO: verify for distributed training
         // ==========================================================================================================
         samples[wId]["Sample Id"] = wId;
         samples[wId]["Module"] = "Solver";
@@ -315,6 +329,7 @@ void DeepSupervisor::runEpoch()
         if(_batchConcurrency==1){
           samples[wId]["Input Dims"] = std::vector<size_t> {BS, T, IC};
           samples[wId]["Solution Dims"] = std::vector<size_t> {BS, OC};
+          // printf("\nbId %zu\t wId %zu\t bId*input_size_per_BS %zu\t(bId+1)*input_size_per_BS %zu\t Batch Size %zu\n", bId, wId, bId*BS*input_size_per_BS, (bId+1)*BS*input_size_per_BS, ((bId+1)*input_size_per_BS)*BS-bId*input_size_per_BS*BS); fflush(stdout);
           samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+bId*BS*input_size_per_BS, inputDataFlat.begin()+(bId+1)*BS*input_size_per_BS);
           samples[wId]["Solution Data"] = std::vector<float>(solutionDataFlat.begin()+bId*BS*solution_size_per_BS, solutionDataFlat.begin()+(bId+1)*BS*solution_size_per_BS);
         } else{
@@ -333,40 +348,61 @@ void DeepSupervisor::runEpoch()
         runTrainingOnWorker(samples[0]);
       }
       for (wId = 0; wId < _batchConcurrency; wId++){
-        if(_loss)
-          _currentTrainingLoss += KORALI_GET(float, samples[wId], "Training Loss");
+        if(_loss){
+          // printf("\nbId %zu\t wId %zu\t _currentTrainingLoss %f\n", bId, wId, _currentTrainingLoss); fflush(stdout);
+          auto loss_now = KORALI_GET(float, samples[wId], "Training Loss");
+          _currentTrainingLoss += loss_now;
+          // printf("Loss mini-batch%f\n", loss_now); fflush(stdout);
+          // printf("Tranining Loss %f\n", _currentTrainingLoss); fflush(stdout);
+        }
         const auto dloss = KORALI_GET(std::vector<float>, samples[wId], "Hyperparameter Gradients");
         assert(dloss.size() ==  nnHyperparameterGradients.size());
         // Calculate the sum of the gradient batches/mean would only change the learning rate.
         std::transform(nnHyperparameterGradients.begin(), nnHyperparameterGradients.end(), dloss.begin(), nnHyperparameterGradients.begin(), std::plus<float>());
       }
+      if(_mode == "Automatic Training"){
+        // Need to update the weiths after each mini batch =======================================================================
+        if(_hasValidationSet && _loss){
+          _currentValidationLoss = 0.0f;
+          auto y_val = getEvaluation(_problem->_dataValidationInput);
+          _currentValidationLoss = _loss->loss(y_val, _problem->_dataValidationSolution);
+          (*_k)["Results"]["Validation Loss"] = _currentValidationLoss;
+        }
+        // Add the Regularizer to the derivative of the loss if given ============================================================
+        if(_regularizer){
+          _currentTrainingLoss += _regularizer->penality(_neuralNetwork->getHyperparameters());
+          auto d_penalty = _regularizer->d_penality(_neuralNetwork->getHyperparameters());
+          std::transform(std::execution::par_unseq, std::begin(nnHyperparameterGradients), std::end(nnHyperparameterGradients), std::begin(d_penalty), std::begin(nnHyperparameterGradients), std::minus<float>());
+        }
+        updateWeights(nnHyperparameterGradients);
+      }
     }
-    (*_k)["Results"]["Epoch"] = _epochCount;
     // TODO: take care of remainder ==========================================================================================
     // =======================================================================================================================
-    // Calculate the average validation loss
-    if(_hasValidationSet && _loss){
-      _currentValidationLoss = 0.0f;
-      auto y_val = getEvaluation(_problem->_dataValidationInput);
-      _currentValidationLoss = _loss->loss(y_val, _problem->_dataValidationSolution);
-      (*_k)["Results"]["Validation Loss"] = _currentValidationLoss;
+    // Need to update the weiths after each mini batch =======================================================================
+    if(_mode == "Training"){
+      if(_hasValidationSet && _loss){
+        _currentValidationLoss = 0.0f;
+        auto y_val = getEvaluation(_problem->_dataValidationInput);
+        _currentValidationLoss = _loss->loss(y_val, _problem->_dataValidationSolution);
+        (*_k)["Results"]["Validation Loss"] = _currentValidationLoss;
+      }
+      // Add the Regularizer to the derivative of the loss if given ============================================================
+      if(_regularizer){
+        _currentTrainingLoss += _regularizer->penality(_neuralNetwork->getHyperparameters());
+        auto d_penalty = _regularizer->d_penality(_neuralNetwork->getHyperparameters());
+        std::transform(std::execution::par_unseq, std::begin(nnHyperparameterGradients), std::end(nnHyperparameterGradients), std::begin(d_penalty), std::begin(nnHyperparameterGradients), std::minus<float>());
+      }
+      updateWeights(nnHyperparameterGradients);
     }
-    if(_regularizer){
-      _currentTrainingLoss += _regularizer->penality(_neuralNetwork->getHyperparameters());
-      auto d_penalty = _regularizer->d_penality(_neuralNetwork->getHyperparameters());
-      std::transform(std::execution::par_unseq, std::begin(nnHyperparameterGradients), std::end(nnHyperparameterGradients), std::begin(d_penalty), std::begin(nnHyperparameterGradients), std::minus<float>());
-    }
+    // Calculate the training loss if a loss function is given (Direct grad otherwise) =======================================
     if(_loss){
       _currentTrainingLoss = _currentTrainingLoss/ (float)(_batchConcurrency*IforE);
       (*_k)["Results"]["Training Loss"] = _currentTrainingLoss;
+      // printf("Current Tranining Loss after divide %f\n", _currentTrainingLoss); fflush(stdout);
     }
-    // // Passing hyperparameter gradients through a gradient descent update
-    _optimizer->processResult(0.0f, nnHyperparameterGradients);
-    // // Getting new set of hyperparameters from the gradient descent algorithm
-    auto &new_hyperparameters = _optimizer->_currentValue;
-    _hyperparameters = new_hyperparameters;
-    _neuralNetwork->setHyperparameters(new_hyperparameters);
     ++_epochCount;
+    (*_k)["Results"]["Epoch"] = _epochCount;
     (*_k)["Results"]["Mode"] = _mode;
 }
 
@@ -489,7 +525,6 @@ void DeepSupervisor::runTrainingOnWorker(korali::Sample &sample)
 {
   // Copy hyperparameters to workers neural network
   auto nnHyperparameters = KORALI_GET(std::vector<float>, sample, "Hyperparameters");
-  // TODO use std move here
   _neuralNetwork->setHyperparameters(nnHyperparameters);
   sample._js.getJson().erase("Hyperparameters");
   // Getting input batch from sample
@@ -515,16 +550,17 @@ void DeepSupervisor::runTrainingOnWorker(korali::Sample &sample)
   // TODO maybe add loss rather to problem than as part of learner ?
   // Making a copy of the solution data where we will store the derivative of the output data
   auto& dloss = y;
-  _currentTrainingLoss = 0.0;
+  float loss = 0.0;
   if(_loss){
-    _currentTrainingLoss = _loss->loss(y, yhat);
+    // TODO: maybe calculate the currentTrainingLoss after we updated the model inside main worker like in pytorch.
+    loss = _loss->loss(y, yhat);
     dloss = _loss->dloss(y, yhat);
   }
   // BACKPROPAGATE the derivative of the output loss
   auto hyperparameterGradients = backwardGradients(dloss);
   sample["Hyperparameter Gradients"] = hyperparameterGradients;
   if(_loss)
-    sample["Training Loss"] = _currentTrainingLoss;
+    sample["Training Loss"] = loss;
 }
 
 void DeepSupervisor::runForwardData(korali::Sample &sample)

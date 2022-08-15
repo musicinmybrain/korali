@@ -337,6 +337,10 @@ class DeepSupervisor : public Learner
     * @param input 2D vector of size [BS, OC]
     * @return gradients of the neural network weights for all layers (size = nn hyperparameter count).
     */
+    void updateWeights(std::vector<float> &nnHyperparameterGradients);
+    /**
+    * @brief run optimization setp and update the weights.
+    */
     std::vector<float> backwardGradients(const std::vector<std::vector<float>> &dloss);
     /**
     * @brief flattens 2d solution vector
