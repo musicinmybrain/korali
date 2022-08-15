@@ -71,15 +71,16 @@ args.img_height = img_height
 args.img_size = img_height*img_width
 # Normalize Training Images
 random.shuffle(trainingImages)
-#  Calculate number of samples that is fitting to the BS =====================
+# Calculate number of samples that is fitting to the BS =====================
 nb_training_samples = len(trainingImages)
-# nb_training_samples = 256*4
 nb_training_samples = int((nb_training_samples*(1-args.validationSplit))/args.trainingBS)*args.trainingBS
 print(f'{nb_training_samples} training samples')
 print(f'Discarding {int(len(trainingImages)*(1-args.validationSplit)-nb_training_samples)} training samples')
 nb_validation_samples = int((len(trainingImages)*args.validationSplit)/args.testingBS)*args.testingBS
 print(f'{nb_validation_samples} validation samples')
 print(f'Discarding {int(len(trainingImages)*args.validationSplit-nb_validation_samples)} validation samples')
+# nb_training_samples = 256*3
+# nb_validation_samples = 256*1
 trainingImages = trainingImages[:(nb_training_samples+nb_validation_samples)]
 trainingImages = [[p/MAX_RGB for p in img] for img in trainingImages]
 testingImages = [[p/MAX_RGB for p in img] for img in testingImages]
@@ -169,6 +170,7 @@ def train_epoch(e, save_last_model = False):
     return np.mean(train_loss).item()
 
 def test_epoch(e):
+    e["File Output"]["Enabled"] = False
     e["Problem"]["Testing Batch Size"] = args.testingBS
     e["Solver"]["Mode"] = "Testing"
     # Set train mode for both the encoder and the decoder
@@ -195,17 +197,19 @@ history={'train_loss':[],'val_loss':[], 'time_per_epoch': []}
 if args.mode in ["all", "train"]:
     for epoch in range(args.epochs):
         tp_start = time.time()
-        savLastModel = True if epoch == args.epochs-1 else False
-        train_loss = train_epoch(e, savLastModel)
+        saveLastModel = True if (epoch == args.epochs-1 and args.save) else False
+        # saveLastModel = False
+        train_loss = train_epoch(e, saveLastModel)
         tp = time.time()-tp_start
-        e["File Output"]["Enabled"] = False
         val_loss = test_epoch(e)
+        # print(f'EPOCH {epoch + 1}/{args.epochs} {tp:.3f}s \t val loss {val_loss:.3f}')
         print(f'EPOCH {epoch + 1}/{args.epochs} {tp:.3f}s \t train loss {train_loss:.3f} \t val loss {val_loss:.3f}')
         history['train_loss'].append(train_loss)
         history['val_loss'].append(val_loss)
         history['time_per_epoch'].append(tp)
 
 # Plotting      ===========================================================================
+print(f'Test epoch {test_epoch(e)}\n')
 if args.plot:
     plt.figure(figsize=(10,8))
     plt.semilogy(history['train_loss'], label='Train')
@@ -215,7 +219,7 @@ if args.plot:
     plt.legend()
 
 #  Plot Reconstructed Images =================================================
-    SAMPLES_TO_DISPLAY = 12
+    SAMPLES_TO_DISPLAY = 8
     arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
     fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
     random.shuffle(testingImages)
