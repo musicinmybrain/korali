@@ -151,9 +151,11 @@ if args.save:
     e["File Output"]["Enabled"] = True
 else:
     e["File Output"]["Enabled"] = False
+e["File Output"]["Frequency"] = 0
 e["File Output"]["Path"] = "_korali_result_automatic"
 e["Save"]["Problem"] = False
 e["Save"]["Solver"] = False
+e["Save Only"] = "Results"
 
 #  Training ==================================================================
 if args.mode in ["all"]:
@@ -172,23 +174,23 @@ if args.mode in ["all"]:
 #     k.run(e)
 
 # # Plotting Results
-if (args.plot):
-    SAMPLES_TO_DISPLAY = 8
-    arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
-    fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
-    random.shuffle(testingImages)
-    e["Problem"]["Testing Batch Size"] = args.testingBS
-    e["Solver"]["Mode"] = "Predict"
-    y = [random.choice(testingImages) for i in range(args.testingBS)]
-    e["Problem"]["Input"]["Data"] = add_time_dimension(y)
-    k.run(e)
-    yhat = e["Solver"]["Evaluation"]
-    for y, yhat, ax in list(zip(y[:SAMPLES_TO_DISPLAY], yhat[:SAMPLES_TO_DISPLAY], axes)):
-        ax[0].imshow(arr_to_img(y), cmap='gist_gray')
-        ax[1].imshow(arr_to_img(yhat), cmap='gist_gray')
-    SAVE_PLOT = "None"
-    main("_korali_result_automatic", False, SAVE_PLOT, False, ["--yscale", "linear"])
-    plt.show()
+# if (args.plot):
+    # SAMPLES_TO_DISPLAY = 8
+    # arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
+    # fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
+    # random.shuffle(testingImages)
+    # e["Problem"]["Testing Batch Size"] = args.testingBS
+    # e["Solver"]["Mode"] = "Predict"
+    # y = [random.choice(testingImages) for i in range(args.testingBS)]
+    # e["Problem"]["Input"]["Data"] = add_time_dimension(y)
+    # k.run(e)
+    # yhat = e["Solver"]["Evaluation"]
+    # for y, yhat, ax in list(zip(y[:SAMPLES_TO_DISPLAY], yhat[:SAMPLES_TO_DISPLAY], axes)):
+    #     ax[0].imshow(arr_to_img(y), cmap='gist_gray')
+    #     ax[1].imshow(arr_to_img(yhat), cmap='gist_gray')
+    # SAVE_PLOT = "None"
+    # main("_korali_result_automatic", False, SAVE_PLOT, False, ["--yscale", "linear"])
+    # plt.show()
 # if (args.plot):
 #     SAVE_PLOT = False
 # # Plotting      ===========================================================================
