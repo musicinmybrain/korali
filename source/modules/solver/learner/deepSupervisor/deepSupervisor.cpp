@@ -362,12 +362,7 @@ void DeepSupervisor::runEpoch()
       }
       if(_mode == "Automatic Training"){
         // Need to update the weiths after each mini batch =======================================================================
-        if(_hasValidationSet && _loss){
-          _currentValidationLoss = 0.0f;
-          auto y_val = getEvaluation(_problem->_dataValidationInput);
-          _currentValidationLoss = _loss->loss(y_val, _problem->_dataValidationSolution);
-          (*_k)["Results"]["Validation Loss"] = _currentValidationLoss;
-        }
+        // TODO add possibility to do batched validation to not run into memory problems
         // Add the Regularizer to the derivative of the loss if given ============================================================
         if(_regularizer){
           _currentTrainingLoss += _regularizer->penality(_neuralNetwork->getHyperparameters());
@@ -381,12 +376,6 @@ void DeepSupervisor::runEpoch()
     // =======================================================================================================================
     // Need to update the weiths after each mini batch =======================================================================
     if(_mode == "Training"){
-      if(_hasValidationSet && _loss){
-        _currentValidationLoss = 0.0f;
-        auto y_val = getEvaluation(_problem->_dataValidationInput);
-        _currentValidationLoss = _loss->loss(y_val, _problem->_dataValidationSolution);
-        (*_k)["Results"]["Validation Loss"] = _currentValidationLoss;
-      }
       // Add the Regularizer to the derivative of the loss if given ============================================================
       if(_regularizer){
         _currentTrainingLoss += _regularizer->penality(_neuralNetwork->getHyperparameters());
@@ -395,11 +384,32 @@ void DeepSupervisor::runEpoch()
       }
       updateWeights(nnHyperparameterGradients);
     }
+        // if(_hasValidationSet && _loss){
+        //   _currentValidationLoss = 0.0f;
+        //   auto y_val = getEvaluation(_problem->_dataValidationInput);
+        //   _currentValidationLoss += _loss->loss(y_val, _problem->_dataValidationSolution);
+        // }
     // Calculate the training loss if a loss function is given (Direct grad otherwise) =======================================
     if(_loss){
       _currentTrainingLoss = _currentTrainingLoss/ (float)(_batchConcurrency*IforE);
       (*_k)["Results"]["Training Loss"] = _currentTrainingLoss;
       // printf("Current Tranining Loss after divide %f\n", _currentTrainingLoss); fflush(stdout);
+      if(_hasValidationSet){
+        if(_problem->_validationBatchSize == -1)
+          BS = _problem->_dataValidationInput.size();
+        IforE = NV / BS;
+        _currentValidationLoss = 0.0f;
+        #pragma omp parallel for simd reduction(+:_currentValidationLoss)
+        for (bId = 0; bId < IforE; bId++) {
+          // TODO: make this more efficient: loss expects a const vector maybe we can pass an rvalue reference instead somehow
+          auto &&input = std::vector<std::vector<std::vector<float>>>{_problem->_dataValidationInput.begin()+bId*BS, _problem->_dataValidationInput.begin()+(bId+1)*BS};
+          const auto y = std::vector<std::vector<float>>{_problem->_dataValidationSolution.begin()+bId*BS, _problem->_dataValidationSolution.begin()+(bId+1)*BS};
+          auto y_val = getEvaluation(std::move(input));
+          _currentValidationLoss += _loss->loss(y_val, y);
+        }
+      }
+      _currentValidationLoss = _currentValidationLoss/ (float)(_batchConcurrency*IforE);
+      (*_k)["Results"]["Validation Loss"] = _currentValidationLoss;
     }
     ++_epochCount;
     (*_k)["Results"]["Epoch"] = _epochCount;
@@ -496,6 +506,18 @@ void DeepSupervisor::setHyperparameters(const std::vector<float> &hyperparameter
 }
 
 std::vector<std::vector<float>> &DeepSupervisor::getEvaluation(const std::vector<std::vector<std::vector<float>>> &input)
+{
+  // Grabbing constants
+  const size_t N = input.size();
+
+  // Running the input values through the neural network
+  _neuralNetwork->forward(input);
+
+  // Returning the output values for the last given timestep
+  return _neuralNetwork->getOutputValues(N);
+}
+
+std::vector<std::vector<float>> &DeepSupervisor::getEvaluation(std::vector<std::vector<std::vector<float>>> &&input)
 {
   // Grabbing constants
   const size_t N = input.size();

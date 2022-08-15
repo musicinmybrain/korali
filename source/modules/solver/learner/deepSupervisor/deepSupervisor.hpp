@@ -303,6 +303,7 @@ class DeepSupervisor : public Learner
     * @return returns 2D output vector of size [N, OC]
     */
     std::vector<std::vector<float>> &getEvaluation(const std::vector<std::vector<std::vector<float>>> &input) override;
+    std::vector<std::vector<float>> &getEvaluation(std::vector<std::vector<std::vector<float>>> &&input);
     std::vector<float> getHyperparameters() override;
     void setHyperparameters(const std::vector<float> &hyperparameters) override;
 
