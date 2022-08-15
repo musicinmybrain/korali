@@ -34,7 +34,7 @@ namespace korali
         std::end(y_true),
         std::begin(y_pred),
         std::begin(dloss),
-        [] (auto y, auto yhat) { return y-yhat; });
+        [] (auto y, auto yhat) { return 2*(y-yhat); });
       return dloss;
     }
 
