@@ -20,7 +20,6 @@ void Solver::printGenerationAfter(){};
 void Solver::printRunAfter(){
     _k->_logger->logInfo("Minimal", "--------------------------------------------------------------------\n");
     _k->_logger->logInfo("Minimal", "%s finished correctly.\n", this->getType().c_str());
-    while (!_terminationCriteria.empty())
     for(auto &crit : _terminationCriteria)
     {
         _k->_logger->logInfo("Normal", "Termination Criterion Met: %s\n", crit.c_str());
