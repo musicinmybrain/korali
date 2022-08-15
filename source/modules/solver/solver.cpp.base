@@ -2,18 +2,14 @@
 
 __startNamespace__;
 
-/**
- * @brief Prints solver information before the execution of the current generation.
- */
+void __className__::printGenerationAfter(){
+    _k->_logger->logInfo("Detailed", "Experiment: %lu - Generation Time: %.3fs\n", _k->_experimentId, _k->_genTime);
+};
+
 void __className__::printGenerationBefore(){
     _k->_logger->logInfo("minimal", "--------------------------------------------------------------------\n");
     _k->_logger->logInfo("minimal", "current generation: #%zu: \n", _k->_currentGeneration);
 };
-
-/**
- * @brief Prints solver information after the execution of the current generation.
- */
-void __className__::printGenerationAfter(){};
 
 void __className__::printRunAfter(){
     _k->_logger->logInfo("Minimal", "--------------------------------------------------------------------\n");
@@ -26,9 +22,6 @@ void __className__::printRunAfter(){
     _k->_logger->logInfo("Normal", "Elapsed Time: %.3fs\n", _k->_genTime);
 };
 
-/**
- * @brief Initializes the solver with starting values for the first generation.
- */
 void __className__::setInitialConfiguration(){};
 
 __moduleAutoCode__;

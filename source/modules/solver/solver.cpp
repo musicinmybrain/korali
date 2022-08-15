@@ -4,18 +4,14 @@ namespace korali
 {
 ;
 
-/**
- * @brief Prints solver information before the execution of the current generation.
- */
+void Solver::printGenerationAfter(){
+    _k->_logger->logInfo("Detailed", "Experiment: %lu - Generation Time: %.3fs\n", _k->_experimentId, _k->_genTime);
+};
+
 void Solver::printGenerationBefore(){
     _k->_logger->logInfo("minimal", "--------------------------------------------------------------------\n");
     _k->_logger->logInfo("minimal", "current generation: #%zu: \n", _k->_currentGeneration);
 };
-
-/**
- * @brief Prints solver information after the execution of the current generation.
- */
-void Solver::printGenerationAfter(){};
 
 void Solver::printRunAfter(){
     _k->_logger->logInfo("Minimal", "--------------------------------------------------------------------\n");
@@ -28,9 +24,6 @@ void Solver::printRunAfter(){
     _k->_logger->logInfo("Normal", "Elapsed Time: %.3fs\n", _k->_genTime);
 };
 
-/**
- * @brief Initializes the solver with starting values for the first generation.
- */
 void Solver::setInitialConfiguration(){};
 
 void Solver::setConfiguration(knlohmann::json& js) 

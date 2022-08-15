@@ -77,8 +77,8 @@ void __className__::run()
     if (_consoleOutputFrequency > 0)
       if (_currentGeneration % _consoleOutputFrequency == 0)
       {
+        _genTime = std::chrono::duration<double>(t1 - t0).count();
         _solver->printGenerationAfter();
-        _logger->logInfo("Detailed", "Experiment: %lu - Generation Time: %.3fs\n", _experimentId, std::chrono::duration<double>(t1 - t0).count());
       }
 
     // Saving state to a file
