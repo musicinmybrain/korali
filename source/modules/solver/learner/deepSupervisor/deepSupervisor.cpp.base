@@ -9,6 +9,10 @@
 #include <execution>
 #include <range/v3/view/join.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <sstream>
+#include <iterator>
+#include <string>
+#include <vector>
 
 __startNamespace__;
 
@@ -366,22 +370,28 @@ void DeepSupervisor::runPrediction()
     if (_batchConcurrency > _k->_engine->_conduit->getWorkerCount()) KORALI_LOG_ERROR("The batch concurrency requested (%lu) exceeds the number of Korali workers defined in the conduit type/configuration (%lu).", _batchConcurrency, _k->_engine->_conduit->getWorkerCount());
     // Checking that incoming data has a correct format
 
-    if(_problem->_testingBatchSize && !_problem->_testingBatchSizes.empty()){
-      if(std::find(_problem->_testingBatchSizes.begin(), _problem->_testingBatchSizes.end(), _problem->_testingBatchSize) == _problem->_testingBatchSizes.end())
-        KORALI_LOG_ERROR("Testing Batch size (%lu) different than that of any of the confiure testing batch sizes.\n", _problem->_testingBatchSize);
-    }
-    if(!_problem->_testingBatchSize){
-      _k->_logger->logWarning("Normal","'Testing Batch Size' has not been defined.\n");
-      if(!_problem->_inputData.size()){
-        KORALI_LOG_ERROR("No input supplied for prediction.");
+    if(!_problem->_testingBatchSize && _problem->_testingBatchSizes.empty()){
+        _k->_logger->logWarning("Normal","'Testing Batch Size' has not been defined.\n");
+        if(!_problem->_inputData.size()){
+          KORALI_LOG_ERROR("No input supplied for prediction, assuming input data size as testing batch size.");
+        }
+        BS = _problem->_inputData.size();
+    } else if(_problem->_testingBatchSize && !_problem->_testingBatchSizes.empty()){
+      if(std::find(_problem->_testingBatchSizes.begin(), _problem->_testingBatchSizes.end(), _problem->_testingBatchSize) == _problem->_testingBatchSizes.end()){
+        const std::string delim{"\n\t "};
+        std::ostringstream concat;
+        std::copy(_problem->_testingBatchSizes.begin(), _problem->_testingBatchSizes.end(), std::ostream_iterator<size_t>(concat, delim.c_str()));
+        KORALI_LOG_ERROR("Testing Batch size (%lu) different than that of any of the configured testing batch sizes\n\t (%s)\n", _problem->_testingBatchSize, concat.str().c_str());
       }
-      BS = _problem->_inputData.size();
-    } else{
-      // Checking that incoming data has a correct format
-      if(std::find(_problem->_testingBatchSizes.begin(), _problem->_testingBatchSizes.end(), _problem->_inputData.size()) == _problem->_testingBatchSizes.end())
-        KORALI_LOG_ERROR("Testing Batch sizes different than that of input data (%lu).\n", _problem->_inputData.size());
-        // KORALI_LOG_ERROR("Testing Batch size %lu different than that of input data (%lu).\n", _problem->_testingBatchSize, _problem->_inputData.size());
-      BS = _problem->_inputData.size();
+      if (_problem->_testingBatchSize != _problem->_inputData.size())
+        KORALI_LOG_ERROR("Testing Batch size %lu different than that of input data (%lu).\n", _problem->_testingBatchSize, _problem->_inputData.size());
+      BS = _problem->_testingBatchSize;
+    } else if (_problem->_testingBatchSize && _problem->_testingBatchSizes.empty()) {
+      if (_problem->_testingBatchSize != _problem->_inputData.size())
+        KORALI_LOG_ERROR("Testing Batch size %lu different than that of input data (%lu).\n", _problem->_testingBatchSize, _problem->_inputData.size());
+      BS = _problem->_testingBatchSize;
+    } else {
+      KORALI_LOG_ERROR("Need to specify a testing batch size when suppling testing batch sizes.");
     }
     // Data ========================================================================
     N = _problem->_inputData.size();
@@ -473,7 +483,6 @@ void __className__::runTrainingOnWorker(korali::Sample &sample)
 {
   // Copy hyperparameters to workers neural network
   auto nnHyperparameters = KORALI_GET(std::vector<float>, sample, "Hyperparameters");
-  // TODO use std move here
   _neuralNetwork->setHyperparameters(nnHyperparameters);
   sample._js.getJson().erase("Hyperparameters");
   // Getting input batch from sample
@@ -499,16 +508,17 @@ void __className__::runTrainingOnWorker(korali::Sample &sample)
   // TODO maybe add loss rather to problem than as part of learner ?
   // Making a copy of the solution data where we will store the derivative of the output data
   auto& dloss = y;
-  _currentTrainingLoss = 0.0;
+  float loss = 0.0;
   if(_loss){
-    _currentTrainingLoss = _loss->loss(y, yhat);
+    // TODO: maybe calculate the currentTrainingLoss after we updated the model inside main worker like in pytorch.
+    loss = _loss->loss(y, yhat);
     dloss = _loss->dloss(y, yhat);
   }
   // BACKPROPAGATE the derivative of the output loss
   auto hyperparameterGradients = backwardGradients(dloss);
   sample["Hyperparameter Gradients"] = hyperparameterGradients;
   if(_loss)
-    sample["Training Loss"] = _currentTrainingLoss;
+    sample["Training Loss"] = loss;
 }
 
 void __className__::runForwardData(korali::Sample &sample)
@@ -550,7 +560,7 @@ void __className__::printGenerationAfter()
     // Printing results so far
     size_t width = 60;
     char bar[width];
-    _k->_logger->progressBar(_epochCount/(float)_epochs, bar, width);
+    _k->_logger->progressBar((_epochCount+1)/(float)(_epochs+1), bar, width);
     if(_hasValidationSet)
       _k->_logger->logInfo("Normal", "\r[Korali] Epoch %zu/%zu %s Train Loss: %f | Val. Loss: %f | Learning Rate: %f\r", _epochCount, _epochs, bar, _currentTrainingLoss, _currentValidationLoss, _optimizer->_eta);
     else

@@ -9,6 +9,10 @@
 #include <execution>
 #include <range/v3/view/join.hpp>
 #include <range/v3/range/conversion.hpp>
+#include <sstream>
+#include <iterator>
+#include <string>
+#include <vector>
 
 namespace korali
 {
@@ -372,22 +376,28 @@ void DeepSupervisor::runPrediction()
     if (_batchConcurrency > _k->_engine->_conduit->getWorkerCount()) KORALI_LOG_ERROR("The batch concurrency requested (%lu) exceeds the number of Korali workers defined in the conduit type/configuration (%lu).", _batchConcurrency, _k->_engine->_conduit->getWorkerCount());
     // Checking that incoming data has a correct format
 
-    if(_problem->_testingBatchSize && !_problem->_testingBatchSizes.empty()){
-      if(std::find(_problem->_testingBatchSizes.begin(), _problem->_testingBatchSizes.end(), _problem->_testingBatchSize) == _problem->_testingBatchSizes.end())
-        KORALI_LOG_ERROR("Testing Batch size (%lu) different than that of any of the confiure testing batch sizes.\n", _problem->_testingBatchSize);
-    }
-    if(!_problem->_testingBatchSize){
-      _k->_logger->logWarning("Normal","'Testing Batch Size' has not been defined.\n");
-      if(!_problem->_inputData.size()){
-        KORALI_LOG_ERROR("No input supplied for prediction.");
+    if(!_problem->_testingBatchSize && _problem->_testingBatchSizes.empty()){
+        _k->_logger->logWarning("Normal","'Testing Batch Size' has not been defined.\n");
+        if(!_problem->_inputData.size()){
+          KORALI_LOG_ERROR("No input supplied for prediction, assuming input data size as testing batch size.");
+        }
+        BS = _problem->_inputData.size();
+    } else if(_problem->_testingBatchSize && !_problem->_testingBatchSizes.empty()){
+      if(std::find(_problem->_testingBatchSizes.begin(), _problem->_testingBatchSizes.end(), _problem->_testingBatchSize) == _problem->_testingBatchSizes.end()){
+        const std::string delim{"\n\t "};
+        std::ostringstream concat;
+        std::copy(_problem->_testingBatchSizes.begin(), _problem->_testingBatchSizes.end(), std::ostream_iterator<size_t>(concat, delim.c_str()));
+        KORALI_LOG_ERROR("Testing Batch size (%lu) different than that of any of the configured testing batch sizes\n\t (%s)\n", _problem->_testingBatchSize, concat.str().c_str());
       }
-      BS = _problem->_inputData.size();
-    } else{
-      // Checking that incoming data has a correct format
-      if(std::find(_problem->_testingBatchSizes.begin(), _problem->_testingBatchSizes.end(), _problem->_inputData.size()) == _problem->_testingBatchSizes.end())
-        KORALI_LOG_ERROR("Testing Batch sizes different than that of input data (%lu).\n", _problem->_inputData.size());
-        // KORALI_LOG_ERROR("Testing Batch size %lu different than that of input data (%lu).\n", _problem->_testingBatchSize, _problem->_inputData.size());
-      BS = _problem->_inputData.size();
+      if (_problem->_testingBatchSize != _problem->_inputData.size())
+        KORALI_LOG_ERROR("Testing Batch size %lu different than that of input data (%lu).\n", _problem->_testingBatchSize, _problem->_inputData.size());
+      BS = _problem->_testingBatchSize;
+    } else if (_problem->_testingBatchSize && _problem->_testingBatchSizes.empty()) {
+      if (_problem->_testingBatchSize != _problem->_inputData.size())
+        KORALI_LOG_ERROR("Testing Batch size %lu different than that of input data (%lu).\n", _problem->_testingBatchSize, _problem->_inputData.size());
+      BS = _problem->_testingBatchSize;
+    } else {
+      KORALI_LOG_ERROR("Need to specify a testing batch size when suppling testing batch sizes.");
     }
     // Data ========================================================================
     N = _problem->_inputData.size();
@@ -556,7 +566,7 @@ void DeepSupervisor::printGenerationAfter()
     // Printing results so far
     size_t width = 60;
     char bar[width];
-    _k->_logger->progressBar(_epochCount/(float)_epochs, bar, width);
+    _k->_logger->progressBar((_epochCount+1)/(float)(_epochs+1), bar, width);
     if(_hasValidationSet)
       _k->_logger->logInfo("Normal", "\r[Korali] Epoch %zu/%zu %s Train Loss: %f | Val. Loss: %f | Learning Rate: %f\r", _epochCount, _epochs, bar, _currentTrainingLoss, _currentValidationLoss, _optimizer->_eta);
     else
@@ -1045,7 +1055,7 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
 void DeepSupervisor::getConfiguration(knlohmann::json& js) 
 {
 
-   js["Type"] = _type;
+  js["Type"] = _type;
    js["Mode"] = _mode;
    js["Neural Network"]["Hidden Layers"] = _neuralNetworkHiddenLayers;
    js["Neural Network"]["Output Activation"] = _neuralNetworkOutputActivation;
@@ -1087,7 +1097,7 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
 void DeepSupervisor::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Regularizer\": {\"Coefficient\": 0.0001, \"Type\": \"None\"}, \"Loss Function\": \"Direct Gradient\", \"Learning Rate Type\": \"Const\", \"Learning Rate Save\": true, \"Learning Rate Decay Factor\": 100, \"Learning Rate Steps\": 0, \"Learning Rate Lower Bound\": -10000000000, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}}, \"Termination Criteria\": {\"Epochs\": 10000000000, \"Is One Epoch Finished\": false, \"Target Loss\": -1.0, \"Max Generations\": 10000000000}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1, \"Epoch Count\": 1, \"Data\": {\"Validation\": {\"Split\": 0.0}, \"Training\": {\"Shuffel\": true}, \"Input\": {\"Shuffel\": true}}}";
+ std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Regularizer\": {\"Coefficient\": 0.0001, \"Type\": \"None\"}, \"Loss Function\": \"Direct Gradient\", \"Learning Rate Type\": \"Const\", \"Learning Rate Save\": true, \"Learning Rate Decay Factor\": 100, \"Learning Rate Steps\": 0, \"Learning Rate Lower Bound\": -10000000000, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}}, \"Termination Criteria\": {\"Epochs\": 10000000000, \"Is One Epoch Finished\": false, \"Target Loss\": -1.0, \"Max Generations\": 10000000000}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1, \"Epoch Count\": 0, \"Data\": {\"Validation\": {\"Split\": 0.0}, \"Training\": {\"Shuffel\": true}, \"Input\": {\"Shuffel\": true}}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Learner::applyModuleDefaults(js);
@@ -1114,7 +1124,7 @@ bool DeepSupervisor::checkTermination()
     hasFinished = true;
   }
 
-  if ((_epochCount > 1) && (_targetLoss > 0.0) && (_currentValidationLoss <= _targetLoss) && (_mode == "Training"))
+  if ((_epochCount > 1) && (_targetLoss > 0.0) && (_currentValidationLoss <= _targetLoss) && (_mode == "Training") && (_mode == "Training"))
   {
     _terminationCriteria.push_back("deepSupervisor['Target Loss'] = " + std::to_string(_targetLoss) + ".");
     hasFinished = true;
