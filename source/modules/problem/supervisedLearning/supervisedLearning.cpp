@@ -84,6 +84,17 @@ void SupervisedLearning::setConfiguration(knlohmann::json& js)
     eraseValue(js, "Testing Batch Size");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Testing Batch Size'] required by supervisedLearning.\n"); 
 
+  if (isDefined(js, "Validation Batch Size"))
+  {
+    try
+    {
+      _validationBatchSize = js["Validation Batch Size"].get<ssize_t>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ supervisedLearning ] \n + Key:    ['Validation Batch Size']\n%s", e.what());
+    }
+    eraseValue(js, "Validation Batch Size");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Validation Batch Size'] required by supervisedLearning.\n"); 
+
   if (isDefined(js, "Max Timesteps"))
   {
     try
@@ -186,6 +197,7 @@ void SupervisedLearning::getConfiguration(knlohmann::json& js)
    js["Training Batch Size"] = _trainingBatchSize;
    js["Testing Batch Sizes"] = _testingBatchSizes;
    js["Testing Batch Size"] = _testingBatchSize;
+   js["Validation Batch Size"] = _validationBatchSize;
    js["Max Timesteps"] = _maxTimesteps;
    js["Input"]["Data"] = _inputData;
    js["Data"]["Validation"]["Input"] = _dataValidationInput;
@@ -199,7 +211,7 @@ void SupervisedLearning::getConfiguration(knlohmann::json& js)
 void SupervisedLearning::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Max Timesteps\": 1, \"Input\": {\"Data\": []}, \"Solution\": {\"Data\": []}, \"Data\": {\"Validation\": {\"Input\": [], \"Solution\": []}}, \"Training Batch Size\": 0, \"Testing Batch Sizes\": [], \"Testing Batch Size\": 0}";
+ std::string defaultString = "{\"Max Timesteps\": 1, \"Input\": {\"Data\": []}, \"Solution\": {\"Data\": []}, \"Data\": {\"Validation\": {\"Input\": [], \"Solution\": []}}, \"Training Batch Size\": 0, \"Testing Batch Sizes\": [], \"Testing Batch Size\": 0, \"Validation Batch Size\": -1}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Problem::applyModuleDefaults(js);
