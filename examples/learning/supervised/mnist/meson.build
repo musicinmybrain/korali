@@ -1,3 +1,4 @@
+subdir('korali')
 e = find_program('./.test-run.py', required: true)
 test('learning.supervised.mnist', e,
       timeout : 3600,
