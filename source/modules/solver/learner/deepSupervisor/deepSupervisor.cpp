@@ -82,6 +82,8 @@ void DeepSupervisor::initialize()
     }
     (*_k)["Results"]["Validation Loss"] = true;
   }
+  _trainingLoss.reserve(_epochs);
+  _validationLoss.reserve(_epochs);
   // =============================================================================
   if (!_problem->_trainingBatchSize) KORALI_LOG_ERROR("Training Batch Size is not set.");
   // Check whether the minibatch size (N) can be divided by the requested concurrency TODO make this a warning and add batch size for reminder Need to also adapt verifyData() of supervisedLearning problem.
@@ -306,7 +308,6 @@ void DeepSupervisor::runEpoch()
     _currentTrainingLoss = 0.0f;
     size_t input_size_per_BS = T*OC;
     size_t solution_size_per_BS = T*IC;
-    // printf("\nBS %zu IforE %zu\n", BS, IforE); fflush(stdout);
     for (bId = 0; bId < IforE; bId++)
     {
       if(_mode == "Automatic Training"){
@@ -315,7 +316,6 @@ void DeepSupervisor::runEpoch()
       }
       for (wId = 0; wId < _batchConcurrency; wId++)
       {
-        // printf("wId %zu\n", wId); fflush(stdout);
         // TODO: verify for distributed training
         // ==========================================================================================================
         samples[wId]["Sample Id"] = wId;
@@ -329,7 +329,6 @@ void DeepSupervisor::runEpoch()
         if(_batchConcurrency==1){
           samples[wId]["Input Dims"] = std::vector<size_t> {BS, T, IC};
           samples[wId]["Solution Dims"] = std::vector<size_t> {BS, OC};
-          // printf("\nbId %zu\t wId %zu\t bId*input_size_per_BS %zu\t(bId+1)*input_size_per_BS %zu\t Batch Size %zu\n", bId, wId, bId*BS*input_size_per_BS, (bId+1)*BS*input_size_per_BS, ((bId+1)*input_size_per_BS)*BS-bId*input_size_per_BS*BS); fflush(stdout);
           samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+bId*BS*input_size_per_BS, inputDataFlat.begin()+(bId+1)*BS*input_size_per_BS);
           samples[wId]["Solution Data"] = std::vector<float>(solutionDataFlat.begin()+bId*BS*solution_size_per_BS, solutionDataFlat.begin()+(bId+1)*BS*solution_size_per_BS);
         } else{
@@ -349,11 +348,7 @@ void DeepSupervisor::runEpoch()
       }
       for (wId = 0; wId < _batchConcurrency; wId++){
         if(_loss){
-          // printf("\nbId %zu\t wId %zu\t _currentTrainingLoss %f\n", bId, wId, _currentTrainingLoss); fflush(stdout);
-          auto loss_now = KORALI_GET(float, samples[wId], "Training Loss");
-          _currentTrainingLoss += loss_now;
-          // printf("Loss mini-batch%f\n", loss_now); fflush(stdout);
-          // printf("Tranining Loss %f\n", _currentTrainingLoss); fflush(stdout);
+          _currentTrainingLoss += KORALI_GET(float, samples[wId], "Training Loss");
         }
         const auto dloss = KORALI_GET(std::vector<float>, samples[wId], "Hyperparameter Gradients");
         assert(dloss.size() ==  nnHyperparameterGradients.size());
@@ -362,7 +357,6 @@ void DeepSupervisor::runEpoch()
       }
       if(_mode == "Automatic Training"){
         // Need to update the weiths after each mini batch =======================================================================
-        // TODO add possibility to do batched validation to not run into memory problems
         // Add the Regularizer to the derivative of the loss if given ============================================================
         if(_regularizer){
           _currentTrainingLoss += _regularizer->penality(_neuralNetwork->getHyperparameters());
@@ -392,8 +386,8 @@ void DeepSupervisor::runEpoch()
     // Calculate the training loss if a loss function is given (Direct grad otherwise) =======================================
     if(_loss){
       _currentTrainingLoss = _currentTrainingLoss/ (float)(_batchConcurrency*IforE);
-      (*_k)["Results"]["Training Loss"] = _currentTrainingLoss;
-      // printf("Current Tranining Loss after divide %f\n", _currentTrainingLoss); fflush(stdout);
+      _trainingLoss.push_back(_currentTrainingLoss);
+      (*_k)["Results"]["Training Loss"] = _trainingLoss;
       if(_hasValidationSet){
         if(_problem->_validationBatchSize == -1)
           BS = _problem->_dataValidationInput.size();
@@ -409,7 +403,8 @@ void DeepSupervisor::runEpoch()
         }
       }
       _currentValidationLoss = _currentValidationLoss/ (float)(_batchConcurrency*IforE);
-      (*_k)["Results"]["Validation Loss"] = _currentValidationLoss;
+      _validationLoss.push_back(_currentValidationLoss);
+      (*_k)["Results"]["Validation Loss"] = _validationLoss;
     }
     ++_epochCount;
     (*_k)["Results"]["Epoch"] = _epochCount;
@@ -758,6 +753,26 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
       KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Current Validation Loss']\n%s", e.what());
     }
     eraseValue(js, "Current Validation Loss");
+  }
+  if (isDefined(js, "Training Loss"))
+  {
+    try
+    {
+      _trainingLoss = js["Training Loss"].get<std::vector<float>>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Training Loss']\n%s", e.what());
+    }
+    eraseValue(js, "Training Loss");
+  }
+  if (isDefined(js, "Validation Loss"))
+  {
+    try
+    {
+      _validationLoss = js["Validation Loss"].get<std::vector<float>>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Validation Loss']\n%s", e.what());
+    }
+    eraseValue(js, "Validation Loss");
   }
   if (isDefined(js, "Testing Loss"))
   {
@@ -1145,6 +1160,8 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
    js["Validation Set"]["Size"] = _validationSetSize;
    js["Current Training Loss"] = _currentTrainingLoss;
    js["Current Validation Loss"] = _currentValidationLoss;
+   js["Training Loss"] = _trainingLoss;
+   js["Validation Loss"] = _validationLoss;
    js["Testing Loss"] = _testingLoss;
    js["Normalization Means"] = _normalizationMeans;
    js["Normalization Variances"] = _normalizationVariances;

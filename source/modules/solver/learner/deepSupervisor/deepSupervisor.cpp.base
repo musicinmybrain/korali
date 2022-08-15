@@ -76,6 +76,8 @@ void __className__::initialize()
     }
     (*_k)["Results"]["Validation Loss"] = true;
   }
+  _trainingLoss.reserve(_epochs);
+  _validationLoss.reserve(_epochs);
   // =============================================================================
   if (!_problem->_trainingBatchSize) KORALI_LOG_ERROR("Training Batch Size is not set.");
   // Check whether the minibatch size (N) can be divided by the requested concurrency TODO make this a warning and add batch size for reminder Need to also adapt verifyData() of supervisedLearning problem.
@@ -340,8 +342,7 @@ void DeepSupervisor::runEpoch()
       }
       for (wId = 0; wId < _batchConcurrency; wId++){
         if(_loss){
-          auto loss_now = KORALI_GET(float, samples[wId], "Training Loss");
-          _currentTrainingLoss += loss_now;
+          _currentTrainingLoss += KORALI_GET(float, samples[wId], "Training Loss");
         }
         const auto dloss = KORALI_GET(std::vector<float>, samples[wId], "Hyperparameter Gradients");
         assert(dloss.size() ==  nnHyperparameterGradients.size());
@@ -379,7 +380,8 @@ void DeepSupervisor::runEpoch()
     // Calculate the training loss if a loss function is given (Direct grad otherwise) =======================================
     if(_loss){
       _currentTrainingLoss = _currentTrainingLoss/ (float)(_batchConcurrency*IforE);
-      (*_k)["Results"]["Training Loss"] = _currentTrainingLoss;
+      _trainingLoss.push_back(_currentTrainingLoss);
+      (*_k)["Results"]["Training Loss"] = _trainingLoss;
       if(_hasValidationSet){
         if(_problem->_validationBatchSize == -1)
           BS = _problem->_dataValidationInput.size();
@@ -395,7 +397,8 @@ void DeepSupervisor::runEpoch()
         }
       }
       _currentValidationLoss = _currentValidationLoss/ (float)(_batchConcurrency*IforE);
-      (*_k)["Results"]["Validation Loss"] = _currentValidationLoss;
+      _validationLoss.push_back(_currentValidationLoss);
+      (*_k)["Results"]["Validation Loss"] = _validationLoss;
     }
     ++_epochCount;
     (*_k)["Results"]["Epoch"] = _epochCount;

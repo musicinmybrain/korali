@@ -160,6 +160,14 @@ class DeepSupervisor : public Learner
   */
    float _currentValidationLoss;
   /**
+  * @brief [Internal Use] Current value of the traing loss for all epochs.
+  */
+   std::vector<float> _trainingLoss;
+  /**
+  * @brief [Internal Use] Current value of the validation loss for all epochs.
+  */
+   std::vector<float> _validationLoss;
+  /**
   * @brief [Internal Use] Value of the testing loss.
   */
    float _testingLoss;
