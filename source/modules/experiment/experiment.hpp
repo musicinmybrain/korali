@@ -113,6 +113,10 @@ class Experiment : public Module
   */
    size_t _currentGeneration;
   /**
+  * @brief [Internal Use] Indicates the times it takes for the generations to run.
+  */
+   std::vector<float> _genTime;
+  /**
   * @brief [Internal Use] Indicates whether execution has reached a termination criterion.
   */
    int _isFinished;
@@ -191,10 +195,6 @@ class Experiment : public Module
    * @brief [Profiling] Measures the amount of time taken by saving results
    */
   double _resultSavingTime;
-  /**
-   * @brief Time it took for the current generation to finish.
-   */
-  double _genTime;
 
   /**
    * @brief For testing purposes, this field establishes whether the engine is the one to run samples (default = false) or a custom function (true)

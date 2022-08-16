@@ -615,9 +615,9 @@ void __className__::printGenerationAfter()
     char bar[width];
     _k->_logger->progressBar((_epochCount+1)/(float)(_epochs+1), bar, width);
     if(_hasValidationSet)
-      _k->_logger->logInfo("Normal", "\r[Korali] Epoch %zu/%zu %s Train Loss: %f | Val. Loss: %f | Time %.3fs | Learning Rate: %f\r", _epochCount, _epochs, bar, _currentTrainingLoss, _currentValidationLoss, _k->_genTime, _optimizer->_eta);
+      _k->_logger->logInfo("Normal", "\r[Korali] Epoch %zu/%zu %s Train Loss: %f | Val. Loss: %f | Time %.3fs | Learning Rate: %f\r", _epochCount, _epochs, bar, _currentTrainingLoss, _currentValidationLoss, _k->_genTime.back(), _optimizer->_eta);
     else
-      _k->_logger->logInfo("Normal", "\r[Korali] Epoch %zu/%zu %s Train Loss: %f | Time %.3fs | Learning Rate: %f\r", _epochCount, _epochs, bar, _currentTrainingLoss, _k->_genTime, _optimizer->_eta);
+      _k->_logger->logInfo("Normal", "\r[Korali] Epoch %zu/%zu %s Train Loss: %f | Time %.3fs | Learning Rate: %f\r", _epochCount, _epochs, bar, _currentTrainingLoss, _k->_genTime.back(), _optimizer->_eta);
     if(_epochCount>=_epochs){
       _k->_logger->logInfo("Normal", "\n");
     }

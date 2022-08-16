@@ -72,12 +72,13 @@ void __className__::run()
     _solver->runGeneration();
     // Timing and Profiling End
     auto t1 = std::chrono::system_clock::now();
+    _genTime.push_back(std::chrono::duration<double>(t1 - t0).count());
+    _js["Results"]["Time per Epoch"] = _genTime;
 
     // Printing results to console
     if (_consoleOutputFrequency > 0)
       if (_currentGeneration % _consoleOutputFrequency == 0)
       {
-        _genTime = std::chrono::duration<double>(t1 - t0).count();
         _solver->printGenerationAfter();
       }
 
@@ -108,7 +109,7 @@ void __className__::run()
   _timestamp = getTimestamp();
   getConfiguration(_js.getJson());
   if (_fileOutputEnabled) saveState();
-  _genTime = std::chrono::duration<double>(t1 - t0).count();
+  _genTime.push_back(std::chrono::duration<double>(t1 - t0).count());
   _solver->printRunAfter();
   _solver->_terminationCriteria.clear();
 }

@@ -74,12 +74,13 @@ void Experiment::run()
     _solver->runGeneration();
     // Timing and Profiling End
     auto t1 = std::chrono::system_clock::now();
+    _genTime.push_back(std::chrono::duration<double>(t1 - t0).count());
+    _js["Results"]["Time per Epoch"] = _genTime;
 
     // Printing results to console
     if (_consoleOutputFrequency > 0)
       if (_currentGeneration % _consoleOutputFrequency == 0)
       {
-        _genTime = std::chrono::duration<double>(t1 - t0).count();
         _solver->printGenerationAfter();
       }
 
@@ -110,7 +111,7 @@ void Experiment::run()
   _timestamp = getTimestamp();
   getConfiguration(_js.getJson());
   if (_fileOutputEnabled) saveState();
-  _genTime = std::chrono::duration<double>(t1 - t0).count();
+  _genTime.push_back(std::chrono::duration<double>(t1 - t0).count());
   _solver->printRunAfter();
   _solver->_terminationCriteria.clear();
 }
@@ -260,6 +261,16 @@ void Experiment::setConfiguration(knlohmann::json& js)
       KORALI_LOG_ERROR(" + Object: [ experiment ] \n + Key:    ['Current Generation']\n%s", e.what());
     }
     eraseValue(js, "Current Generation");
+  }
+  if (isDefined(js, "Gen Time"))
+  {
+    try
+    {
+      _genTime = js["Gen Time"].get<std::vector<float>>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ experiment ] \n + Key:    ['Gen Time']\n%s", e.what());
+    }
+    eraseValue(js, "Gen Time");
   }
   if (isDefined(js, "Is Finished"))
   {
@@ -487,6 +498,7 @@ void Experiment::getConfiguration(knlohmann::json& js)
    js["Console Output"]["Verbosity"] = _consoleOutputVerbosity;
    js["Console Output"]["Frequency"] = _consoleOutputFrequency;
    js["Current Generation"] = _currentGeneration;
+   js["Gen Time"] = _genTime;
    js["Is Finished"] = _isFinished;
    js["Run ID"] = _runID;
    js["Timestamp"] = _timestamp;
@@ -496,7 +508,7 @@ void Experiment::getConfiguration(knlohmann::json& js)
 void Experiment::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Random Seed\": 0, \"Preserve Random Number Generator States\": false, \"Distributions\": [], \"Current Generation\": 0, \"File Output\": {\"Enabled\": true, \"Path\": \"_korali_result\", \"Frequency\": 1, \"Use Multiple Files\": true}, \"Console Output\": {\"Verbosity\": \"Normal\", \"Frequency\": 1}, \"Save\": {\"Solver\": true, \"Problem\": true}, \"Save Only\": \"\", \"Store Sample Information\": false, \"Is Finished\": false}";
+ std::string defaultString = "{\"Random Seed\": 0, \"Preserve Random Number Generator States\": false, \"Distributions\": [], \"Current Generation\": 0, \"File Output\": {\"Enabled\": true, \"Path\": \"_korali_result\", \"Frequency\": 1, \"Use Multiple Files\": true}, \"Console Output\": {\"Verbosity\": \"Normal\", \"Frequency\": 1}, \"Save\": {\"Solver\": true, \"Problem\": true}, \"Save Only\": [], \"Store Sample Information\": false, \"Is Finished\": false}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Module::applyModuleDefaults(js);
