@@ -5,7 +5,7 @@
 #define _KORALI_LEARNING_RATE_HPP_
 
 #include <algorithm>
-#include <ranges>
+#include <range/v3/all.hpp>
 #include <vector>
 #include <numeric>
 namespace korali

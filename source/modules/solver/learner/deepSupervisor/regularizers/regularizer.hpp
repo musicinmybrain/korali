@@ -6,7 +6,7 @@
 #define _KORALI_REGULARIZER_HPP_
 
 #include <algorithm>
-#include <ranges>
+#include <range/v3/all.hpp>
 #include <vector>
 #include <numeric>
 
