@@ -7,13 +7,14 @@
 # SIMULATION
 
 from phi.tf.flow import *
+import time
 
-# initialization
-N = 128
-DX = 2/N
-STEPS = 32
-DT = 1/STEPS
-NU = 0.01/(N*np.pi)
+# define variables
+N = 128             # cells / discretization points
+DX = 2./N           # length of cell (interval is [-1, 1] by defaultl)
+STEPS = 32          # time steps
+DT = 1./STEPS       # length of time step (time interval is 1 by default)
+NU = 0.01/(N*np.pi) # viscosity
 
 # allocate velocity grid
 velocity = CenteredGrid(0, extrapolation.PERIODIC, x=N, bounds=Box[-1:1])
@@ -23,32 +24,26 @@ REFERENCE_DATA = math.tensor([0.008612174447657694, 0.02584669669548606, 0.04313
 SOLUTION_T16 = CenteredGrid( REFERENCE_DATA, extrapolation.PERIODIC, x=N, bounds=Box[-1:1])
 
 # verify that the fields of our simulation are now backed by TensorFlow
-type(velocity.values.native())
+#type(velocity.values.native())
 
 # prepare the simulation
 velocities = [velocity]
-
 with math.record_gradients(velocity.values):
-
     for time_step in range(STEPS):
         v1 = diffuse.explicit(1.0*velocities[-1], NU, DT, substeps=1)
         v2 = advect.semi_lagrangian(v1, v1, DT)
         velocities.append(v2)
-
     # specify loss function
     loss = field.l2_loss(velocities[16] - SOLUTION_T16)*2./N # MSE
-
     # evaluate gradient
     grad = math.gradients(loss, velocity.values)
 
 # print the loss
 #print('Loss: %f' % (loss))
 
-# optimization steps
 # define learning rate
 LR = 5.
 
-import time
 start = time.time()
 
 # evaluate loss function and update velocity
@@ -63,7 +58,6 @@ for optim_step in range(50):
         if optim_step%5==0: 
             print('Optimization step %d, loss: %f' % (optim_step,loss))
         grad = math.gradients(loss, velocity.values)
-
     velocity = velocity - LR * grad
 
 end = time.time()

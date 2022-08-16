@@ -8,11 +8,11 @@
 from phi.flow import *
 
 # define variables
-N = 128
-DX = 2./N
-STEPS = 32
-DT = 1./STEPS
-NU = 0.01/(N*np.pi)
+N = 128             # cells / discretization points
+DX = 2./N           # length of cell (interval is [-1, 1] by defaultl)
+STEPS = 32          # time steps 
+DT = 1./STEPS       # length of time step (time interval is 1 by default)
+NU = 0.01/(N*np.pi) # viscosity
 
 # initialization of velocities, cell centers of a CenteredGrid have DX/2 offsets for linspace()
 INITIAL_NUMPY = np.asarray( [-np.sin(np.pi * x) for x in np.linspace(-1+DX/2,1-DX/2,N)] ) # 1D numpy array
@@ -20,7 +20,8 @@ INITIAL = math.tensor(INITIAL_NUMPY, spatial('x') ) # convert to phiflow tensor
 
 # define velocity object
 velocity = CenteredGrid(INITIAL, extrapolation.PERIODIC, x=N, bounds=Box[-1:1])
-vt = advect.semi_lagrangian(velocity, velocity, DT)
+# vt = advect.semi_lagrangian(velocity, velocity, DT)
+
 # alternative velocity objects
 #velocity = CenteredGrid(lambda x: -math.sin(np.pi * x), extrapolation.PERIODIC, x=N, bounds=Box[-1:1])
 #velocity = CenteredGrid(Noise(), extrapolation.PERIODIC, x=N, bounds=Box[-1:1]) # random init
