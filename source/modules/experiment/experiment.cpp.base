@@ -72,13 +72,14 @@ void __className__::run()
     _solver->runGeneration();
     // Timing and Profiling End
     auto t1 = std::chrono::system_clock::now();
+    _genTime.push_back(std::chrono::duration<double>(t1 - t0).count());
+    _js["Results"]["Time per Epoch"] = _genTime;
 
     // Printing results to console
     if (_consoleOutputFrequency > 0)
       if (_currentGeneration % _consoleOutputFrequency == 0)
       {
         _solver->printGenerationAfter();
-        _logger->logInfo("Detailed", "Experiment: %lu - Generation Time: %.3fs\n", _experimentId, std::chrono::duration<double>(t1 - t0).count());
       }
 
     // Saving state to a file
@@ -108,16 +109,9 @@ void __className__::run()
   _timestamp = getTimestamp();
   getConfiguration(_js.getJson());
   if (_fileOutputEnabled) saveState();
-
-  _logger->logInfo("Minimal", "--------------------------------------------------------------------\n");
-  _logger->logInfo("Minimal", "%s finished correctly.\n", _solver->getType().c_str());
-  while (!_solver->_terminationCriteria.empty())
-  {
-    _logger->logInfo("Normal", "Termination Criterion Met: %s\n", _solver->_terminationCriteria.back().c_str());
-    _solver->_terminationCriteria.pop_back();
-  }
-  _logger->logInfo("Normal", "Final Generation: %lu\n", _currentGeneration);
-  _logger->logInfo("Normal", "Elapsed Time: %.3fs\n", std::chrono::duration<double>(t1 - t0).count());
+  _genTime.push_back(std::chrono::duration<double>(t1 - t0).count());
+  _solver->printRunAfter();
+  _solver->_terminationCriteria.clear();
 }
 
 void __className__::saveState()
@@ -139,7 +133,17 @@ void __className__::saveState()
 
   std::string filePath = "./" + _fileOutputPath + "/" + genFileName;
 
-  if (saveJsonToFile(filePath.c_str(), _js.getJson()) != 0) KORALI_LOG_ERROR("Error trying to save result file: %s.\n", filePath.c_str());
+  if(!_js.getJson()["Save Only"].empty()){
+    auto js_reduced = knlohmann::json();
+    for(std::string key : _js.getJson()["Save Only"]){
+      if(!_js.getJson().contains(key))
+        KORALI_LOG_ERROR("Error trying to 'Save Only' js field with non-exists key: %s.\n", key);
+      else
+        js_reduced[key] = _js.getJson()[key];
+      if (saveJsonToFile(filePath.c_str(), js_reduced) != 0) KORALI_LOG_ERROR("Error trying to save result file: %s.\n", filePath.c_str());
+    }
+  } else
+    if (saveJsonToFile(filePath.c_str(), _js.getJson()) != 0) KORALI_LOG_ERROR("Error trying to save result file: %s.\n", filePath.c_str());
 
   // If using multiple files, create a hard link to the latest result
   std::string linkPath = "./" + _fileOutputPath + "/latest";

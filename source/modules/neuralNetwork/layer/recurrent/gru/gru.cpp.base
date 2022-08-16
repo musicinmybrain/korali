@@ -36,7 +36,7 @@ void __className__::createForwardPipeline()
   if (_outputChannels == 0) KORALI_LOG_ERROR("Node count for layer (%lu) should be larger than zero.\n", _index);
 
   std::exception_ptr eptr;
-try{
+  try{
 #ifdef _KORALI_USE_ONEDNN
   if (_nn->_engine == "OneDNN")
   {
@@ -442,8 +442,8 @@ try{
         std::cout << i << ' ';
     std::cout << "\n" << std::endl;
     printf("DONE\n"); fflush(stdout);
-  }
 # endif
+  }
 #endif
 
 

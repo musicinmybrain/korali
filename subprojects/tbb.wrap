@@ -1,6 +1,6 @@
-[wrap-file]
+[wrap-git]
 directory = tbb
 
-source_url = https://github.com/oneapi-src/oneTBB/archive/refs/tags/v2021.5.0.zip
-source_filename = oneTBB-2021.5.0.zip
-source_hash = 3df08fe234f23e732a122809b40eb129ae22733f
+url = https://github.com/oneapi-src/oneTBB.git
+revision = v2021.5.0
+depth = 1

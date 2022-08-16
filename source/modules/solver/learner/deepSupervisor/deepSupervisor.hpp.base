@@ -107,6 +107,7 @@ class __className__ : public __parentClassName__
     * @return returns 2D output vector of size [N, OC]
     */
     std::vector<std::vector<float>> &getEvaluation(const std::vector<std::vector<std::vector<float>>> &input) override;
+    std::vector<std::vector<float>> &getEvaluation(std::vector<std::vector<std::vector<float>>> &&input);
     std::vector<float> getHyperparameters() override;
     void setHyperparameters(const std::vector<float> &hyperparameters) override;
 
@@ -140,6 +141,10 @@ class __className__ : public __parentClassName__
     * @brief backpropagates the jaccobian of the loss function
     * @param input 2D vector of size [BS, OC]
     * @return gradients of the neural network weights for all layers (size = nn hyperparameter count).
+    */
+    void updateWeights(std::vector<float> &nnHyperparameterGradients);
+    /**
+    * @brief run optimization setp and update the weights.
     */
     std::vector<float> backwardGradients(const std::vector<std::vector<float>> &dloss);
     /**
@@ -189,6 +194,10 @@ class __className__ : public __parentClassName__
     * @brief function that can be used to print after a generation.
     */
     void printGenerationAfter() override;
+    /**
+    * @brief function that can be used to print after a run.
+    */
+    void printRunAfter() override;
 };
 
 __endNamespace__;
