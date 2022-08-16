@@ -42,8 +42,9 @@ import korali
 k = korali.Engine()
 e = korali.Experiment()
 
-### Defining the Cartpole problem's configuration
+### Defining the configuration for Burger's equation
 
+# TODO: Change this
 e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
 e["Problem"]["Environment Function"] = multienv
 e["Problem"]["Environment Count"] = 3

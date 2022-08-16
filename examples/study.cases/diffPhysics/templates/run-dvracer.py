@@ -4,7 +4,6 @@ import sys
 sys.path.append('./_model')
 from env import *
 import argparse
-import numpy as np
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -47,9 +46,13 @@ import korali
 k = korali.Engine()
 e = korali.Experiment()
 
-### Defining the Cartpole problem's configuration
-e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
+### Defining the configuration for Burger's equation
+
+#TODO: Change this to fit the Burger's equation
+e["Problem"]["Type"] = "Reinforcement Learning / Discrete"
+e["Problem"]["Possible Actions"] = [ [ -10.0 ], [  10.0 ] ]
 e["Problem"]["Environment Function"] = env
+e["Problem"]["Actions Between Policy Updates"] = 5
 
 e["Variables"][0]["Name"] = "Cart Position"
 e["Variables"][0]["Type"] = "State"
@@ -65,45 +68,48 @@ e["Variables"][3]["Type"] = "State"
 
 e["Variables"][4]["Name"] = "Force"
 e["Variables"][4]["Type"] = "Action"
-e["Variables"][4]["Lower Bound"] = -10.0
-e["Variables"][4]["Upper Bound"] = +10.0
-e["Variables"][4]["Initial Exploration Noise"] = 1.0
+
 
 ### Defining Agent Configuration 
 
-e["Solver"]["Type"] = "Agent / Continuous / VRACER"
+e["Solver"]["Type"] = "Agent / Discrete / dVRACER"
 e["Solver"]["Mode"] = "Training"
+e["Solver"]["Episodes Per Generation"] = 10
 e["Solver"]["Experiences Between Policy Updates"] = 1
-e["Solver"]["Episodes Per Generation"] = 10 
-e["Solver"]["Concurrent Environments"] = args.concurrentEnvironments
-
-e["Solver"]["Experience Replay"]["Start Size"] = 1000
-e["Solver"]["Experience Replay"]["Maximum Size"] = 10000
-e["Solver"]["Experience Replay"]["Off Policy"]["REFER Beta"]= 0.3
-
-e["Solver"]["Discount Factor"] = 0.99
 e["Solver"]["Learning Rate"] = args.learningRate
 e["Solver"]["Mini Batch"]["Size"] = 32
+e["Solver"]["Concurrent Environments"] = args.concurrentEnvironments
+
+### Defining Experience Replay configuration
+
+e["Solver"]["Experience Replay"]["Start Size"] = 256
+e["Solver"]["Experience Replay"]["Maximum Size"] = 65536
+
+### Setting Experience Replay and REFER settings
+
+e["Solver"]["Experience Replay"]["Off Policy"]["Annealing Rate"] = 5.0e-8
+e["Solver"]["Experience Replay"]["Off Policy"]["Cutoff Scale"] = 5.0
+e["Solver"]["Experience Replay"]["Off Policy"]["REFER Beta"] = 0.3
+e["Solver"]["Experience Replay"]["Off Policy"]["Target"] = 0.1
+
 e["Solver"]["State Rescaling"]["Enabled"] = True
 e["Solver"]["Reward"]["Rescaling"]["Enabled"] = True
-
+  
 ### Configuring the neural network and its hidden layers
 
 e["Solver"]["Neural Network"]["Engine"] = args.engine
 e["Solver"]["Neural Network"]["Optimizer"] = args.optimizer
-e["Solver"]["Policy"]["Distribution"] = "Clipped Normal"
+
+### Configuring the neural network and its hidden layers
+
+e["Solver"]['Time Sequence Length'] = 4                                         
 
 e["Solver"]["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear"
-e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 32
+e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 64
 
-e["Solver"]["Neural Network"]["Hidden Layers"][1]["Type"] = "Layer/Activation"
-e["Solver"]["Neural Network"]["Hidden Layers"][1]["Function"] = "Elementwise/Tanh"
-
-e["Solver"]["Neural Network"]["Hidden Layers"][2]["Type"] = "Layer/Linear"
-e["Solver"]["Neural Network"]["Hidden Layers"][2]["Output Channels"] = 32
-
-e["Solver"]["Neural Network"]["Hidden Layers"][3]["Type"] = "Layer/Activation"
-e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tanh"
+e["Solver"]["Neural Network"]["Hidden Layers"][1]["Type"] = "Layer/Recurrent/LSTM"
+e["Solver"]["Neural Network"]["Hidden Layers"][1]["Depth"] = 1                  
+e["Solver"]["Neural Network"]["Hidden Layers"][1]["Output Channels"] = 64
 
 ### Defining Termination Criteria
 
