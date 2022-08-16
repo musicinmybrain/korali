@@ -6,14 +6,16 @@ import matplotlib.pyplot as plt
 import time
 import korali
 import random
+import json
 from korali.auxiliar.printing import *
 sys.path.append(os.path.abspath('./_models'))
 sys.path.append(os.path.abspath('..'))
 from mnist import MNIST
-# from mpi4py import MPI
-from korali.plot.__main__ import main
-# from cnn_autoencoder import configure_autencoder as autoencoder
-from linear_autoencoder import configure_autencoder as autoencoder
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+from matplotlib.ticker import MaxNLocator
+from korali.plot.helpers import hlsColors, drawMulticoloredLine
+import seaborn as sns
 from utilities import make_parser
 parser = make_parser()
 parser.add_argument(
@@ -44,13 +46,26 @@ parser.add_argument(
     required=False,
     action="store_true"
 )
+palette = sns.color_palette("tab10")
+train_c = palette[2]
+val_c = palette[3]
+lr_c = palette[5]
+test_c = palette[4]
+f_c = palette[0]
+plt.rcParams['text.usetex'] = True
 
 add_time_dimension = lambda l : [ [y] for y in l]
-
 args = parser.parse_args()
+#  Select Model ==============================================================
+if args.model == "linear":
+    from linear_autoencoder import configure_autencoder as autoencoder
+elif args.model == "medium":
+    from cnn_autoencoder import configure_autencoder as autoencoder
+else:
+    sys.exit("No model selected")
+
 k = korali.Engine()
 e = korali.Experiment()
-
 ### Hyperparameters
 MAX_RGB = 255.0
 ### Lading data ==============================================================================
@@ -106,15 +121,16 @@ sys.argv = tmp
 print_header('Korali', color=bcolors.HEADER, width=140)
 print_args(vars(args), sep=' ', header_width=140)
 ### Load Previous model if desired
+results_dir = os.path.join("_korali_result_automatic", args.model)
+results_file = os.path.join(results_dir, "latest")
 isStateFound = False
 if args.load_model:
     args.validationSplit = 0.0
-    isStateFound = e.loadState("_korali_result_automatic/latest")
+    isStateFound = e.loadState(results_file)
     if not isStateFound:
-        sys.exit("No model file for _korali_result/latest found")
+        sys.exit(f"No model file for {results_file} found")
     if(isStateFound):
         print("[Script] Evaluating previous run...\n")
-
 k["Conduit"]["Type"] = "Sequential"
 ### Configuring general problem settings
 e["Problem"]["Type"] = "Supervised Learning"
@@ -152,10 +168,8 @@ if args.save:
 else:
     e["File Output"]["Enabled"] = False
 e["File Output"]["Frequency"] = 0
-e["File Output"]["Path"] = "_korali_result_automatic"
-e["Save"]["Problem"] = False
-e["Save"]["Solver"] = False
-e["Save Only"] = "Results"
+e["File Output"]["Path"] = results_dir
+e["Save Only"] = ["Results", "Solver"]
 
 #  Training ==================================================================
 if args.mode in ["all"]:
@@ -163,47 +177,58 @@ if args.mode in ["all"]:
     k.run(e)
 
 # # PREDICTING ================================================================================
-# e["File Output"]["Enabled"] = False
-# if args.mode in ["all", "predict"]:
-#     if args.mode == "test" and not isStateFound:
-#         sys.exit("Cannot predict without loading or training a model.")
-#     testImage = trainingImages[:args.testingBS]
-#     e["Problem"]["Input"]["Data"] = add_time_dimension(testImage)
-#     e["Problem"]["Solution"]["Data"] = testImage
-#     e["Solver"]["Mode"] = "Testing"
-#     k.run(e)
+e["File Output"]["Enabled"] = False
+if args.mode in ["predict"]:
+    if not isStateFound:
+        sys.exit("Cannot predict without loading or training a model.")
+    testImage = trainingImages[:args.testingBS]
+    e["Problem"]["Input"]["Data"] = add_time_dimension(testImage)
+    e["Problem"]["Solution"]["Data"] = testImage
+    e["Solver"]["Mode"] = "Testing"
+    k.run(e)
 
 # # Plotting Results
-# if (args.plot):
-    # SAMPLES_TO_DISPLAY = 8
-    # arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
-    # fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
-    # random.shuffle(testingImages)
-    # e["Problem"]["Testing Batch Size"] = args.testingBS
-    # e["Solver"]["Mode"] = "Predict"
-    # y = [random.choice(testingImages) for i in range(args.testingBS)]
-    # e["Problem"]["Input"]["Data"] = add_time_dimension(y)
-    # k.run(e)
-    # yhat = e["Solver"]["Evaluation"]
-    # for y, yhat, ax in list(zip(y[:SAMPLES_TO_DISPLAY], yhat[:SAMPLES_TO_DISPLAY], axes)):
-    #     ax[0].imshow(arr_to_img(y), cmap='gist_gray')
-    #     ax[1].imshow(arr_to_img(yhat), cmap='gist_gray')
-    # SAVE_PLOT = "None"
-    # main("_korali_result_automatic", False, SAVE_PLOT, False, ["--yscale", "linear"])
-    # plt.show()
-# if (args.plot):
-#     SAVE_PLOT = False
-# # Plotting      ===========================================================================
-# if args.plot:
-#     results = list(zip(e["Problem"]["Solution"]["Data"], e["Solver"]["Evaluation"]))
-#     SAMPLES_TO_DISPLAY = 4
-#     arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
-#     fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
-#     for ax in axes.flatten():
-#         y, yhat = random.choice(results)
-#         ax.imshow(arr_to_img(y), cmap='gist_gray')
-#         ax.imshow(arr_to_img(yhat), cmap='gist_gray')
-#     SAVE_PLOT = "None"
-#     main("_korali_result_pytorch", False, SAVE_PLOT, False, ["--yscale", "linear"])
-#     plt.show()
-# print_header(width=140)
+if args.plot:
+    #  Plot Reconstruced Images ==================================================
+   SAMPLES_TO_DISPLAY = 8
+   arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
+   fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
+   random.shuffle(testingImages)
+   e["Problem"]["Testing Batch Size"] = args.testingBS
+   e["Solver"]["Mode"] = "Predict"
+   y = [random.choice(testingImages) for i in range(args.testingBS)]
+   e["Problem"]["Input"]["Data"] = add_time_dimension(y)
+   k.run(e)
+   yhat = e["Solver"]["Evaluation"]
+   for y, yhat, ax in list(zip(y[:SAMPLES_TO_DISPLAY], yhat[:SAMPLES_TO_DISPLAY], axes)):
+       ax[0].imshow(arr_to_img(y), cmap='gist_gray')
+       ax[1].imshow(arr_to_img(yhat), cmap='gist_gray')
+    #  Plot Losses ===============================================================
+   sns.set()
+   with open(results_file, 'r') as f:
+    results = json.load(f)
+   if "Results" in results:
+       results = results["Results"]
+   fig, ax = plt.subplots(figsize=(8, 8))
+   epochs = range(1, results["Epoch"]+1)
+   ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.3f"))
+   ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%d"))
+   # ax.set_yscale(args.yscale)
+   ax.semilogy(epochs, results["Training Loss"] ,'-', label="Training Loss", color=train_c)
+   if 'Validation Loss' in results:
+       ax.semilogy(epochs, results["Validation Loss"] ,'-', label="Validation Loss", color=val_c)
+   ax.set_xlabel('Epochs')
+   ylabel = results['Loss Function']
+   if "Regularizer" in results:
+       ylabel+= " + " + results["Regularizer"]["Type"]
+   ax.set_ylabel(ylabel)
+   if "Description" in results:
+       ax.set_title(results["Description"].capitalize())
+   plt.legend()
+   # if 'Learning Rate' in results:
+   #     ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
+   #     ax2.set_ylabel('Learning Rate')  # we already handled the x-label with ax1
+   #     ax2.plot(epochs, results["Learning Rate"], color=lr_c)
+   #     fig.tight_layout()  # otherwise the right y-label is slightly clipped
+   plt.show()
+print_header(width=140)

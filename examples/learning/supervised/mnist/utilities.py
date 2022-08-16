@@ -81,4 +81,19 @@ def make_parser():
         type=bool,
         default=True
     )
+    parser.add_argument(
+        "--model",
+        help="Indicates which model to use.",
+        required=False,
+        type=str,
+        choices=["linear", "lenet"],
+        default="linear"
+    )
+    parser.add_argument(
+        "--yscale",
+        help="yscale to plot",
+        default="log",
+        required=False,
+        choices=["linear", "log"]
+    )
     return parser

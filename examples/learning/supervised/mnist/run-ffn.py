@@ -12,8 +12,6 @@ from korali.plot.__main__ import main
 from mnist import MNIST
 sys.path.append(os.path.abspath('./_models'))
 sys.path.append(os.path.abspath('.'))
-# from cnn_autoencoder import configure_autencoder as autoencoder
-from linear_autoencoder import configure_autencoder as autoencoder
 from utilities import make_parser
 #  Arguments =================================================================
 parser = make_parser()
@@ -125,7 +123,12 @@ e["Solver"]["Loss Function"] = "Mean Squared Error"
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 # MODEL DEFINTION ================================================================================
-autoencoder(e, img_width, img_height, input_channels, args.latentDim)
+if args.model == "linear":
+    from linear_autoencoder import configure_autencoder as autoencoder
+elif args.model == "medium":
+    from cnn_autoencoder import configure_autencoder as autoencoder
+else:
+    sys.exit("No model selected")
 # ================================================================================
 ### Configuring output
 e["Console Output"]["Verbosity"] = "Normal"
