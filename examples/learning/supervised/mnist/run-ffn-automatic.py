@@ -11,6 +11,8 @@ from korali.auxiliar.printing import *
 sys.path.append(os.path.abspath('./_models'))
 sys.path.append(os.path.abspath('..'))
 from mnist import MNIST
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 from matplotlib.ticker import MaxNLocator
@@ -46,13 +48,13 @@ parser.add_argument(
     required=False,
     action="store_true"
 )
-palette = sns.color_palette("tab10")
+palette = sns.color_palette("deep")
 train_c = palette[2]
 val_c = palette[3]
 lr_c = palette[5]
 test_c = palette[4]
 f_c = palette[0]
-plt.rcParams['text.usetex'] = True
+# plt.rcParams['text.usetex'] = True
 
 add_time_dimension = lambda l : [ [y] for y in l]
 args = parser.parse_args()
@@ -203,6 +205,9 @@ if args.plot:
    for y, yhat, ax in list(zip(y[:SAMPLES_TO_DISPLAY], yhat[:SAMPLES_TO_DISPLAY], axes)):
        ax[0].imshow(arr_to_img(y), cmap='gist_gray')
        ax[1].imshow(arr_to_img(yhat), cmap='gist_gray')
+   # fig.tight_layout()
+   if args.save:
+      plt.savefig(os.path.join(results_dir, "reconstructions.svg"))
     #  Plot Losses ===============================================================
    sns.set()
    with open(results_file, 'r') as f:
@@ -225,6 +230,8 @@ if args.plot:
    if "Description" in results:
        ax.set_title(results["Description"].capitalize())
    plt.legend()
+   if args.save:
+       plt.savefig(os.path.join(results_dir, "losses.svg"))
    # if 'Learning Rate' in results:
    #     ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
    #     ax2.set_ylabel('Learning Rate')  # we already handled the x-label with ax1
