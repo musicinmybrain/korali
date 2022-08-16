@@ -34,7 +34,7 @@ void VRACER::initializeAgent()
 
   _effectiveMinibatchSize = _miniBatchSize * _problem->_agentsPerEnvironment;
 
-  if( _multiAgentRelationship == "Competition" )
+  if( (_multiAgentRelationship == "Competition") || _problem->_ensembleLearning )
     _effectiveMinibatchSize = _miniBatchSize;
 
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
@@ -104,18 +104,18 @@ void VRACER::trainPolicy()
   // Get number of policies
   const size_t numPolicies = _problem->_policiesPerEnvironment;
 
-  // Update all policies using all experiences
+  // Run training generation for all policies
   for (size_t p = 0; p < numPolicies; p++)
   {
-    // Disable experience sharing by splitting minibatch for competing agents
-    if( _multiAgentRelationship == "Competition" )
+    // Disable experience sharing competing agents or Bayesian reinforcement learning
+    if( (_multiAgentRelationship == "Competition") || _problem->_ensembleLearning )
     {
       std::vector<std::pair<size_t, size_t>> miniBatchBuffer(_miniBatchSize);
       std::vector<std::vector<std::vector<float>>> stateSequenceBuffer(_miniBatchSize);
       for( size_t i = 0; i<_miniBatchSize; i++ )
       {
-        miniBatchBuffer[i]     = miniBatch[ i*_problem->_agentsPerEnvironment + p ];
-        stateSequenceBuffer[i] = stateSequenceBatch[ i*_problem->_agentsPerEnvironment + p ];
+        miniBatchBuffer[i]     = miniBatch[ i*numPolicies + p ];
+        stateSequenceBuffer[i] = stateSequenceBatch[ i*numPolicies + p ];
       }
       _miniBatch          = miniBatchBuffer;
       _stateSequenceBatch = stateSequenceBuffer;
@@ -138,13 +138,13 @@ void VRACER::trainPolicy()
     _criticPolicyLearner[p]->runGeneration();
 
     // Store policyData for agent p for later update of metadata
-    if ( numPolicies > 1 && (_multiAgentRelationship != "Competition") )
+    if ( (numPolicies > 1) && (_multiAgentRelationship != "Competition") && !_problem->_ensembleLearning )
       for (size_t b = 0; b < _miniBatchSize; b++)
         policyInfoUpdateMetadata[b * numPolicies + p] = policyInfo[b * numPolicies + p];
   }
 
   // Correct experience metadata
-  if ( (numPolicies > 1) && (_multiAgentRelationship != "Competition") )
+  if ( (numPolicies > 1) && (_multiAgentRelationship != "Competition") && !_problem->_ensembleLearning )
     updateExperienceMetadata(_miniBatch, policyInfoUpdateMetadata);
 }
 

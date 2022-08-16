@@ -37,6 +37,10 @@ class ReinforcementLearning : public Problem
   */
    size_t _policiesPerEnvironment;
   /**
+  * @brief Boolean to determine if multiple policies are used as Ensemble (https://arxiv.org/pdf/1612.01474.pdf) for learning.
+  */
+   int _ensembleLearning;
+  /**
   * @brief Maximum number of different types of environments.
   */
    size_t _environmentCount;

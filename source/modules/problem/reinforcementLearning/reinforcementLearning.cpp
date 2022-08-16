@@ -55,7 +55,7 @@ void ReinforcementLearning::initialize()
 
   if (_actionVectorSize == 0) KORALI_LOG_ERROR("No action variables have been defined.\n");
   if (_stateVectorSize == 0) KORALI_LOG_ERROR("No state variables have been defined.\n");
-  if ((_policiesPerEnvironment != _agentsPerEnvironment) && (_policiesPerEnvironment != 1))
+  if ((_policiesPerEnvironment != _agentsPerEnvironment) && (_policiesPerEnvironment != 1) && !_ensembleLearning )
     KORALI_LOG_ERROR("Number of Policies: %lu is neither 1 nor %lu.\n", _policiesPerEnvironment, _agentsPerEnvironment);
 
   // Setting initial launch id (0)
@@ -508,6 +508,15 @@ void ReinforcementLearning::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Policies Per Environment'] required by reinforcementLearning.\n"); 
 
+ if (isDefined(js, "Ensemble Learning"))
+ {
+ try { _ensembleLearning = js["Ensemble Learning"].get<int>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ reinforcementLearning ] \n + Key:    ['Ensemble Learning']\n%s", e.what()); } 
+   eraseValue(js, "Ensemble Learning");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Ensemble Learning'] required by reinforcementLearning.\n"); 
+
  if (isDefined(js, "Environment Count"))
  {
  try { _environmentCount = js["Environment Count"].get<size_t>();
@@ -618,6 +627,7 @@ void ReinforcementLearning::getConfiguration(knlohmann::json& js)
  js["Type"] = _type;
    js["Agents Per Environment"] = _agentsPerEnvironment;
    js["Policies Per Environment"] = _policiesPerEnvironment;
+   js["Ensemble Learning"] = _ensembleLearning;
    js["Environment Count"] = _environmentCount;
    js["Environment Function"] = _environmentFunction;
    js["Actions Between Policy Updates"] = _actionsBetweenPolicyUpdates;
@@ -640,7 +650,7 @@ void ReinforcementLearning::getConfiguration(knlohmann::json& js)
 void ReinforcementLearning::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Agents Per Environment\": 1, \"Policies Per Environment\": 1, \"Testing Frequency\": 0, \"Policy Testing Episodes\": 5, \"Environment Count\": 1, \"Actions Between Policy Updates\": 0, \"Custom Settings\": {}}";
+ std::string defaultString = "{\"Agents Per Environment\": 1, \"Policies Per Environment\": 1, \"Ensemble Learning\": false, \"Testing Frequency\": 0, \"Policy Testing Episodes\": 5, \"Environment Count\": 1, \"Actions Between Policy Updates\": 0, \"Custom Settings\": {}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Problem::applyModuleDefaults(js);

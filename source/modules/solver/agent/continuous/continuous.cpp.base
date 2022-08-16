@@ -109,10 +109,17 @@ void __className__::getAction(korali::Sample &sample)
     std::vector<float> action(_problem->_actionVectorSize);
 
     // Forward state sequence to get the Gaussian means and sigmas from policy
-    // in case of multiple polices it runs the i-th policy otherwise standard
     std::vector<policy_t> policy;
     if (_problem->_policiesPerEnvironment == 1)
       runPolicy({_stateTimeSequence[i].getVector()}, policy);
+    else if ( _problem->_ensembleLearning ) 
+    {
+      // Producing random  number and select policy to produce the action
+      const float x = _uniformGenerator->getRandomNumber();
+      const size_t policyIdx = std::floor( x*_problem->_policiesPerEnvironment );
+      
+      runPolicy({_stateTimeSequence[i].getVector()}, policy, policyIdx);
+    }
     else
       runPolicy({_stateTimeSequence[i].getVector()}, policy, i);
 
