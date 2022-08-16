@@ -65,9 +65,9 @@ class Experiment : public Module
   */
    korali::Problem* _problem;
   /**
-  * @brief Save only a given sting of the the results dict i.e. e['Save Only'] = 'Results'
+  * @brief Save only a given sting of the the results dict i.e. e['Save Only'] = ['Results', 'Problem']
   */
-   std::string _saveOnly;
+   std::vector<std::string> _saveOnly;
   /**
   * @brief Whether to save the problem in _korali_results.
   */
