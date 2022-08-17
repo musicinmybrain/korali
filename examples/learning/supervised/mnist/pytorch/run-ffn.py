@@ -15,8 +15,6 @@ from torch import _pin_memory, nn
 import torch.optim as optim
 sys.path.append(os.path.abspath('./_models'))
 sys.path.append(os.path.abspath('..'))
-# from cnn import Encoder, Decoder
-from linear_autoencoder import Encoder, Decoder
 from utilities import make_parser
 import time
 import argparse
@@ -32,13 +30,24 @@ if len(sys.argv) != 0:
 # ============================================================================
 args = parser.parse_args()
 sys.argv = tmp
-print_header('Pytorch', color=bcolors.HEADER, width=140)
-#  Decide on the device where to train on ====================================
+#  Select Model ==============================================================
+if args.model == "linear":
+    from linear_autoencoder import Encoder, Decoder
+elif args.model == "medium":
+    from cnn import Encoder, Decoder
+else:
+    sys.exit("No model selected")
+results_dir = os.path.join("_result", args.model)
+results_file = os.path.join(results_dir, "latest")
+if args.verbosity in ["Normal", "Detailed"]:
+    print_header('Pytorch', color=bcolors.HEADER, width=140)
+#  Decide on the device where to train on ===================================
 # Check if the GPU is available
 # device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 device = torch.device("cpu")
 args.device = "CPU"
-print_args(vars(args), sep=' ', header_width=140)
+if args.verbosity in ["Normal", "Detailed"]:
+    print_args(vars(args), sep=' ', header_width=140)
 torch.manual_seed(args.seed)
 #  Parameters ================================================================
 #  Download Data =============================================================
@@ -125,21 +134,25 @@ def test_epoch(encoder, decoder, device, dataloader, loss_fn):
     return val_loss.item()
 # Training Loop ==============================================================
 # Initial Error
-history={'train_loss':[],'val_loss':[], 'time_per_epoch': []}
-loss = test_epoch(encoder,decoder,device,test_loader,loss_fn)
-print(f'EPOCH {0}/{args.epochs:<8} \t test loss {loss:.3f}')
+history={'Training Loss':[],'Validation Loss':[], 'Time per Epoch': []}
+# loss = test_epoch(encoder,decoder,device,test_loader,loss_fn)
+# print(f'EPOCH {0}/{args.epochs:<8} \t test loss {loss:.3f}')
 for epoch in range(args.epochs):
    tp_start = time.time()
    train_loss = train_epoch(encoder,decoder,device,train_loader,loss_fn,optim)
    tp = time.time()-tp_start
    val_loss = test_epoch(encoder,decoder,device,valid_loader,loss_fn)
-   print(f'EPOCH {epoch + 1}/{args.epochs} {tp:.3f}s \t train loss {train_loss:.3f} \t val loss {val_loss:.3f}')
-   history['train_loss'].append(train_loss)
-   history['val_loss'].append(val_loss)
-   history['time_per_epoch'].append(tp)
+   if args.verbosity in ["Normal", "Detailed"]:
+       print(f'EPOCH {epoch + 1}/{args.epochs} {tp:.3f}s \t train loss {train_loss:.3f} \t val loss {val_loss:.3f}')
+   history['Training Loss'].append(train_loss)
+   history['Validation Loss'].append(val_loss)
+   history['Time per Epoch'].append(tp)
+
+history["Epochs"] = args.epochs
+history["Loss Function"] = 'Mean Squared Error'
 
 if args.save:
-    with open('_results/latest.json', 'w') as file:
+    with open(results_file, 'w') as file:
         file.write(json.dumps(history))
 if args.plot:
     plt.figure(figsize=(10,8))
@@ -160,4 +173,5 @@ if args.plot:
         ax[0].imshow(img.cpu().squeeze().numpy(), cmap='gist_gray')
         ax[1].imshow(rec_img.cpu().squeeze().numpy(), cmap='gist_gray')
     plt.show()
-print_header(width=140)
+if args.verbosity in ["Normal", "Detailed"]:
+    print_header(width=140)
