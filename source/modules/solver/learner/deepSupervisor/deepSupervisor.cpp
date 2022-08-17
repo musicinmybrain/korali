@@ -387,7 +387,6 @@ void DeepSupervisor::runEpoch()
     if(_loss){
       _currentTrainingLoss = _currentTrainingLoss/ (float)(_batchConcurrency*IforE);
       _trainingLoss.push_back(_currentTrainingLoss);
-      (*_k)["Results"]["Training Loss"] = _trainingLoss;
       if(_hasValidationSet){
         if(_problem->_validationBatchSize == -1)
           BS = _problem->_dataValidationInput.size();
@@ -404,7 +403,13 @@ void DeepSupervisor::runEpoch()
       }
       _currentValidationLoss = _currentValidationLoss/ (float)(_batchConcurrency*IforE);
       _validationLoss.push_back(_currentValidationLoss);
-      (*_k)["Results"]["Validation Loss"] = _validationLoss;
+      if(_mode == "Automatic Training"){
+        (*_k)["Results"]["Training Loss"] = _trainingLoss;
+        (*_k)["Results"]["Validation Loss"] = _validationLoss;
+      } else{
+        (*_k)["Results"]["Training Loss"] = _trainingLoss.back();
+        (*_k)["Results"]["Validation Loss"] = _validationLoss.back();
+      }
     }
     ++_epochCount;
     (*_k)["Results"]["Epoch"] = _epochCount;

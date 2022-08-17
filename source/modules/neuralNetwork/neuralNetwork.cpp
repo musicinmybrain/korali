@@ -40,10 +40,9 @@ void NeuralNetwork::initialize()
 #ifdef _KORALI_USE_CUDNN
 
     if (cudnnCreate(&_cuDNNHandle) != CUDNN_STATUS_SUCCESS) KORALI_LOG_ERROR("Error initializing CUDNN Handle\n");
-
 #else
 
-    fprintf(stderr, "[Korali] Warning: Neural Network's engine set to OneDNN, but Korali was installed without support for OneDNN. Using Korali's default NN Engine\n");
+    fprintf(stderr, "[Korali] Warning: Neural Network's engine set to CuDNN, but Korali was installed without support for CuDNN. Using Korali's default NN Engine\n");
     _engine = "Korali";
 #endif
   }
