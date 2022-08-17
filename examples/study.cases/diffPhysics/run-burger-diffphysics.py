@@ -73,28 +73,17 @@ fig = plt.figure().gca()
 pltx = np.linspace(-1,1,N)
 
 # first gradient
-fig.plot(pltx, grad.numpy('x')           , lw=2, color='green',      label="Gradient")
-fig.plot(pltx, velocity.values.numpy('x'), lw=2, color='mediumblue', label="u at t=0")
-plt.xlabel('x'); plt.ylabel('u'); plt.legend();
+#fig.plot(pltx, grad.numpy('x')           , lw=2, color='green',      label="Gradient")
+#fig.plot(pltx, velocity.values.numpy('x'), lw=2, color='mediumblue', label="u at t=0")
+#plt.xlabel('x'); plt.ylabel('u'); plt.legend();
 
 # some (optional) other fields to plot:
 #fig.plot(pltx,  (velocities[16]).values.numpy('x')   , lw=2, color='cyan', label="u at t=0.5")
 #fig.plot(pltx,  (SOLUTION_T16).values.numpy('x')   , lw=2, color='red', label="solution at t=0.5")
 #fig.plot(pltx,  (velocities[16] - SOLUTION_T16).values.numpy('x')   , lw=2, color='blue', label="difference at t=0.5") 
 
-# visualize constraints in a graph
-fig = plt.figure().gca()
-
-# target constraint at t=0.5
-fig.plot(pltx, SOLUTION_T16.values.numpy('x'), lw=2, color='forestgreen',  label="Reference")
-
-# optimized state of our simulation after 16 steps
-fig.plot(pltx, velocities[16].values.numpy('x'), lw=2, color='mediumblue', label="Simulated velocity")
-
-plt.xlabel('x'); plt.ylabel('u'); plt.legend(); plt.title("After 5 Optimization Steps at t=0.5");
-
-# more plots after 50 steps
-fig = plt.figure().gca()
+# plots after 50 steps
+#fig = plt.figure().gca()
 fig.plot(pltx, SOLUTION_T16.values.numpy('x'), lw=2, color='forestgreen',  label="Reference")
 fig.plot(pltx, velocities[16].values.numpy('x'), lw=2, color='mediumblue', label="Simulated velocity")
 plt.xlabel('x'); plt.ylabel('u'); plt.legend(); plt.title("After 50 Optimization Steps at t=0.5");

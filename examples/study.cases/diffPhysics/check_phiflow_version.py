@@ -24,7 +24,7 @@ print("Checking your TensorFlow version...")
 
 from phi.tf.flow import *
 print("You're using TensorFlow version: {}".format(tf.__version__))
-if phi.__version__ == "2.1.4":
+if tf.__version__ == "2.9.1":
     print("The same version has been used to create and test the code\n")
 else:
     print("Note: The code has been tested on another version: version 2.9.1\n")
