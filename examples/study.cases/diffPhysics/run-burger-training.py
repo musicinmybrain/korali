@@ -7,10 +7,6 @@ import time, csv, os, shutil
 from phi.flow import *
 from phi.tf.flow import *
 
-#from control.pde.burgers import BurgersPDE
-#from control.control_training import ControlTraining
-#from control.sequences import StaggeredSequence
-
 # Variables needed in classes below
 TYPE_UNKNOWN = 0
 TYPE_PLANNED = 1
@@ -250,7 +246,6 @@ class StateFrame(SeqFrame):
             item = item.state
         return self.worldstate[item]
 
-
 class PDEExecutor(PartitioningExecutor):
 
     def __init__(self, world, pde, target_state, trainable_networks, dt):
@@ -322,19 +317,6 @@ class PDEExecutor(PartitioningExecutor):
             else:
                 logf("Loading OP%d from OP%d checkpoint from %s..." % (n, i, checkpoint_path))
                 session.restore.restore_new_scope(checkpoint_path, "OP%d" % i, "OP%d" % n)
-            n *= 2
-
-
-    def load_all_from(self, max_n, ik_checkpoint, sm_checkpoint, sm_n, session, logf):
-        # IK
-        logf("Loading IK checkpoint from %s..." % ik_checkpoint)
-        session.restore(ik_checkpoint, scope="ik")
-        # SM
-        n = 2
-        while n <= max_n:
-            source_n = sm_n(n) if callable(sm_n) else sm_n
-            logf("Loading SM%d weights from SM%d checkpoint from %s..." % (n, source_n, sm_checkpoint))
-            session.restore_new_scope(sm_checkpoint, "sm%d" % source_n, "sm%d" % n)
             n *= 2
 
 
@@ -455,27 +437,10 @@ class ControlTraining(LearningApp):
             # else:
             #     self.info('Field %s has value None' % name)
 
-    def load_checkpoints(self, checkpoint_dict):
-        if not self.prepared:
-            self.prepare()
-        self.checkpoint_dict = checkpoint_dict
-        self.executor.load(self.n, checkpoint_dict, preload_n=True, session=self.session, logf=self.info)
-
-    def action_save_model(self):
-        self.save_model()
-
     def step(self):
         if self.learning_rate_half_life is not None:
             self.float_learning_rate = self.initial_learning_rate * 0.5 ** (self.steps / float(self.learning_rate_half_life))
         LearningApp.step(self)
-
-    def infer_all_frames(self, data_range):
-        dataset = Dataset.load(self.data_path, data_range)
-        reader = BatchReader(dataset, self._channel_struct)
-        batch = reader[0:len(reader)]
-        feed_dict = self._feed_dict(batch, True)
-        inferred = self.session.run(self.all_states, feed_dict=feed_dict)
-        return inferred
 
     def infer_scalars(self, data_range):
         dataset = Dataset.load(self.data_path, data_range)
@@ -486,28 +451,19 @@ class ControlTraining(LearningApp):
         scalar_values = {name: value for name, value in zip(self.scalar_names, scalar_values)}
         return scalar_values
 
+
+# ACTUAL SIMULATION
+
 # Define variables
 DOMAIN = Domain([32], box=box[0:1])     # Size and shape of the fields
 VISCOSITY = 0.003
 STEP_COUNT = 32                         # Trajectory length
 DT = 0.03
-DIFFUSION_SUBSTEPS = 1
 
 DATA_PATH = 'forced-burgers-clash'
-SCENE_COUNT = 1000
-BATCH_SIZE = 100
-
 TRAIN_RANGE = range(200, 1000)
 VAL_RANGE = range(100, 200)
-TEST_RANGE = range(0, 100)
-
-N_ENVS = 10                         # On how many environments to train in parallel, load balancing
-FINAL_REWARD_FACTOR = STEP_COUNT    # Penalty for not reaching the goal state
-STEPS_PER_ROLLOUT = STEP_COUNT * 10 # How many steps to collect per environment between agent updates
-N_EPOCHS = 10                       # How many epochs to perform during each agent update
-RL_LEARNING_RATE = 1e-4             # Learning rate for agent updates
-RL_BATCH_SIZE = 128                 # Batch size for agent updates
-RL_ROLLOUTS = 500                  # Number of iterations for RL training
+N_EPOCHS = 10
 
 dp_app = ControlTraining(
     STEP_COUNT,
