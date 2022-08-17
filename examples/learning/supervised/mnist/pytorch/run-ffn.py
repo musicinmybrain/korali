@@ -38,7 +38,7 @@ elif args.model == "medium":
 else:
     sys.exit("No model selected")
 results_dir = os.path.join("_result", args.model)
-results_file = os.path.join(results_dir, "latest")
+results_file = os.path.join(results_dir, "history.json")
 if args.verbosity in ["Normal", "Detailed"]:
     print_header('Pytorch', color=bcolors.HEADER, width=140)
 #  Decide on the device where to train on ===================================
