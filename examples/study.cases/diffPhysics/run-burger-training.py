@@ -60,30 +60,6 @@ class StaggeredSequence(PartitionedSequence):
         self.partition_execute(n//2, start_frame_index)
         self.partition_execute(n//2, start_frame_index+n//2)
 
-class SkipSequence(PartitionedSequence):
-
-    def __init__(self, sequence_length, executor):
-        PartitionedSequence.__init__(self, sequence_length, executor)
-        for i in range(1, sequence_length):
-            if i != sequence_length//2:
-                self._frames[i] = None
-
-    def branch_execute(self, n, start_frame_index, **kwargs):
-        self.partition(n, start_frame_index)
-
-
-class LinearSequence(PartitionedSequence):
-
-    def __init__(self, step_count, executor):
-        PartitionedSequence.__init__(self, step_count, executor)
-
-    def execute(self):
-        for frame1, frame2 in zip(self._frames[:-1], self._frames[1:]):
-            self.leaf_execute(frame1, frame2)
-
-    def branch_execute(self, n, start_frame_index, **kwargs):
-        raise AssertionError()
-
 class PDE(object):
 
     def __init__(self):
@@ -270,11 +246,8 @@ class PDEExecutor(PartitioningExecutor):
         PartitioningExecutor.execute_step(self, initial_frame, target_frame, sequence)
         assert initial_frame.index == self.worldsteps == target_frame.index - 1
         ws = initial_frame.worldstate
-        if isinstance(sequence, LinearSequence):
-            predicted_ws = self.target_state
-        else:
-            assert target_frame.worldstate is not None
-            predicted_ws = target_frame.worldstate
+        assert target_frame.worldstate is not None
+        predicted_ws = target_frame.worldstate
         target_pred = ws[self.next_state_prediction].copied_with(prediction=predicted_ws)
         initial_frame.worldstate = ws.state_replaced(target_pred)
         self.world.state = initial_frame.worldstate
@@ -366,7 +339,7 @@ class ControlTraining(LearningApp):
         if sequence_class is None:
             assert 'CFE' not in trainable_networks, 'CRE training requires a sequence_class.'
             assert len(obs_loss_frames) > 0, 'No loss provided (no obs_loss_frames and no sequence_class).'
-            sequence_class = SkipSequence
+            sequence_class = StaggeredSequence
         self.n = n
         self.dt = dt
         self.data_path = datapath
@@ -375,7 +348,7 @@ class ControlTraining(LearningApp):
 
         # --- Set up PDE sequence ---
         world = World(batch_size=batch_size)
-        pde.create_pde(world, 'CFE' in trainable_networks, sequence_class != LinearSequence)  # TODO BATCH_SIZE=None
+        pde.create_pde(world, 'CFE' in trainable_networks, sequence_class == StaggeredSequence)  # TODO BATCH_SIZE=None
         world.state = pde.placeholder_state(world, 0)
         self.add_all_fields('GT', world.state, 0)
         target_state = pde.placeholder_state(world, n*dt)
