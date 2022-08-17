@@ -359,17 +359,6 @@ void Experiment::setConfiguration(knlohmann::json& js)
     eraseValue(js, "Save Only");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Save Only'] required by experiment.\n"); 
 
-  if (isDefined(js, "Save", "Problem"))
-  {
-    try
-    {
-      _saveProblem = js["Save"]["Problem"].get<int>();
-    } catch (const std::exception& e) {
-      KORALI_LOG_ERROR(" + Object: [ experiment ] \n + Key:    ['Save']['Problem']\n%s", e.what());
-    }
-    eraseValue(js, "Save", "Problem");
-  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Save']['Problem'] required by experiment.\n"); 
-
   if (isDefined(js, "Solver"))
   {
   if (_k->_isInitialized == false) _solver = dynamic_cast<korali::Solver*>(korali::Module::getModule(js["Solver"], _k));
@@ -378,17 +367,6 @@ void Experiment::setConfiguration(knlohmann::json& js)
  _solver->setConfiguration(js["Solver"]);
     eraseValue(js, "Solver");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Solver'] required by experiment.\n"); 
-
-  if (isDefined(js, "Save", "Solver"))
-  {
-    try
-    {
-      _saveSolver = js["Save"]["Solver"].get<int>();
-    } catch (const std::exception& e) {
-      KORALI_LOG_ERROR(" + Object: [ experiment ] \n + Key:    ['Save']['Solver']\n%s", e.what());
-    }
-    eraseValue(js, "Save", "Solver");
-  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Save']['Solver'] required by experiment.\n"); 
 
   if (isDefined(js, "File Output", "Path"))
   {
@@ -488,11 +466,9 @@ void Experiment::getConfiguration(knlohmann::json& js)
    js["Random Seed"] = _randomSeed;
    js["Preserve Random Number Generator States"] = _preserveRandomNumberGeneratorStates;
  for(size_t i = 0; i < _distributions.size(); i++) _distributions[i]->getConfiguration(js["Distributions"][i]);
- if(_problem != NULL && (_saveProblem || _isFinished || (_currentGeneration == 0))) _problem->getConfiguration(js["Problem"]);
+ if(_problem != NULL) _problem->getConfiguration(js["Problem"]);
    js["Save Only"] = _saveOnly;
-   js["Save"]["Problem"] = _saveProblem;
- if(_solver != NULL && (_saveSolver || _isFinished || (_currentGeneration == 0))) _solver->getConfiguration(js["Solver"]);
-   js["Save"]["Solver"] = _saveSolver;
+ if(_solver != NULL) _solver->getConfiguration(js["Solver"]);
    js["File Output"]["Path"] = _fileOutputPath;
    js["File Output"]["Use Multiple Files"] = _fileOutputUseMultipleFiles;
    js["File Output"]["Enabled"] = _fileOutputEnabled;
@@ -511,7 +487,7 @@ void Experiment::getConfiguration(knlohmann::json& js)
 void Experiment::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Random Seed\": 0, \"Preserve Random Number Generator States\": false, \"Distributions\": [], \"Current Generation\": 0, \"File Output\": {\"Enabled\": true, \"Path\": \"_korali_result\", \"Frequency\": 1, \"Use Multiple Files\": true}, \"Console Output\": {\"Verbosity\": \"Normal\", \"Frequency\": 1}, \"Save\": {\"Solver\": true, \"Problem\": true}, \"Save Only\": [], \"Store Sample Information\": false, \"Is Finished\": false}";
+ std::string defaultString = "{\"Random Seed\": 0, \"Preserve Random Number Generator States\": false, \"Distributions\": [], \"Current Generation\": 0, \"File Output\": {\"Enabled\": true, \"Path\": \"_korali_result\", \"Frequency\": 1, \"Use Multiple Files\": true}, \"Console Output\": {\"Verbosity\": \"Normal\", \"Frequency\": 1}, \"Save Only\": [], \"Store Sample Information\": false, \"Is Finished\": false}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Module::applyModuleDefaults(js);

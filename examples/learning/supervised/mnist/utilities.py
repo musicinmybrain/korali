@@ -1,4 +1,5 @@
 import argparse
+import seaborn as sns
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
 def make_parser():
@@ -96,4 +97,26 @@ def make_parser():
         required=False,
         choices=["linear", "log"]
     )
+    parser.add_argument(
+        "--verbosity",
+        help="How much output to print.",
+        default="Normal",
+        required=False,
+        choices=["Silent", "Normal", "Detailed"]
+    )
     return parser
+
+
+class pcolors:
+    """Helper function to print colored output.
+
+    Example: print(bcolors.WARNING + "Warning" + bcolors.ENDC)
+    """
+    def __init__(self, palette = sns.color_palette("deep")):
+        self.palette = palette
+        self.train = palette[1]
+        self.val = palette[3]
+        self.lr = palette[5]
+        self.test = palette[4]
+        self.fun = palette[0]
+    # plt.rcParams['text.usetex'] = True

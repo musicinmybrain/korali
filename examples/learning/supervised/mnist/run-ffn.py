@@ -46,7 +46,8 @@ if len(sys.argv) != 0:
         IPYTHON = True
 args = parser.parse_args()
 sys.argv = tmp
-print_header('Korali', color=bcolors.HEADER, width=140)
+if args.verbosity in ["Normal, Detailed"]:
+    print_header('Korali', color=bcolors.HEADER, width=140)
 add_time_dimension = lambda l : [ [y] for y in l]
 k = korali.Engine()
 e = korali.Experiment()
@@ -58,7 +59,7 @@ mndata = MNIST("./_data")
 mndata.gz = True
 trainingImages, _ = mndata.load_training()
 testingImages, _ = mndata.load_testing()
-### ==========================================================================================
+### Normalize, shuffel and split data ========================================================
 img_width = 28
 img_height = 28
 img_size = len(trainingImages[0])
@@ -72,11 +73,12 @@ random.shuffle(trainingImages)
 # Calculate number of samples that is fitting to the BS =====================
 nb_training_samples = len(trainingImages)
 nb_training_samples = int((nb_training_samples*(1-args.validationSplit))/args.trainingBS)*args.trainingBS
-print(f'{nb_training_samples} training samples')
-print(f'Discarding {int(len(trainingImages)*(1-args.validationSplit)-nb_training_samples)} training samples')
 nb_validation_samples = int((len(trainingImages)*args.validationSplit)/args.testingBS)*args.testingBS
-print(f'{nb_validation_samples} validation samples')
-print(f'Discarding {int(len(trainingImages)*args.validationSplit-nb_validation_samples)} validation samples')
+if args.verbosity in ["Normal, Detailed"]:
+    print(f'{nb_training_samples} training samples')
+    print(f'Discarding {int(len(trainingImages)*(1-args.validationSplit)-nb_training_samples)} training samples')
+    print(f'{nb_validation_samples} validation samples')
+    print(f'Discarding {int(len(trainingImages)*args.validationSplit-nb_validation_samples)} validation samples')
 # nb_training_samples = 256*3
 # nb_validation_samples = 256*1
 trainingImages = trainingImages[:(nb_training_samples+nb_validation_samples)]
@@ -91,7 +93,8 @@ nb_training_samples = len(trainingImages)
 assert len(validationImages) % args.testingBS == 0
 assert len(trainingImages) % args.trainingBS == 0
 ### Print Args
-print_args(vars(args), sep=' ', header_width=140)
+if args.verbosity in ["Normal, Detailed"]:
+    print_args(vars(args), sep=' ', header_width=140)
 ### Load Previous model if desired
 isStateFound = False
 if args.load_model:
@@ -99,7 +102,7 @@ if args.load_model:
     isStateFound = e.loadState("_korali_result/latest")
     if not isStateFound:
         sys.exit("No model file for _korali_result/latest found")
-    if(isStateFound):
+    if isStateFound and args.verbosity in ["Normal, Detailed"]:
         print("[Script] Evaluating previous run...\n")
 
 k["Conduit"]["Type"] = "Sequential"
@@ -196,7 +199,7 @@ def test_epoch(e):
     return np.mean(validation_loss).item()
 
 #  Training Loop =============================================================
-history={'train_loss':[],'val_loss':[], 'time_per_epoch': []}
+history={'Training Loss':[],'Validation Loss':[], 'Time per Epoch': []}
 if args.mode in ["all", "train"]:
     for epoch in range(args.epochs):
         tp_start = time.time()
@@ -207,12 +210,13 @@ if args.mode in ["all", "train"]:
         val_loss = test_epoch(e)
         # print(f'EPOCH {epoch + 1}/{args.epochs} {tp:.3f}s \t val loss {val_loss:.3f}')
         print(f'EPOCH {epoch + 1}/{args.epochs} {tp:.3f}s \t train loss {train_loss:.3f} \t val loss {val_loss:.3f}')
-        history['train_loss'].append(train_loss)
-        history['val_loss'].append(val_loss)
-        history['time_per_epoch'].append(tp)
+        history['Training Loss'].append(train_loss)
+        history['Validation Loss'].append(val_loss)
+        history['Time per Epoch'].append(tp)
 
 # Plotting      ===========================================================================
-print(f'Test epoch {test_epoch(e)}\n')
+if args.verbosity in ["Normal, Detailed"]:
+    print(f'Test epoch {test_epoch(e)}\n')
 if args.plot:
     plt.figure(figsize=(10,8))
     plt.semilogy(history['train_loss'], label='Train')
@@ -250,7 +254,8 @@ if args.plot:
     #     ax[0].imshow(arr_to_img(y), cmap='gist_gray')
     #     ax[1].imshow(arr_to_img(yhat), cmap='gist_gray')
     plt.show()
-print_header(width=140)
+if args.verbosity in ["Normal, Detailed"]:
+    print_header(width=140)
 
 if args.save:
     with open('_results/latest', 'w') as file:

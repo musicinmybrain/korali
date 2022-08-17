@@ -69,17 +69,9 @@ class Experiment : public Module
   */
    std::vector<std::string> _saveOnly;
   /**
-  * @brief Whether to save the problem in _korali_results.
-  */
-   int _saveProblem;
-  /**
   * @brief Represents the state and configuration of the solver algorithm.
   */
    korali::Solver* _solver;
-  /**
-  * @brief Whether to save the problem in _korali_results.
-  */
-   int _saveSolver;
   /**
   * @brief Specifies the path of the results directory.
   */
