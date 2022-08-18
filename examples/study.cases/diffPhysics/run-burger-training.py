@@ -7,13 +7,17 @@ import time, csv, os, shutil
 from phi.flow import *
 from phi.tf.flow import *
 
+
+
+# PREPARATION: DEFINE VARIABLES AND CLASSES
+
 # Variables needed in classes below
 TYPE_UNKNOWN = 0
 TYPE_PLANNED = 1
 TYPE_REAL = 2
 TYPE_KEYFRAME = 3
 
-# Define classes that are used in this script
+# Custom sequence class
 class PartitionedSequence(object):
 
     def __init__(self, step_count, executor):
@@ -50,6 +54,7 @@ class PartitionedSequence(object):
     def __iter__(self):
         return self._frames.__iter__()
 
+# More specific custom sequence class
 class StaggeredSequence(PartitionedSequence):
 
     def __init__(self, step_count, executor):
@@ -60,6 +65,7 @@ class StaggeredSequence(PartitionedSequence):
         self.partition_execute(n//2, start_frame_index)
         self.partition_execute(n//2, start_frame_index+n//2)
 
+# Custom class to create PDEs
 class PDE(object):
 
     def __init__(self):
@@ -79,9 +85,11 @@ class PDE(object):
     def predict(self, n, initial_worldstate, target_worldstate, trainable):
         raise NotImplementedError(self)
 
+# Custom class to return property name
 def property_name(trace): 
     return trace.name
 
+# ???
 def collect_placeholders_channels(placeholder_states, trace_to_channel=property_name):
     if trace_to_channel is None:
         trace_to_channel = property_name
@@ -98,6 +106,7 @@ def collect_placeholders_channels(placeholder_states, trace_to_channel=property_
                     channels.append(consecutive_frames(channel, len(placeholder_states))[i])
     return placeholders, tuple(channels)
 
+# Custom class for actual Burger's equation (requires PDE class above)
 class BurgersPDE(PDE):
 
     def __init__(self, domain, viscosity, dt):
@@ -137,6 +146,7 @@ class BurgersPDE(PDE):
         new_field = b1.copied_with(velocity=predicted_tensor, age=(b1.age + b2.age) / 2.)
         return initial_worldstate.state_replaced(new_field)
 
+# ???
 def op_resnet(initial, target, training=True, trainable=True, reuse=tf.AUTO_REUSE):
     # Set up Tensor y
     y = tf.concat([initial, target], axis=-1)
@@ -174,6 +184,7 @@ def op_resnet(initial, target, training=True, trainable=True, reuse=tf.AUTO_REUS
             )
     return y
 
+# ???
 class ReplacePhysics(Physics):
 
     def __init__(self):
@@ -182,6 +193,7 @@ class ReplacePhysics(Physics):
     def step(self, state, dt=1.0, next_state_prediction=None):
         return next_state_prediction.prediction.burgers
 
+# Custom class to execute PDEs
 class PartitioningExecutor(object):
 
     def create_frame(self, index, step_count):
@@ -199,6 +211,7 @@ class PartitioningExecutor(object):
         assert initial_frame.type != TYPE_UNKNOWN and target_frame.type != TYPE_UNKNOWN
         center_frame.type = TYPE_PLANNED
 
+# Custom class needed for PartioningExecutor (see above)
 class SeqFrame(object):
 
     def __init__(self, index, type=TYPE_UNKNOWN):
@@ -211,6 +224,7 @@ class SeqFrame(object):
     def __repr__(self):
         return "Frame#%d" % self.index
 
+# Custom class needed for PDEExecutor (see below)
 class StateFrame(SeqFrame):
 
     def __init__(self, index, type):
@@ -222,6 +236,7 @@ class StateFrame(SeqFrame):
             item = item.state
         return self.worldstate[item]
 
+# More specific class to execute PDEs
 class PDEExecutor(PartitioningExecutor):
 
     def __init__(self, world, pde, target_state, trainable_networks, dt):
@@ -292,7 +307,7 @@ class PDEExecutor(PartitioningExecutor):
                 session.restore.restore_new_scope(checkpoint_path, "OP%d" % i, "OP%d" % n)
             n *= 2
 
-
+# ???
 @struct.definition()
 class NextStatePrediction(State):
 
@@ -307,6 +322,8 @@ class NextStatePrediction(State):
     def __repr__(self):
         return self.__class__.__name__
 
+# Main custom class that is actually needed in the simulation below
+# Note: All other classes seem to be helpers to execute this class and the code in the simulation
 class ControlTraining(LearningApp):
 
     def __init__(self, n, pde, datapath, val_range, train_range,
@@ -333,13 +350,6 @@ class ControlTraining(LearningApp):
                              validation_batch_size=batch_size, learning_rate=learning_rate, stride=50)
         self.initial_learning_rate = learning_rate
         self.learning_rate_half_life = learning_rate_half_life
-        if n <= 1:
-            sequence_matching = False
-        diffphys = sequence_class is not None
-        if sequence_class is None:
-            assert 'CFE' not in trainable_networks, 'CRE training requires a sequence_class.'
-            assert len(obs_loss_frames) > 0, 'No loss provided (no obs_loss_frames and no sequence_class).'
-            sequence_class = StaggeredSequence
         self.n = n
         self.dt = dt
         self.data_path = datapath
@@ -365,13 +375,12 @@ class ControlTraining(LearningApp):
         # --- Loss ---
         loss = 0
         reg = None
-        if diffphys:
-            target_loss = pde.target_matching_loss(target_state, sequence[-1].worldstate)
-            self.info('Target loss: %s' % target_loss)
-            if target_loss is not None:
-                loss += target_loss
-            reg = pde.total_force_loss([state for state in all_states if state is not None])
-            self.info('Force loss: %s' % reg)
+        target_loss = pde.target_matching_loss(target_state, sequence[-1].worldstate)
+        self.info('Target loss: %s' % target_loss)
+        if target_loss is not None:
+            loss += target_loss
+        reg = pde.total_force_loss([state for state in all_states if state is not None])
+        self.info('Force loss: %s' % reg)
         for frame in obs_loss_frames:
             supervised_loss = pde.target_matching_loss(in_states[frame], sequence[frame].worldstate)
             if supervised_loss is not None:
@@ -392,13 +401,13 @@ class ControlTraining(LearningApp):
                       val=None if val_range is None else Dataset.load(datapath, val_range),
                       train=None if train_range is None else Dataset.load(datapath, train_range))
         # --- Show all states in GUI ---
-        for i, (placeholder, channel) in enumerate(zip(placeholders, channels)):
-            def fetch(i=i): return self.viewed_batch[i]
-            self.add_field('%s %d' % (channel, i), fetch)
-        for i, worldstate in enumerate(all_states):
-            self.add_all_fields('Sim', worldstate, i)
-        for name, field in pde.fields.items():
-            self.add_field(name, field)
+#        for i, (placeholder, channel) in enumerate(zip(placeholders, channels)):
+#            def fetch(i=i): return self.viewed_batch[i]
+#            self.add_field('%s %d' % (channel, i), fetch)
+#        for i, worldstate in enumerate(all_states):
+#            self.add_all_fields('Sim', worldstate, i)
+#        for name, field in pde.fields.items():
+#            self.add_field(name, field)
 
     def add_all_fields(self, prefix, worldstate, index):
         with struct.unsafe():
