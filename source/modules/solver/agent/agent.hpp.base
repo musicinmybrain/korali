@@ -84,6 +84,21 @@ class __className__ : public __parentClassName__
   std::vector<bool> _isAgentRunning;
 
   /**
+   * @brief Pointer to training the actor network
+   */
+  std::vector<learner::DeepSupervisor *> _criticPolicyLearner;
+
+  /**
+   * @brief Korali experiment for obtaining the agent's action
+   */
+  std::vector<korali::Experiment> _criticPolicyExperiment;
+
+  /**
+   * @brief Pointer to actor's experiment problem
+   */
+  std::vector<problem::SupervisedLearning *> _criticPolicyProblem;
+
+  /**
    * @brief Session-specific experience count. This is useful in case of restart: counters from the old session won't count
    */
   size_t _sessionExperienceCount;
@@ -202,6 +217,11 @@ class __className__ : public __parentClassName__
    * @brief Contains the state value evaluation for every experience
    */
   cBuffer<std::vector<float>> _stateValueVector;
+
+  /**
+   * @brief Contains the state value evaluation for every experience
+   */
+  cBuffer<std::vector<std::vector<float>>> _hyperparameterVector;
 
   /**
    * @brief Stores the priority annealing rate.

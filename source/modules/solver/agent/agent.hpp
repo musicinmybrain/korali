@@ -117,6 +117,22 @@ class Agent : public Solver
   */
    size_t _episodesPerGeneration;
   /**
+  * @brief Number of generations before start sampling posterior.
+  */
+   size_t _startSamplingGeneration;
+  /**
+  * @brief Number of weights to use for Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf) is used.
+  */
+   size_t _stochasticWeightAveragingHorizon;
+  /**
+  * @brief Number of weights for approximation of covariance use for Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf) is used.
+  */
+   size_t _rankOfCovariance;
+  /**
+  * @brief Number of Samples from Posterior that are used.
+  */
+   size_t _numberOfSamples;
+  /**
   * @brief The number of experiences to randomly select to train the neural network(s) with.
   */
    size_t _miniBatchSize;
@@ -224,6 +240,26 @@ class Agent : public Solver
   * @brief [Internal Use] Upper bounds for actions.
   */
    std::vector<float> _actionUpperBounds;
+  /**
+  * @brief [Internal Use] Boolean indicating whether we need to resample posterior for Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf).
+  */
+   int _updateSamples;
+  /**
+  * @brief [Internal Use] Posterior Samples for Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf).
+  */
+   std::vector<std::vector<std::vector<float>>> _hyperparameterSamples;
+  /**
+  * @brief [Internal Use] Buffer for the mean of the hyperparameters for Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf).
+  */
+   std::vector<float> _hyperparameterMean;
+  /**
+  * @brief [Internal Use] Buffer for the mean of the squared hyperparameters for Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf).
+  */
+   std::vector<float> _squaredHyperparameterMean;
+  /**
+  * @brief [Internal Use] Buffer for the Covariance Matrix for Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf).
+  */
+   std::vector<std::vector<float>> _covarianceMatrix;
   /**
   * @brief [Internal Use] Indicates the current episode being processed.
   */
@@ -399,6 +435,21 @@ class Agent : public Solver
   std::vector<bool> _isAgentRunning;
 
   /**
+   * @brief Pointer to training the actor network
+   */
+  std::vector<learner::DeepSupervisor *> _criticPolicyLearner;
+
+  /**
+   * @brief Korali experiment for obtaining the agent's action
+   */
+  std::vector<korali::Experiment> _criticPolicyExperiment;
+
+  /**
+   * @brief Pointer to actor's experiment problem
+   */
+  std::vector<problem::SupervisedLearning *> _criticPolicyProblem;
+
+  /**
    * @brief Session-specific experience count. This is useful in case of restart: counters from the old session won't count
    */
   size_t _sessionExperienceCount;
@@ -517,6 +568,11 @@ class Agent : public Solver
    * @brief Contains the state value evaluation for every experience
    */
   cBuffer<std::vector<float>> _stateValueVector;
+
+  /**
+   * @brief Contains the state value evaluation for every experience
+   */
+  cBuffer<std::vector<std::vector<float>>> _hyperparameterVector;
 
   /**
    * @brief Stores the priority annealing rate.

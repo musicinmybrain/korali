@@ -26,6 +26,9 @@ void __className__::initializeAgent()
   if( (_multiAgentRelationship == "Competition") || (_multiAgentRelationship == "Bayesian") )
     KORALI_LOG_ERROR("Multi Agent Relationship = %s is not supported for discrete reinforcement learning problems.\n");
 
+  if( _stochasticWeightAveragingHorizon > 0 )
+    KORALI_LOG_ERROR("Stochastic Weight Averaging is not supported for discrete reinforcement learning problems.\n");
+
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";

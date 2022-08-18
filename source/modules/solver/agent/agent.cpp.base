@@ -72,6 +72,34 @@ void __className__::initialize()
   _episodePosVector.resize(_experienceReplayMaximumSize);
   _episodeIdVector.resize(_experienceReplayMaximumSize);
 
+  // Pre-allocating space for hyperparameters for SWAG
+  _hyperparameterVector.resize(_stochasticWeightAveragingHorizon);
+
+  if( _rankOfCovariance > _stochasticWeightAveragingHorizon )
+    KORALI_LOG_ERROR("Rank of Covariance %d is larger than Stochastic Weight Averaging Horizon %d", _rankOfCovariance, _stochasticWeightAveragingHorizon);
+
+  // Pre-allocating space for hyperparameter-samples
+  _hyperparameterSamples.resize(_problem->_policiesPerEnvironment);
+  
+  size_t maxHyperparameters = 0;
+  for( size_t p = 0; p<_problem->_policiesPerEnvironment; p++ )
+  {
+    _hyperparameterSamples[p].resize(_numberOfSamples);
+    if( _criticPolicyLearner[p]->_neuralNetwork->_hyperparameterCount > maxHyperparameters )
+      maxHyperparameters = _criticPolicyLearner[p]->_neuralNetwork->_hyperparameterCount;
+  }
+
+  // Pre-allocating space for covariance matrix
+  _covarianceMatrix.resize(maxHyperparameters);
+  _hyperparameterMean.resize(maxHyperparameters);
+  _squaredHyperparameterMean.resize(maxHyperparameters);
+
+  for( size_t n = 0; n<maxHyperparameters; n++ )
+    _covarianceMatrix[n].resize(_rankOfCovariance);
+
+  // Set boolean which indicates need to produce new samples to False
+  _updateSamples = false;
+
   //  Pre-allocating space for state time sequence
   _stateTimeSequence.resize(_problem->_agentsPerEnvironment);
   for (size_t agentId = 0; agentId < _problem->_agentsPerEnvironment; ++agentId)

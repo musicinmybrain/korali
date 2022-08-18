@@ -290,10 +290,17 @@ void VRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &state
 
 knlohmann::json VRACER::getAgentPolicy()
 {
-  knlohmann::json hyperparameters;
+  knlohmann::json jsonHyperparameters;
+  std::vector<std::vector<float>> hyperparameterVector;
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-    hyperparameters["Policy Hyperparameters"][p] = _criticPolicyLearner[p]->getHyperparameters();
-  return hyperparameters;
+  {
+    auto hyperparameters = _criticPolicyLearner[p]->getHyperparameters();
+    hyperparameterVector.push_back(hyperparameters);
+    jsonHyperparameters["Policy Hyperparameters"][p] = hyperparameters;
+  }
+  _hyperparameterVector.add(hyperparameterVector);
+  _updateSamples = true;
+  return jsonHyperparameters;
 }
 
 void VRACER::setAgentPolicy(const knlohmann::json &hyperparameters)

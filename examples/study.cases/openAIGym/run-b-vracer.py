@@ -13,7 +13,11 @@ parser.add_argument('--dis', help='Sampling Distribution.', required=False, type
 parser.add_argument('--l2', help='L2 Regularization.', required=False, type=float, default = 0.)
 parser.add_argument('--opt', help='Off Policy Target.', required=False, type=float, default = 0.1)
 parser.add_argument('--lr', help='Learning Rate.', required=False, type=float, default = 0.0001)
-parser.add_argument('--nPolicies', help='Number of Policies in Ensemble.', required=False, type=int, default = 5)
+parser.add_argument('--nPolicies', help='Number of Policies in Ensemble.', required=False, type=int, default = 1)
+parser.add_argument('--nSWAG', help='Number of Hyperparameters for SWAG.', required=False, type=int, default = 10)
+parser.add_argument('--K', help='Rank of Covariance Matrix for SWAG.', required=False, type=int, default = 5)
+parser.add_argument('--nSamples', help='Number of Samples from Posterior distribution.', required=False, type=int, default = 30)
+parser.add_argument('--startSampling', help='Number of Epsisodes before Sampling starts.', required=False, type=int, default = 100)
 args = parser.parse_args()
 print(args)
 
@@ -27,7 +31,6 @@ e = korali.Experiment()
 
 dis_dir = args.dis.replace(" ","_")
 resultFolder = '_result_b_vracer_' + args.env + '_' + dis_dir + '_' + str(args.lr) + '_' + str(args.opt) + '_' + str(args.l2) + '/'
-e.loadState(resultFolder + '/latest');
 
 ### Initializing openAI Gym environment
 
@@ -47,6 +50,10 @@ e["Solver"]["Mini Batch"]["Size"] = 256
 
 e["Problem"]["Policies Per Environment"] = args.nPolicies
 e["Problem"]["Ensemble Learning"] = args.nPolicies > 1
+e["Solver"]["Stochastic Weight Averaging Horizon"] = args.nSWAG
+e["Solver"]["Rank Of Covariance"] = args.K
+e["Solver"]["Number Of Samples"] = args.nSamples
+e["Solver"]["Start Sampling Generation"] = args.startSampling
 
 ### Setting Experience Replay and REFER settings
 
@@ -86,7 +93,7 @@ e["Solver"]["Termination Criteria"]["Max Experiences"] = 10e6
 e["Solver"]["Experience Replay"]["Serialize"] = False
 e["Console Output"]["Verbosity"] = "Detailed"
 e["File Output"]["Enabled"] = True
-e["File Output"]["Frequency"] = 200
+e["File Output"]["Frequency"] = 10
 e["File Output"]["Path"] = resultFolder
 
 ### Running Experiment
