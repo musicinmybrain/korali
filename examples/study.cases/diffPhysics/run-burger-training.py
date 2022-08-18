@@ -85,14 +85,8 @@ class PDE(object):
     def predict(self, n, initial_worldstate, target_worldstate, trainable):
         raise NotImplementedError(self)
 
-# Custom class to return property name
-def property_name(trace): 
-    return trace.name
-
-# ???
-def collect_placeholders_channels(placeholder_states, trace_to_channel=property_name):
-    if trace_to_channel is None:
-        trace_to_channel = property_name
+# Custom class that returns placeholder and channels
+def collect_placeholders_channels(placeholder_states, trace_to_channel=lambda trace: 'burgers_velocity'):
     placeholders = []
     channels = []
 
@@ -146,7 +140,7 @@ class BurgersPDE(PDE):
         new_field = b1.copied_with(velocity=predicted_tensor, age=(b1.age + b2.age) / 2.)
         return initial_worldstate.state_replaced(new_field)
 
-# ???
+# Custom class needed to predict tensor
 def op_resnet(initial, target, training=True, trainable=True, reuse=tf.AUTO_REUSE):
     # Set up Tensor y
     y = tf.concat([initial, target], axis=-1)
@@ -184,7 +178,7 @@ def op_resnet(initial, target, training=True, trainable=True, reuse=tf.AUTO_REUS
             )
     return y
 
-# ???
+# Custom class needed to create PDE
 class ReplacePhysics(Physics):
 
     def __init__(self):
@@ -196,8 +190,8 @@ class ReplacePhysics(Physics):
 # Custom class to execute PDEs
 class PartitioningExecutor(object):
 
-    def create_frame(self, index, step_count):
-        return SeqFrame(index, type=TYPE_KEYFRAME if index == 0 or index == step_count else TYPE_UNKNOWN)
+#    def create_frame(self, index, step_count):
+#        return SeqFrame(index, type=TYPE_KEYFRAME if index == 0 or index == step_count else TYPE_UNKNOWN)
 
     def execute_step(self, initial_frame, target_frame, sequence):
         # type: (SeqFrame, SeqFrame, int) -> None
@@ -282,32 +276,32 @@ class PDEExecutor(PartitioningExecutor):
             self.next_state_prediction = self.next_state_prediction.copied_with(prediction=center_frame.worldstate)
             initial_frame.worldstate = self.world.state.state_replaced(self.next_state_prediction)
 
-    def load(self, max_n, checkpoint_dict, preload_n, session, logf):
-        # Control Force Estimator (CFE)
-        if 'CFE' in checkpoint_dict:
-            ik_checkpoint = os.path.expanduser(checkpoint_dict['CFE'])
-            logf("Loading CFE from %s..." % ik_checkpoint)
-            session.restore(ik_checkpoint, scope='CFE')
-        # Observation Predictors (OP)
-        n = 2
-        while n <= max_n:
-            if n == max_n and not preload_n: return
-            checkpoint_path = None
-            i = n
-            while not checkpoint_path:
-                if "OP%d"%i in checkpoint_dict:
-                    checkpoint_path = os.path.expanduser(checkpoint_dict["OP%d"%i])
-                else:
-                    i //= 2
-            if i == n:
-                logf("Loading OP%d from %s..." % (n, checkpoint_path))
-                session.restore(checkpoint_path, scope="OP%d" % n)
-            else:
-                logf("Loading OP%d from OP%d checkpoint from %s..." % (n, i, checkpoint_path))
-                session.restore.restore_new_scope(checkpoint_path, "OP%d" % i, "OP%d" % n)
-            n *= 2
+#    def load(self, max_n, checkpoint_dict, preload_n, session, logf):
+#        # Control Force Estimator (CFE)
+#        if 'CFE' in checkpoint_dict:
+#            ik_checkpoint = os.path.expanduser(checkpoint_dict['CFE'])
+#            logf("Loading CFE from %s..." % ik_checkpoint)
+#            session.restore(ik_checkpoint, scope='CFE')
+#        # Observation Predictors (OP)
+#        n = 2
+#        while n <= max_n:
+#            if n == max_n and not preload_n: return
+#            checkpoint_path = None
+#            i = n
+#            while not checkpoint_path:
+#                if "OP%d"%i in checkpoint_dict:
+#                    checkpoint_path = os.path.expanduser(checkpoint_dict["OP%d"%i])
+#                else:
+#                    i //= 2
+#            if i == n:
+#                logf("Loading OP%d from %s..." % (n, checkpoint_path))
+#                session.restore(checkpoint_path, scope="OP%d" % n)
+#            else:
+#                logf("Loading OP%d from OP%d checkpoint from %s..." % (n, i, checkpoint_path))
+#                session.restore.restore_new_scope(checkpoint_path, "OP%d" % i, "OP%d" % n)
+#            n *= 2
 
-# ???
+# Custom class used to execute step and for partions in PDEExecutor
 @struct.definition()
 class NextStatePrediction(State):
 
@@ -353,7 +347,7 @@ class ControlTraining(LearningApp):
         self.n = n
         self.dt = dt
         self.data_path = datapath
-        self.checkpoint_dict = None
+#        self.checkpoint_dict = None
         self.info('Sequence class: %s' % sequence_class)
 
         # --- Set up PDE sequence ---
