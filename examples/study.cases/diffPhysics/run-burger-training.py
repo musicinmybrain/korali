@@ -11,7 +11,7 @@ from phi.tf.flow import *
 
 # PREPARATION: DEFINE CLASSES
 
-# Custom sequence class
+# Custom sequence class (used in ControlTraining; uses PDEExecutor)
 class PartitionedSequence(object):
 
     def __init__(self, step_count, executor):
@@ -19,21 +19,26 @@ class PartitionedSequence(object):
         self.executor = executor
         self._frames = [executor.create_frame(i, step_count) for i in range(step_count + 1)]
 
+    # Used in ControlTraining
     def execute(self):
         self.partition_execute(self.step_count, 0)
 
+    # Used in this class and StaggeredSequence
     def partition_execute(self, n, start_frame_index, **kwargs):
         if n == 1:
             self.leaf_execute(self._frames[start_frame_index], self._frames[start_frame_index+1], **kwargs)
         else:
             self.branch_execute(n, start_frame_index, **kwargs)
 
+    # Used in this class (uses PDEExecutor)
     def leaf_execute(self, start_frame, end_frame, **kwargs):
         self.executor.execute_step(start_frame, end_frame, self)
 
+    # Used in this class and StaggeredSequence
     def branch_execute(self, n, start_frame_index, **kwargs):
         raise NotImplementedError()
 
+    # Used in StaggeredSequence (uses PDEExecutor)
     def partition(self, n, start_frame_index):
         self.executor.partition(n, self._frames[start_frame_index], self._frames[start_frame_index + n],
                                 self._frames[start_frame_index + n // 2])
@@ -47,18 +52,19 @@ class PartitionedSequence(object):
 #    def __iter__(self):
 #        return self._frames.__iter__()
 
-# More specific custom sequence class
+# More specific custom sequence class (used along PartitionedSequence above)
 class StaggeredSequence(PartitionedSequence):
 
     def __init__(self, step_count, executor):
         PartitionedSequence.__init__(self, step_count, executor)
 
+    # Used in Partiotened Sequence
     def branch_execute(self, n, start_frame_index, **kwargs):
         self.partition(n, start_frame_index)
         self.partition_execute(n//2, start_frame_index)
         self.partition_execute(n//2, start_frame_index+n//2)
 
-# Custom class that returns placeholder and channels in ControlTraining class (see below)
+# Custom function that returns placeholder and channels in ControlTraining class (see below)
 def collect_placeholders_channels(placeholder_states, trace_to_channel=lambda trace: 'burgers_velocity'):
     placeholders = []
     channels = []
@@ -73,7 +79,7 @@ def collect_placeholders_channels(placeholder_states, trace_to_channel=lambda tr
                     channels.append(consecutive_frames(channel, len(placeholder_states))[i])
     return placeholders, tuple(channels)
 
-# Custom class for actual Burger's PDE
+# Custom class for actual Burger's PDE (used in ControlTraining and in PDEExecutor)
 class BurgersPDE():
 
     def __init__(self, domain, viscosity, dt):
@@ -83,13 +89,13 @@ class BurgersPDE():
         self.viscosity = viscosity
         self.dt = dt
 
-    # This creates the Burger's PDE
+    # This creates the Burger's PDE (used in ControlTraining)
     def create_pde(self, world, control_trainable, constant_prediction_offset):
         world.reset(world.batch_size, add_default_objects=False)
         u0 = BurgersVelocity(self.domain, viscosity=self.viscosity, batch_size=world.batch_size, name='burgers')
         world.add(u0, ReplacePhysics())
 
-    # This is needed to set up the sequence in the PDE
+    # This is needed to set up the sequence in the PDE (used in ControlTraining)
     def placeholder_state(self, world, age):
         with struct.VARIABLES:
             with struct.DATA:
@@ -97,14 +103,14 @@ class BurgersPDE():
         result = struct.map_item(State.age, lambda _: age, placeholders)
         return result
 
-    # Target Loss
+    # Target Loss (used in ControlTraining)
     def target_matching_loss(self, target_state, actual_state):
         # Only needed for supervised initialization
         diff = target_state.burgers.velocity.data - actual_state.burgers.velocity.data
         loss = math.l2_loss(diff)
         return loss
 
-    # Force Loss    
+    # Force Loss (used in ControlTraining)
     def total_force_loss(self, states):
         l2 = []
         l1 = []
@@ -119,6 +125,7 @@ class BurgersPDE():
         return l2
 
     # Needed for the partition function in PDEExecutor
+    # Used in PDEExecutor (partition function); Uses op_resnet function below
     def predict(self, n, initial_worldstate, target_worldstate, trainable):
         b1, b2 = initial_worldstate.burgers, target_worldstate.burgers
         with tf.variable_scope("OP%d" % n):
@@ -126,7 +133,7 @@ class BurgersPDE():
         new_field = b1.copied_with(velocity=predicted_tensor, age=(b1.age + b2.age) / 2.)
         return initial_worldstate.state_replaced(new_field)
 
-# Custom class needed to predict tensor in BurgersPDE class (see above)
+# Custom function needed to predict tensor in BurgersPDE class (see above)
 def op_resnet(initial, target, training=True, trainable=True, reuse=tf.AUTO_REUSE):
     # Set up Tensor y
     y = tf.concat([initial, target], axis=-1)
@@ -164,12 +171,13 @@ def op_resnet(initial, target, training=True, trainable=True, reuse=tf.AUTO_REUS
             )
     return y
 
-# Custom class needed to create the PDE in BurgersPDE (see above)
+# Custom class needed to create the PDE in BurgersPDE (see above) (uses NextStatePrediction)
 class ReplacePhysics(Physics):
 
     def __init__(self):
         Physics.__init__(self, dependencies=[StateDependency("next_state_prediction", "next_state_prediction", single_state=True, blocking=True)])
 
+    # Used in BurgersPDE; Uses NextStatePrediction
     def step(self, state, dt=1.0, next_state_prediction=None):
         return next_state_prediction.prediction.burgers
 
@@ -191,7 +199,7 @@ class StateFrame():
             item = item.state
         return self.worldstate[item]
 
-# Custom class to execute PDEs
+# Custom class to execute PDEs (sed in PartitionedSequence; uses BurgersPDE)
 class PDEExecutor():
 
     def __init__(self, world, pde, target_state, trainable_networks, dt):
@@ -204,7 +212,7 @@ class PDEExecutor():
         self.trainable_networks = trainable_networks
         self.dt = dt
 
-    # Creates frames for the PDE
+    # Creates frames for the PDE (used in PartitionedSequence)
     def create_frame(self, index, step_count):
         frame = StateFrame(index)
         if index == 0:
@@ -213,7 +221,7 @@ class PDEExecutor():
             frame.worldstate = self.target_state
         return frame
 
-    # Executes (a step in) the PDE
+    # Executes (a step in) the PDE (used in PartitionedSequence)
     def execute_step(self, initial_frame, target_frame, sequence):
         assert initial_frame.index == self.worldsteps == target_frame.index - 1
         ws = initial_frame.worldstate
@@ -228,7 +236,7 @@ class PDEExecutor():
             self.world.remove(NextStatePrediction)
         target_frame.worldstate = self.world.state
 
-    # Needed for the PartiotendSequence class
+    # Needed for the PartitionedSequence class (used in PartitionedSequence; uses predict in BurgersPDE)
     def partition(self, n, initial_frame, target_frame, center_frame):
         center_frame.worldstate = self.pde.predict(n, initial_frame.worldstate, target_frame.worldstate, trainable='OP%d' % n in self.trainable_networks)
 
@@ -238,14 +246,14 @@ class PDEExecutor():
             self.next_state_prediction = self.next_state_prediction.copied_with(prediction=center_frame.worldstate)
             initial_frame.worldstate = self.world.state.state_replaced(self.next_state_prediction)
 
-# Custom class used to execute step and for partions in PDEExecutor (see above)
+# Custom class used to execute step and for partions in PDEExecutor and ReplacePhysics
 @struct.definition()
 class NextStatePrediction(State):
 
     def __init__(self, prediction, tags=('next_state_prediction',), name='next', **kwargs):
         State.__init__(self, **struct.kwargs(locals()))
 
-    # Actual prediction 
+    # Actual prediction (Used in ReplacePhysics -> BurgersPDE)
     @struct.variable()
     def prediction(self, prediction):
         assert prediction is None or isinstance(prediction, StateCollection)
