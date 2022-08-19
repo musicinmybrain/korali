@@ -9,19 +9,12 @@ from phi.tf.flow import *
 
 
 
-# PREPARATION: DEFINE VARIABLES AND CLASSES
-
-# Variables needed in classes below
-TYPE_UNKNOWN = 0
-TYPE_PLANNED = 1
-TYPE_REAL = 2
-TYPE_KEYFRAME = 3
+# PREPARATION: DEFINE CLASSES
 
 # Custom sequence class
 class PartitionedSequence(object):
 
     def __init__(self, step_count, executor):
-        # type: (int, PartitioningExecutor) -> None
         self.step_count = step_count
         self.executor = executor
         self._frames = [executor.create_frame(i, step_count) for i in range(step_count + 1)]
@@ -65,26 +58,6 @@ class StaggeredSequence(PartitionedSequence):
         self.partition_execute(n//2, start_frame_index)
         self.partition_execute(n//2, start_frame_index+n//2)
 
-# Custom class to create PDEs
-class PDE(object):
-
-    def __init__(self):
-        self.fields = {}
-        self.scalars = {}
-
-    def create_pde(self, world, control_trainable, constant_prediction_offset):
-        raise NotImplementedError(self)
-
-    def placeholder_state(self, world, age):
-        with struct.VARIABLES:
-            with struct.DATA:
-                placeholders = placeholder(world.state.staticshape)
-        result = struct.map_item(State.age, lambda _: age, placeholders)
-        return result
-
-    def predict(self, n, initial_worldstate, target_worldstate, trainable):
-        raise NotImplementedError(self)
-
 # Custom class that returns placeholder and channels
 def collect_placeholders_channels(placeholder_states, trace_to_channel=lambda trace: 'burgers_velocity'):
     placeholders = []
@@ -100,11 +73,12 @@ def collect_placeholders_channels(placeholder_states, trace_to_channel=lambda tr
                     channels.append(consecutive_frames(channel, len(placeholder_states))[i])
     return placeholders, tuple(channels)
 
-# Custom class for actual Burger's equation (requires PDE class above)
-class BurgersPDE(PDE):
+# Custom class for actual Burger's PDE
+class BurgersPDE():
 
     def __init__(self, domain, viscosity, dt):
-        PDE.__init__(self)
+        self.fields = {}
+        self.scalars = {}
         self.domain = domain
         self.viscosity = viscosity
         self.dt = dt
@@ -113,6 +87,13 @@ class BurgersPDE(PDE):
         world.reset(world.batch_size, add_default_objects=False)
         u0 = BurgersVelocity(self.domain, viscosity=self.viscosity, batch_size=world.batch_size, name='burgers')
         world.add(u0, ReplacePhysics())
+
+    def placeholder_state(self, world, age):
+        with struct.VARIABLES:
+            with struct.DATA:
+                placeholders = placeholder(world.state.staticshape)
+        result = struct.map_item(State.age, lambda _: age, placeholders)
+        return result
 
     def target_matching_loss(self, target_state, actual_state):
         # Only needed for supervised initialization
@@ -187,30 +168,13 @@ class ReplacePhysics(Physics):
     def step(self, state, dt=1.0, next_state_prediction=None):
         return next_state_prediction.prediction.burgers
 
-# Custom class to execute PDEs
-class PartitioningExecutor(object):
+# Custom class needed for PDEExecutor (see below)
+class StateFrame():
 
-#    def create_frame(self, index, step_count):
-#        return SeqFrame(index, type=TYPE_KEYFRAME if index == 0 or index == step_count else TYPE_UNKNOWN)
-
-    def execute_step(self, initial_frame, target_frame, sequence):
-        # type: (SeqFrame, SeqFrame, int) -> None
-        print("Execute -> %d" % (initial_frame.index + 1))
-        assert initial_frame.type >= TYPE_REAL
-        target_frame.type = max(TYPE_REAL, target_frame.type)
-
-    def partition(self, n, initial_frame, target_frame, center_frame):
-        # type: (int, SeqFrame, SeqFrame, SeqFrame) -> None
-        print("Partition length %d sequence (from %d to %d) at frame %d" % (n, initial_frame.index, target_frame.index, center_frame.index))
-        assert initial_frame.type != TYPE_UNKNOWN and target_frame.type != TYPE_UNKNOWN
-        center_frame.type = TYPE_PLANNED
-
-# Custom class needed for PartioningExecutor (see above)
-class SeqFrame(object):
-
-    def __init__(self, index, type=TYPE_UNKNOWN):
+    def __init__(self, index):
+#        SeqFrame.__init__(self, index)
+        self.worldstate = None
         self.index = index
-        self.type = type
 
     def next(self):
         return self.index + 1
@@ -218,20 +182,13 @@ class SeqFrame(object):
     def __repr__(self):
         return "Frame#%d" % self.index
 
-# Custom class needed for PDEExecutor (see below)
-class StateFrame(SeqFrame):
-
-    def __init__(self, index, type):
-        SeqFrame.__init__(self, index, type)
-        self.worldstate = None
-
     def __getitem__(self, item):
         if isinstance(item, StateProxy):
             item = item.state
         return self.worldstate[item]
 
-# More specific class to execute PDEs
-class PDEExecutor(PartitioningExecutor):
+# Custom class to execute PDEs
+class PDEExecutor():
 
     def __init__(self, world, pde, target_state, trainable_networks, dt):
         self.world = world
@@ -244,7 +201,7 @@ class PDEExecutor(PartitioningExecutor):
         self.dt = dt
 
     def create_frame(self, index, step_count):
-        frame = StateFrame(index, type=TYPE_KEYFRAME if index == 0 or index == step_count else TYPE_UNKNOWN)
+        frame = StateFrame(index)
         if index == 0:
             frame.worldstate = self.world.state
         if index == step_count:
@@ -252,7 +209,6 @@ class PDEExecutor(PartitioningExecutor):
         return frame
 
     def execute_step(self, initial_frame, target_frame, sequence):
-        PartitioningExecutor.execute_step(self, initial_frame, target_frame, sequence)
         assert initial_frame.index == self.worldsteps == target_frame.index - 1
         ws = initial_frame.worldstate
         assert target_frame.worldstate is not None
@@ -267,7 +223,6 @@ class PDEExecutor(PartitioningExecutor):
         target_frame.worldstate = self.world.state
 
     def partition(self, n, initial_frame, target_frame, center_frame):
-        PartitioningExecutor.partition(self, n, initial_frame, target_frame, center_frame)
         center_frame.worldstate = self.pde.predict(n, initial_frame.worldstate, target_frame.worldstate, trainable='OP%d' % n in self.trainable_networks)
 
         if center_frame.index == self.worldsteps + 1:
@@ -275,31 +230,6 @@ class PDEExecutor(PartitioningExecutor):
             old_state = self.next_state_prediction
             self.next_state_prediction = self.next_state_prediction.copied_with(prediction=center_frame.worldstate)
             initial_frame.worldstate = self.world.state.state_replaced(self.next_state_prediction)
-
-#    def load(self, max_n, checkpoint_dict, preload_n, session, logf):
-#        # Control Force Estimator (CFE)
-#        if 'CFE' in checkpoint_dict:
-#            ik_checkpoint = os.path.expanduser(checkpoint_dict['CFE'])
-#            logf("Loading CFE from %s..." % ik_checkpoint)
-#            session.restore(ik_checkpoint, scope='CFE')
-#        # Observation Predictors (OP)
-#        n = 2
-#        while n <= max_n:
-#            if n == max_n and not preload_n: return
-#            checkpoint_path = None
-#            i = n
-#            while not checkpoint_path:
-#                if "OP%d"%i in checkpoint_dict:
-#                    checkpoint_path = os.path.expanduser(checkpoint_dict["OP%d"%i])
-#                else:
-#                    i //= 2
-#            if i == n:
-#                logf("Loading OP%d from %s..." % (n, checkpoint_path))
-#                session.restore(checkpoint_path, scope="OP%d" % n)
-#            else:
-#                logf("Loading OP%d from OP%d checkpoint from %s..." % (n, i, checkpoint_path))
-#                session.restore.restore_new_scope(checkpoint_path, "OP%d" % i, "OP%d" % n)
-#            n *= 2
 
 # Custom class used to execute step and for partions in PDEExecutor
 @struct.definition()
@@ -338,6 +268,7 @@ class ControlTraining(LearningApp):
         :param sequence_matching:
         :param train_cfe:
         """
+        # --- Initialize values ---
         if new_graph:
             tf.reset_default_graph()
         LearningApp.__init__(self, 'Control Training', 'Train PDE control: OP / CFE', training_batch_size=batch_size,
@@ -347,7 +278,6 @@ class ControlTraining(LearningApp):
         self.n = n
         self.dt = dt
         self.data_path = datapath
-#        self.checkpoint_dict = None
         self.info('Sequence class: %s' % sequence_class)
 
         # --- Set up PDE sequence ---
@@ -358,14 +288,16 @@ class ControlTraining(LearningApp):
         target_state = pde.placeholder_state(world, n*dt)
         self.add_all_fields('GT', target_state, n)
         in_states = [world.state] + [None] * (n-1) + [target_state]
-        for frame in obs_loss_frames:
-            if in_states[frame] is None:
-                in_states[frame] = pde.placeholder_state(world, frame*self.dt)
+#        for frame in obs_loss_frames:
+#            if in_states[frame] is None:
+#                in_states[frame] = pde.placeholder_state(world, frame*self.dt)
+
         # --- Execute sequence ---
         executor = self.executor = PDEExecutor(world, pde, target_state, trainable_networks, self.dt)
         sequence = self.sequence = sequence_class(n, executor)
         sequence.execute()
         all_states = self.all_states = [frame.worldstate for frame in sequence if frame is not None]
+
         # --- Loss ---
         loss = 0
         reg = None
@@ -375,18 +307,19 @@ class ControlTraining(LearningApp):
             loss += target_loss
         reg = pde.total_force_loss([state for state in all_states if state is not None])
         self.info('Force loss: %s' % reg)
-        for frame in obs_loss_frames:
-            supervised_loss = pde.target_matching_loss(in_states[frame], sequence[frame].worldstate)
-            if supervised_loss is not None:
-                self.info('Supervised loss at frame %d: %s' % (frame, supervised_loss))
-                self.add_scalar('GT_obs_%d' % frame, supervised_loss)
-                self.add_all_fields('GT', in_states[frame], frame)
-                loss += supervised_loss
+#        for frame in obs_loss_frames:
+#            supervised_loss = pde.target_matching_loss(in_states[frame], sequence[frame].worldstate)
+#            if supervised_loss is not None:
+#                self.info('Supervised loss at frame %d: %s' % (frame, supervised_loss))
+#                self.add_scalar('GT_obs_%d' % frame, supervised_loss)
+#                self.add_all_fields('GT', in_states[frame], frame)
+#                loss += supervised_loss
         self.info('Setting up loss')
         if loss is not 0:
             self.add_objective(loss, 'Loss', reg=reg)
         for name, scalar in pde.scalars.items():
             self.add_scalar(name, scalar)
+
         # --- Training data ---
         self.info('Preparing data')
         placeholders, channels = collect_placeholders_channels(in_states, trace_to_channel=trace_to_channel)
@@ -394,14 +327,6 @@ class ControlTraining(LearningApp):
         self.set_data(data_load_dict,
                       val=None if val_range is None else Dataset.load(datapath, val_range),
                       train=None if train_range is None else Dataset.load(datapath, train_range))
-        # --- Show all states in GUI ---
-#        for i, (placeholder, channel) in enumerate(zip(placeholders, channels)):
-#            def fetch(i=i): return self.viewed_batch[i]
-#            self.add_field('%s %d' % (channel, i), fetch)
-#        for i, worldstate in enumerate(all_states):
-#            self.add_all_fields('Sim', worldstate, i)
-#        for name, field in pde.fields.items():
-#            self.add_field(name, field)
 
     def add_all_fields(self, prefix, worldstate, index):
         with struct.unsafe():
@@ -410,8 +335,6 @@ class ControlTraining(LearningApp):
             name = '%s[%02d] %s' % (prefix, index, field.path())
             if field.value is not None:
                 self.add_field(name, field.value)
-            # else:
-            #     self.info('Field %s has value None' % name)
 
     def step(self):
         if self.learning_rate_half_life is not None:
@@ -426,6 +349,7 @@ class ControlTraining(LearningApp):
         scalar_values = self.session.run(self.scalars, feed_dict, summary_key='val', merged_summary=self.merged_scalars, time=self.steps)
         scalar_values = {name: value for name, value in zip(self.scalar_names, scalar_values)}
         return scalar_values
+
 
 
 # ACTUAL SIMULATION
@@ -486,7 +410,3 @@ with open(os.path.join(DP_STORE_PATH, 'val_forces.csv'), 'at') as log_file:
 dp_checkpoint = dp_app.save_model()
 shutil.move(dp_checkpoint, DP_STORE_PATH)
 
-# dp_path = 'PDE-Control-RL/networks/dp-models/bench/checkpoint_00020000/'
-# networks_to_load = ['OP2', 'OP4', 'OP8', 'OP16', 'OP32']
-
-# dp_app.load_checkpoints({net: dp_path for net in networks_to_load})
