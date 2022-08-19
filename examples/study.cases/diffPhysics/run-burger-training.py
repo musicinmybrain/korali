@@ -41,11 +41,11 @@ class PartitionedSequence(object):
     def __getitem__(self, item):
         return self._frames[item]
 
-    def __len__(self):
-        return len(self._frames)
+#    def __len__(self):
+#        return len(self._frames)
 
-    def __iter__(self):
-        return self._frames.__iter__()
+#    def __iter__(self):
+#        return self._frames.__iter__()
 
 # More specific custom sequence class
 class StaggeredSequence(PartitionedSequence):
@@ -58,7 +58,7 @@ class StaggeredSequence(PartitionedSequence):
         self.partition_execute(n//2, start_frame_index)
         self.partition_execute(n//2, start_frame_index+n//2)
 
-# Custom class that returns placeholder and channels
+# Custom class that returns placeholder and channels in ControlTraining class (see below)
 def collect_placeholders_channels(placeholder_states, trace_to_channel=lambda trace: 'burgers_velocity'):
     placeholders = []
     channels = []
@@ -83,11 +83,13 @@ class BurgersPDE():
         self.viscosity = viscosity
         self.dt = dt
 
+    # This creates the Burger's PDE
     def create_pde(self, world, control_trainable, constant_prediction_offset):
         world.reset(world.batch_size, add_default_objects=False)
         u0 = BurgersVelocity(self.domain, viscosity=self.viscosity, batch_size=world.batch_size, name='burgers')
         world.add(u0, ReplacePhysics())
 
+    # This is needed to set up the sequence in the PDE
     def placeholder_state(self, world, age):
         with struct.VARIABLES:
             with struct.DATA:
@@ -95,12 +97,14 @@ class BurgersPDE():
         result = struct.map_item(State.age, lambda _: age, placeholders)
         return result
 
+    # Target Loss
     def target_matching_loss(self, target_state, actual_state):
         # Only needed for supervised initialization
         diff = target_state.burgers.velocity.data - actual_state.burgers.velocity.data
         loss = math.l2_loss(diff)
         return loss
 
+    # Force Loss    
     def total_force_loss(self, states):
         l2 = []
         l1 = []
@@ -114,6 +118,7 @@ class BurgersPDE():
         self.scalars["Total Force"] = l1
         return l2
 
+    # Needed for the partition function in PDEExecutor
     def predict(self, n, initial_worldstate, target_worldstate, trainable):
         b1, b2 = initial_worldstate.burgers, target_worldstate.burgers
         with tf.variable_scope("OP%d" % n):
@@ -121,7 +126,7 @@ class BurgersPDE():
         new_field = b1.copied_with(velocity=predicted_tensor, age=(b1.age + b2.age) / 2.)
         return initial_worldstate.state_replaced(new_field)
 
-# Custom class needed to predict tensor
+# Custom class needed to predict tensor in BurgersPDE class (see above)
 def op_resnet(initial, target, training=True, trainable=True, reuse=tf.AUTO_REUSE):
     # Set up Tensor y
     y = tf.concat([initial, target], axis=-1)
@@ -159,7 +164,7 @@ def op_resnet(initial, target, training=True, trainable=True, reuse=tf.AUTO_REUS
             )
     return y
 
-# Custom class needed to create PDE
+# Custom class needed to create the PDE in BurgersPDE (see above)
 class ReplacePhysics(Physics):
 
     def __init__(self):
@@ -168,19 +173,18 @@ class ReplacePhysics(Physics):
     def step(self, state, dt=1.0, next_state_prediction=None):
         return next_state_prediction.prediction.burgers
 
-# Custom class needed for PDEExecutor (see below)
+# Custom class needed for PDEExecutor and the Sequence classes
 class StateFrame():
 
     def __init__(self, index):
-#        SeqFrame.__init__(self, index)
         self.worldstate = None
         self.index = index
 
-    def next(self):
-        return self.index + 1
+#    def next(self):
+#        return self.index + 1
 
-    def __repr__(self):
-        return "Frame#%d" % self.index
+#    def __repr__(self):
+#        return "Frame#%d" % self.index
 
     def __getitem__(self, item):
         if isinstance(item, StateProxy):
@@ -200,6 +204,7 @@ class PDEExecutor():
         self.trainable_networks = trainable_networks
         self.dt = dt
 
+    # Creates frames for the PDE
     def create_frame(self, index, step_count):
         frame = StateFrame(index)
         if index == 0:
@@ -208,6 +213,7 @@ class PDEExecutor():
             frame.worldstate = self.target_state
         return frame
 
+    # Executes (a step in) the PDE
     def execute_step(self, initial_frame, target_frame, sequence):
         assert initial_frame.index == self.worldsteps == target_frame.index - 1
         ws = initial_frame.worldstate
@@ -222,6 +228,7 @@ class PDEExecutor():
             self.world.remove(NextStatePrediction)
         target_frame.worldstate = self.world.state
 
+    # Needed for the PartiotendSequence class
     def partition(self, n, initial_frame, target_frame, center_frame):
         center_frame.worldstate = self.pde.predict(n, initial_frame.worldstate, target_frame.worldstate, trainable='OP%d' % n in self.trainable_networks)
 
@@ -231,20 +238,21 @@ class PDEExecutor():
             self.next_state_prediction = self.next_state_prediction.copied_with(prediction=center_frame.worldstate)
             initial_frame.worldstate = self.world.state.state_replaced(self.next_state_prediction)
 
-# Custom class used to execute step and for partions in PDEExecutor
+# Custom class used to execute step and for partions in PDEExecutor (see above)
 @struct.definition()
 class NextStatePrediction(State):
 
     def __init__(self, prediction, tags=('next_state_prediction',), name='next', **kwargs):
         State.__init__(self, **struct.kwargs(locals()))
 
+    # Actual prediction 
     @struct.variable()
     def prediction(self, prediction):
         assert prediction is None or isinstance(prediction, StateCollection)
         return prediction
 
-    def __repr__(self):
-        return self.__class__.__name__
+#    def __repr__(self):
+#        return self.__class__.__name__
 
 # Main custom class that is actually needed in the simulation below
 # Note: All other classes seem to be helpers to execute this class and the code in the simulation
@@ -281,6 +289,7 @@ class ControlTraining(LearningApp):
         self.info('Sequence class: %s' % sequence_class)
 
         # --- Set up PDE sequence ---
+        # Creates PDE & grid
         world = World(batch_size=batch_size)
         pde.create_pde(world, 'CFE' in trainable_networks, sequence_class == StaggeredSequence)  # TODO BATCH_SIZE=None
         world.state = pde.placeholder_state(world, 0)
@@ -293,18 +302,23 @@ class ControlTraining(LearningApp):
 #                in_states[frame] = pde.placeholder_state(world, frame*self.dt)
 
         # --- Execute sequence ---
+        # Defines executor and sequence
         executor = self.executor = PDEExecutor(world, pde, target_state, trainable_networks, self.dt)
         sequence = self.sequence = sequence_class(n, executor)
+        # Executes sequence
         sequence.execute()
+        # Recovers all states
         all_states = self.all_states = [frame.worldstate for frame in sequence if frame is not None]
 
         # --- Loss ---
         loss = 0
         reg = None
+        # Target Loss
         target_loss = pde.target_matching_loss(target_state, sequence[-1].worldstate)
         self.info('Target loss: %s' % target_loss)
         if target_loss is not None:
             loss += target_loss
+        # Total Force Loss
         reg = pde.total_force_loss([state for state in all_states if state is not None])
         self.info('Force loss: %s' % reg)
 #        for frame in obs_loss_frames:
@@ -314,6 +328,7 @@ class ControlTraining(LearningApp):
 #                self.add_scalar('GT_obs_%d' % frame, supervised_loss)
 #                self.add_all_fields('GT', in_states[frame], frame)
 #                loss += supervised_loss
+        # Stores loss
         self.info('Setting up loss')
         if loss is not 0:
             self.add_objective(loss, 'Loss', reg=reg)
@@ -321,6 +336,7 @@ class ControlTraining(LearningApp):
             self.add_scalar(name, scalar)
 
         # --- Training data ---
+        # Preparing training data
         self.info('Preparing data')
         placeholders, channels = collect_placeholders_channels(in_states, trace_to_channel=trace_to_channel)
         data_load_dict = {p: c for p, c in zip(placeholders, channels)}
@@ -328,6 +344,7 @@ class ControlTraining(LearningApp):
                       val=None if val_range is None else Dataset.load(datapath, val_range),
                       train=None if train_range is None else Dataset.load(datapath, train_range))
 
+    # Stores all given fields
     def add_all_fields(self, prefix, worldstate, index):
         with struct.unsafe():
             fields = struct.flatten(struct.map(lambda x: x, worldstate, trace=True))
@@ -336,11 +353,13 @@ class ControlTraining(LearningApp):
             if field.value is not None:
                 self.add_field(name, field.value)
 
+    # Performs a step in ControlTraining
     def step(self):
         if self.learning_rate_half_life is not None:
             self.float_learning_rate = self.initial_learning_rate * 0.5 ** (self.steps / float(self.learning_rate_half_life))
         LearningApp.step(self)
 
+    # Infers the scalar values in data_range
     def infer_scalars(self, data_range):
         dataset = Dataset.load(self.data_path, data_range)
         reader = BatchReader(dataset, self._channel_struct)
