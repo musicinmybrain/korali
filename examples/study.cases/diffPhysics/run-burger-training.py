@@ -1,4 +1,5 @@
-# TODO: Simplify this version
+# This is a prototype for an unused version that has been considered for this project
+# It requires the forced-burgers-clash directory including all subdirectories
 
 # Use the following versions of PhiFlow and stable-baselines3
 # !pip install stable-baselines3==1.1 phiflow==1.5.1
@@ -89,7 +90,7 @@ class BurgersPDE():
         self.viscosity = viscosity
         self.dt = dt
 
-    # This creates the Burger's PDE (used in ControlTraining)
+    # This creates the Burger's PDE (used in ControlTraining; uses ReplacePhysics)
     def create_pde(self, world, control_trainable, constant_prediction_offset):
         world.reset(world.batch_size, add_default_objects=False)
         u0 = BurgersVelocity(self.domain, viscosity=self.viscosity, batch_size=world.batch_size, name='burgers')
@@ -392,6 +393,7 @@ TRAIN_RANGE = range(200, 1000)
 VAL_RANGE = range(100, 200)
 N_EPOCHS = 10
 
+# Initialize ControlTraining class
 dp_app = ControlTraining(
     STEP_COUNT,
     BurgersPDE(DOMAIN, VISCOSITY, DT),
@@ -409,12 +411,13 @@ dp_app = ControlTraining(
     dt=DT
 ).prepare()
 
+# Setup training
 DP_TRAINING_ITERATIONS = 1000  # Change this to change training duration
 # Note: Original value was 10000 (ten thousand)
-
 dp_training_eval_data = []
 start_time = time.time()
 
+# Actual training
 for epoch in range(DP_TRAINING_ITERATIONS):
     dp_app.progress()
     # Evaluate validation set at regular intervals to track learning progress
@@ -423,17 +426,16 @@ for epoch in range(DP_TRAINING_ITERATIONS):
         f = dp_app.infer_scalars(VAL_RANGE)['Total Force'] / DT
         dp_training_eval_data.append((time.time() - start_time, epoch, f))
 
+# Store values
 DP_STORE_PATH = 'networks/dp-models/bench'
 if not os.path.exists(DP_STORE_PATH):
     os.makedirs(DP_STORE_PATH)
-
 # store training progress information
 with open(os.path.join(DP_STORE_PATH, 'val_forces.csv'), 'at') as log_file:
     logger = csv.DictWriter(log_file, ('time', 'epoch', 'forces'))
     logger.writeheader()
     for (t, e, f) in dp_training_eval_data:
         logger.writerow({'time': t, 'epoch': e, 'forces': f})
-
 dp_checkpoint = dp_app.save_model()
 shutil.move(dp_checkpoint, DP_STORE_PATH)
 
