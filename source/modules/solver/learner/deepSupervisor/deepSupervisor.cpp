@@ -256,7 +256,7 @@ void DeepSupervisor::runTrainingGeneration()
     {
       _currentLoss += KORALI_GET(float, samples[i], "Squared Loss");
       const auto workerGradients = KORALI_GET(std::vector<float>, samples[i], "Hyperparameter Gradients");
-      for (size_t i = 0; i < workerGradients.size(); i++) nnHyperparameterGradients[i] += workerGradients[i];
+      for (size_t j = 0; j < workerGradients.size(); j++) nnHyperparameterGradients[j] += workerGradients[j];
     }
     _currentLoss = _currentLoss / ((float)N * 2.0f);
   }
