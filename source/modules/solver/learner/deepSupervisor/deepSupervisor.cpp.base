@@ -178,6 +178,8 @@ void __className__::initialize()
     _loss = NULL;
   else if (_lossFunction == "Mean Squared Error")
     _loss = new korali::loss::MSE();
+  else if (_lossFunction == "Cross Entropy")
+    _loss = new korali::loss::CrossEntropy();
   else
     KORALI_LOG_ERROR("Unkown Loss Function %s", _lossFunction.c_str());
   if(_loss)
