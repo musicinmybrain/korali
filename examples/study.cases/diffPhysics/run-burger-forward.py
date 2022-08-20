@@ -1,3 +1,6 @@
+# This script is based on the following source code:
+# https://www.physicsbaseddeeplearning.org/overview-burgers-forw.html
+
 # Use the latest PhiFlow version for this
 # !pip install --upgrade --quiet phiflow
 

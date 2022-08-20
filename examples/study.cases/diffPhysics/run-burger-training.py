@@ -1,5 +1,7 @@
 # This is a prototype for an unused version that has been considered for this project
 # It requires the forced-burgers-clash directory including all subdirectories
+# This script is based on the following source code:
+# https://www.physicsbaseddeeplearning.org/reinflearn-code.html#differentiable-physics-training
 
 # Use the following versions of PhiFlow and stable-baselines3
 # !pip install stable-baselines3==1.1 phiflow==1.5.1

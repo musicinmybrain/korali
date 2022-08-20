@@ -1,3 +1,6 @@
+# This script is based on the following source code:
+# https://www.physicsbaseddeeplearning.org/diffphys-code-burgers.html
+
 # Use the latest PhiFlow version and tensorflow version for this
 # !pip install --upgrade --quiet phiflow
 # !pip install --upgrade tensorflow
