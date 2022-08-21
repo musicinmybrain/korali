@@ -302,8 +302,8 @@ void DeepSupervisor::runEpoch()
     std::vector<Sample> samples(_batchConcurrency);
     auto nnHyperparameterGradients = std::vector<float>(_neuralNetwork->_hyperparameterCount, 0.0f);
     _currentTrainingLoss = 0.0f;
-    size_t input_size_per_BS = T*OC;
-    size_t solution_size_per_BS = T*IC;
+    size_t input_size_per_BS = T*IC;
+    size_t solution_size_per_BS = T*OC;
     for (bId = 0; bId < IforE; bId++)
     {
       if(_mode == "Automatic Training"){
@@ -323,11 +323,13 @@ void DeepSupervisor::runEpoch()
         // samples[wId]["Solution Data"] = std::vector<float>(solutionDataFlat.begin()+bId*BS*solution_size_per_BS+wId*NW*solution_size_per_BS, solutionDataFlat.begin()+bId*BS*solution_size_per_BS+(wId+1)*NW*solution_size_per_BS);
         samples[wId]["Hyperparameters"] = nnHyperparameters;
         if(_batchConcurrency==1){
+          // Procsses whole batch on one worker
           samples[wId]["Input Dims"] = std::vector<size_t> {BS, T, IC};
           samples[wId]["Solution Dims"] = std::vector<size_t> {BS, OC};
           samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+bId*BS*input_size_per_BS, inputDataFlat.begin()+(bId+1)*BS*input_size_per_BS);
           samples[wId]["Solution Data"] = std::vector<float>(solutionDataFlat.begin()+bId*BS*solution_size_per_BS, solutionDataFlat.begin()+(bId+1)*BS*solution_size_per_BS);
         } else{
+          // Split batch among workers
           samples[wId]["Input Dims"] = std::vector<size_t> {NW, T, IC};
           samples[wId]["Solution Dims"] = std::vector<size_t> {NW, OC};
           samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+(bId*BS+wId*NW)*input_size_per_BS, inputDataFlat.begin()+(bId*BS+(wId+1)*NW)*input_size_per_BS);
@@ -510,7 +512,15 @@ std::vector<std::vector<float>> &__className__::getEvaluation(const std::vector<
   _neuralNetwork->forward(input);
 
   // Returning the output values for the last given timestep
-  return _neuralNetwork->getOutputValues(N);
+#ifdef DEBUG
+  auto &y_pred_batch = _neuralNetwork->getOutputValues(N);
+  for(size_t i = 0; i < y_pred_batch.size(); i++){
+    auto y_pred = y_pred_batch[i];
+    if(std::any_of(y_pred.begin(), y_pred.end(), [](const float v) { return !std::isfinite(v);}))
+      KORALI_LOG_ERROR("[Generation %zu / Batch %zu] Non finite output values after forwarding input data.", _k->_currentGeneration, i+1);
+  }
+#endif
+  return _neuralNetwork->getOutputValues(N);;
 }
 
 std::vector<std::vector<float>> &__className__::getEvaluation(std::vector<std::vector<std::vector<float>>> &&input)
