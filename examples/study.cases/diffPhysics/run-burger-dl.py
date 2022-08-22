@@ -111,13 +111,12 @@ def network_medium(inputs_dict):
 # ext_const_channel. The resulting stack of grids is stacked along the channels dimensions, and represents
 # an input to the neural network.
 def to_keras(vel_grid_array):
-    density = math.tensor( batch[0][0], math.batch('batch'), math.spatial('y, x'))
     # align the sides the staggered velocity grid making its size the same as the centered grid
     return math.stack(
         [
             math.pad( vel_grid_array.vector['x'].values, {'x':(0,1)} , math.extrapolation.ZERO),
             vel_grid_array.vector['y'].y[:-1].values,         # v
-            math.zeros(density.shape) # Re
+#            math.zeros(density.shape) # Re
         ],
         math.channel('channels')
     )
@@ -269,7 +268,8 @@ def training_step(vel_gt, i_step):
             ]       # prediction: [[density1, velocity1], [density2, velocity2], ...]
 
             model_input = to_keras(prediction[-1])
-            model_input /= math.tensor([dataset.dataStats['std'][1], dataset.dataStats['std'][2], dataset.dataStats['ext.std'][0]], channel('channels')) # [u, v, Re]
+#            model_input /= math.tensor([dataset.dataStats['std'][1], dataset.dataStats['std'][2], dataset.dataStats['ext.std'][0]], channel('channels')) # [u, v, Re]
+            model_input /= math.tensor([dataset.dataStats['std'][1], dataset.dataStats['std'][2]], channel('channels'))
             model_out = network(model_input.native(['batch', 'y', 'x', 'channels']), training=True)
             model_out *= [dataset.dataStats['std'][1], dataset.dataStats['std'][2]] # [u, v]
             correction += [ to_phiflow(model_out, domain) ]                         # [velocity_correction1, velocity_correction2, ...]
@@ -334,7 +334,8 @@ boundary_conditions = {
 domain = Domain(y=source_res[0], x=source_res[1], bounds=Box[0:2*simulation_length, 0:simulation_length], boundaries=boundary_conditions)
 simulator = BurgerPDE(domain=domain)
 
-network = network_small(dict(shape=(source_res[0],source_res[1], 3)))
+#network = network_small(dict(shape=(source_res[0],source_res[1], 3)))
+network = network_small(dict(shape=(source_res[0],source_res[1], 2)))
 network.summary()
 
 # prepare the training step function
@@ -439,7 +440,8 @@ for i in range(120):
         res=source_res[1],
     )
     model_input = to_keras(source_vel_test)
-    model_input /= math.tensor([dataset.dataStats['std'][1], dataset.dataStats['std'][2], dataset.dataStats['ext.std'][0]], channel('channels')) # [u, v, Re]
+#    model_input /= math.tensor([dataset.dataStats['std'][1], dataset.dataStats['std'][2], dataset.dataStats['ext.std'][0]], channel('channels')) # [u, v, Re]
+    model_input /= math.tensor([dataset.dataStats['std'][1], dataset.dataStats['std'][2]], channel('channels'))
     model_out = network(model_input.native(['batch', 'y', 'x', 'channels']), training=False)
     model_out *= [dataset.dataStats['std'][1], dataset.dataStats['std'][2]] # [u, v]
     correction =  to_phiflow(model_out, domain) 
