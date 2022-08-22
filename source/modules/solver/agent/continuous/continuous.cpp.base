@@ -114,7 +114,7 @@ void __className__::getAction(korali::Sample &sample)
     // Forward state sequence to get the Gaussian means and sigmas from policy
     std::vector<policy_t> policy;
 
-    if ( (_stochasticWeightAveragingHorizon > 0) && ( _startSamplingGeneration >= _k->_currentGeneration ) )
+    if ( (_stochasticWeightAveragingHorizon > 0) && ( _k->_currentGeneration >=  _startSamplingGeneration ) )
     {
       /** Construct Posterior Distribution according to SWAG **/ 
       if( _updateSamples )
@@ -159,7 +159,7 @@ void __className__::getAction(korali::Sample &sample)
 
           // Sample vector with K random numbers
           std::vector<float> randomNumbers(effectiveRank);
-          for( size_t k = 0; k < effectiveRank; k++ )
+          for( int k = 0; k < effectiveRank; k++ )
             randomNumbers[k] = _normalGenerator->getRandomNumber();
 
           // Sample Hyperparameters
