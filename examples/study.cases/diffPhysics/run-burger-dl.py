@@ -34,7 +34,6 @@ tf.random.set_seed(42)
 N = 128             # cells / discretization points
 NU = 0.01/(N*np.pi) # viscosity
 
-# TODO: Get rid of density (everywhere)
 # Define solver for Burger's Equation
 class BurgerPDE():
     def __init__(self, domain):
@@ -42,7 +41,6 @@ class BurgerPDE():
 
     def step(self, velocity_in, res, buoyancy_factor=0, dt=1.0):
         velocity = velocity_in
-        density = math.tensor( batch[0][0], math.batch('batch'), math.spatial('y, x'))
 
         # viscosity
         velocity = phi.flow.diffuse.explicit(field=velocity, diffusivity=NU, dt=dt)
@@ -56,15 +54,15 @@ class BurgerPDE():
 #    Small network with 4 layers
 def network_small(inputs_dict):
     l_input = keras.layers.Input(**inputs_dict)
-    block_0 = keras.layers.Conv2D(filters=32, kernel_size=5, padding='same')(l_input)
+    block_0 = keras.layers.Conv1D(filters=32, kernel_size=5, padding='same')(l_input)
     block_0 = keras.layers.LeakyReLU()(block_0)
 
-    l_conv1 = keras.layers.Conv2D(filters=32, kernel_size=5, padding='same')(block_0)
+    l_conv1 = keras.layers.Conv1D(filters=32, kernel_size=5, padding='same')(block_0)
     l_conv1 = keras.layers.LeakyReLU()(l_conv1)
-    l_conv2 = keras.layers.Conv2D(filters=32, kernel_size=5, padding='same')(l_conv1)
+    l_conv2 = keras.layers.Conv1D(filters=32, kernel_size=5, padding='same')(l_conv1)
     block_1 = keras.layers.LeakyReLU()(l_conv2)
 
-    l_output = keras.layers.Conv2D(filters=2,  kernel_size=5, padding='same')(block_1) # u, v
+    l_output = keras.layers.Conv1D(filters=2,  kernel_size=5, padding='same')(block_1) # u, v
     return keras.models.Model(inputs=l_input, outputs=l_output)
 
 #    Medium network with more layers
@@ -124,6 +122,7 @@ def to_keras(vel_grid_array):
         math.channel('channels')
     )
 
+# TODO: Get rid of y-value and density
 # Explanation from the book:
 # After network evaluation, we transform the output tensor back into a phiflow grid via the to_phiflow
 # function. It converts the 2-component tensor that is returned by the network into a phiflow staggered
@@ -369,12 +368,6 @@ for j in range(EPOCHS):  # training
 
             # batch: [[dens0, dens1, ...], [x-velo0, x-velo1, ...], [y-velo0, y-velo1, ...], [ReynoldsNr(s)]]            
             batch = getData(dataset, consecutive_frames=msteps)
-            
-#            dens_gt = [   # [density0:CenteredGrid, density1, ...]
-#                domain.scalar_grid(
-#                    math.tensor(batch[0][k], math.batch('batch'), math.spatial('y, x'))
-#                ) for k in range(msteps+1)
-#            ]
 
             vel_gt = [   # [velocity0:StaggeredGrid, velocity1, ...]
                 domain.staggered_grid(
@@ -420,15 +413,11 @@ dataset_test = Dataset( data_preloaded=data_test_preloaded, is_testset=True, num
 dataset_test.newEpoch(shuffle_data=False)
 batch = getData(dataset_test, consecutive_frames=0) 
 
-#source_dens_initial = math.tensor( batch[0][0], math.batch('batch'), math.spatial('y, x'))
-
 source_vel_initial = domain.staggered_grid(phi.math.stack([
     math.tensor(batch[2][0], math.batch('batch'),math.spatial('y, x')),
     math.tensor(batch[1][0], math.batch('batch'),math.spatial('y, x'))], channel('vector')))
 
-#source_dens_test, source_vel_test = source_dens_initial, source_vel_initial
 source_vel_test = source_vel_initial
-#steps_source = [[source_dens_test,source_vel_test]]
 steps_source = [source_vel_test]
 
 # note - math.jit_compile() not useful for numpy solve... hence not necessary
@@ -437,14 +426,11 @@ for i in range(120):
         velocity_in=source_vel_test,
         res=source_res[1],
     )
-#    steps_source.append( [source_dens_test,source_vel_test] )
     steps_source.append(source_vel_test)
 
 print("Source simulation steps "+format(len(steps_source)))
 
-#source_dens_test, source_vel_test = source_dens_initial, source_vel_initial
 source_vel_test = source_vel_initial
-#steps_hybrid = [[source_dens_test,source_vel_test]]
 steps_hybrid = [source_vel_test] 
        
 for i in range(120):
@@ -459,7 +445,6 @@ for i in range(120):
     correction =  to_phiflow(model_out, domain) 
     source_vel_test = source_vel_test+correction
 
-#    steps_hybrid.append( [source_dens_test, source_vel_test] )
     steps_hybrid.append(source_vel_test)
     
 print("Steps with hybrid solver "+format(len(steps_hybrid)))
