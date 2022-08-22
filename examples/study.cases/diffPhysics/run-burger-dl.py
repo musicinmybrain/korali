@@ -33,7 +33,6 @@ tf.random.set_seed(42)
 # Define variables in simulation
 N = 128             # cells / discretization points
 NU = 0.01/(N*np.pi) # viscosity
-#density_dummy = math.tensor( batch[0][0], math.batch('batch'), math.spatial('y, x'))
 
 # TODO: Get rid of density (everywhere)
 # Define solver for Burger's Equation
@@ -113,13 +112,13 @@ def network_medium(inputs_dict):
 # It then adds a constant channel via math.ones that is multiplied by the desired Reynolds number in
 # ext_const_channel. The resulting stack of grids is stacked along the channels dimensions, and represents
 # an input to the neural network.
-def to_keras(dens_vel_grid_array):
+def to_keras(vel_grid_array):
     density = math.tensor( batch[0][0], math.batch('batch'), math.spatial('y, x'))
     # align the sides the staggered velocity grid making its size the same as the centered grid
     return math.stack(
         [
-            math.pad( dens_vel_grid_array.vector['x'].values, {'x':(0,1)} , math.extrapolation.ZERO),
-            dens_vel_grid_array.vector['y'].y[:-1].values,         # v
+            math.pad( vel_grid_array.vector['x'].values, {'x':(0,1)} , math.extrapolation.ZERO),
+            vel_grid_array.vector['y'].y[:-1].values,         # v
             math.zeros(density.shape) # Re
         ],
         math.channel('channels')
@@ -258,7 +257,7 @@ def getData(self, consecutive_frames):
     return [d_hi, u_hi, v_hi, ext]
 
 # Function that evaluates and returns the L2 loss over the whole sequence
-def training_step(dens_gt, vel_gt, i_step):
+def training_step(vel_gt, i_step):
     with tf.GradientTape() as tape:
         prediction, correction = [ vel_gt[0] ], [0] # predicted states with correction, inferred velocity corrections
 
@@ -371,11 +370,11 @@ for j in range(EPOCHS):  # training
             # batch: [[dens0, dens1, ...], [x-velo0, x-velo1, ...], [y-velo0, y-velo1, ...], [ReynoldsNr(s)]]            
             batch = getData(dataset, consecutive_frames=msteps)
             
-            dens_gt = [   # [density0:CenteredGrid, density1, ...]
-                domain.scalar_grid(
-                    math.tensor(batch[0][k], math.batch('batch'), math.spatial('y, x'))
-                ) for k in range(msteps+1)
-            ]
+#            dens_gt = [   # [density0:CenteredGrid, density1, ...]
+#                domain.scalar_grid(
+#                    math.tensor(batch[0][k], math.batch('batch'), math.spatial('y, x'))
+#                ) for k in range(msteps+1)
+#            ]
 
             vel_gt = [   # [velocity0:StaggeredGrid, velocity1, ...]
                 domain.staggered_grid(
@@ -387,9 +386,8 @@ for j in range(EPOCHS):  # training
                     )
                 ) for k in range(msteps+1)
             ]
-#            re_nr = math.tensor(batch[3], math.batch('batch'))
 
-            loss = training_step_jit(dens_gt, vel_gt, math.tensor(steps)) 
+            loss = training_step_jit(vel_gt, math.tensor(steps)) 
             
             steps += 1
             if (j==0 and ib==0 and i<3) or (j==0 and ib==0 and i%128==0) or (j>0 and ib==0 and i==400): # reduce output 
@@ -422,17 +420,16 @@ dataset_test = Dataset( data_preloaded=data_test_preloaded, is_testset=True, num
 dataset_test.newEpoch(shuffle_data=False)
 batch = getData(dataset_test, consecutive_frames=0) 
 
-#re_nr_test = math.tensor(batch[3], math.batch('batch')) # Reynolds numbers
-#print("Reynolds numbers in test data set: "+format(re_nr_test))
-
-source_dens_initial = math.tensor( batch[0][0], math.batch('batch'), math.spatial('y, x'))
+#source_dens_initial = math.tensor( batch[0][0], math.batch('batch'), math.spatial('y, x'))
 
 source_vel_initial = domain.staggered_grid(phi.math.stack([
     math.tensor(batch[2][0], math.batch('batch'),math.spatial('y, x')),
     math.tensor(batch[1][0], math.batch('batch'),math.spatial('y, x'))], channel('vector')))
 
-source_dens_test, source_vel_test = source_dens_initial, source_vel_initial
-steps_source = [[source_dens_test,source_vel_test]]
+#source_dens_test, source_vel_test = source_dens_initial, source_vel_initial
+source_vel_test = source_vel_initial
+#steps_source = [[source_dens_test,source_vel_test]]
+steps_source = [source_vel_test]
 
 # note - math.jit_compile() not useful for numpy solve... hence not necessary
 for i in range(120):
@@ -440,13 +437,16 @@ for i in range(120):
         velocity_in=source_vel_test,
         res=source_res[1],
     )
-    steps_source.append( [source_dens_test,source_vel_test] )
+#    steps_source.append( [source_dens_test,source_vel_test] )
+    steps_source.append(source_vel_test)
 
 print("Source simulation steps "+format(len(steps_source)))
 
-source_dens_test, source_vel_test = source_dens_initial, source_vel_initial
-steps_hybrid = [[source_dens_test,source_vel_test]]
-        
+#source_dens_test, source_vel_test = source_dens_initial, source_vel_initial
+source_vel_test = source_vel_initial
+#steps_hybrid = [[source_dens_test,source_vel_test]]
+steps_hybrid = [source_vel_test] 
+       
 for i in range(120):
     source_vel_test = simulator.step(
         velocity_in=source_vel_test,
@@ -459,7 +459,8 @@ for i in range(120):
     correction =  to_phiflow(model_out, domain) 
     source_vel_test = source_vel_test+correction
 
-    steps_hybrid.append( [source_dens_test, source_vel_test] )
+#    steps_hybrid.append( [source_dens_test, source_vel_test] )
+    steps_hybrid.append(source_vel_test)
     
 print("Steps with hybrid solver "+format(len(steps_hybrid)))
 
@@ -468,67 +469,67 @@ print("Steps with hybrid solver "+format(len(steps_hybrid)))
 
 # VISUALIZATION
 
-import pylab
-b = 0 # batch index for the following comparisons
-
-errors_source, errors_pred = [], []
-for index in range(100):
-  vx_ref = dataset_test.dataPreloaded[ dataset_test.dataSims[b] ][ index ][1][0,...]
-  vy_ref = dataset_test.dataPreloaded[ dataset_test.dataSims[b] ][ index ][2][0,...]
-  vxs = vx_ref - steps_source[index][1].values.vector[1].numpy('batch,y,x')[b,...]
-  vxh = vx_ref - steps_hybrid[index][1].values.vector[1].numpy('batch,y,x')[b,...]
-  vys = vy_ref - steps_source[index][1].values.vector[0].numpy('batch,y,x')[b,...] 
-  vyh = vy_ref - steps_hybrid[index][1].values.vector[0].numpy('batch,y,x')[b,...] 
-  errors_source.append(np.mean(np.abs(vxs)) + np.mean(np.abs(vys))) 
-  errors_pred.append(np.mean(np.abs(vxh)) + np.mean(np.abs(vyh)))
-
-fig = pylab.figure().gca()
-pltx = np.linspace(0,99,100)
-fig.plot(pltx, errors_source, lw=2, color='mediumblue', label='Source')  
-fig.plot(pltx, errors_pred,   lw=2, color='green', label='Hybrid')
-pylab.xlabel('Time step'); pylab.ylabel('Error'); fig.legend()
-
-print("MAE for source: "+format(np.mean(errors_source)) +" , and hybrid: "+format(np.mean(errors_pred)) )
-
-c = 0          # channel selector, x=1 or y=0 
-interval = 20  # time interval
-
-fig, axes = pylab.subplots(1, 6, figsize=(16, 5))    
-for i in range(0,6):
-  v = steps_source[i*interval][1].values.vector[c].numpy('batch,y,x')[b,...]
-  axes[i].imshow( v , origin='lower', cmap='magma')
-  axes[i].set_title(f" Source simulation t={i*interval} ")
-
-pylab.tight_layout()
-
-fig, axes = pylab.subplots(1, 6, figsize=(16, 5))
-for i in range(0,6):
-  v = steps_hybrid[i*interval][1].values.vector[c].numpy('batch,y,x')[b,...]
-  axes[i].imshow( v , origin='lower', cmap='magma')
-  axes[i].set_title(f" Hybrid solver t={i*interval} ")
-pylab.tight_layout()
-
-index = 50 # time step index
-vx_ref = dataset_test.dataPreloaded[ dataset_test.dataSims[b] ][ index ][1][0,...]
-vx_src = steps_source[index][1].values.vector[1].numpy('batch,y,x')[b,...]
-vx_hyb = steps_hybrid[index][1].values.vector[1].numpy('batch,y,x')[b,...]
-
-fig, axes = pylab.subplots(1, 4, figsize=(14, 5))
-
-axes[0].imshow( vx_ref , origin='lower', cmap='magma')
-axes[0].set_title(f" Reference ")
-
-axes[1].imshow( vx_src , origin='lower', cmap='magma')
-axes[1].set_title(f" Source ")
-
-axes[2].imshow( vx_hyb , origin='lower', cmap='magma')
-axes[2].set_title(f" Learned ")
-
-# show error side by side
-err_source = vx_ref - vx_src 
-err_hybrid = vx_ref - vx_hyb 
-v = np.concatenate([err_source,err_hybrid], axis=1)
-axes[3].imshow( v , origin='lower', cmap='cividis')
-axes[3].set_title(f" Errors: Source & Learned")
-
-pylab.tight_layout()
+#import pylab
+#b = 0 # batch index for the following comparisons
+#
+#errors_source, errors_pred = [], []
+#for index in range(100):
+#  vx_ref = dataset_test.dataPreloaded[ dataset_test.dataSims[b] ][ index ][1][0,...]
+#  vy_ref = dataset_test.dataPreloaded[ dataset_test.dataSims[b] ][ index ][2][0,...]
+#  vxs = vx_ref - steps_source[index][1].values.vector[1].numpy('batch,y,x')[b,...]
+#  vxh = vx_ref - steps_hybrid[index][1].values.vector[1].numpy('batch,y,x')[b,...]
+#  vys = vy_ref - steps_source[index][1].values.vector[0].numpy('batch,y,x')[b,...] 
+#  vyh = vy_ref - steps_hybrid[index][1].values.vector[0].numpy('batch,y,x')[b,...] 
+#  errors_source.append(np.mean(np.abs(vxs)) + np.mean(np.abs(vys))) 
+#  errors_pred.append(np.mean(np.abs(vxh)) + np.mean(np.abs(vyh)))
+#
+#fig = pylab.figure().gca()
+#pltx = np.linspace(0,99,100)
+#fig.plot(pltx, errors_source, lw=2, color='mediumblue', label='Source')  
+#fig.plot(pltx, errors_pred,   lw=2, color='green', label='Hybrid')
+#pylab.xlabel('Time step'); pylab.ylabel('Error'); fig.legend()
+#
+#print("MAE for source: "+format(np.mean(errors_source)) +" , and hybrid: "+format(np.mean(errors_pred)) )
+#
+#c = 0          # channel selector, x=1 or y=0 
+#interval = 20  # time interval
+#
+#fig, axes = pylab.subplots(1, 6, figsize=(16, 5))    
+#for i in range(0,6):
+#  v = steps_source[i*interval][1].values.vector[c].numpy('batch,y,x')[b,...]
+#  axes[i].imshow( v , origin='lower', cmap='magma')
+#  axes[i].set_title(f" Source simulation t={i*interval} ")
+#
+#pylab.tight_layout()
+#
+#fig, axes = pylab.subplots(1, 6, figsize=(16, 5))
+#for i in range(0,6):
+#  v = steps_hybrid[i*interval][1].values.vector[c].numpy('batch,y,x')[b,...]
+#  axes[i].imshow( v , origin='lower', cmap='magma')
+#  axes[i].set_title(f" Hybrid solver t={i*interval} ")
+#pylab.tight_layout()
+#
+#index = 50 # time step index
+#vx_ref = dataset_test.dataPreloaded[ dataset_test.dataSims[b] ][ index ][1][0,...]
+#vx_src = steps_source[index][1].values.vector[1].numpy('batch,y,x')[b,...]
+#vx_hyb = steps_hybrid[index][1].values.vector[1].numpy('batch,y,x')[b,...]
+#
+#fig, axes = pylab.subplots(1, 4, figsize=(14, 5))
+#
+#axes[0].imshow( vx_ref , origin='lower', cmap='magma')
+#axes[0].set_title(f" Reference ")
+#
+#axes[1].imshow( vx_src , origin='lower', cmap='magma')
+#axes[1].set_title(f" Source ")
+#
+#axes[2].imshow( vx_hyb , origin='lower', cmap='magma')
+#axes[2].set_title(f" Learned ")
+#
+## show error side by side
+#err_source = vx_ref - vx_src 
+#err_hybrid = vx_ref - vx_hyb 
+#v = np.concatenate([err_source,err_hybrid], axis=1)
+#axes[3].imshow( v , origin='lower', cmap='cividis')
+#axes[3].set_title(f" Errors: Source & Learned")
+#
+#pylab.tight_layout()
