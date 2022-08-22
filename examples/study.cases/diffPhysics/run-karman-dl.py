@@ -322,7 +322,7 @@ def training_step(dens_gt, vel_gt, Re, i_step):
 # Define dataset
 nsims = 6
 batch_size = 3
-simsteps = 50 # number of steps per epoch (Original value was 500)
+simsteps = 500 # number of steps per epoch (Original value was 500)
 dataset = Dataset( data_preloaded=data_preloaded, num_frames=simsteps, num_sims=nsims, batch_size=batch_size )
 
 # one of the most crucial! how many simulation steps to look into the future while training
