@@ -33,6 +33,7 @@ tf.random.set_seed(42)
 # Define variables in simulation
 N = 128             # cells / discretization points
 NU = 0.01/(N*np.pi) # viscosity
+#density_dummy = math.tensor( batch[0][0], math.batch('batch'), math.spatial('y, x'))
 
 # TODO: Get rid of density (everywhere)
 # Define solver for Burger's Equation
@@ -50,7 +51,7 @@ class BurgerPDE():
         # advection 
         velocity = advected_velocity = advect.semi_lagrangian(velocity, velocity, dt=dt)
         
-        return  [density, velocity]
+        return velocity
 
 # Define network architectures
 #    Small network with 4 layers
@@ -113,12 +114,13 @@ def network_medium(inputs_dict):
 # ext_const_channel. The resulting stack of grids is stacked along the channels dimensions, and represents
 # an input to the neural network.
 def to_keras(dens_vel_grid_array):
+    density = math.tensor( batch[0][0], math.batch('batch'), math.spatial('y, x'))
     # align the sides the staggered velocity grid making its size the same as the centered grid
     return math.stack(
         [
-            math.pad( dens_vel_grid_array[1].vector['x'].values, {'x':(0,1)} , math.extrapolation.ZERO),
-            dens_vel_grid_array[1].vector['y'].y[:-1].values,         # v
-            math.zeros(dens_vel_grid_array[0].shape) # Re
+            math.pad( dens_vel_grid_array.vector['x'].values, {'x':(0,1)} , math.extrapolation.ZERO),
+            dens_vel_grid_array.vector['y'].y[:-1].values,         # v
+            math.zeros(density.shape) # Re
         ],
         math.channel('channels')
     )
@@ -258,13 +260,12 @@ def getData(self, consecutive_frames):
 # Function that evaluates and returns the L2 loss over the whole sequence
 def training_step(dens_gt, vel_gt, i_step):
     with tf.GradientTape() as tape:
-        prediction, correction = [ [dens_gt[0],vel_gt[0]] ], [0] # predicted states with correction, inferred velocity corrections
+        prediction, correction = [ vel_gt[0] ], [0] # predicted states with correction, inferred velocity corrections
 
         for i in range(msteps):
             prediction += [
                 simulator.step(
-#                    density_in=prediction[-1][0],
-                    velocity_in=prediction[-1][1],
+                    velocity_in=prediction[-1],
                     res=source_res[1],
                 )
             ]       # prediction: [[density1, velocity1], [density2, velocity2], ...]
@@ -275,15 +276,14 @@ def training_step(dens_gt, vel_gt, i_step):
             model_out *= [dataset.dataStats['std'][1], dataset.dataStats['std'][2]] # [u, v]
             correction += [ to_phiflow(model_out, domain) ]                         # [velocity_correction1, velocity_correction2, ...]
 
-            prediction[-1][1] = prediction[-1][1] + correction[-1]
-            #prediction[-1][1] = correction[-1]
+            prediction[-1] = prediction[-1] + correction[-1]
 
         # evaluate loss
         loss_steps_x = [
             tf.nn.l2_loss(
                 (
                     vel_gt[i].vector['x'].values.native(('batch', 'y', 'x'))
-                    - prediction[i][1].vector['x'].values.native(('batch', 'y', 'x'))
+                    - prediction[i].vector['x'].values.native(('batch', 'y', 'x'))
                 )/dataset.dataStats['std'][1]
             )
             for i in range(1,msteps+1)
@@ -294,7 +294,7 @@ def training_step(dens_gt, vel_gt, i_step):
             tf.nn.l2_loss(
                 (
                     vel_gt[i].vector['y'].values.native(('batch', 'y', 'x'))
-                    - prediction[i][1].vector['y'].values.native(('batch', 'y', 'x'))
+                    - prediction[i].vector['y'].values.native(('batch', 'y', 'x'))
                 )/dataset.dataStats['std'][2]
             )
             for i in range(1,msteps+1)
@@ -436,7 +436,7 @@ steps_source = [[source_dens_test,source_vel_test]]
 
 # note - math.jit_compile() not useful for numpy solve... hence not necessary
 for i in range(120):
-    [source_dens_test,source_vel_test] = simulator.step(
+    source_vel_test = simulator.step(
         velocity_in=source_vel_test,
         res=source_res[1],
     )
@@ -448,11 +448,11 @@ source_dens_test, source_vel_test = source_dens_initial, source_vel_initial
 steps_hybrid = [[source_dens_test,source_vel_test]]
         
 for i in range(120):
-    [source_dens_test,source_vel_test] = simulator.step(
+    source_vel_test = simulator.step(
         velocity_in=source_vel_test,
         res=source_res[1],
     )
-    model_input = to_keras([source_dens_test,source_vel_test])
+    model_input = to_keras(source_vel_test)
     model_input /= math.tensor([dataset.dataStats['std'][1], dataset.dataStats['std'][2], dataset.dataStats['ext.std'][0]], channel('channels')) # [u, v, Re]
     model_out = network(model_input.native(['batch', 'y', 'x', 'channels']), training=False)
     model_out *= [dataset.dataStats['std'][1], dataset.dataStats['std'][2]] # [u, v]
