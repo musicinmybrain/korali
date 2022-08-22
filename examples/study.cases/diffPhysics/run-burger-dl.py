@@ -40,8 +40,9 @@ class BurgerPDE():
     def __init__(self, domain):
         self.domain = domain 
 
-    def step(self, density_in, velocity_in, re, res, buoyancy_factor=0, dt=1.0):
+    def step(self, velocity_in, res, buoyancy_factor=0, dt=1.0):
         velocity = velocity_in
+        density = math.tensor( batch[0][0], math.batch('batch'), math.spatial('y, x'))
 
         # viscosity
         velocity = phi.flow.diffuse.explicit(field=velocity, diffusivity=NU, dt=dt)
@@ -49,7 +50,7 @@ class BurgerPDE():
         # advection 
         velocity = advected_velocity = advect.semi_lagrangian(velocity, velocity, dt=dt)
         
-        return [density_in, velocity]
+        return  [density, velocity]
 
 # Define network architectures
 #    Small network with 4 layers
@@ -111,13 +112,13 @@ def network_medium(inputs_dict):
 # It then adds a constant channel via math.ones that is multiplied by the desired Reynolds number in
 # ext_const_channel. The resulting stack of grids is stacked along the channels dimensions, and represents
 # an input to the neural network.
-def to_keras(dens_vel_grid_array, ext_const_channel):
+def to_keras(dens_vel_grid_array):
     # align the sides the staggered velocity grid making its size the same as the centered grid
     return math.stack(
         [
             math.pad( dens_vel_grid_array[1].vector['x'].values, {'x':(0,1)} , math.extrapolation.ZERO),
             dens_vel_grid_array[1].vector['y'].y[:-1].values,         # v
-            math.ones(dens_vel_grid_array[0].shape)*ext_const_channel # Re
+            math.zeros(dens_vel_grid_array[0].shape) # Re
         ],
         math.channel('channels')
     )
@@ -255,20 +256,20 @@ def getData(self, consecutive_frames):
     return [d_hi, u_hi, v_hi, ext]
 
 # Function that evaluates and returns the L2 loss over the whole sequence
-def training_step(dens_gt, vel_gt, Re, i_step):
+def training_step(dens_gt, vel_gt, i_step):
     with tf.GradientTape() as tape:
         prediction, correction = [ [dens_gt[0],vel_gt[0]] ], [0] # predicted states with correction, inferred velocity corrections
 
         for i in range(msteps):
             prediction += [
                 simulator.step(
-                    density_in=prediction[-1][0],
+#                    density_in=prediction[-1][0],
                     velocity_in=prediction[-1][1],
-                    re=Re, res=source_res[1],
+                    res=source_res[1],
                 )
             ]       # prediction: [[density1, velocity1], [density2, velocity2], ...]
 
-            model_input = to_keras(prediction[-1], Re)
+            model_input = to_keras(prediction[-1])
             model_input /= math.tensor([dataset.dataStats['std'][1], dataset.dataStats['std'][2], dataset.dataStats['ext.std'][0]], channel('channels')) # [u, v, Re]
             model_out = network(model_input.native(['batch', 'y', 'x', 'channels']), training=True)
             model_out *= [dataset.dataStats['std'][1], dataset.dataStats['std'][2]] # [u, v]
@@ -386,9 +387,9 @@ for j in range(EPOCHS):  # training
                     )
                 ) for k in range(msteps+1)
             ]
-            re_nr = math.tensor(batch[3], math.batch('batch'))
+#            re_nr = math.tensor(batch[3], math.batch('batch'))
 
-            loss = training_step_jit(dens_gt, vel_gt, re_nr, math.tensor(steps)) 
+            loss = training_step_jit(dens_gt, vel_gt, math.tensor(steps)) 
             
             steps += 1
             if (j==0 and ib==0 and i<3) or (j==0 and ib==0 and i%128==0) or (j>0 and ib==0 and i==400): # reduce output 
@@ -421,8 +422,8 @@ dataset_test = Dataset( data_preloaded=data_test_preloaded, is_testset=True, num
 dataset_test.newEpoch(shuffle_data=False)
 batch = getData(dataset_test, consecutive_frames=0) 
 
-re_nr_test = math.tensor(batch[3], math.batch('batch')) # Reynolds numbers
-print("Reynolds numbers in test data set: "+format(re_nr_test))
+#re_nr_test = math.tensor(batch[3], math.batch('batch')) # Reynolds numbers
+#print("Reynolds numbers in test data set: "+format(re_nr_test))
 
 source_dens_initial = math.tensor( batch[0][0], math.batch('batch'), math.spatial('y, x'))
 
@@ -436,9 +437,7 @@ steps_source = [[source_dens_test,source_vel_test]]
 # note - math.jit_compile() not useful for numpy solve... hence not necessary
 for i in range(120):
     [source_dens_test,source_vel_test] = simulator.step(
-        density_in=source_dens_test,
         velocity_in=source_vel_test,
-        re=re_nr_test,
         res=source_res[1],
     )
     steps_source.append( [source_dens_test,source_vel_test] )
@@ -450,12 +449,10 @@ steps_hybrid = [[source_dens_test,source_vel_test]]
         
 for i in range(120):
     [source_dens_test,source_vel_test] = simulator.step(
-        density_in=source_dens_test,
         velocity_in=source_vel_test,
-        re=math.tensor(re_nr_test),
         res=source_res[1],
     )
-    model_input = to_keras([source_dens_test,source_vel_test], re_nr_test )
+    model_input = to_keras([source_dens_test,source_vel_test])
     model_input /= math.tensor([dataset.dataStats['std'][1], dataset.dataStats['std'][2], dataset.dataStats['ext.std'][0]], channel('channels')) # [u, v, Re]
     model_out = network(model_input.native(['batch', 'y', 'x', 'channels']), training=False)
     model_out *= [dataset.dataStats['std'][1], dataset.dataStats['std'][2]] # [u, v]
@@ -535,5 +532,3 @@ axes[3].imshow( v , origin='lower', cmap='cividis')
 axes[3].set_title(f" Errors: Source & Learned")
 
 pylab.tight_layout()
-
-
