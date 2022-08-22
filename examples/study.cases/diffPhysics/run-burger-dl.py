@@ -34,34 +34,20 @@ tf.random.set_seed(42)
 N = 128             # cells / discretization points
 NU = 0.01/(N*np.pi) # viscosity
 
+# TODO: Get rid of density (everywhere)
 # Define solver for Burger's Equation
 class BurgerPDE():
     def __init__(self, domain):
-        self.domain = domain
-
-        self.vel_BcMask = self.domain.staggered_grid(HardGeometryMask(Box[:5, :]) )
-    
-        self.inflow = self.domain.scalar_grid(Box[5:10, 25:75])         # scale with domain if necessary!
-        self.obstacles = [Obstacle(Sphere(center=[50, 50], radius=10))] 
+        self.domain = domain 
 
     def step(self, density_in, velocity_in, re, res, buoyancy_factor=0, dt=1.0):
         velocity = velocity_in
-#        density = density_in
 
         # viscosity
         velocity = phi.flow.diffuse.explicit(field=velocity, diffusivity=NU, dt=dt)
-        
-#        # inflow boundary conditions
-#        velocity = velocity*(1.0 - self.vel_BcMask) + self.vel_BcMask * (1,0)
 
         # advection 
-#        density = advect.semi_lagrangian(density+self.inflow, velocity, dt=dt)
         velocity = advected_velocity = advect.semi_lagrangian(velocity, velocity, dt=dt)
-
-#        # mass conservation (pressure solve)
-#        pressure = None
-#        velocity, pressure = fluid.make_incompressible(velocity, self.obstacles)
-#        self.solve_info = { 'pressure': pressure, 'advected_velocity': advected_velocity }
         
         return [density_in, velocity]
 
