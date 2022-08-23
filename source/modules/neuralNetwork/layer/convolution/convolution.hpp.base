@@ -150,6 +150,58 @@ class __className__ : public __parentClassName__
 
 #endif
 
+#ifdef _KORALI_USE_CUDNN
+  /**
+   * @brief cuDNN Descriptor for the filter weights
+   */
+  cudnnFilterDescriptor_t _weightsFilterDesc;
+  /**
+   * @brief cuDNN Device memory pointer for the filter weights
+   */
+  void * _weightsFilter;
+  /**
+   * @brief cuDNN Device memory pointer for the filter weights gradients
+   */
+  void *_weightsGradientFilter;
+  /**
+   * @brief cuDNN Descriptor for the bias memory
+   */
+  cudnnTensorDescriptor_t _biasTensorDesc;
+  /**
+   * @brief cuDNN Device memory pointer for the bias tensor
+   */
+  void *_biasTensor;
+  /**
+   * @brief cuDNN Device memory pointer for the bias gradients
+   */
+  void *_biasGradientTensor;
+  /**
+   * @brief cuDNN Descriptor for the input data
+   */
+  cudnnTensorDescriptor_t _inputDescriptor;
+  /**
+   * @brief cuDNN Descriptor for the output data
+   */
+  cudnnTensorDescriptor_t _outputDescriptor;
+  /**
+   * @brief cuDNN convolution descriptor.
+   */
+  cudnnConvolutionDescriptor_t _convolutionDescriptor;
+  /**
+   * @brief cuDNN Placeholder for the convolution workspace size (bytes)
+   */
+  size_t _convolutionWorkspaceSize;
+  /**
+   * @brief cuDNN Device memory pointer for the convolution workspace
+   */
+  void *_convolutionWorkspace;
+  /**
+   * @brief cuDNN enum of convolution algorithm to be use.
+   */
+  cudnnConvolutionFwdAlgo_t _convolutionAlgorithm;
+
+#endif
+
   void copyHyperparameterPointers(Layer *dstLayer) override;
   void initialize() override;
   std::vector<float> generateInitialHyperparameters() override;

@@ -218,7 +218,7 @@ class NeuralNetwork : public Module
   /**
    * @brief Returns a reference to the output values corresponding to the batch size's pipeline
    * @param batchSize Size of the batch to request
-   * @return Reference to the output values
+   * @return Reference to the output values. Format: NxOC (N: Mini-batch size, OC: Output channels).
    */
   std::vector<std::vector<float>> &getOutputValues(const size_t batchSize);
 
