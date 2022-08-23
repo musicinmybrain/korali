@@ -26,26 +26,25 @@ dl_parser.add_argument(
 # Plot CMAES results (read from .json files)
 def plot(gen_dicts, config, others, **kwargs):
   args = dl_parser.parse_args(others)
-  gen_dicts.popitem()
+  gens = []
   for gen, gen_dict in gen_dicts.items():
     if "Mode" not in gen_dict["Results"]:
       sys.exit(f'The file of generation {gen} does not contain the the field ["Results"]["Mode"]')
     if gen_dict["Results"]["Mode"] != 'Predict':
-      gen_dicts[gen] = gen_dict
+      gens.append(gen_dict)
 
-  gens = len(gen_dicts)
-  gen_numbers = [gen for gen in gen_dicts]
-  FIRST_GEN = min(gen_numbers)
-  EPOCHS = max(gen_numbers)
+  last_gen = gens[-1]
+  EPOCHS = last_gen["Results"]["Epoch"]
+  X = range(1, EPOCHS+1)
   # config = gen_dicts[list(gen_dicts)[-1]]
   fig, ax = plt.subplots(figsize=(8, 8))
   ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.3f"))
-  TrainingLoss = [gen["Results"]["Training Loss"] for gen in gen_dicts.values()]
-  ax.plot(gen_dicts.keys(), TrainingLoss ,'-', label="Training Loss", color=train_c)
+  TrainingLoss = last_gen["Results"]["Training Loss"]
+  ax.plot(X, TrainingLoss ,'-', label="Training Loss", color=train_c)
   ax.set_yscale(args.yscale)
   if 'Validation Loss' in config['Results']:
-    ValidationLoss = [gen["Results"]["Validation Loss"] for gen in gen_dicts.values()]
-    ax.plot(gen_dicts.keys(), ValidationLoss ,'-', label="Validation Loss", color=val_c)
+    ValidationLoss = last_gen["Results"]["Validation Loss"]
+    ax.plot(X, ValidationLoss ,'-', label="Validation Loss", color=val_c)
   ax.set_xlabel('Epochs')
   ylabel = config['Results']['Loss Function']
   if "Regularizer" in config["Results"]:
