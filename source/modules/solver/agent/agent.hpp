@@ -133,6 +133,10 @@ class Agent : public Solver
   */
    size_t _numberOfSamples;
   /**
+  * @brief Boolean to determine whether Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf) is used.
+  */
+   int _langevinDynamics;
+  /**
   * @brief The number of experiences to randomly select to train the neural network(s) with.
   */
    size_t _miniBatchSize;
