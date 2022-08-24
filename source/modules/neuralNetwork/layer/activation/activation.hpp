@@ -79,6 +79,10 @@ class Activation : public Layer
    * @brief oneDNN primitive attributes that describe a softmax activation function
    */
   dnnl::softmax_forward::primitive_desc _forwardSoftmaxActivationPrimitiveDesc;
+  /**
+   * @brief oneDNN primitive attributes that describe a log-softmax activation function
+   */
+  dnnl::logsoftmax_forward::primitive_desc _forwardLogSoftmaxActivationPrimitiveDesc;
 
   /**
    * @brief oneDNN primitive attributes that describe an element-wise activation function

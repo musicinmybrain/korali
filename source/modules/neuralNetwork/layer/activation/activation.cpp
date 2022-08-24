@@ -39,6 +39,8 @@ void Activation::createForwardPipeline()
   // Calling base layer function
   Layer::createForwardPipeline();
 
+  std::exception_ptr eptr;
+  try{
 #ifdef _KORALI_USE_ONEDNN
   if (_nn->_engine == "OneDNN")
   {
@@ -81,7 +83,19 @@ void Activation::createForwardPipeline()
 
       // Create the primitive.
       _forwardActivationPrimitive = softmax_forward(_forwardSoftmaxActivationPrimitiveDesc);
+    } else if (_function == "Logsoftmax")
+    {
+      // Creating descriptor
+      const int axis = 1;
+      auto activationDesc = logsoftmax_forward::desc(_propKind, _prevLayer->_outputMem[0].get_desc(), axis);
+
+      // Create primitive descriptor.
+      _forwardLogSoftmaxActivationPrimitiveDesc = logsoftmax_forward::primitive_desc(activationDesc, _nn->_dnnlEngine);
+
+      // Create the primitive.
+      _forwardActivationPrimitive = logsoftmax_forward(_forwardLogSoftmaxActivationPrimitiveDesc);
     }
+
   }
 #endif
 
@@ -100,10 +114,15 @@ void Activation::createForwardPipeline()
     if (_function == "Elementwise/SoftSign") KORALI_LOG_ERROR("CUDNN does not support activation functions of type 'Elementwise/SoftSign'.");
     if (_function == "Elementwise/Tanh") activationMode = CUDNN_ACTIVATION_TANH;
     if (_function == "Softmax") activationMode = CUDNN_ACTIVATION_IDENTITY;
+    if (_function == "Logsoftmax") KORALI_LOG_ERROR("Logsoftmax To be Implemnted!");
 
     if (cudnnSetActivationDescriptor(_activationDesc, activationMode, CUDNN_PROPAGATE_NAN, _alpha) != CUDNN_STATUS_SUCCESS) KORALI_LOG_ERROR("Error creating activation algorithm\n");
   }
 #endif
+  } catch (...) {
+    eptr = std::current_exception();
+  }
+  exceptionHandler(eptr);
 }
 
 void Activation::createBackwardPipeline()
@@ -140,6 +159,17 @@ void Activation::createBackwardPipeline()
 
       // Create the primitive.
       _backwardActivationPrimitive = softmax_backward(backwardActivationPrimitiveDesc);
+    } else if (_function == "Logsoftmax")
+    {
+      // Creating descriptor
+      const int axis = 1;
+      auto activationDesc = logsoftmax_backward::desc(_prevLayer->_outputMem[0].get_desc(), _outputMem[0].get_desc(), axis);
+
+      // Create primitive descriptor.
+      auto backwardActivationPrimitiveDesc = logsoftmax_backward::primitive_desc(activationDesc, _nn->_dnnlEngine, _forwardLogSoftmaxActivationPrimitiveDesc);
+
+      // Create the primitive.
+      _backwardActivationPrimitive = logsoftmax_backward(backwardActivationPrimitiveDesc);
     }
   }
 #endif
@@ -211,6 +241,10 @@ void Activation::forwardData(const size_t t)
         for (size_t j = 0; j < OC; j++)
           _outputValues[i * OC + j] = std::exp(_prevLayer->_outputValues[i * OC + j] - LSE);
       }
+    }
+    if (_function == "Logsoftmax")
+    {
+      KORALI_LOG_ERROR("Korali Logsoftmax to be implemented!.");
     }
   }
 
@@ -326,7 +360,9 @@ void Activation::backwardData(const size_t t)
     _backwardActivationArgs[DNNL_ARG_DIFF_DST] = _outputGradientMem[t];             // Input
     _backwardActivationArgs[DNNL_ARG_SRC] = _prevLayer->_outputMem[t];              // Input
     _backwardActivationArgs[DNNL_ARG_DIFF_SRC] = _prevLayer->_outputGradientMem[t]; // Output
-    if (_function == "Softmax") _backwardActivationArgs[DNNL_ARG_DST] = _outputMem[t];
+    if (_function == "Softmax" || _function == "Logsoftmax"){
+      _backwardActivationArgs[DNNL_ARG_DST] = _outputMem[t];
+    }
 
     _backwardActivationPrimitive.execute(_nn->_dnnlStream, _backwardActivationArgs);
   }
@@ -401,7 +437,8 @@ void Activation::setConfiguration(knlohmann::json& js)
         if (_function == "Elementwise/SoftSign") validOption = true; 
         if (_function == "Elementwise/Tanh") validOption = true; 
         if (_function == "Softmax") validOption = true; 
-        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Function'] required by activation.\n Valid Options are:\n  - Elementwise/Clip\n  - Elementwise/Linear\n  - Elementwise/Log\n  - Elementwise/Logistic\n  - Elementwise/ReLU\n  - Elementwise/SoftReLU\n  - Elementwise/SoftSign\n  - Elementwise/Tanh\n  - Softmax\n",_function.c_str()); 
+        if (_function == "Logsoftmax") validOption = true; 
+        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Function'] required by activation.\n Valid Options are:\n  - Elementwise/Clip\n  - Elementwise/Linear\n  - Elementwise/Log\n  - Elementwise/Logistic\n  - Elementwise/ReLU\n  - Elementwise/SoftReLU\n  - Elementwise/SoftSign\n  - Elementwise/Tanh\n  - Softmax\n  - Logsoftmax\n",_function.c_str()); 
       }
     eraseValue(js, "Function");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Function'] required by activation.\n"); 
