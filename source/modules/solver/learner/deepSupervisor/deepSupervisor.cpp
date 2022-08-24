@@ -419,22 +419,21 @@ void DeepSupervisor::runEpoch()
           }
         }
       }
-      _currentValidationLoss = _currentValidationLoss/ (float)(_batchConcurrency*IforE);
-      _validationLoss.push_back(_currentValidationLoss);
-      if(_mode == "Automatic Training"){
+        _currentValidationLoss = _currentValidationLoss / (float)(_batchConcurrency*IforE);
+        _validationLoss.push_back(_currentValidationLoss);
         _currentMetrics = _currentMetrics / (float)(_batchConcurrency*IforE);
         _totalMetrics.push_back(_currentMetrics);
         if(_mode == "Automatic Training"){
+          (*_k)["Results"]["Validation Loss"] = _validationLoss;
           (*_k)["Results"]["Metrics"] = _totalMetrics;
         } else{
+          (*_k)["Results"]["Validation Loss"] = _validationLoss.back();
           (*_k)["Results"]["Metrics"] = _totalMetrics.back();
         }
+      if(_mode == "Automatic Training")
         (*_k)["Results"]["Training Loss"] = _trainingLoss;
-        (*_k)["Results"]["Validation Loss"] = _validationLoss;
-      } else{
+      else
         (*_k)["Results"]["Training Loss"] = _trainingLoss.back();
-        (*_k)["Results"]["Validation Loss"] = _validationLoss.back();
-      }
     }
     ++_epochCount;
     (*_k)["Results"]["Epoch"] = _epochCount;
