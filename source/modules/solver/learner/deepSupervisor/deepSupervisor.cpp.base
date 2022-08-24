@@ -13,6 +13,8 @@
 #include <iterator>
 #include <string>
 #include <vector>
+#include <ostream>
+#include <iomanip>
 
 __startNamespace__;
 
@@ -646,14 +648,23 @@ void __className__::printGenerationAfter()
 {
   if (_mode == "Automatic Training")
   {
-    // Printing results so far
+    std::ostringstream output{}; ;
+    std::string sep{" | "};
+    // Get progress bar
     size_t width = 60;
     char bar[width];
     _k->_logger->progressBar((_epochCount+1)/(float)(_epochs+1), bar, width);
+    // Create output string
+    output << std::fixed << std::setprecision(4) << "\r[Korali] Epoch " << _epochCount << " / " << _epochs << " " << bar << " Train Loss: " << _currentTrainingLoss;
     if(_hasValidationSet)
-      _k->_logger->logInfo("Normal", "\r[Korali] Epoch %zu/%zu %s Train Loss: %f | Val. Loss: %f | Time %.3fs | Learning Rate: %f\r", _epochCount, _epochs, bar, _currentTrainingLoss, _currentValidationLoss, _k->_genTime.back(), _optimizer->_eta);
-    else
-      _k->_logger->logInfo("Normal", "\r[Korali] Epoch %zu/%zu %s Train Loss: %f | Time %.3fs | Learning Rate: %f\r", _epochCount, _epochs, bar, _currentTrainingLoss, _k->_genTime.back(), _optimizer->_eta);
+      output << sep << "Val. Loss: " << _currentValidationLoss;
+    if(_metrics)
+      output << sep << _metricsType.c_str() << " " << _currentMetrics;
+    output << sep << "Time " << _k->_genTime.back();
+    if (!(_learningRateType == "Const" || _learningRateType.empty()))
+      output << sep << "Learning Rate: " << _optimizer->_eta;
+    _k->_logger->logInfo("Normal", "%s\r", output.str().c_str());
+
     if(_epochCount>=_epochs){
       _k->_logger->logInfo("Normal", "\n");
     }
