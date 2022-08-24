@@ -33,6 +33,8 @@
 #include "modules/solver/learner/deepSupervisor/learning_rate/decay.hpp"
 #include "modules/solver/learner/deepSupervisor/learning_rate/step_based_decay.hpp"
 #include "modules/solver/learner/deepSupervisor/learning_rate/time_based_decay.hpp"
+#include "modules/solver/learner/deepSupervisor/metrics/metrics.hpp"
+#include "modules/solver/learner/deepSupervisor/metrics/accuracy.hpp"
 
 namespace korali
 {
@@ -96,6 +98,10 @@ class DeepSupervisor : public Learner
   * @brief Type of the learning rate.
   */
    std::string _learningRateType;
+  /**
+  * @brief Function to calculate different metrics on the validation set.
+  */
+   std::string _metricsType;
   /**
   * @brief Factor how fast the learning rate decays.
   */
@@ -161,6 +167,10 @@ class DeepSupervisor : public Learner
   */
    float _currentValidationLoss;
   /**
+  * @brief [Internal Use] Current value of calculated Metrics
+  */
+   float _currentMetrics;
+  /**
   * @brief [Internal Use] Current value of the traing loss for all epochs.
   */
    std::vector<float> _trainingLoss;
@@ -168,6 +178,10 @@ class DeepSupervisor : public Learner
   * @brief [Internal Use] Current value of the validation loss for all epochs.
   */
    std::vector<float> _validationLoss;
+  /**
+  * @brief [Internal Use] Value of the metrics for all epochs.
+  */
+   std::vector<float> _totalMetrics;
   /**
   * @brief [Internal Use] Value of the testing loss.
   */
@@ -255,6 +269,10 @@ class DeepSupervisor : public Learner
      * @brief learning rate function object.
      */
     korali::learning_rate::LearningRate *_learning_rate{};
+    /**
+     * @brief loss function object.
+     */
+    korali::metrics::Metrics *_metrics{};
     /**
      * @brief A neural network to be trained based on inputs and solutions
      */

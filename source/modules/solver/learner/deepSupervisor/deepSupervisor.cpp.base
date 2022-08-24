@@ -216,6 +216,13 @@ void __className__::initialize()
     // TODO possibility to add custom functions
   else
     KORALI_LOG_ERROR("Unkown learning rate type provided %s", _learningRateType.c_str());
+  /*****************************************************************************
+   * Setting up the Metrics (function) if given
+   *****************************************************************************/
+  if (_metricsType == "Accuracy")
+    _metrics = new korali::metrics::Accuracy();
+  else
+    KORALI_LOG_ERROR("Unkown Accuracy Function %s", _metricsType.c_str());
   /*****************************************************************
    * Initializing NN hyperparameters
    *****************************************************************/
@@ -390,6 +397,7 @@ void DeepSupervisor::runEpoch()
           BS = _problem->_dataValidationInput.size();
         IforE = NV / BS;
         _currentValidationLoss = 0.0f;
+        _currentMetrics = 0.0f;
         #pragma omp parallel for simd reduction(+:_currentValidationLoss)
         for (bId = 0; bId < IforE; bId++) {
           // TODO: make this more efficient: loss expects a const vector maybe we can pass an rvalue reference instead somehow
@@ -397,11 +405,22 @@ void DeepSupervisor::runEpoch()
           const auto y = std::vector<std::vector<float>>{_problem->_dataValidationSolution.begin()+bId*BS, _problem->_dataValidationSolution.begin()+(bId+1)*BS};
           auto y_val = getEvaluation(std::move(input));
           _currentValidationLoss += _loss->loss(y_val, y);
+          if(_metrics){
+            // TODO: make a loop for different metrics and make metrics a vector to calcualte different
+            _currentMetrics += _metrics->compute(y, y_val);
+          }
         }
       }
       _currentValidationLoss = _currentValidationLoss/ (float)(_batchConcurrency*IforE);
       _validationLoss.push_back(_currentValidationLoss);
       if(_mode == "Automatic Training"){
+        _currentMetrics = _currentMetrics / (float)(_batchConcurrency*IforE);
+        _totalMetrics.push_back(_currentMetrics);
+        if(_mode == "Automatic Training"){
+          (*_k)["Results"]["Metrics"] = _totalMetrics;
+        } else{
+          (*_k)["Results"]["Metrics"] = _totalMetrics.back();
+        }
         (*_k)["Results"]["Training Loss"] = _trainingLoss;
         (*_k)["Results"]["Validation Loss"] = _validationLoss;
       } else{

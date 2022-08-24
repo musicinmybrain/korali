@@ -21,6 +21,8 @@
 #include "modules/solver/learner/deepSupervisor/learning_rate/decay.hpp"
 #include "modules/solver/learner/deepSupervisor/learning_rate/step_based_decay.hpp"
 #include "modules/solver/learner/deepSupervisor/learning_rate/time_based_decay.hpp"
+#include "modules/solver/learner/deepSupervisor/metrics/metrics.hpp"
+#include "modules/solver/learner/deepSupervisor/metrics/accuracy.hpp"
 
 __startNamespace__;
 
@@ -51,6 +53,10 @@ class __className__ : public __parentClassName__
      * @brief learning rate function object.
      */
     korali::learning_rate::LearningRate *_learning_rate{};
+    /**
+     * @brief loss function object.
+     */
+    korali::metrics::Metrics *_metrics{};
     /**
      * @brief A neural network to be trained based on inputs and solutions
      */

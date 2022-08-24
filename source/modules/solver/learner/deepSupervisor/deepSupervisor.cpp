@@ -222,6 +222,13 @@ void DeepSupervisor::initialize()
     // TODO possibility to add custom functions
   else
     KORALI_LOG_ERROR("Unkown learning rate type provided %s", _learningRateType.c_str());
+  /*****************************************************************************
+   * Setting up the Metrics (function) if given
+   *****************************************************************************/
+  if (_metricsType == "Accuracy")
+    _metrics = new korali::metrics::Accuracy();
+  else
+    KORALI_LOG_ERROR("Unkown Accuracy Function %s", _metricsType.c_str());
   /*****************************************************************
    * Initializing NN hyperparameters
    *****************************************************************/
@@ -396,6 +403,7 @@ void DeepSupervisor::runEpoch()
           BS = _problem->_dataValidationInput.size();
         IforE = NV / BS;
         _currentValidationLoss = 0.0f;
+        _currentMetrics = 0.0f;
         #pragma omp parallel for simd reduction(+:_currentValidationLoss)
         for (bId = 0; bId < IforE; bId++) {
           // TODO: make this more efficient: loss expects a const vector maybe we can pass an rvalue reference instead somehow
@@ -403,11 +411,22 @@ void DeepSupervisor::runEpoch()
           const auto y = std::vector<std::vector<float>>{_problem->_dataValidationSolution.begin()+bId*BS, _problem->_dataValidationSolution.begin()+(bId+1)*BS};
           auto y_val = getEvaluation(std::move(input));
           _currentValidationLoss += _loss->loss(y_val, y);
+          if(_metrics){
+            // TODO: make a loop for different metrics and make metrics a vector to calcualte different
+            _currentMetrics += _metrics->compute(y, y_val);
+          }
         }
       }
       _currentValidationLoss = _currentValidationLoss/ (float)(_batchConcurrency*IforE);
       _validationLoss.push_back(_currentValidationLoss);
       if(_mode == "Automatic Training"){
+        _currentMetrics = _currentMetrics / (float)(_batchConcurrency*IforE);
+        _totalMetrics.push_back(_currentMetrics);
+        if(_mode == "Automatic Training"){
+          (*_k)["Results"]["Metrics"] = _totalMetrics;
+        } else{
+          (*_k)["Results"]["Metrics"] = _totalMetrics.back();
+        }
         (*_k)["Results"]["Training Loss"] = _trainingLoss;
         (*_k)["Results"]["Validation Loss"] = _validationLoss;
       } else{
@@ -771,6 +790,16 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
     }
     eraseValue(js, "Current Validation Loss");
   }
+  if (isDefined(js, "Current Metrics"))
+  {
+    try
+    {
+      _currentMetrics = js["Current Metrics"].get<float>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Current Metrics']\n%s", e.what());
+    }
+    eraseValue(js, "Current Metrics");
+  }
   if (isDefined(js, "Training Loss"))
   {
     try
@@ -790,6 +819,16 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
       KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Validation Loss']\n%s", e.what());
     }
     eraseValue(js, "Validation Loss");
+  }
+  if (isDefined(js, "Total Metrics"))
+  {
+    try
+    {
+      _totalMetrics = js["Total Metrics"].get<std::vector<float>>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Total Metrics']\n%s", e.what());
+    }
+    eraseValue(js, "Total Metrics");
   }
   if (isDefined(js, "Testing Loss"))
   {
@@ -991,6 +1030,22 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
     eraseValue(js, "Learning Rate Type");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Learning Rate Type'] required by deepSupervisor.\n"); 
 
+  if (isDefined(js, "Metrics", "Type"))
+  {
+    try
+    {
+      _metricsType = js["Metrics"]["Type"].get<std::string>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Metrics']['Type']\n%s", e.what());
+    }
+      {
+        bool validOption = false; 
+        if (_metricsType == "Accuracy") validOption = true; 
+        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Metrics']['Type'] required by deepSupervisor.\n Valid Options are:\n  - Accuracy\n",_metricsType.c_str()); 
+      }
+    eraseValue(js, "Metrics", "Type");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Metrics']['Type'] required by deepSupervisor.\n"); 
+
   if (isDefined(js, "Learning Rate Decay Factor"))
   {
     try
@@ -1159,6 +1214,7 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
    js["Regularizer"]["Coefficient"] = _regularizerCoefficient;
    js["Learning Rate"] = _learningRate;
    js["Learning Rate Type"] = _learningRateType;
+   js["Metrics"]["Type"] = _metricsType;
    js["Learning Rate Decay Factor"] = _learningRateDecayFactor;
    js["Learning Rate Lower Bound"] = _learningRateLowerBound;
    js["Learning Rate Steps"] = _learningRateSteps;
@@ -1178,8 +1234,10 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
    js["Validation Set"]["Size"] = _validationSetSize;
    js["Current Training Loss"] = _currentTrainingLoss;
    js["Current Validation Loss"] = _currentValidationLoss;
+   js["Current Metrics"] = _currentMetrics;
    js["Training Loss"] = _trainingLoss;
    js["Validation Loss"] = _validationLoss;
+   js["Total Metrics"] = _totalMetrics;
    js["Testing Loss"] = _testingLoss;
    js["Normalization Means"] = _normalizationMeans;
    js["Normalization Variances"] = _normalizationVariances;
@@ -1190,7 +1248,7 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
 void DeepSupervisor::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Regularizer\": {\"Coefficient\": 0.0001, \"Type\": \"None\"}, \"Loss Function\": \"Direct Gradient\", \"Learning Rate Type\": \"Const\", \"Learning Rate Save\": true, \"Learning Rate Decay Factor\": 100, \"Learning Rate Steps\": 0, \"Learning Rate Lower Bound\": -10000000000, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}}, \"Termination Criteria\": {\"Epochs\": 10000000000, \"Is One Epoch Finished\": false, \"Target Loss\": -1.0, \"Max Generations\": 10000000000}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1, \"Epoch Count\": 0, \"Data\": {\"Validation\": {\"Split\": 0.0}, \"Training\": {\"Shuffel\": true}, \"Input\": {\"Shuffel\": true}}}";
+ std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Regularizer\": {\"Coefficient\": 0.0001, \"Type\": \"None\"}, \"Loss Function\": \"Direct Gradient\", \"Learning Rate Type\": \"Const\", \"Learning Rate Save\": true, \"Learning Rate Decay Factor\": 100, \"Learning Rate Steps\": 0, \"Learning Rate Lower Bound\": -10000000000, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}}, \"Metrics\": {\"Type\": \"\"}, \"Termination Criteria\": {\"Epochs\": 10000000000, \"Is One Epoch Finished\": false, \"Target Loss\": -1.0, \"Max Generations\": 10000000000}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1, \"Epoch Count\": 0, \"Data\": {\"Validation\": {\"Split\": 0.0}, \"Training\": {\"Shuffel\": true}, \"Input\": {\"Shuffel\": true}}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Learner::applyModuleDefaults(js);
