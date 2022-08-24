@@ -120,7 +120,7 @@ void Continuous::getAction(korali::Sample &sample)
     // Forward state sequence to get the Gaussian means and sigmas from policy
     std::vector<policy_t> policy;
 
-    if ( (_stochasticWeightAveragingHorizon > 0) && ( _k->_currentGeneration >=  _startSamplingGeneration ) )
+    if ( (_stochasticWeightAveragingHorizon > 0) && ( _k->_currentGeneration >= _startSamplingGeneration ) )
     {
       /** Construct Posterior Distribution according to SWAG **/ 
       if( _updateSamples )
@@ -169,22 +169,24 @@ void Continuous::getAction(korali::Sample &sample)
             randomNumbers[k] = _normalGenerator->getRandomNumber();
 
           // Sample Hyperparameters
+          const float invSqrt2 = 1 / std::sqrt(2);
+          const float facRankK = invSqrt2 / (effectiveRank + 1);
           for( size_t s = 0; s<_numberOfSamples; s++ )
           {
             _hyperparameterSamples[p][s] = _hyperparameterMean;
             #pragma omp parallel for
             for( size_t n = 0; n<nHyperparameters; n++ )
             {
-              // Sample from Diagonal Part (numerically stabilized - TODO: replace this by numerically save algorithm)
+              // Sample from Diagonal Part (TODO: replace this by numerically save algorithm)
               const float diff = _squaredHyperparameterMean[n] - _hyperparameterMean[n]*_hyperparameterMean[n];
               const float sigma = diff < 0.? 0. : std::sqrt(diff);
-              _hyperparameterSamples[p][s][n] += (sigma / std::sqrt(2)) * _normalGenerator->getRandomNumber();
+              _hyperparameterSamples[p][s][n] += ( invSqrt2 * sigma ) * _normalGenerator->getRandomNumber();
 
               // Perform Matrix-Vector product of sqrt of covariance matrix and random numbers
               float rankKUpdate = 0.0;
               for( int k = 0; k<effectiveRank; k++ )
                 rankKUpdate += _covarianceMatrix[n][k] * randomNumbers[k];
-              _hyperparameterSamples[p][s][n] += (rankKUpdate / (std::sqrt(2) * (effectiveRank + 1)));
+              _hyperparameterSamples[p][s][n] += facRankK * rankKUpdate;
             }
           }
         }
