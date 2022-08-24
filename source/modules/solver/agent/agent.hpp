@@ -126,10 +126,6 @@ class Agent : public Solver
   */
    size_t _numberOfSGDSamples;
   /**
-  * @brief Number of Samples from Posterior.
-  */
-   size_t _numberOfPosteriorSamples;
-  /**
   * @brief Boolean to determine whether Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf) is used.
   */
    int _swag;
