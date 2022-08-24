@@ -406,7 +406,7 @@ void DeepSupervisor::runEpoch()
           auto &&input = std::vector<std::vector<std::vector<float>>>{_problem->_dataValidationInput.begin()+bId*BS, _problem->_dataValidationInput.begin()+(bId+1)*BS};
           const auto y = std::vector<std::vector<float>>{_problem->_dataValidationSolution.begin()+bId*BS, _problem->_dataValidationSolution.begin()+(bId+1)*BS};
           auto y_val = getEvaluation(std::move(input));
-          _currentValidationLoss += _loss->loss(y_val, y);
+          _currentValidationLoss += _loss->loss(y, y_val);
           if(_metrics){
             // TODO: make a loop for different metrics and make metrics a vector to calcualte different
             _currentMetrics += _metrics->compute(y, y_val);
@@ -505,7 +505,7 @@ void DeepSupervisor::runPrediction()
     if(_mode == "Testing" && _loss){
       _testingLoss = 0.0f;
       auto y_val = getEvaluation(_problem->_inputData);
-      _testingLoss = _loss->loss(y_val, _problem->_solutionData);
+      _testingLoss = _loss->loss(_problem->_solutionData, y_val);
       (*_k)["Results"]["Testing Loss"] = _testingLoss;
     }
 }
