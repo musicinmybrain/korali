@@ -4,6 +4,7 @@
 #include "modules/problem/reinforcementLearning/reinforcementLearning.hpp"
 #include "modules/problem/supervisedLearning/supervisedLearning.hpp"
 #include "modules/solver/learner/deepSupervisor/deepSupervisor.hpp"
+#include "modules/distribution/univariate/normal/normal.hpp"
 #include "sample/sample.hpp"
 #include <algorithm> // std::shuffle
 #include <random>
@@ -331,28 +332,6 @@ class __className__ : public __parentClassName__
    ***************************************************************************************************/
 
   /**
-   * @brief Mini-batch based normalization routine for Neural Networks with state and action inputs (typically critics)
-   * @param neuralNetwork Neural Network to normalize
-   * @param miniBatchSize Number of entries in the normalization minibatch
-   * @param normalizationSteps How many normalization steps to perform (and grab the average)
-   */
-  void normalizeStateActionNeuralNetwork(NeuralNetwork *neuralNetwork, size_t miniBatchSize, size_t normalizationSteps);
-
-  /**
-   * @brief Mini-batch based normalization routine for Neural Networks with state inputs only (typically policy)
-   * @param neuralNetwork Neural Network to normalize
-   * @param miniBatchSize Number of entries in the normalization minibatch
-   * @param normalizationSteps How many normalization steps to perform (and grab the average)
-   */
-  void normalizeStateNeuralNetwork(NeuralNetwork *neuralNetwork, size_t miniBatchSize, size_t normalizationSteps);
-
-  /**
-   * @brief Average rewards across agents per experience in multi agent framework.
-   * @param message A json object containing all experiences from all agents.
-   */
-  void averageRewardsAcrossAgents(knlohmann::json &message);
-
-  /**
    * @brief Additional post-processing of episode after episode terminated.
    * @param episodeId The unique identifier of the provided episode
    * @param episode A vector of experiences pertaining to the episode.
@@ -385,20 +364,6 @@ class __className__ : public __parentClassName__
    * @brief Resets time sequence within the agent, to forget past actions from other episodes
    */
   void resetTimeSequence();
-
-  /**
-   * @brief Function to pass a state time series through the NN and calculates the action probabilities, along with any additional information
-   * @param stateBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
-   * @return A JSON object containing the information produced by the policies given the current state series
-   */
-  virtual float calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx = 0) = 0;
-
-  /**
-   * @brief Function to pass a state time series through the NN and calculates the action probabilities, along with any additional information
-   * @param stateBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
-   * @return A JSON object containing the information produced by the policies given the current state series
-   */
-  virtual void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) = 0;
 
   /**
    * @brief Calculates the starting experience index of the time sequence for the selected experience
@@ -470,6 +435,13 @@ class __className__ : public __parentClassName__
     return rescaledReward;
   }
 
+  /**
+   * @brief Rescales states to have a zero mean and unit variance
+   * @param Index of policy for which sample is computed
+   * @return The hyperparameter sample from the posterior
+   */
+  std::vector<float> samplePosterior( const size_t policyIdx );
+
   /****************************************************************************************************
    * Virtual functions (responsibilities) for learning algorithms to fulfill
    ***************************************************************************************************/
@@ -506,6 +478,20 @@ class __className__ : public __parentClassName__
    * @param sample Sample on which the action and metadata will be stored
    */
   virtual void getAction(korali::Sample &sample) = 0;
+
+    /**
+   * @brief Function to pass a state time series through the NN and calculates the action probabilities, along with any additional information
+   * @param stateBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
+   * @return A JSON object containing the information produced by the policies given the current state series
+   */
+  virtual float calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx = 0) = 0;
+
+  /**
+   * @brief Function to pass a state time series through the NN and calculates the action probabilities, along with any additional information
+   * @param stateBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
+   * @return A JSON object containing the information produced by the policies given the current state series
+   */
+  virtual void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) = 0;
 
   void runGeneration() override;
   void printGenerationAfter() override;

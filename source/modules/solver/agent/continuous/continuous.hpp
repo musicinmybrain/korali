@@ -35,10 +35,6 @@ class Continuous : public Agent
   */
    std::string _policyDistribution;
   /**
-  * @brief [Internal Use] Gaussian random number generator to generate the agent's action.
-  */
-   korali::distribution::univariate::Normal* _normalGenerator;
-  /**
   * @brief [Internal Use] Shifts required for bounded actions.
   */
    std::vector<float> _actionShifts;

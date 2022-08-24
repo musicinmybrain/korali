@@ -31,11 +31,11 @@ void dVRACER::initializeAgent()
 
   _effectiveMinibatchSize = _miniBatchSize * _problem->_agentsPerEnvironment;
 
-  if( (_multiAgentRelationship == "Competition") || (_multiAgentRelationship == "Bayesian") )
-    KORALI_LOG_ERROR("Multi Agent Relationship = %s is not supported for discrete reinforcement learning problems.\n");
+  if( _multiAgentRelationship == "Competition" )
+    KORALI_LOG_ERROR("Multi Agent Relationship = %s is not supported for discrete reinforcement learning problems.\n", _multiAgentRelationship);
 
-  if( _stochasticWeightAveragingHorizon > 0 )
-    KORALI_LOG_ERROR("Stochastic Weight Averaging is not supported for discrete reinforcement learning problems.\n");
+  if( _swag || _langevinDynamics )
+    KORALI_LOG_ERROR("Neither _swag=%d, nor _langevinDynamics=%d supported for discrete reinforcement learning problems.\n", _swag, _langevinDynamics);
 
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {

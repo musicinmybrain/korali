@@ -76,33 +76,8 @@ void Agent::initialize()
   _episodePosVector.resize(_experienceReplayMaximumSize);
   _episodeIdVector.resize(_experienceReplayMaximumSize);
 
-  // Pre-allocating space for hyperparameters for SWAG
-  _hyperparameterVector.resize(_stochasticWeightAveragingHorizon);
-
-  if( _rankOfCovariance > _stochasticWeightAveragingHorizon )
-    KORALI_LOG_ERROR("Rank of Covariance %d is larger than Stochastic Weight Averaging Horizon %d", _rankOfCovariance, _stochasticWeightAveragingHorizon);
-
-  // Pre-allocating space for hyperparameter-samples
-  _hyperparameterSamples.resize(_problem->_policiesPerEnvironment);
-  
-  size_t maxHyperparameters = 0;
-  for( size_t p = 0; p<_problem->_policiesPerEnvironment; p++ )
-  {
-    _hyperparameterSamples[p].resize(_numberOfSamples);
-    if( _criticPolicyLearner[p]->_neuralNetwork->_hyperparameterCount > maxHyperparameters )
-      maxHyperparameters = _criticPolicyLearner[p]->_neuralNetwork->_hyperparameterCount;
-  }
-
-  // Pre-allocating space for covariance matrix
-  _covarianceMatrix.resize(maxHyperparameters);
-  _hyperparameterMean.resize(maxHyperparameters);
-  _squaredHyperparameterMean.resize(maxHyperparameters);
-
-  for( size_t n = 0; n<maxHyperparameters; n++ )
-    _covarianceMatrix[n].resize(_rankOfCovariance);
-
-  // Set boolean which indicates need to produce new samples to False
-  _updateSamples = false;
+  // Pre-allocating space for hyperparameters from Stochastic Gradient Descent Trajectory
+  _hyperparameterVector.resize(_numberOfSGDSamples);
 
   //  Pre-allocating space for state time sequence
   _stateTimeSequence.resize(_problem->_agentsPerEnvironment);
@@ -283,6 +258,12 @@ void Agent::trainingGeneration()
         auto endTime = std::chrono::steady_clock::now();                                                                  // Profiling
         _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling
         _generationPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
+
+        // Store sample from Stochastic Gradient Decent trajectory
+        std::vector<std::vector<float>> hyperparameterVectorEntry;
+        for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+          hyperparameterVectorEntry.push_back(_criticPolicyLearner[p]->getHyperparameters());
+        _hyperparameterVector.add(hyperparameterVectorEntry);
 
         // Increasing policy update counters
         _policyUpdateCount++;
@@ -1183,6 +1164,54 @@ std::vector<std::vector<float>> Agent::getTruncatedStateSequence(size_t expId, s
   return timeSequence;
 }
 
+std::vector<float> Agent::samplePosterior( const size_t policyIdx )
+{
+  // Declare vector for hyperparameters
+  std::vector<float> hyperparameters;
+
+  // For Lagevin Dynamics select a sample from the SGD trajectory
+  if( _langevinDynamics )
+  {
+    const size_t numSamples = _hyperparameterVector.size();
+    float x = _uniformGenerator->getRandomNumber();
+    const size_t sampleIdx = std::floor( x*numSamples );
+    hyperparameters = _hyperparameterVector[sampleIdx][policyIdx];
+  }
+
+  // For SWAG sample of Gaussian approximation of Posterior
+  if( _swag )
+  {
+    // Retreive running estimates for first and second moment from optimizer
+    if (_neuralNetworkOptimizer != "Adam")
+      KORALI_LOG_ERROR("SWAG can only be used with Adam optimizer, not %s.", _neuralNetworkOptimizer);
+
+    fAdam* const adamOptimizer = dynamic_cast<fAdam*>( _criticPolicyLearner[policyIdx]->_optimizer );
+    const auto firstMoment  = adamOptimizer->_firstMoment;
+    const auto secondMoment = adamOptimizer->_secondMoment;
+
+    // Retreive current value of hyperparameters
+    hyperparameters = _criticPolicyLearner[policyIdx]->_optimizer->_currentValue;
+
+    // Pre-compute constants
+    const float invSqrt2 = 1 / std::sqrt(2);
+    #pragma omp parallel for
+    for( size_t n = 0; n<hyperparameters.size(); n++ )
+    {
+      // Compute centered 
+      const float sigma = secondMoment[n] - firstMoment[n]*firstMoment[n];
+
+      // Check to avoid negative argument to the sqrt
+      if( sigma < 0.0 )
+        KORALI_LOG_ERROR("sigma=%e is negative.", sigma);
+      
+      // Update Hyperparameters
+      hyperparameters[n] += ( invSqrt2 * sigma ) * _normalGenerator->getRandomNumber();
+    }
+  }
+
+  return hyperparameters;
+}
+
 void Agent::finalize()
 {
   if (_mode != "Training") return;
@@ -1478,46 +1507,6 @@ void Agent::setConfiguration(knlohmann::json& js)
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Action Upper Bounds']\n%s", e.what()); } 
    eraseValue(js, "Action Upper Bounds");
- }
-
- if (isDefined(js, "Update Samples"))
- {
- try { _updateSamples = js["Update Samples"].get<int>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Update Samples']\n%s", e.what()); } 
-   eraseValue(js, "Update Samples");
- }
-
- if (isDefined(js, "Hyperparameter Samples"))
- {
- try { _hyperparameterSamples = js["Hyperparameter Samples"].get<std::vector<std::vector<std::vector<float>>>>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Hyperparameter Samples']\n%s", e.what()); } 
-   eraseValue(js, "Hyperparameter Samples");
- }
-
- if (isDefined(js, "Hyperparameter Mean"))
- {
- try { _hyperparameterMean = js["Hyperparameter Mean"].get<std::vector<float>>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Hyperparameter Mean']\n%s", e.what()); } 
-   eraseValue(js, "Hyperparameter Mean");
- }
-
- if (isDefined(js, "Squared Hyperparameter Mean"))
- {
- try { _squaredHyperparameterMean = js["Squared Hyperparameter Mean"].get<std::vector<float>>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Squared Hyperparameter Mean']\n%s", e.what()); } 
-   eraseValue(js, "Squared Hyperparameter Mean");
- }
-
- if (isDefined(js, "Covariance Matrix"))
- {
- try { _covarianceMatrix = js["Covariance Matrix"].get<std::vector<std::vector<float>>>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Covariance Matrix']\n%s", e.what()); } 
-   eraseValue(js, "Covariance Matrix");
  }
 
  if (isDefined(js, "Current Episode"))
@@ -1834,32 +1823,32 @@ void Agent::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Start Sampling Generation'] required by agent.\n"); 
 
- if (isDefined(js, "Stochastic Weight Averaging Horizon"))
+ if (isDefined(js, "Number Of SGD Samples"))
  {
- try { _stochasticWeightAveragingHorizon = js["Stochastic Weight Averaging Horizon"].get<size_t>();
+ try { _numberOfSGDSamples = js["Number Of SGD Samples"].get<size_t>();
 } catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Stochastic Weight Averaging Horizon']\n%s", e.what()); } 
-   eraseValue(js, "Stochastic Weight Averaging Horizon");
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Number Of SGD Samples']\n%s", e.what()); } 
+   eraseValue(js, "Number Of SGD Samples");
  }
-  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Stochastic Weight Averaging Horizon'] required by agent.\n"); 
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Number Of SGD Samples'] required by agent.\n"); 
 
- if (isDefined(js, "Rank Of Covariance"))
+ if (isDefined(js, "Number Of Posterior Samples"))
  {
- try { _rankOfCovariance = js["Rank Of Covariance"].get<size_t>();
+ try { _numberOfPosteriorSamples = js["Number Of Posterior Samples"].get<size_t>();
 } catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Rank Of Covariance']\n%s", e.what()); } 
-   eraseValue(js, "Rank Of Covariance");
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Number Of Posterior Samples']\n%s", e.what()); } 
+   eraseValue(js, "Number Of Posterior Samples");
  }
-  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Rank Of Covariance'] required by agent.\n"); 
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Number Of Posterior Samples'] required by agent.\n"); 
 
- if (isDefined(js, "Number Of Samples"))
+ if (isDefined(js, "swag"))
  {
- try { _numberOfSamples = js["Number Of Samples"].get<size_t>();
+ try { _swag = js["swag"].get<int>();
 } catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Number Of Samples']\n%s", e.what()); } 
-   eraseValue(js, "Number Of Samples");
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['swag']\n%s", e.what()); } 
+   eraseValue(js, "swag");
  }
-  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Number Of Samples'] required by agent.\n"); 
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['swag'] required by agent.\n"); 
 
  if (isDefined(js, "Langevin Dynamics"))
  {
@@ -1869,6 +1858,16 @@ void Agent::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Langevin Dynamics");
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Langevin Dynamics'] required by agent.\n"); 
+
+ if (isDefined(js, "Normal Generator"))
+ {
+ _normalGenerator = dynamic_cast<korali::distribution::univariate::Normal*>(korali::Module::getModule(js["Normal Generator"], _k));
+ _normalGenerator->applyVariableDefaults();
+ _normalGenerator->applyModuleDefaults(js["Normal Generator"]);
+ _normalGenerator->setConfiguration(js["Normal Generator"]);
+   eraseValue(js, "Normal Generator");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Normal Generator'] required by agent.\n"); 
 
  if (isDefined(js, "Mini Batch", "Size"))
  {
@@ -2151,10 +2150,11 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Concurrent Environments"] = _concurrentEnvironments;
    js["Episodes Per Generation"] = _episodesPerGeneration;
    js["Start Sampling Generation"] = _startSamplingGeneration;
-   js["Stochastic Weight Averaging Horizon"] = _stochasticWeightAveragingHorizon;
-   js["Rank Of Covariance"] = _rankOfCovariance;
-   js["Number Of Samples"] = _numberOfSamples;
+   js["Number Of SGD Samples"] = _numberOfSGDSamples;
+   js["Number Of Posterior Samples"] = _numberOfPosteriorSamples;
+   js["swag"] = _swag;
    js["Langevin Dynamics"] = _langevinDynamics;
+ if(_normalGenerator != NULL) _normalGenerator->getConfiguration(js["Normal Generator"]);
    js["Mini Batch"]["Size"] = _miniBatchSize;
    js["Mini Batch"]["Strategy"] = _miniBatchStrategy;
    js["Time Sequence Length"] = _timeSequenceLength;
@@ -2185,11 +2185,6 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Policy"]["Parameter Count"] = _policyParameterCount;
    js["Action Lower Bounds"] = _actionLowerBounds;
    js["Action Upper Bounds"] = _actionUpperBounds;
-   js["Update Samples"] = _updateSamples;
-   js["Hyperparameter Samples"] = _hyperparameterSamples;
-   js["Hyperparameter Mean"] = _hyperparameterMean;
-   js["Squared Hyperparameter Mean"] = _squaredHyperparameterMean;
-   js["Covariance Matrix"] = _covarianceMatrix;
    js["Current Episode"] = _currentEpisode;
    js["Training"]["Reward History"] = _trainingRewardHistory;
    js["Training"]["Experience History"] = _trainingExperienceHistory;
@@ -2229,7 +2224,7 @@ void Agent::getConfiguration(knlohmann::json& js)
 void Agent::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Environments\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Multi Agent Sampling\": \"Tuple\", \"Stochastic Weight Averaging Horizon\": 1, \"Rank Of Covariance\": 0, \"Number Of Samples\": 0, \"Start Sampling Generation\": Infinity, \"Langevin Dynamics\": false, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Strategy\": \"Uniform\", \"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
+ std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Environments\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Multi Agent Sampling\": \"Tuple\", \"Start Sampling Generation\": Infinity, \"Number Of SGD Samples\": 1, \"Number Of Posterior Samples\": 0, \"swag\": false, \"Langevin Dynamics\": false, \"Normal Generator\": {\"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Strategy\": \"Uniform\", \"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Solver::applyModuleDefaults(js);

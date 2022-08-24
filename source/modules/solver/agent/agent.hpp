@@ -16,6 +16,7 @@
 #include "modules/problem/reinforcementLearning/reinforcementLearning.hpp"
 #include "modules/problem/supervisedLearning/supervisedLearning.hpp"
 #include "modules/solver/learner/deepSupervisor/deepSupervisor.hpp"
+#include "modules/distribution/univariate/normal/normal.hpp"
 #include "sample/sample.hpp"
 #include <algorithm> // std::shuffle
 #include <random>
@@ -121,21 +122,25 @@ class Agent : public Solver
   */
    size_t _startSamplingGeneration;
   /**
-  * @brief Number of weights to use for Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf) is used.
+  * @brief Number of Samples stored from Stochastic Gradient Decent Trajectory.
   */
-   size_t _stochasticWeightAveragingHorizon;
+   size_t _numberOfSGDSamples;
   /**
-  * @brief Number of weights for approximation of covariance use for Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf) is used.
+  * @brief Number of Samples from Posterior.
   */
-   size_t _rankOfCovariance;
+   size_t _numberOfPosteriorSamples;
   /**
-  * @brief Number of Samples from Posterior that are used.
+  * @brief Boolean to determine whether Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf) is used.
   */
-   size_t _numberOfSamples;
+   int _swag;
   /**
   * @brief Boolean to determine whether Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf) is used.
   */
    int _langevinDynamics;
+  /**
+  * @brief Gaussian random number generator.
+  */
+   korali::distribution::univariate::Normal* _normalGenerator;
   /**
   * @brief The number of experiences to randomly select to train the neural network(s) with.
   */
@@ -244,26 +249,6 @@ class Agent : public Solver
   * @brief [Internal Use] Upper bounds for actions.
   */
    std::vector<float> _actionUpperBounds;
-  /**
-  * @brief [Internal Use] Boolean indicating whether we need to resample posterior for Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf).
-  */
-   int _updateSamples;
-  /**
-  * @brief [Internal Use] Posterior Samples for Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf).
-  */
-   std::vector<std::vector<std::vector<float>>> _hyperparameterSamples;
-  /**
-  * @brief [Internal Use] Buffer for the mean of the hyperparameters for Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf).
-  */
-   std::vector<float> _hyperparameterMean;
-  /**
-  * @brief [Internal Use] Buffer for the mean of the squared hyperparameters for Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf).
-  */
-   std::vector<float> _squaredHyperparameterMean;
-  /**
-  * @brief [Internal Use] Buffer for the Covariance Matrix for Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf).
-  */
-   std::vector<std::vector<float>> _covarianceMatrix;
   /**
   * @brief [Internal Use] Indicates the current episode being processed.
   */
@@ -686,28 +671,6 @@ class Agent : public Solver
    ***************************************************************************************************/
 
   /**
-   * @brief Mini-batch based normalization routine for Neural Networks with state and action inputs (typically critics)
-   * @param neuralNetwork Neural Network to normalize
-   * @param miniBatchSize Number of entries in the normalization minibatch
-   * @param normalizationSteps How many normalization steps to perform (and grab the average)
-   */
-  void normalizeStateActionNeuralNetwork(NeuralNetwork *neuralNetwork, size_t miniBatchSize, size_t normalizationSteps);
-
-  /**
-   * @brief Mini-batch based normalization routine for Neural Networks with state inputs only (typically policy)
-   * @param neuralNetwork Neural Network to normalize
-   * @param miniBatchSize Number of entries in the normalization minibatch
-   * @param normalizationSteps How many normalization steps to perform (and grab the average)
-   */
-  void normalizeStateNeuralNetwork(NeuralNetwork *neuralNetwork, size_t miniBatchSize, size_t normalizationSteps);
-
-  /**
-   * @brief Average rewards across agents per experience in multi agent framework.
-   * @param message A json object containing all experiences from all agents.
-   */
-  void averageRewardsAcrossAgents(knlohmann::json &message);
-
-  /**
    * @brief Additional post-processing of episode after episode terminated.
    * @param episodeId The unique identifier of the provided episode
    * @param episode A vector of experiences pertaining to the episode.
@@ -740,20 +703,6 @@ class Agent : public Solver
    * @brief Resets time sequence within the agent, to forget past actions from other episodes
    */
   void resetTimeSequence();
-
-  /**
-   * @brief Function to pass a state time series through the NN and calculates the action probabilities, along with any additional information
-   * @param stateBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
-   * @return A JSON object containing the information produced by the policies given the current state series
-   */
-  virtual float calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx = 0) = 0;
-
-  /**
-   * @brief Function to pass a state time series through the NN and calculates the action probabilities, along with any additional information
-   * @param stateBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
-   * @return A JSON object containing the information produced by the policies given the current state series
-   */
-  virtual void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) = 0;
 
   /**
    * @brief Calculates the starting experience index of the time sequence for the selected experience
@@ -825,6 +774,13 @@ class Agent : public Solver
     return rescaledReward;
   }
 
+  /**
+   * @brief Rescales states to have a zero mean and unit variance
+   * @param Index of policy for which sample is computed
+   * @return The hyperparameter sample from the posterior
+   */
+  std::vector<float> samplePosterior( const size_t policyIdx );
+
   /****************************************************************************************************
    * Virtual functions (responsibilities) for learning algorithms to fulfill
    ***************************************************************************************************/
@@ -861,6 +817,20 @@ class Agent : public Solver
    * @param sample Sample on which the action and metadata will be stored
    */
   virtual void getAction(korali::Sample &sample) = 0;
+
+    /**
+   * @brief Function to pass a state time series through the NN and calculates the action probabilities, along with any additional information
+   * @param stateBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
+   * @return A JSON object containing the information produced by the policies given the current state series
+   */
+  virtual float calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx = 0) = 0;
+
+  /**
+   * @brief Function to pass a state time series through the NN and calculates the action probabilities, along with any additional information
+   * @param stateBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
+   * @return A JSON object containing the information produced by the policies given the current state series
+   */
+  virtual void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) = 0;
 
   void runGeneration() override;
   void printGenerationAfter() override;

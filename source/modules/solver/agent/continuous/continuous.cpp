@@ -12,10 +12,6 @@ namespace agent
 {
 ;
 
-#pragma omp declare reduction(vec_float_plus        \
-                              : std::vector <float> \
-                              : std::transform(omp_out.begin(), omp_out.end(), omp_in.begin(), omp_out.begin(), std::plus <int>())) initializer(omp_priv = omp_orig)
-
 void Continuous::initializeAgent()
 {
   // Getting continuous problem pointer
@@ -120,96 +116,21 @@ void Continuous::getAction(korali::Sample &sample)
     // Forward state sequence to get the Gaussian means and sigmas from policy
     std::vector<policy_t> policy;
 
-    if ( (_stochasticWeightAveragingHorizon > 0) && ( _k->_currentGeneration >= _startSamplingGeneration ) )
+    if ( _problem->_ensembleLearning || _swag || _langevinDynamics )
     {
-      /** Construct Posterior Distribution according to SWAG **/ 
-      if( _updateSamples )
-      {
-        for( size_t p = 0; p<_problem->_policiesPerEnvironment; p++ )
-        {
-          // Compute Mean and Squared Mean
-          size_t nHyperparameters = _criticPolicyLearner[p]->_neuralNetwork->_hyperparameterCount;
-          std::fill(_hyperparameterMean.begin(), _hyperparameterMean.end(), 0.0);
-          std::fill(_squaredHyperparameterMean.begin(), _squaredHyperparameterMean.end(), 0.0);
-          for( size_t t = 0; t<_hyperparameterVector.size(); t++ )
-          {
-            #pragma omp parallel for reduction(vec_float_plus \
-                                       : _hyperparameterMean, _squaredHyperparameterMean)
-            for( size_t n = 0; n<nHyperparameters; n++)
-            {
-              const float hyperparameter = _hyperparameterVector[t][p][n];
-              _hyperparameterMean[n] += hyperparameter;
-              _squaredHyperparameterMean[n] += hyperparameter*hyperparameter;
-            }
-          }
-
-          #pragma omp parallel for
-          for( size_t n = 0; n<nHyperparameters; n++)
-          {
-            _hyperparameterMean[n] /= _hyperparameterVector.size();
-            _squaredHyperparameterMean[n] /= _hyperparameterVector.size();
-          }
-
-          // Determine effective Rank of convariance-matrix approximation
-          int effectiveRank = _rankOfCovariance;
-          if( (int)_hyperparameterVector.size() - effectiveRank < 0 )
-            effectiveRank = _hyperparameterVector.size();
-
-          // Assign Rank-K approximation of covariance matrix
-          for( int k = 0; k < effectiveRank; k++ )
-          {
-            #pragma omp parallel for
-            for( size_t n = 0; n<nHyperparameters; n++ )
-              _covarianceMatrix[n][k] = _hyperparameterVector[_hyperparameterVector.size()-1-k][p][n] - _hyperparameterMean[n];
-          }
-
-          // Sample vector with K random numbers
-          std::vector<float> randomNumbers(effectiveRank);
-          for( int k = 0; k < effectiveRank; k++ )
-            randomNumbers[k] = _normalGenerator->getRandomNumber();
-
-          // Sample Hyperparameters
-          const float invSqrt2 = 1 / std::sqrt(2);
-          const float facRankK = invSqrt2 / (effectiveRank + 1);
-          for( size_t s = 0; s<_numberOfSamples; s++ )
-          {
-            _hyperparameterSamples[p][s] = _hyperparameterMean;
-            #pragma omp parallel for
-            for( size_t n = 0; n<nHyperparameters; n++ )
-            {
-              // Sample from Diagonal Part (TODO: replace this by numerically save algorithm)
-              const float diff = _squaredHyperparameterMean[n] - _hyperparameterMean[n]*_hyperparameterMean[n];
-              const float sigma = diff < 0.? 0. : std::sqrt(diff);
-              _hyperparameterSamples[p][s][n] += ( invSqrt2 * sigma ) * _normalGenerator->getRandomNumber();
-
-              // Perform Matrix-Vector product of sqrt of covariance matrix and random numbers
-              float rankKUpdate = 0.0;
-              for( int k = 0; k<effectiveRank; k++ )
-                rankKUpdate += _covarianceMatrix[n][k] * randomNumbers[k];
-              _hyperparameterSamples[p][s][n] += facRankK * rankKUpdate;
-            }
-          }
-        }
-        _updateSamples = false;
-      }
-
-      // Producing random number to select policy and sample to produce the action
-      float x = _uniformGenerator->getRandomNumber();
-      const size_t policyIdx = std::floor( x*_problem->_policiesPerEnvironment ); 
-      x = _uniformGenerator->getRandomNumber();
-      const size_t sampleIdx = std::floor( x*_numberOfSamples ); 
-
-      // Set parameters in neural network
-      _criticPolicyLearner[policyIdx]->setHyperparameters(_hyperparameterSamples[policyIdx][sampleIdx]);
-
-      runPolicy({_stateTimeSequence[i].getVector()}, policy, policyIdx);
-    }
-    else if ( _problem->_ensembleLearning )
-    {
-      // Producing random  number and select policy to produce the action
+      // Producing random number and select policy to produce the action
       const float x = _uniformGenerator->getRandomNumber();
       const size_t policyIdx = std::floor( x*_problem->_policiesPerEnvironment );
       
+      if ( (_swag || _langevinDynamics) && (_k->_currentGeneration >= _startSamplingGeneration) )
+      {
+        // Compute posterior sample
+        auto hyperparameters = samplePosterior( policyIdx );
+           
+        // Set parameters in neural network
+        _criticPolicyLearner[policyIdx]->setHyperparameters(hyperparameters);
+      }
+
       runPolicy({_stateTimeSequence[i].getVector()}, policy, policyIdx);
     }
     else if (_problem->_policiesPerEnvironment == 1)
@@ -1031,15 +952,6 @@ void Continuous::setConfiguration(knlohmann::json& js)
 {
  if (isDefined(js, "Results"))  eraseValue(js, "Results");
 
- if (isDefined(js, "Normal Generator"))
- {
- _normalGenerator = dynamic_cast<korali::distribution::univariate::Normal*>(korali::Module::getModule(js["Normal Generator"], _k));
- _normalGenerator->applyVariableDefaults();
- _normalGenerator->applyModuleDefaults(js["Normal Generator"]);
- _normalGenerator->setConfiguration(js["Normal Generator"]);
-   eraseValue(js, "Normal Generator");
- }
-
  if (isDefined(js, "Action Shifts"))
  {
  try { _actionShifts = js["Action Shifts"].get<std::vector<float>>();
@@ -1112,7 +1024,6 @@ void Continuous::getConfiguration(knlohmann::json& js)
 
  js["Type"] = _type;
    js["Policy"]["Distribution"] = _policyDistribution;
- if(_normalGenerator != NULL) _normalGenerator->getConfiguration(js["Normal Generator"]);
    js["Action Shifts"] = _actionShifts;
    js["Action Scales"] = _actionScales;
    js["Policy"]["Parameter Transformation Masks"] = _policyParameterTransformationMasks;
@@ -1126,7 +1037,7 @@ void Continuous::getConfiguration(knlohmann::json& js)
 void Continuous::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Normal Generator\": {\"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"Policy\": {\"Distribution\": \"Normal\"}}";
+ std::string defaultString = "{\"Policy\": {\"Distribution\": \"Normal\"}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Agent::applyModuleDefaults(js);
