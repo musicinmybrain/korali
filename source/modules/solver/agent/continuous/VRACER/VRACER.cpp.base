@@ -235,7 +235,7 @@ void __className__::calculatePolicyGradients(const std::vector<std::pair<size_t,
     }
 
     // Add noise to mimic Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
-    if( _langevinDynamics )
+    if( _langevinDynamics && (_k->_currentGeneration >= _startSamplingGeneration) )
     for( size_t i = 0; i<2*_problem->_actionVectorSize+1; i++ )
       gradientLoss[i] += std::sqrt(2*_currentLearningRate) * _normalGenerator->getRandomNumber();
 
