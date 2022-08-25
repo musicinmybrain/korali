@@ -1144,7 +1144,7 @@ std::vector<float> __className__::samplePosterior( const size_t policyIdx )
   std::vector<float> hyperparameterSample;
 
   // For Lagevin Dynamics select a sample from the SGD trajectory
-  if( _langevinDynamics > 0.0 )
+  if( _langevinDynamics )
   {
     const size_t numSamples = _hyperparameterVector.size();
     float x = _uniformGenerator->getRandomNumber();

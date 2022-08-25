@@ -1148,7 +1148,7 @@ std::vector<float> Agent::samplePosterior( const size_t policyIdx )
   std::vector<float> hyperparameterSample;
 
   // For Lagevin Dynamics select a sample from the SGD trajectory
-  if( _langevinDynamics > 0.0 )
+  if( _langevinDynamics )
   {
     const size_t numSamples = _hyperparameterVector.size();
     float x = _uniformGenerator->getRandomNumber();
@@ -1212,7 +1212,7 @@ std::vector<float> Agent::samplePosterior( const size_t policyIdx )
     {
       const float p = _uniformGenerator->getRandomNumber();
       if( p < _dropout )
-        hyperparameterSample[n] = 0;
+        hyperparameterSample[n] = 0.0;
     }
   }
 
@@ -1850,7 +1850,7 @@ void Agent::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Langevin Dynamics"))
  {
- try { _langevinDynamics = js["Langevin Dynamics"].get<float>();
+ try { _langevinDynamics = js["Langevin Dynamics"].get<int>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Langevin Dynamics']\n%s", e.what()); } 
    eraseValue(js, "Langevin Dynamics");

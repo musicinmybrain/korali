@@ -130,9 +130,9 @@ class Agent : public Solver
   */
    int _swag;
   /**
-  * @brief Noise parameter for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf).
+  * @brief Boolean to determine whether Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf) is used.
   */
-   float _langevinDynamics;
+   int _langevinDynamics;
   /**
   * @brief Dropout probability that is used (https://proceedings.mlr.press/v48/gal16.html).
   */
