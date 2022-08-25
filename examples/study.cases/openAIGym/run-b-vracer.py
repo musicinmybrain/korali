@@ -14,9 +14,8 @@ parser.add_argument('--l2', help='L2 Regularization.', required=False, type=floa
 parser.add_argument('--opt', help='Off Policy Target.', required=False, type=float, default = 0.1)
 parser.add_argument('--lr', help='Learning Rate.', required=False, type=float, default = 0.0001)
 parser.add_argument('--nPolicies', help='Number of Policies in Ensemble.', required=False, type=int, default = 1)
-parser.add_argument('--startSampling', help='Number of Epsisodes before Sampling starts.', required=False, type=int, default = 30)
+parser.add_argument('--startSampling', help='Number of Epsisodes before Sampling starts.', required=False, type=int, default = 10)
 parser.add_argument('--nSGD', help='Number of Hyperparameters recorded along the SGD trajectory.', required=False, type=int, default = 1)
-parser.add_argument('--nSamples', help='Number of Samples from Posterior distribution.', required=False, type=int, default = 1)
 args = parser.parse_args()
 print(args)
 
@@ -54,17 +53,16 @@ e["Problem"]["Ensemble Learning"] = args.nPolicies > 1
 # Posterior Sampling
 e["Solver"]["Start Sampling Generation"] = args.startSampling
 e["Solver"]["Number Of SGD Samples"] = args.nSGD
-e["Solver"]["Number Of Posterior Samples"] = args.nSamples
 
 # Enable SWAG (https://arxiv.org/pdf/1902.02476.pdf)
-e["Solver"]["swag"] = False
+e["Solver"]["swag"] = True
 
 # Enable Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
 e["Solver"]["Langevin Dynamics"] = False
 
 ### Setting Experience Replay and REFER settings
 
-e["Solver"]["Experience Replay"]["Start Size"] = 131072
+e["Solver"]["Experience Replay"]["Start Size"] = 1024 #131072
 e["Solver"]["Experience Replay"]["Maximum Size"] = 262144
 e["Solver"]["Experience Replay"]["Off Policy"]["Annealing Rate"] = 5.0e-8
 e["Solver"]["Experience Replay"]["Off Policy"]["Cutoff Scale"] = 4.0
