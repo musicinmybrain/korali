@@ -178,15 +178,15 @@ e["Console Output"]["Frequency"] = 1
 e["Console Output"]["Verbosity"] = args.verbosity
 e["File Output"]["Enabled"] = args.save
 e["File Output"]["Frequency"] = 1 if args.epochs <= 100 else args.epochs/10
-e["Save"]["Problem"] = False
-e["Save"]["Solver"] = False
+# Run ID required by korali plotting script.
+e["Save Only"] = ["Run ID", "Current Generation", "Results", "Solver"]
 
 if args.conduit == constants.DISTRIBUTED:
     k.setMPIComm(MPI.COMM_WORLD)
 
 # TRAINING ===============================================================================
 if args.mode in ["all", "train"]:
-    e["Solver"]["Mode"] = "Training"
+    e["Solver"]["Mode"] = "Automatic Training"
     k.run(e)
 # PREDICTING ================================================================================
 e["File Output"]["Enabled"] = False
@@ -209,7 +209,9 @@ if isMaster():
 # Plotting      ===========================================================================
 SAMPLES_TO_DISPLAY = 4
 if args.plot:
-    arr_to_img = lambda img : np.reshape(img, (img_width, img_height))
+    if not args.mode in ["all", "test"]:
+        sys.exit("Need to evaluate model first in order to plot.")
+    arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
     fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
     for idx, row in enumerate(axes):
         row[0].imshow(arr_to_img(e["Problem"]["Solution"]["Data"][idx]))
