@@ -1141,58 +1141,78 @@ std::vector<std::vector<float>> __className__::getTruncatedStateSequence(size_t 
 std::vector<float> __className__::samplePosterior( const size_t policyIdx )
 {
   // Declare vector for hyperparameters
-  std::vector<float> hyperparameters;
+  std::vector<float> hyperparameterSample;
 
   // For Lagevin Dynamics select a sample from the SGD trajectory
-  if( _langevinDynamics )
+  if( _langevinDynamics > 0.0 )
   {
     const size_t numSamples = _hyperparameterVector.size();
     float x = _uniformGenerator->getRandomNumber();
     const size_t sampleIdx = std::floor( x*numSamples );
-    hyperparameters = _hyperparameterVector[sampleIdx][policyIdx];
+    hyperparameterSample = _hyperparameterVector[sampleIdx][policyIdx];
   }
 
   // For SWAG sample from Gaussian approximation of Posterior
   if( _swag )
   {
-    // Retreive running estimates for first and second moment from optimizer
-    if (_neuralNetworkOptimizer != "Adam")
-      KORALI_LOG_ERROR("SWAG can only be used with Adam optimizer, not %s.", _neuralNetworkOptimizer);
-
-    fAdam* const adamOptimizer = dynamic_cast<fAdam*>( _criticPolicyLearner[policyIdx]->_optimizer );
-    const auto firstMoment  = adamOptimizer->_firstMoment;
-    const auto secondMoment = adamOptimizer->_secondMoment;
-
-    // Retreive current value of hyperparameters
-    hyperparameters = _criticPolicyLearner[policyIdx]->getHyperparameters();
-
-    // Pre-compute constants
-    const float invSqrt2 = 1 / std::sqrt(2);
-    const float firstCentralMomentFactor = 1.0f / (1.0f - adamOptimizer->_beta1Pow);
-    const float secondCentralMomentFactor = 1.0f / (1.0f - adamOptimizer->_beta2Pow);
-
-    // #pragma omp parallel for
-    for( size_t n = 0; n<hyperparameters.size(); n++ )
+    // Compute mean and variance in a stable manner (https://dbs.ifi.uni-heidelberg.de/files/Team/eschubert/publications/SSDBM18-covariance-authorcopy.pdf) 
+    const size_t nHyperparameters = _hyperparameterVector[0][policyIdx].size();
+    std::vector<float> mean(nHyperparameters);
+    std::vector<float> variance(nHyperparameters);
+    for( size_t s = 0; s < _hyperparameterVector.size(); s++ )
     {
-      // Compute unbiased estimators of moments
-      const float unbiasedFirstMoment = firstCentralMomentFactor * firstMoment[n];
-      const float unbiasedSecondMoment = secondCentralMomentFactor * secondMoment[n];
+      // Retreive Hyperparameters
+      const auto & hyperparameter = _hyperparameterVector[s][policyIdx];
 
-      // Compute centered second moment
-      const float var = unbiasedSecondMoment - unbiasedFirstMoment*unbiasedFirstMoment;
+      // Compute constant prefactor
+      const float fac = 1.0 / (float)(s+1);
+
+      #pragma omp parallel for simd
+      for( size_t n = 0; n < nHyperparameters; n++ )
+      {
+        const float oldMean = mean[n];
+        const float diff = hyperparameter[n] - oldMean;
+        mean[n]     += fac * diff;
+        const float diff2 = diff * diff;
+        variance[n] += diff2 - fac*diff2;
+      }
+    }
+
+    // Assign mean 
+    hyperparameterSample = mean;
+
+    // Sample Hyperparameter
+    #pragma omp parallel for simd
+    for( size_t n = 0; n<hyperparameterSample.size(); n++ )
+    {
+      // Retreive variance
+      const float var = variance[n];
 
       // Check to avoid negative argument to the sqrt
       if( var < 0.0 )
-        KORALI_LOG_ERROR("var=%e-%e=%e is negative.", unbiasedSecondMoment, unbiasedFirstMoment*unbiasedFirstMoment, var);
+        KORALI_LOG_ERROR("var=%e is negative.", var);
 
+      // Sample from Diagonal Gaussian Approximation
       const float sigma = std::sqrt(var);
-      
-      // Update Hyperparameters
-      hyperparameters[n] += ( invSqrt2 * sigma ) * _normalGenerator->getRandomNumber();
+      hyperparameterSample[n] = hyperparameterSample[n] + sigma * _normalGenerator->getRandomNumber();
     }
   }
 
-  return hyperparameters;
+  if( (_dropout > 0.0) && (_k->_currentGeneration >= _startSamplingGeneration) )
+  {
+    // Get current hyperparameters
+    hyperparameterSample = _criticPolicyLearner[policyIdx]->getHyperparameters();
+
+    #pragma omp parallel for simd
+    for( size_t n = 0; n<hyperparameterSample.size(); n++ )
+    {
+      const float p = _uniformGenerator->getRandomNumber();
+      if( p < _dropout )
+        hyperparameterSample[n] = 0.0;
+    }
+  }
+
+  return hyperparameterSample;
 }
 
 void __className__::finalize()

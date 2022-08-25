@@ -1145,58 +1145,78 @@ std::vector<std::vector<float>> Agent::getTruncatedStateSequence(size_t expId, s
 std::vector<float> Agent::samplePosterior( const size_t policyIdx )
 {
   // Declare vector for hyperparameters
-  std::vector<float> hyperparameters;
+  std::vector<float> hyperparameterSample;
 
   // For Lagevin Dynamics select a sample from the SGD trajectory
-  if( _langevinDynamics )
+  if( _langevinDynamics > 0.0 )
   {
     const size_t numSamples = _hyperparameterVector.size();
     float x = _uniformGenerator->getRandomNumber();
     const size_t sampleIdx = std::floor( x*numSamples );
-    hyperparameters = _hyperparameterVector[sampleIdx][policyIdx];
+    hyperparameterSample = _hyperparameterVector[sampleIdx][policyIdx];
   }
 
   // For SWAG sample from Gaussian approximation of Posterior
   if( _swag )
   {
-    // Retreive running estimates for first and second moment from optimizer
-    if (_neuralNetworkOptimizer != "Adam")
-      KORALI_LOG_ERROR("SWAG can only be used with Adam optimizer, not %s.", _neuralNetworkOptimizer);
-
-    fAdam* const adamOptimizer = dynamic_cast<fAdam*>( _criticPolicyLearner[policyIdx]->_optimizer );
-    const auto firstMoment  = adamOptimizer->_firstMoment;
-    const auto secondMoment = adamOptimizer->_secondMoment;
-
-    // Retreive current value of hyperparameters
-    hyperparameters = _criticPolicyLearner[policyIdx]->getHyperparameters();
-
-    // Pre-compute constants
-    const float invSqrt2 = 1 / std::sqrt(2);
-    const float firstCentralMomentFactor = 1.0f / (1.0f - adamOptimizer->_beta1Pow);
-    const float secondCentralMomentFactor = 1.0f / (1.0f - adamOptimizer->_beta2Pow);
-
-    // #pragma omp parallel for
-    for( size_t n = 0; n<hyperparameters.size(); n++ )
+    // Compute mean and variance in a stable manner (https://dbs.ifi.uni-heidelberg.de/files/Team/eschubert/publications/SSDBM18-covariance-authorcopy.pdf) 
+    const size_t nHyperparameters = _hyperparameterVector[0][policyIdx].size();
+    std::vector<float> mean(nHyperparameters);
+    std::vector<float> variance(nHyperparameters);
+    for( size_t s = 0; s < _hyperparameterVector.size(); s++ )
     {
-      // Compute unbiased estimators of moments
-      const float unbiasedFirstMoment = firstCentralMomentFactor * firstMoment[n];
-      const float unbiasedSecondMoment = secondCentralMomentFactor * secondMoment[n];
+      // Retreive Hyperparameters
+      const auto & hyperparameter = _hyperparameterVector[s][policyIdx];
 
-      // Compute centered second moment
-      const float var = unbiasedSecondMoment - unbiasedFirstMoment*unbiasedFirstMoment;
+      // Compute constant prefactor
+      const float fac = 1.0 / (float)(s+1);
+
+      #pragma omp parallel for simd
+      for( size_t n = 0; n < nHyperparameters; n++ )
+      {
+        const float oldMean = mean[n];
+        const float diff = hyperparameter[n] - oldMean;
+        mean[n]     += fac * diff;
+        const float diff2 = diff * diff;
+        variance[n] += diff2 - fac*diff2;
+      }
+    }
+
+    // Assign mean 
+    hyperparameterSample = mean;
+
+    // Sample Hyperparameter
+    #pragma omp parallel for simd
+    for( size_t n = 0; n<hyperparameterSample.size(); n++ )
+    {
+      // Retreive variance
+      const float var = variance[n];
 
       // Check to avoid negative argument to the sqrt
       if( var < 0.0 )
-        KORALI_LOG_ERROR("var=%e-%e=%e is negative.", unbiasedSecondMoment, unbiasedFirstMoment*unbiasedFirstMoment, var);
+        KORALI_LOG_ERROR("var=%e is negative.", var);
 
+      // Sample from Diagonal Gaussian Approximation
       const float sigma = std::sqrt(var);
-      
-      // Update Hyperparameters
-      hyperparameters[n] += ( invSqrt2 * sigma ) * _normalGenerator->getRandomNumber();
+      hyperparameterSample[n] = hyperparameterSample[n] + sigma * _normalGenerator->getRandomNumber();
     }
   }
 
-  return hyperparameters;
+  if( (_dropout > 0.0) && (_k->_currentGeneration >= _startSamplingGeneration) )
+  {
+    // Get current hyperparameters
+    hyperparameterSample = _criticPolicyLearner[policyIdx]->getHyperparameters();
+
+    #pragma omp parallel for simd
+    for( size_t n = 0; n<hyperparameterSample.size(); n++ )
+    {
+      const float p = _uniformGenerator->getRandomNumber();
+      if( p < _dropout )
+        hyperparameterSample[n] = 0;
+    }
+  }
+
+  return hyperparameterSample;
 }
 
 void Agent::finalize()
@@ -1830,12 +1850,21 @@ void Agent::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Langevin Dynamics"))
  {
- try { _langevinDynamics = js["Langevin Dynamics"].get<int>();
+ try { _langevinDynamics = js["Langevin Dynamics"].get<float>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Langevin Dynamics']\n%s", e.what()); } 
    eraseValue(js, "Langevin Dynamics");
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Langevin Dynamics'] required by agent.\n"); 
+
+ if (isDefined(js, "Dropout"))
+ {
+ try { _dropout = js["Dropout"].get<float>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Dropout']\n%s", e.what()); } 
+   eraseValue(js, "Dropout");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Dropout'] required by agent.\n"); 
 
  if (isDefined(js, "Normal Generator"))
  {
@@ -2115,6 +2144,7 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Number Of SGD Samples"] = _numberOfSGDSamples;
    js["swag"] = _swag;
    js["Langevin Dynamics"] = _langevinDynamics;
+   js["Dropout"] = _dropout;
  if(_normalGenerator != NULL) _normalGenerator->getConfiguration(js["Normal Generator"]);
    js["Mini Batch"]["Size"] = _miniBatchSize;
    js["Mini Batch"]["Strategy"] = _miniBatchStrategy;
@@ -2184,7 +2214,7 @@ void Agent::getConfiguration(knlohmann::json& js)
 void Agent::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Environments\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Start Sampling Generation\": Infinity, \"Number Of SGD Samples\": 0, \"swag\": false, \"Langevin Dynamics\": false, \"Normal Generator\": {\"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Strategy\": \"Uniform\", \"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
+ std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Environments\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Start Sampling Generation\": Infinity, \"Number Of SGD Samples\": 0, \"swag\": false, \"Langevin Dynamics\": false, \"Dropout\": 0.0, \"Normal Generator\": {\"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Strategy\": \"Uniform\", \"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Solver::applyModuleDefaults(js);
