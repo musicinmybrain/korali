@@ -714,7 +714,7 @@ std::vector<std::pair<size_t, size_t>> Agent::generateMiniBatch()
   // Allocating storage for mini batch experiecne indexes
   std::vector<std::pair<size_t, size_t>> miniBatch(_miniBatchSize*numAgents);
 
-  // For Bayesian reinforcement learning we have to sample a minibatch for every policy
+  // When using an ensemble of policies we sample one minibatch for every policy
   if( _problem->_ensembleLearning )
     miniBatch = std::vector<std::pair<size_t, size_t>>(_miniBatchSize*_problem->_policiesPerEnvironment);
 
@@ -725,37 +725,14 @@ std::vector<std::pair<size_t, size_t>> Agent::generateMiniBatch()
     float x = _uniformGenerator->getRandomNumber();
 
     // Selecting experience
-    size_t expId = std::floor(x * (float)(_stateVector.size() - 1));
+    size_t expId = std::floor(x * (float)_stateVector.size());
+    expId = expId == _stateVector.size() ? _stateVector.size()-1 : expId;
 
     for (size_t a = 0; a < numAgents; a++)
     {
       // Setting experience
       miniBatch[b * numAgents + a].first = expId;
       miniBatch[b * numAgents + a].second = a;
-
-      // Sample agentId
-      if (_multiAgentSampling == "Experience")
-      {
-        // Producing random (uniform) number for the selection of the experience
-        float ax = _uniformGenerator->getRandomNumber();
-
-        // Selecting agent
-        miniBatch[b * numAgents + a].second = std::floor(ax * (float)(numAgents - 1));
-      }
-
-      // Sample both
-      if (_multiAgentSampling == "Baseline")
-      {
-        // Producing random (uniform) number for the selection of the experience
-        float ex = _uniformGenerator->getRandomNumber();
-        float ax = _uniformGenerator->getRandomNumber();
-
-        // Selecting experience
-        miniBatch[b * numAgents + a].first = std::floor(ex * (float)(_stateVector.size() - 1));
-
-        // Selecting agent
-        miniBatch[b * numAgents + a].second = std::floor(ax * (float)(numAgents - 1));
-      }
     }
   }
 
@@ -768,7 +745,8 @@ std::vector<std::pair<size_t, size_t>> Agent::generateMiniBatch()
       float x = _uniformGenerator->getRandomNumber();
 
       // Selecting experience
-      size_t expId = std::floor(x * (float)(_stateVector.size() - 1));
+      size_t expId = std::floor(x * (float)_stateVector.size());
+      expId = expId == _stateVector.size() ? _stateVector.size()-1 : expId;
 
       // Setting experience
       miniBatch[p * _miniBatchSize + b].first = expId;
@@ -1178,7 +1156,7 @@ std::vector<float> Agent::samplePosterior( const size_t policyIdx )
     hyperparameters = _hyperparameterVector[sampleIdx][policyIdx];
   }
 
-  // For SWAG sample of Gaussian approximation of Posterior
+  // For SWAG sample from Gaussian approximation of Posterior
   if( _swag )
   {
     // Retreive running estimates for first and second moment from optimizer
@@ -1190,22 +1168,33 @@ std::vector<float> Agent::samplePosterior( const size_t policyIdx )
     const auto secondMoment = adamOptimizer->_secondMoment;
 
     // Retreive current value of hyperparameters
-    hyperparameters = _criticPolicyLearner[policyIdx]->_optimizer->_currentValue;
+    hyperparameters = _criticPolicyLearner[policyIdx]->getHyperparameters();
 
     // Pre-compute constants
     const float invSqrt2 = 1 / std::sqrt(2);
-    #pragma omp parallel for
+    const float firstCentralMomentFactor = 1.0f / (1.0f - adamOptimizer->_beta1Pow);
+    const float secondCentralMomentFactor = 1.0f / (1.0f - adamOptimizer->_beta2Pow);
+
+    // #pragma omp parallel for
     for( size_t n = 0; n<hyperparameters.size(); n++ )
     {
-      // Compute centered 
-      const float sigma = secondMoment[n] - firstMoment[n]*firstMoment[n];
+      // Compute unbiased estimators of moments
+      const float unbiasedFirstMoment = firstCentralMomentFactor * firstMoment[n];
+      const float unbiasedSecondMoment = secondCentralMomentFactor * secondMoment[n];
+
+      // Compute centered second moment
+      const float var = unbiasedSecondMoment - unbiasedFirstMoment*unbiasedFirstMoment;
 
       // Check to avoid negative argument to the sqrt
-      if( sigma < 0.0 )
-        KORALI_LOG_ERROR("sigma=%e is negative.", sigma);
+      if( var < 0.0 )
+        KORALI_LOG_ERROR("var=%e-%e=%e is negative.", unbiasedSecondMoment, unbiasedFirstMoment*unbiasedFirstMoment, var);
+
+      const float sigma = std::sqrt(var);
       
       // Update Hyperparameters
+      printf("before: hyperparameters[n]=%e\n",hyperparameters[n]);
       hyperparameters[n] += ( invSqrt2 * sigma ) * _normalGenerator->getRandomNumber();
+      printf("after: hyperparameters[n]=%e, sigma=%e, var=%e\n",hyperparameters[n],sigma,var);
     }
   }
 
@@ -2078,22 +2067,6 @@ void Agent::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Multi Agent Correlation'] required by agent.\n"); 
 
- if (isDefined(js, "Multi Agent Sampling"))
- {
- try { _multiAgentSampling = js["Multi Agent Sampling"].get<std::string>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Multi Agent Sampling']\n%s", e.what()); } 
-{
- bool validOption = false; 
- if (_multiAgentSampling == "Tuple") validOption = true; 
- if (_multiAgentSampling == "Baseline") validOption = true; 
- if (_multiAgentSampling == "Experience") validOption = true; 
- if (validOption == false) KORALI_LOG_ERROR(" + Unrecognized value (%s) provided for mandatory setting: ['Multi Agent Sampling'] required by agent.\n", _multiAgentSampling.c_str()); 
-}
-   eraseValue(js, "Multi Agent Sampling");
- }
-  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Multi Agent Sampling'] required by agent.\n"); 
-
  if (isDefined(js, "Termination Criteria", "Max Episodes"))
  {
  try { _maxEpisodes = js["Termination Criteria"]["Max Episodes"].get<size_t>();
@@ -2168,7 +2141,6 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Reward"]["Rescaling"]["Enabled"] = _rewardRescalingEnabled;
    js["Multi Agent Relationship"] = _multiAgentRelationship;
    js["Multi Agent Correlation"] = _multiAgentCorrelation;
-   js["Multi Agent Sampling"] = _multiAgentSampling;
    js["Termination Criteria"]["Max Episodes"] = _maxEpisodes;
    js["Termination Criteria"]["Max Experiences"] = _maxExperiences;
    js["Termination Criteria"]["Max Policy Updates"] = _maxPolicyUpdates;
@@ -2214,7 +2186,7 @@ void Agent::getConfiguration(knlohmann::json& js)
 void Agent::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Environments\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Multi Agent Sampling\": \"Tuple\", \"Start Sampling Generation\": Infinity, \"Number Of SGD Samples\": 0, \"swag\": false, \"Langevin Dynamics\": false, \"Normal Generator\": {\"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Strategy\": \"Uniform\", \"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
+ std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Environments\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Start Sampling Generation\": Infinity, \"Number Of SGD Samples\": 0, \"swag\": false, \"Langevin Dynamics\": false, \"Normal Generator\": {\"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Strategy\": \"Uniform\", \"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Solver::applyModuleDefaults(js);

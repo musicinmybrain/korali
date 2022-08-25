@@ -230,10 +230,6 @@ class Agent : public Solver
   */
    int _multiAgentCorrelation;
   /**
-  * @brief Specifies how to sample the minibatch.
-  */
-   std::string _multiAgentSampling;
-  /**
   * @brief [Internal Use] Stores the number of parameters that determine the probability distribution for the current state sequence.
   */
    size_t _policyParameterCount;

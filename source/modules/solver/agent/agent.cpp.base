@@ -710,7 +710,7 @@ std::vector<std::pair<size_t, size_t>> __className__::generateMiniBatch()
   // Allocating storage for mini batch experiecne indexes
   std::vector<std::pair<size_t, size_t>> miniBatch(_miniBatchSize*numAgents);
 
-  // For Bayesian reinforcement learning we have to sample a minibatch for every policy
+  // When using an ensemble of policies we sample one minibatch for every policy
   if( _problem->_ensembleLearning )
     miniBatch = std::vector<std::pair<size_t, size_t>>(_miniBatchSize*_problem->_policiesPerEnvironment);
 
@@ -721,37 +721,14 @@ std::vector<std::pair<size_t, size_t>> __className__::generateMiniBatch()
     float x = _uniformGenerator->getRandomNumber();
 
     // Selecting experience
-    size_t expId = std::floor(x * (float)(_stateVector.size() - 1));
+    size_t expId = std::floor(x * (float)_stateVector.size());
+    expId = expId == _stateVector.size() ? _stateVector.size()-1 : expId;
 
     for (size_t a = 0; a < numAgents; a++)
     {
       // Setting experience
       miniBatch[b * numAgents + a].first = expId;
       miniBatch[b * numAgents + a].second = a;
-
-      // Sample agentId
-      if (_multiAgentSampling == "Experience")
-      {
-        // Producing random (uniform) number for the selection of the experience
-        float ax = _uniformGenerator->getRandomNumber();
-
-        // Selecting agent
-        miniBatch[b * numAgents + a].second = std::floor(ax * (float)(numAgents - 1));
-      }
-
-      // Sample both
-      if (_multiAgentSampling == "Baseline")
-      {
-        // Producing random (uniform) number for the selection of the experience
-        float ex = _uniformGenerator->getRandomNumber();
-        float ax = _uniformGenerator->getRandomNumber();
-
-        // Selecting experience
-        miniBatch[b * numAgents + a].first = std::floor(ex * (float)(_stateVector.size() - 1));
-
-        // Selecting agent
-        miniBatch[b * numAgents + a].second = std::floor(ax * (float)(numAgents - 1));
-      }
     }
   }
 
@@ -764,7 +741,8 @@ std::vector<std::pair<size_t, size_t>> __className__::generateMiniBatch()
       float x = _uniformGenerator->getRandomNumber();
 
       // Selecting experience
-      size_t expId = std::floor(x * (float)(_stateVector.size() - 1));
+      size_t expId = std::floor(x * (float)_stateVector.size());
+      expId = expId == _stateVector.size() ? _stateVector.size()-1 : expId;
 
       // Setting experience
       miniBatch[p * _miniBatchSize + b].first = expId;
@@ -1174,7 +1152,7 @@ std::vector<float> __className__::samplePosterior( const size_t policyIdx )
     hyperparameters = _hyperparameterVector[sampleIdx][policyIdx];
   }
 
-  // For SWAG sample of Gaussian approximation of Posterior
+  // For SWAG sample from Gaussian approximation of Posterior
   if( _swag )
   {
     // Retreive running estimates for first and second moment from optimizer
@@ -1186,22 +1164,33 @@ std::vector<float> __className__::samplePosterior( const size_t policyIdx )
     const auto secondMoment = adamOptimizer->_secondMoment;
 
     // Retreive current value of hyperparameters
-    hyperparameters = _criticPolicyLearner[policyIdx]->_optimizer->_currentValue;
+    hyperparameters = _criticPolicyLearner[policyIdx]->getHyperparameters();
 
     // Pre-compute constants
     const float invSqrt2 = 1 / std::sqrt(2);
-    #pragma omp parallel for
+    const float firstCentralMomentFactor = 1.0f / (1.0f - adamOptimizer->_beta1Pow);
+    const float secondCentralMomentFactor = 1.0f / (1.0f - adamOptimizer->_beta2Pow);
+
+    // #pragma omp parallel for
     for( size_t n = 0; n<hyperparameters.size(); n++ )
     {
-      // Compute centered 
-      const float sigma = secondMoment[n] - firstMoment[n]*firstMoment[n];
+      // Compute unbiased estimators of moments
+      const float unbiasedFirstMoment = firstCentralMomentFactor * firstMoment[n];
+      const float unbiasedSecondMoment = secondCentralMomentFactor * secondMoment[n];
+
+      // Compute centered second moment
+      const float var = unbiasedSecondMoment - unbiasedFirstMoment*unbiasedFirstMoment;
 
       // Check to avoid negative argument to the sqrt
-      if( sigma < 0.0 )
-        KORALI_LOG_ERROR("sigma=%e is negative.", sigma);
+      if( var < 0.0 )
+        KORALI_LOG_ERROR("var=%e-%e=%e is negative.", unbiasedSecondMoment, unbiasedFirstMoment*unbiasedFirstMoment, var);
+
+      const float sigma = std::sqrt(var);
       
       // Update Hyperparameters
+      printf("before: hyperparameters[n]=%e\n",hyperparameters[n]);
       hyperparameters[n] += ( invSqrt2 * sigma ) * _normalGenerator->getRandomNumber();
+      printf("after: hyperparameters[n]=%e, sigma=%e, var=%e\n",hyperparameters[n],sigma,var);
     }
   }
 

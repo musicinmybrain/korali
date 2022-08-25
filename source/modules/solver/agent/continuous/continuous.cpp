@@ -101,6 +101,8 @@ void Continuous::initializeAgent()
 
 void Continuous::getAction(korali::Sample &sample)
 {
+  const size_t numPolicies = _problem->_policiesPerEnvironment;
+
   // Get action for all the agents in the environment
   for (size_t i = 0; i < _problem->_agentsPerEnvironment; i++)
   {
@@ -120,9 +122,10 @@ void Continuous::getAction(korali::Sample &sample)
     {
       // Producing random number and select policy to produce the action
       const float x = _uniformGenerator->getRandomNumber();
-      const size_t policyIdx = std::floor( x*_problem->_policiesPerEnvironment );
+      size_t policyIdx = std::floor( x * (float)numPolicies );
+      policyIdx = policyIdx == numPolicies ? numPolicies-1 : policyIdx;
       
-      if ( (_swag || _langevinDynamics) && (_k->_currentGeneration >= _startSamplingGeneration) )
+      if ( (_swag || _langevinDynamics) && (_k->_currentGeneration >= _startSamplingGeneration) && (_policyUpdateCount>0) )
       {
         // Compute posterior sample
         auto hyperparameters = samplePosterior( policyIdx );
