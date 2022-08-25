@@ -1192,9 +1192,7 @@ std::vector<float> Agent::samplePosterior( const size_t policyIdx )
       const float sigma = std::sqrt(var);
       
       // Update Hyperparameters
-      printf("before: hyperparameters[n]=%e\n",hyperparameters[n]);
       hyperparameters[n] += ( invSqrt2 * sigma ) * _normalGenerator->getRandomNumber();
-      printf("after: hyperparameters[n]=%e, sigma=%e, var=%e\n",hyperparameters[n],sigma,var);
     }
   }
 
