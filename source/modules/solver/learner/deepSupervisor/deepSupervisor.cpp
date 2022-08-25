@@ -366,7 +366,7 @@ void DeepSupervisor::runEpoch()
         const auto dloss = KORALI_GET(std::vector<float>, samples[wId], "Hyperparameter Gradients");
         assert(dloss.size() ==  nnHyperparameterGradients.size());
         // Calculate the sum of the gradient batches/mean would only change the learning rate.
-        std::transform(nnHyperparameterGradients.begin(), nnHyperparameterGradients.end(), dloss.begin(), nnHyperparameterGradients.begin(), std::plus<float>());
+        std::transform(nnHyperparameterGradients.begin(), nnHyperparameterGradients.end(), dloss.begin(), nnHyperparameterGradients.begin(), std::minus<float>());
       }
       if(_mode == "Automatic Training"){
         // Need to update the weiths after each mini batch =======================================================================
