@@ -1,4 +1,5 @@
 deep_learner_loss_header = files([
+  'negative_log_likelihood.hpp',
   'cross_entropy.hpp',
   'mse.hpp',
   'loss.hpp',
@@ -8,6 +9,7 @@ install_headers(deep_learner_loss_header,
 )
 
 deep_learner_loss_source = files([
+  'negative_log_likelihood.cpp',
   'cross_entropy.cpp',
   'mse.cpp',
   'loss.cpp',

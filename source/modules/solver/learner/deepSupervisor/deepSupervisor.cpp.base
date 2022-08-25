@@ -178,10 +178,12 @@ void __className__::initialize()
    *****************************************************************************/
   if (_lossFunction == "Direct Gradient" || _lossFunction.empty())
     _loss = NULL;
-  else if (_lossFunction == "Mean Squared Error")
+  else if (_lossFunction == "Mean Squared Error" || _lossFunction == "MSE")
     _loss = new korali::loss::MSE();
-  else if (_lossFunction == "Cross Entropy")
+  else if (_lossFunction == "Cross Entropy" || _lossFunction == "CE")
     _loss = new korali::loss::CrossEntropy();
+  else if (_lossFunction == "Negative Log Likelihood" || _lossFunction == "NLL")
+    _loss = new korali::loss::NLL();
   else
     KORALI_LOG_ERROR("Unkown Loss Function %s", _lossFunction.c_str());
   if(_loss)

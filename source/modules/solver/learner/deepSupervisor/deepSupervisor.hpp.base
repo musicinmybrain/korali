@@ -14,6 +14,7 @@
 #include "modules/solver/learner/deepSupervisor/loss_functions/loss.hpp"
 #include "modules/solver/learner/deepSupervisor/loss_functions/mse.hpp"
 #include "modules/solver/learner/deepSupervisor/loss_functions/cross_entropy.hpp"
+#include "modules/solver/learner/deepSupervisor/loss_functions/negative_log_likelihood.hpp"
 #include "modules/solver/learner/deepSupervisor/regularizers/regularizer.hpp"
 #include "modules/solver/learner/deepSupervisor/regularizers/l2.hpp"
 #include "modules/solver/learner/deepSupervisor/regularizers/l1.hpp"
