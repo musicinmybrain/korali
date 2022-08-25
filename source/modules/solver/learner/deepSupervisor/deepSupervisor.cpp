@@ -231,7 +231,7 @@ void DeepSupervisor::initialize()
    *****************************************************************************/
   if (_metricsType == "Accuracy")
     _metrics = new korali::metrics::Accuracy();
-  else
+  else if (_metricsType != "")
     KORALI_LOG_ERROR("Unkown Accuracy Function %s", _metricsType.c_str());
   /*****************************************************************
    * Initializing NN hyperparameters
@@ -1052,8 +1052,9 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
     }
       {
         bool validOption = false; 
+        if (_metricsType == "") validOption = true; 
         if (_metricsType == "Accuracy") validOption = true; 
-        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Metrics']['Type'] required by deepSupervisor.\n Valid Options are:\n  - Accuracy\n",_metricsType.c_str()); 
+        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Metrics']['Type'] required by deepSupervisor.\n Valid Options are:\n  - \n  - Accuracy\n",_metricsType.c_str()); 
       }
     eraseValue(js, "Metrics", "Type");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Metrics']['Type'] required by deepSupervisor.\n"); 
@@ -1260,7 +1261,7 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
 void DeepSupervisor::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Regularizer\": {\"Coefficient\": 0.0001, \"Type\": \"None\"}, \"Loss Function\": \"Direct Gradient\", \"Learning Rate Type\": \"Const\", \"Learning Rate Save\": true, \"Learning Rate Decay Factor\": 100, \"Learning Rate Steps\": 0, \"Learning Rate Lower Bound\": -10000000000, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}}, \"Metrics\": {\"Type\": \"\"}, \"Termination Criteria\": {\"Epochs\": 10000000000, \"Is One Epoch Finished\": false, \"Target Loss\": -1.0, \"Max Generations\": 10000000000}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1, \"Epoch Count\": 0, \"Data\": {\"Validation\": {\"Split\": 0.0}, \"Training\": {\"Shuffel\": true}, \"Input\": {\"Shuffel\": true}}}";
+ std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Regularizer\": {\"Coefficient\": 0.0001, \"Type\": \"None\"}, \"Loss Function\": \"Direct Gradient\", \"Learning Rate Type\": \"Const\", \"Learning Rate Save\": true, \"Learning Rate Decay Factor\": 100, \"Learning Rate Steps\": 0, \"Learning Rate Lower Bound\": -10000000000, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}, \"Hidden Layers\": {}}, \"Metrics\": {\"Type\": \"\"}, \"Termination Criteria\": {\"Epochs\": 10000000000, \"Is One Epoch Finished\": false, \"Target Loss\": -1.0, \"Max Generations\": 10000000000}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1, \"Epoch Count\": 0, \"Data\": {\"Validation\": {\"Split\": 0.0}, \"Training\": {\"Shuffel\": true}, \"Input\": {\"Shuffel\": true}}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Learner::applyModuleDefaults(js);

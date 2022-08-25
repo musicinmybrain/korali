@@ -225,7 +225,7 @@ void __className__::initialize()
    *****************************************************************************/
   if (_metricsType == "Accuracy")
     _metrics = new korali::metrics::Accuracy();
-  else
+  else if (_metricsType != "")
     KORALI_LOG_ERROR("Unkown Accuracy Function %s", _metricsType.c_str());
   /*****************************************************************
    * Initializing NN hyperparameters
