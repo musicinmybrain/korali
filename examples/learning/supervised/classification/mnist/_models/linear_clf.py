@@ -11,12 +11,9 @@ def LogisticRegression(e, img_width, img_height, channels, latentDim):
     """
     input_size = img_width*img_height*channels
     e["Problem"]["Input"]["Size"] = input_size
-    lidx = 0
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Linear"
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Output Channels"] = 10
-    lidx = lidx+1
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Activation"
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Function"] = "Softmax"
+    ## Linear Layer =============================================================================
+    ## Is automatically added by giving the output size of 10
+    e["Solver"]["Neural Network"]["Output Activation"] = "Softmax"
 
 
 def LinearClf(e, img_width, img_height, channels, latentDim):
