@@ -15,15 +15,24 @@ namespace korali
       for(size_t k = 0; k < classes; k++){
         loss = std::fma(y_true[k], std::log(y_pred[k]), loss);
       }
-      return loss;
+      return -loss;
     }
 
     std::vector<float> CrossEntropy::dloss(const std::vector<float>& y_true, const std::vector<float>& y_pred){
-      std::vector<float> dloss{y_pred};
-      size_t classes  = dloss.size();
-      for(size_t k = 0; k < classes; k++){
-        dloss[k] -= y_true[k];
-      }
+      /*
+       * for(size_t k = 0; k < classes; k++){
+       * dloss[k] = y_pred[k] - y_true[k];
+       * */
+      size_t classes  = y_true.size();
+      std::vector<float> dloss;
+      dloss.reserve(classes);
+      std::transform(
+        std::execution::par_unseq,
+        std::begin(y_true),
+        std::end(y_true),
+        std::begin(y_pred),
+        std::begin(dloss),
+        [] (auto y, auto yhat) { return yhat-y; });
       return dloss;
     }
 

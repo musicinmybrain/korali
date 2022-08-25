@@ -11,8 +11,12 @@ namespace korali
     namespace loss{
         class CrossEntropy: public Loss
         {
-            virtual float loss(const std::vector<float>& y_true, const std::vector<float>& y_pred) override;
-            virtual std::vector<float> dloss(const std::vector<float>& y_true, const std::vector<float>& y_pred) override;
+            public:
+                CrossEntropy(bool isInputLogits = false) : _isInputLogits{isInputLogits} {};
+                virtual float loss(const std::vector<float>& y_true, const std::vector<float>& y_pred) override;
+                virtual std::vector<float> dloss(const std::vector<float>& y_true, const std::vector<float>& y_pred) override;
+            private:
+                const bool _isInputLogits;
         };
     } // namespace loss
 } // namespace korali
