@@ -366,21 +366,7 @@ void DeepSupervisor::runEpoch()
         // Calculate the sum of the gradient batches/mean would only change the learning rate.
         std::transform(nnHyperparameterGradients.begin(), nnHyperparameterGradients.end(), dloss.begin(), nnHyperparameterGradients.begin(), std::minus<float>());
       }
-      if(_mode == "Automatic Training"){
-        // Need to update the weiths after each mini batch =======================================================================
-        // Add the Regularizer to the derivative of the loss if given ============================================================
-        if(_regularizer){
-          _currentTrainingLoss += _regularizer->penality(_neuralNetwork->getHyperparameters());
-          auto d_penalty = _regularizer->d_penality(_neuralNetwork->getHyperparameters());
-          std::transform(std::execution::par_unseq, std::begin(nnHyperparameterGradients), std::end(nnHyperparameterGradients), std::begin(d_penalty), std::begin(nnHyperparameterGradients), std::minus<float>());
-        }
-        updateWeights(nnHyperparameterGradients);
-      }
-    }
-    // TODO: take care of remainder ==========================================================================================
-    // =======================================================================================================================
-    // Need to update the weiths after each mini batch =======================================================================
-    if(_mode == "Training"){
+      // Need to update the weiths after each mini batch =======================================================================
       // Add the Regularizer to the derivative of the loss if given ============================================================
       if(_regularizer){
         _currentTrainingLoss += _regularizer->penality(_neuralNetwork->getHyperparameters());
@@ -389,6 +375,14 @@ void DeepSupervisor::runEpoch()
       }
       updateWeights(nnHyperparameterGradients);
     }
+    // TODO: take care of remainder ==========================================================================================
+    // =======================================================================================================================
+        // if(_hasValidationSet && _loss){
+        //   _currentValidationLoss = 0.0f;
+        //   auto y_val = getEvaluation(_problem->_dataValidationInput);
+        //   _currentValidationLoss += _loss->loss(y_val, _problem->_dataValidationSolution);
+        // }
+    // Calculate the training loss if a loss function is given (Direct grad otherwise) =======================================
         // if(_hasValidationSet && _loss){
         //   _currentValidationLoss = 0.0f;
         //   auto y_val = getEvaluation(_problem->_dataValidationInput);
