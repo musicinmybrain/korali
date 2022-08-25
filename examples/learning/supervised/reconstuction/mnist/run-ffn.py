@@ -96,7 +96,7 @@ random.shuffle(trainingImages)
 nb_training_samples = len(trainingImages)
 nb_training_samples = int((nb_training_samples*(1-args.validationSplit))/args.trainingBS)*args.trainingBS
 nb_validation_samples = int((len(trainingImages)*args.validationSplit)/args.testingBS)*args.testingBS
-if args.verbosity in ["Normal, Detailed"]:
+if args.verbosity in ["Normal", "Detailed"]:
     print(f'{nb_training_samples} training samples')
     print(f'Discarding {int(len(trainingImages)*(1-args.validationSplit)-nb_training_samples)} training samples')
     print(f'{nb_validation_samples} validation samples')
@@ -122,7 +122,7 @@ if len(sys.argv) != 0:
 sys.argv = tmp
 
 ### Print Header
-if args.verbosity in ["Normal, Detailed"]:
+if args.verbosity in ["Normal", "Detailed"]:
     print_header('Korali', color=bcolors.HEADER, width=140)
     print_args(vars(args), sep=' ', header_width=140)
 ### Load Previous model if desired
@@ -134,7 +134,7 @@ if args.load_model:
     isStateFound = e.loadState(results_file)
     if not isStateFound:
         sys.exit(f"No model file for {results_file} found")
-    if isStateFound and args.verbosity in ["Normal, Detailed"]:
+    if isStateFound and args.verbosity in ["Normal", "Detailed"]:
         print("[Script] Evaluating previous run...\n")
 k["Conduit"]["Type"] = "Sequential"
 ### Configuring general problem settings
@@ -159,7 +159,7 @@ e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 autoencoder(e, img_width, img_height, input_channels, args.latentDim)
 # ================================================================================
 ### Configuring output
-e["Console Output"]["Verbosity"] = "Silent"
+e["Console Output"]["Verbosity"] = args.verbosity
 e["Random Seed"] = 0xC0FFEE
 if args.save:
     e["File Output"]["Enabled"] = True
@@ -254,7 +254,7 @@ elif args.mode == "Training":
             tp = time.time()-tp_start
             val_loss = test_epoch(e)
             # print(f'EPOCH {epoch + 1}/{args.epochs} {tp:.3f}s \t val loss {val_loss:.3f}')
-            if args.verbosity in ["Normal, Detailed"]:
+            if args.verbosity in ["Normal", "Detailed"]:
                 print(f'EPOCH {epoch + 1}/{args.epochs} {tp:.3f}s \t train loss {train_loss:.3f} \t val loss {val_loss:.3f}')
             history['Training Loss'].append(train_loss)
             history['Validation Loss'].append(val_loss)
@@ -352,5 +352,5 @@ if args.plot:
         #     ax2.plot(epochs, results["Learning Rate"], color=lr_c)
         #     fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
-    if args.verbosity in ["Normal, Detailed"]:
+    if args.verbosity in ["Normal", "Detailed"]:
         print_header(width=140)
