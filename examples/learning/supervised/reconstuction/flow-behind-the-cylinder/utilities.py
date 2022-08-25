@@ -305,7 +305,7 @@ def make_parser():
                         help='Model to use.', default=AUTOENCODER)
     parser.add_argument('--verbosity',
                         choices=[SILENT, NORMAL, DETAILED],
-                        help='Verbosity Level', default="Normal")
+                        help='Verbosity Level', default=NORMAL)
     parser.add_argument(
         "-l",
         "--load-model",
