@@ -306,6 +306,8 @@ void DeepSupervisor::runEpoch()
       KORALI_LOG_ERROR("Non finite input training values");
     if(std::any_of(solutionDataFlat.begin(), solutionDataFlat.end(), [](const float v) { return !std::isfinite(v);}))
       KORALI_LOG_ERROR("Non finite input solution values");
+    if(_mode == "Training" && BS != N)
+      KORALI_LOG_ERROR("[Mode Training]: Batch Size %zu is must be equal to the size of the input set %zu", BS, N);
 #endif
     // Running epochs
     size_t bId; // batch id
@@ -481,6 +483,7 @@ void DeepSupervisor::runPrediction()
     auto inputDataFlat = flatten(_problem->_inputData);
     // Running epochs
     size_t wId; // worker id
+    size_t input_size_per_BS = T*IC;
     std::vector<Sample> samples(_batchConcurrency);
     for (wId = 0; wId < _batchConcurrency; wId++)
     {
@@ -488,7 +491,7 @@ void DeepSupervisor::runPrediction()
       samples[wId]["Module"] = "Solver";
       samples[wId]["Operation"] = "Forward Data";
       samples[wId]["Input Dims"] = std::vector<size_t> {NW, T, IC};
-      samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+wId*NW*T*IC, inputDataFlat.begin()+(wId+1)*NW*T*IC);
+      samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+wId*NW*input_size_per_BS, inputDataFlat.begin()+(wId+1)*NW*input_size_per_BS);
       samples[wId]["Hyperparameters"] = nnHyperparameters;
     }
     if(_batchConcurrency > 1){
@@ -669,6 +672,9 @@ void __className__::printGenerationAfter()
     if(_epochCount>=_epochs){
       _k->_logger->logInfo("Normal", "\n");
     }
+    if (_mode == "Automatic Training"){
+
+    }
   }
   if (_mode == "Predict")
   {
@@ -680,7 +686,7 @@ void __className__::printRunAfter(){
   if(_mode == "Automatic Training"){
     Solver::printRunAfter();
   } else if(_mode == "Training" && _epochCount>=_epochs){
-    Solver::printRunAfter();
+    // Solver::printRunAfter();
   }
 }
 

@@ -312,6 +312,8 @@ void DeepSupervisor::runEpoch()
       KORALI_LOG_ERROR("Non finite input training values");
     if(std::any_of(solutionDataFlat.begin(), solutionDataFlat.end(), [](const float v) { return !std::isfinite(v);}))
       KORALI_LOG_ERROR("Non finite input solution values");
+    if(_mode == "Training" && BS != N)
+      KORALI_LOG_ERROR("[Mode Training]: Batch Size %zu is must be equal to the size of the input set %zu", BS, N);
 #endif
     // Running epochs
     size_t bId; // batch id
@@ -487,6 +489,7 @@ void DeepSupervisor::runPrediction()
     auto inputDataFlat = flatten(_problem->_inputData);
     // Running epochs
     size_t wId; // worker id
+    size_t input_size_per_BS = T*IC;
     std::vector<Sample> samples(_batchConcurrency);
     for (wId = 0; wId < _batchConcurrency; wId++)
     {
@@ -494,7 +497,7 @@ void DeepSupervisor::runPrediction()
       samples[wId]["Module"] = "Solver";
       samples[wId]["Operation"] = "Forward Data";
       samples[wId]["Input Dims"] = std::vector<size_t> {NW, T, IC};
-      samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+wId*NW*T*IC, inputDataFlat.begin()+(wId+1)*NW*T*IC);
+      samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+wId*NW*input_size_per_BS, inputDataFlat.begin()+(wId+1)*NW*input_size_per_BS);
       samples[wId]["Hyperparameters"] = nnHyperparameters;
     }
     if(_batchConcurrency > 1){
@@ -675,6 +678,9 @@ void DeepSupervisor::printGenerationAfter()
     if(_epochCount>=_epochs){
       _k->_logger->logInfo("Normal", "\n");
     }
+    if (_mode == "Automatic Training"){
+
+    }
   }
   if (_mode == "Predict")
   {
@@ -686,7 +692,7 @@ void DeepSupervisor::printRunAfter(){
   if(_mode == "Automatic Training"){
     Solver::printRunAfter();
   } else if(_mode == "Training" && _epochCount>=_epochs){
-    Solver::printRunAfter();
+    // Solver::printRunAfter();
   }
 }
 
@@ -976,8 +982,12 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
         bool validOption = false; 
         if (_lossFunction == "Direct Gradient") validOption = true; 
         if (_lossFunction == "Mean Squared Error") validOption = true; 
+        if (_lossFunction == "MSE") validOption = true; 
         if (_lossFunction == "Cross Entropy") validOption = true; 
-        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Loss Function'] required by deepSupervisor.\n Valid Options are:\n  - Direct Gradient\n  - Mean Squared Error\n  - Cross Entropy\n",_lossFunction.c_str()); 
+        if (_lossFunction == "CE") validOption = true; 
+        if (_lossFunction == "Negative Log Likelihood") validOption = true; 
+        if (_lossFunction == "NLL") validOption = true; 
+        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Loss Function'] required by deepSupervisor.\n Valid Options are:\n  - Direct Gradient\n  - Mean Squared Error\n  - MSE\n  - Cross Entropy\n  - CE\n  - Negative Log Likelihood\n  - NLL\n",_lossFunction.c_str()); 
       }
     eraseValue(js, "Loss Function");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Loss Function'] required by deepSupervisor.\n"); 
