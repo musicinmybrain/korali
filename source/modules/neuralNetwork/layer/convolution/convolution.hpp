@@ -53,6 +53,10 @@ class Convolution : public Layer
   */
    ssize_t _horizontalStride;
   /**
+  * @brief Strides for the image on the vertical/horizontal dimension.
+  */
+   ssize_t _stride;
+  /**
   * @brief Paddings for the image left side.
   */
    ssize_t _paddingLeft;
@@ -68,6 +72,22 @@ class Convolution : public Layer
   * @brief Paddings for the image Bottom side.
   */
    ssize_t _paddingBottom;
+  /**
+  * @brief Paddings for the image Top and Bottom side.
+  */
+   ssize_t _paddingVertical;
+  /**
+  * @brief Paddings for the image left and right side.
+  */
+   ssize_t _paddingHorizontal;
+  /**
+  * @brief Paddings for the image Bottom side.
+  */
+   ssize_t _padding;
+  /**
+  * @brief If specified 'Ouput Channels is calculated automatically
+  */
+   ssize_t _filters;
   
  
   /**
