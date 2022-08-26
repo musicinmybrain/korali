@@ -176,7 +176,7 @@ void __className__::initialize()
   /*****************************************************************************
    * Setting up the LOSS FUNCTION
    *****************************************************************************/
-  if (_lossFunction == "Direct Gradient" || _lossFunction.empty())
+  if (_lossFunction == "Direct Gradient" || _lossFunction == "DG" || _lossFunction.empty())
     _loss = NULL;
   else if (_lossFunction == "Mean Squared Error" || _lossFunction == "MSE")
     _loss = new korali::loss::MSE();

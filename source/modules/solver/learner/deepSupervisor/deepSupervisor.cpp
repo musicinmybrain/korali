@@ -182,7 +182,7 @@ void DeepSupervisor::initialize()
   /*****************************************************************************
    * Setting up the LOSS FUNCTION
    *****************************************************************************/
-  if (_lossFunction == "Direct Gradient" || _lossFunction.empty())
+  if (_lossFunction == "Direct Gradient" || _lossFunction == "DG" || _lossFunction.empty())
     _loss = NULL;
   else if (_lossFunction == "Mean Squared Error" || _lossFunction == "MSE")
     _loss = new korali::loss::MSE();
@@ -975,13 +975,14 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
       {
         bool validOption = false; 
         if (_lossFunction == "Direct Gradient") validOption = true; 
+        if (_lossFunction == "DG") validOption = true; 
         if (_lossFunction == "Mean Squared Error") validOption = true; 
         if (_lossFunction == "MSE") validOption = true; 
         if (_lossFunction == "Cross Entropy") validOption = true; 
         if (_lossFunction == "CE") validOption = true; 
         if (_lossFunction == "Negative Log Likelihood") validOption = true; 
         if (_lossFunction == "NLL") validOption = true; 
-        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Loss Function'] required by deepSupervisor.\n Valid Options are:\n  - Direct Gradient\n  - Mean Squared Error\n  - MSE\n  - Cross Entropy\n  - CE\n  - Negative Log Likelihood\n  - NLL\n",_lossFunction.c_str()); 
+        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Loss Function'] required by deepSupervisor.\n Valid Options are:\n  - Direct Gradient\n  - DG\n  - Mean Squared Error\n  - MSE\n  - Cross Entropy\n  - CE\n  - Negative Log Likelihood\n  - NLL\n",_lossFunction.c_str()); 
       }
     eraseValue(js, "Loss Function");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Loss Function'] required by deepSupervisor.\n"); 
