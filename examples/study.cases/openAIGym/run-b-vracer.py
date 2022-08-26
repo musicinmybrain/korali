@@ -14,8 +14,11 @@ parser.add_argument('--l2', help='L2 Regularization.', required=False, type=floa
 parser.add_argument('--opt', help='Off Policy Target.', required=False, type=float, default = 0.1)
 parser.add_argument('--lr', help='Learning Rate.', required=False, type=float, default = 0.0001)
 parser.add_argument('--nPolicies', help='Number of Policies in Ensemble.', required=False, type=int, default = 1)
-parser.add_argument('--startSampling', help='Number of Epsisodes before Sampling starts.', required=False, type=int, default = 100)
-parser.add_argument('--nSGD', help='Number of Hyperparameters recorded along the SGD trajectory.', required=False, type=int, default = 10)
+parser.add_argument('--bBayesian', help='Boolean to decide whether we use Bayesian Learning.', required=False, type=bool, default = True)
+parser.add_argument('--nSGD', help='Number of Hyperparameters recorded along the SGD trajectory.', required=False, type=int, default = 1)
+parser.add_argument('--bSWAG', help='Boolean to decide whether we use SWAG.', required=False, type=bool, default = False)
+parser.add_argument('--langevin', help='Weighting of gradient noise for Langevin Dynamics.', required=False, type=float, default=0.0)
+parser.add_argument('--dropout', help='Dropout probability.', required=False, type=float, default=0.01)
 args = parser.parse_args()
 print(args)
 
@@ -51,17 +54,17 @@ e["Problem"]["Policies Per Environment"] = args.nPolicies
 e["Problem"]["Ensemble Learning"] = args.nPolicies > 1
 
 # Posterior Sampling
-e["Solver"]["Start Sampling Generation"] = args.startSampling
+e["Solver"]["Bayesian Learning"] =args.bBayesian
 e["Solver"]["Number Of SGD Samples"] = args.nSGD
 
 # Enable SWAG (https://arxiv.org/pdf/1902.02476.pdf)
-e["Solver"]["swag"] = True
+e["Solver"]["swag"] = args.bSWAG
 
-# Enable Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
-e["Solver"]["Langevin Dynamics"] = False
+# Coefficient to control magnitude of noise for Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
+e["Solver"]["Langevin Dynamics"] = args.langevin
 
 # Enable Dropout (https://proceedings.mlr.press/v48/gal16.html)
-e["Solver"]["Dropout"] = 0.0
+e["Solver"]["Dropout"] = args.dropout
 
 ### Setting Experience Replay and REFER settings
 
