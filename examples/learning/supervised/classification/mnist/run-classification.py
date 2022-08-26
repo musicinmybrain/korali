@@ -9,7 +9,6 @@ import random
 import json
 from korali.auxiliar.printing import *
 sys.path.append(os.path.abspath('./_models'))
-import torch
 sys.path.append(os.path.abspath('..'))
 from mnist import MNIST
 import matplotlib
@@ -20,6 +19,7 @@ from matplotlib.ticker import MaxNLocator
 from korali.plot.helpers import hlsColors, drawMulticoloredLine
 import seaborn as sns
 from utilities import make_parser
+from utilities import train_epoch, test_epoch
 from sklearn.preprocessing import OneHotEncoder
 from korali.plot.__main__ import main
 parser = make_parser()
@@ -202,90 +202,6 @@ elif args.mode == "Training":
     trainingImages = add_dimension_to_elements(trainingImages)
     validationImages = add_dimension_to_elements(validationImages)
     #  Define the training and testing loop ======================================
-    def train_epoch(e, save_last_model = False):
-        # Set train mode for both the encoder and the decoder
-        # Iterate the dataloader (we do not need the label values, this is unsupervised learning)
-        train_loss = []
-        stepsPerEpoch = int(len(trainingImages) / args.trainingBS)
-        e["Solver"]["Mode"] = "Training"
-        for step in range(stepsPerEpoch):
-            # Creating minibatch
-            image_batch = trainingImages[step * args.trainingBS : (step+1) * args.trainingBS] # N x C
-            label_batch = trainingLabels[step * args.trainingBS : (step+1) * args.trainingBS]
-            # Save only is save_last_model == True and last generation of epoch
-            e["File Output"]["Enabled"] = True if save_last_model and step == stepsPerEpoch-1 else False
-            # Train models =======================================================
-            e["Problem"]["Input"]["Data"] = image_batch
-            e["Problem"]["Solution"]["Data"] = label_batch
-            k.run(e)
-            loss = e["Results"]["Training Loss"]
-            train_loss.append(loss)
-            # print(f'Step {step+1} / {stepsPerEpoch}\t Training Loss {loss}')
-        return np.mean(train_loss).item()
-
-    def train_epoch_direct_grad(e, save_last_model = False):
-        # TODO: training with direct gradient is not training atm somehow.
-        loss_fu = torch.nn.CrossEntropyLoss()
-        def loss_fu(y_pred, y_true):
-            y_true = torch.tensor(y_true)
-            y_pred_logits = torch.tensor(y_pred)
-            _, y_true_label = y_true.max(dim=1)
-            loss = torch.nn.CrossEntropyLoss()(y_pred_logits, y_true_label).item()
-            return  loss
-        def dloss_fu(y_pred_logits, y_true, useHardLabel=False):
-            y_pred_logits = torch.tensor(y_pred_logits)
-            y_true = torch.tensor(y_true)
-            yhat = torch.nn.Softmax(dim=1)(y_pred_logits)
-            return (yhat-y_true).tolist()
-        e["Solver"]["Loss Function"] = "DG"
-        train_loss = []
-        stepsPerEpoch = int(len(trainingImages) / args.trainingBS)
-        for step in range(stepsPerEpoch):
-            # Creating minibatch
-            image_batch = trainingImages[step * args.trainingBS : (step+1) * args.trainingBS] # N x C
-            label_batch = trainingLabels[step * args.trainingBS : (step+1) * args.trainingBS]
-            # Passing minibatch to Korali
-            if save_last_model and step == stepsPerEpoch-1:
-                e["File Output"]["Enabled"] = True
-            else:
-                e["File Output"]["Enabled"] = False
-            # Predict new samples ================================================
-            e["Solver"]["Mode"] = "Predict"
-            e["Problem"]["Input"]["Data"] = image_batch
-            k.run(e)
-            y_pred_logits = e["Solver"]["Evaluation"]
-            # Calculate the loss and gradient of the loss =======================
-            loss = loss_fu(y_pred_logits, label_batch)
-            dloss = dloss_fu(y_pred_logits, label_batch)
-            # Train models on direct grads =======================================
-            e["Solver"]["Mode"] = "Training"
-            e["Problem"]["Input"]["Data"] = image_batch
-            e["Problem"]["Solution"]["Data"] = dloss
-            k.run(e)
-            train_loss.append(loss)
-            # print(f'Step {step+1} / {stepsPerEpoch}\t Training Loss {loss}')
-        return np.mean(train_loss).item()
-
-    def test_epoch(e):
-        e["File Output"]["Enabled"] = False
-        e["Problem"]["Testing Batch Size"] = args.testingBS
-        e["Solver"]["Mode"] = "Testing"
-        val_loss = []
-        stepsPerEpoch = int(len(validationImages) / args.testingBS)
-        for step in range(stepsPerEpoch):
-            # Creating minibatch
-            image_batch = validationImages[step * args.testingBS : (step+1) * args.testingBS] # N x T x C
-            label_batch = validationLabels[step * args.trainingBS : (step+1) * args.trainingBS]
-            # Passing minibatch to Korali
-            e["Problem"]["Input"]["Data"] = image_batch
-            e["Problem"]["Solution"]["Data"] = label_batch
-            # Evaluate loss
-            k.run(e)
-            # print(f'Step {step+1} / {stepsPerEpoch}\t Testing Loss {loss}')
-            loss = e["Results"]["Testing Loss"]
-            val_loss.append(loss)
-        return np.mean(val_loss).item()
-
     #  Training Loop =============================================================
     history={'Training Loss':[],'Validation Loss':[], 'Time per Epoch': []}
     if args.mode in "Training":
@@ -293,9 +209,9 @@ elif args.mode == "Training":
             tp_start = time.time()
             saveLastModel = True if (epoch == args.epochs-1 and args.save) else False
             # saveLastModel = False
-            train_loss = train_epoch(e, saveLastModel)
+            train_loss = train_epoch(e, k, args, (trainingImages, trainingLabels), saveLastModel)
             tp = time.time()-tp_start
-            val_loss = test_epoch(e)
+            val_loss = test_epoch(e, k, args, (validationImages, validationLabels))
             if args.verbosity in ["Normal", "Detailed"]:
                 print(f'EPOCH {epoch + 1}/{args.epochs} {tp:.3f}s \t train loss {train_loss:.3f} \t val loss {val_loss:.3f}')
             history['Training Loss'].append(train_loss)
