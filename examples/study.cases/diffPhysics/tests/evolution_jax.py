@@ -60,7 +60,7 @@ print("Simulate SGS..")
 sgs0.simulate()
 # convert to physical space
 sgs0.compute_Ek()
-sgs = sgs0
+#sgs = sgs0
 
 """
 print("Simulate SGS ..")
@@ -70,5 +70,5 @@ sgs.compute_Ek()
 """
 
 #------------------------------------------------------------------------------
-## plot (doesn't work with jax version)
-#makePlot(dns, sgs0, sgs, "evolution", s, False)
+# plot
+makePlot(dns, sgs0, "evolution", False)
