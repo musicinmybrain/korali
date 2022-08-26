@@ -18,7 +18,9 @@ __startNamespace__;
 void __className__::initialize()
 {
   // Checking Layer size
-  if (_outputChannels == 0) KORALI_LOG_ERROR("Node count for layer (%lu) should be larger than zero.\n", _index);
+  if (_filters == -1 && _outputChannels == 0){
+    _k->_logger->logInfo("Detailed", "[Pooling Layer %lu] No output channels specified, assuming OC = IC.\n", _index-1);
+  }
 
   // Checking position
   if (_index == 0) KORALI_LOG_ERROR("Pooling layers cannot be the starting layer of the NN\n");
@@ -31,12 +33,26 @@ void __className__::initialize()
   KH = _kernelHeight;
   KW = _kernelWidth;
 
-  SV = _verticalStride;
-  SH = _horizontalStride;
-  PT = _paddingTop;
-  PL = _paddingLeft;
-  PB = _paddingBottom;
-  PR = _paddingRight;
+  // Strides ==============================================================================
+  SV = SH = _stride;
+  if( _verticalStride != -1)
+    SV = _verticalStride;
+  if( _horizontalStride != -1)
+    SH = _horizontalStride;
+  // Paddings =============================================================================
+  PT = PL = PB = PR = _padding;
+  if( _paddingVertical != -1)
+    PT = PB = _paddingVertical;
+  if( _paddingHorizontal != -1)
+    PL = PR = _paddingVertical;
+  if( _paddingTop != -1)
+    PT = _paddingTop;
+  if( _paddingBottom != -1)
+    PB = _paddingBottom;
+  if( _paddingLeft != -1)
+    PL = _paddingLeft;
+  if( _paddingRight != -1)
+    PR = _paddingRight;
 
   // Check for non zeros
   if (IH <= 0) KORALI_LOG_ERROR("Image height must be larger than zero for pooling layer.\n");
@@ -55,10 +71,17 @@ void __className__::initialize()
   IC = _prevLayer->_outputChannels / (IH * IW);
 
   // Deriving output height and width
-  OH = std::floor((IH - (KH - (PR + PL))) / SH) + 1;
-  OW = std::floor((IW - (KW - (PT + PB))) / SV) + 1;
-
-  // TODO: check if this is correct
+  OH = (IH - (KH - (PR + PL)) / SH) + 1;
+  OW = (IW - (KW - (PT + PB)) / SV) + 1;
+  if( ((IH - KH + PT + PB) % SV) != 0)
+    _k->_logger->logInfo("Normal", "[Convolutional layer %zu] (IH - KH + PT + PB) / SV = %lu using floor.\n", _index-1, OH-1);
+  if( ((IW - KW + PR + PL) % SH) != 0)
+    _k->_logger->logInfo("Normal", "[Convolutional layer %zu] (IW - KW + PR + PL) / SH = %lu using floor.\n", _index-1, OW-1);
+  if(_outputChannels == 0)
+    if(_filters == -1){
+      _filters = IC;
+      _outputChannels = _filters*OH*OW;
+    }
   // Check whether the output channels of the previous layer is divided by the height and width
   if (_outputChannels % (OH * OW) > 0) KORALI_LOG_ERROR("[Pooling layer %zu] Number of output channels (%lu) not divisible by the output image size (%lux%lu) given kernel (%lux%lu) size and padding/stride configuration.\n", _index-1, _outputChannels, OH, OW, KH, KW);
   OC = _outputChannels / (OH * OW);
@@ -90,7 +113,7 @@ void __className__::createForwardPipeline()
     // Determining algorithm
     dnnl::algorithm algorithmType;
     if (_function == "Max") algorithmType = dnnl::algorithm::pooling_max;
-    if (_function == "Inclusive Average") algorithmType = dnnl::algorithm::pooling_avg_include_padding;
+    if (_function == "Inclusive Average" || _function == "Average") algorithmType = dnnl::algorithm::pooling_avg_include_padding;
     if (_function == "Exclusive Average") algorithmType = dnnl::algorithm::pooling_avg_exclude_padding;
 
     // We create the pooling operation
@@ -136,7 +159,7 @@ void __className__::createBackwardPipeline()
     // Determining algorithm
     dnnl::algorithm algorithmType;
     if (_function == "Max") algorithmType = dnnl::algorithm::pooling_max;
-    if (_function == "Inclusive Average") algorithmType = dnnl::algorithm::pooling_avg_include_padding;
+    if (_function == "Inclusive Average" || _function == "Average") algorithmType = dnnl::algorithm::pooling_avg_include_padding;
     if (_function == "Exclusive Average") algorithmType = dnnl::algorithm::pooling_avg_exclude_padding;
 
     auto backwardDataDesc = pooling_backward::desc(

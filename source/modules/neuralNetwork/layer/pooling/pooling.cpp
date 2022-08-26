@@ -24,7 +24,9 @@ namespace layer
 void Pooling::initialize()
 {
   // Checking Layer size
-  if (_outputChannels == 0) KORALI_LOG_ERROR("Node count for layer (%lu) should be larger than zero.\n", _index);
+  if (_filters == -1 && _outputChannels == 0){
+    _k->_logger->logInfo("Detailed", "[Pooling Layer %lu] No output channels specified, assuming OC = IC.\n", _index-1);
+  }
 
   // Checking position
   if (_index == 0) KORALI_LOG_ERROR("Pooling layers cannot be the starting layer of the NN\n");
@@ -37,12 +39,26 @@ void Pooling::initialize()
   KH = _kernelHeight;
   KW = _kernelWidth;
 
-  SV = _verticalStride;
-  SH = _horizontalStride;
-  PT = _paddingTop;
-  PL = _paddingLeft;
-  PB = _paddingBottom;
-  PR = _paddingRight;
+  // Strides ==============================================================================
+  SV = SH = _stride;
+  if( _verticalStride != -1)
+    SV = _verticalStride;
+  if( _horizontalStride != -1)
+    SH = _horizontalStride;
+  // Paddings =============================================================================
+  PT = PL = PB = PR = _padding;
+  if( _paddingVertical != -1)
+    PT = PB = _paddingVertical;
+  if( _paddingHorizontal != -1)
+    PL = PR = _paddingVertical;
+  if( _paddingTop != -1)
+    PT = _paddingTop;
+  if( _paddingBottom != -1)
+    PB = _paddingBottom;
+  if( _paddingLeft != -1)
+    PL = _paddingLeft;
+  if( _paddingRight != -1)
+    PR = _paddingRight;
 
   // Check for non zeros
   if (IH <= 0) KORALI_LOG_ERROR("Image height must be larger than zero for pooling layer.\n");
@@ -53,20 +69,25 @@ void Pooling::initialize()
   if (SH <= 0) KORALI_LOG_ERROR("Horizontal stride must be larger than zero for pooling layer.\n");
 
   // Several sanity checks
-  if (KH > IH) KORALI_LOG_ERROR("[Pooling layer %zu] Kernel height cannot be larger than input image height.\n", _index-1);
-  if (KW > IW) KORALI_LOG_ERROR("[Pooling layer %zu] Kernel height cannot be larger than input image height.\n", _index-1);
-  if (PR + PL > IW) KORALI_LOG_ERROR("[Pooling layer %zu] L+R Paddings cannot exceed the width of the input image.\n", _index-1);
-  if (PT + PB > IH) KORALI_LOG_ERROR("[Pooling layer %zu] T+B Paddings cannot exceed the height of the input image.\n", _index-1);
+  if (KH > IH + PR + PL) KORALI_LOG_ERROR("[Convolutional layer %zu] Kernel height cannot be larger than input image height plus padding.\n", _index-1);
+  if (KW > IW + PT + PB) KORALI_LOG_ERROR("[Convolutional layer %zu] Kernel width cannot be larger than input image width plus padding.\n",_index-1);
 
   // Check whether the output channels of the previous layer is divided by the height and width
   if (_prevLayer->_outputChannels % (IH * IW) > 0) KORALI_LOG_ERROR("[Pooling layer %zu] Previous layer contains a number of channels (%lu) not divisible by the pooling 2D HxW setup (%lux%lu).\n", _index-1, _prevLayer->_outputChannels, IH, IW);
   IC = _prevLayer->_outputChannels / (IH * IW);
 
   // Deriving output height and width
-  OH = std::floor((IH - (KH - (PR + PL))) / SH) + 1;
-  OW = std::floor((IW - (KW - (PT + PB))) / SV) + 1;
-
-  // TODO: check if this is correct
+  OH = (IH - (KH - (PR + PL)) / SH) + 1;
+  OW = (IW - (KW - (PT + PB)) / SV) + 1;
+  if( ((IH - KH + PT + PB) % SV) != 0)
+    _k->_logger->logInfo("Normal", "[Convolutional layer %zu] (IH - KH + PT + PB) / SV = %lu using floor.\n", _index-1, OH-1);
+  if( ((IW - KW + PR + PL) % SH) != 0)
+    _k->_logger->logInfo("Normal", "[Convolutional layer %zu] (IW - KW + PR + PL) / SH = %lu using floor.\n", _index-1, OW-1);
+  if(_outputChannels == 0)
+    if(_filters == -1){
+      _filters = IC;
+      _outputChannels = _filters*OH*OW;
+    }
   // Check whether the output channels of the previous layer is divided by the height and width
   if (_outputChannels % (OH * OW) > 0) KORALI_LOG_ERROR("[Pooling layer %zu] Number of output channels (%lu) not divisible by the output image size (%lux%lu) given kernel (%lux%lu) size and padding/stride configuration.\n", _index-1, _outputChannels, OH, OW, KH, KW);
   OC = _outputChannels / (OH * OW);
@@ -98,7 +119,7 @@ void Pooling::createForwardPipeline()
     // Determining algorithm
     dnnl::algorithm algorithmType;
     if (_function == "Max") algorithmType = dnnl::algorithm::pooling_max;
-    if (_function == "Inclusive Average") algorithmType = dnnl::algorithm::pooling_avg_include_padding;
+    if (_function == "Inclusive Average" || _function == "Average") algorithmType = dnnl::algorithm::pooling_avg_include_padding;
     if (_function == "Exclusive Average") algorithmType = dnnl::algorithm::pooling_avg_exclude_padding;
 
     // We create the pooling operation
@@ -144,7 +165,7 @@ void Pooling::createBackwardPipeline()
     // Determining algorithm
     dnnl::algorithm algorithmType;
     if (_function == "Max") algorithmType = dnnl::algorithm::pooling_max;
-    if (_function == "Inclusive Average") algorithmType = dnnl::algorithm::pooling_avg_include_padding;
+    if (_function == "Inclusive Average" || _function == "Average") algorithmType = dnnl::algorithm::pooling_avg_include_padding;
     if (_function == "Exclusive Average") algorithmType = dnnl::algorithm::pooling_avg_exclude_padding;
 
     auto backwardDataDesc = pooling_backward::desc(
@@ -210,8 +231,9 @@ void Pooling::setConfiguration(knlohmann::json& js)
         bool validOption = false; 
         if (_function == "Max") validOption = true; 
         if (_function == "Inclusive Average") validOption = true; 
+        if (_function == "Average") validOption = true; 
         if (_function == "Exclusive Average") validOption = true; 
-        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Function'] required by pooling.\n Valid Options are:\n  - Max\n  - Inclusive Average\n  - Exclusive Average\n",_function.c_str()); 
+        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Function'] required by pooling.\n Valid Options are:\n  - Max\n  - Inclusive Average\n  - Average\n  - Exclusive Average\n",_function.c_str()); 
       }
     eraseValue(js, "Function");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Function'] required by pooling.\n"); 
@@ -282,6 +304,17 @@ void Pooling::setConfiguration(knlohmann::json& js)
     eraseValue(js, "Horizontal Stride");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Horizontal Stride'] required by pooling.\n"); 
 
+  if (isDefined(js, "Stride"))
+  {
+    try
+    {
+      _stride = js["Stride"].get<ssize_t>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ pooling ] \n + Key:    ['Stride']\n%s", e.what());
+    }
+    eraseValue(js, "Stride");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Stride'] required by pooling.\n"); 
+
   if (isDefined(js, "Padding Left"))
   {
     try
@@ -326,6 +359,50 @@ void Pooling::setConfiguration(knlohmann::json& js)
     eraseValue(js, "Padding Bottom");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Padding Bottom'] required by pooling.\n"); 
 
+  if (isDefined(js, "Padding Vertical"))
+  {
+    try
+    {
+      _paddingVertical = js["Padding Vertical"].get<ssize_t>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ pooling ] \n + Key:    ['Padding Vertical']\n%s", e.what());
+    }
+    eraseValue(js, "Padding Vertical");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Padding Vertical'] required by pooling.\n"); 
+
+  if (isDefined(js, "Padding Horizontal"))
+  {
+    try
+    {
+      _paddingHorizontal = js["Padding Horizontal"].get<ssize_t>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ pooling ] \n + Key:    ['Padding Horizontal']\n%s", e.what());
+    }
+    eraseValue(js, "Padding Horizontal");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Padding Horizontal'] required by pooling.\n"); 
+
+  if (isDefined(js, "Padding"))
+  {
+    try
+    {
+      _padding = js["Padding"].get<ssize_t>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ pooling ] \n + Key:    ['Padding']\n%s", e.what());
+    }
+    eraseValue(js, "Padding");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Padding'] required by pooling.\n"); 
+
+  if (isDefined(js, "Filters"))
+  {
+    try
+    {
+      _filters = js["Filters"].get<ssize_t>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ pooling ] \n + Key:    ['Filters']\n%s", e.what());
+    }
+    eraseValue(js, "Filters");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Filters'] required by pooling.\n"); 
+
  Layer::setConfiguration(js);
  _type = "layer/pooling";
  if(isDefined(js, "Type")) eraseValue(js, "Type");
@@ -343,17 +420,22 @@ void Pooling::getConfiguration(knlohmann::json& js)
    js["Kernel Width"] = _kernelWidth;
    js["Vertical Stride"] = _verticalStride;
    js["Horizontal Stride"] = _horizontalStride;
+   js["Stride"] = _stride;
    js["Padding Left"] = _paddingLeft;
    js["Padding Right"] = _paddingRight;
    js["Padding Top"] = _paddingTop;
    js["Padding Bottom"] = _paddingBottom;
+   js["Padding Vertical"] = _paddingVertical;
+   js["Padding Horizontal"] = _paddingHorizontal;
+   js["Padding"] = _padding;
+   js["Filters"] = _filters;
  Layer::getConfiguration(js);
 } 
 
 void Pooling::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{}";
+ std::string defaultString = "{\"Padding Top\": -1, \"Padding Bottom\": -1, \"Padding Left\": -1, \"Padding Right\": -1, \"Padding Vertical\": -1, \"Padding Horizontal\": -1, \"Padding\": 0, \"Vertical Stride\": -1, \"Horizontal Stride\": -1, \"Stride\": 1, \"Filters\": -1}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Layer::applyModuleDefaults(js);
