@@ -21,6 +21,7 @@ from korali.plot.helpers import hlsColors, drawMulticoloredLine
 import seaborn as sns
 from utilities import make_parser
 from sklearn.preprocessing import OneHotEncoder
+from korali.plot.__main__ import main
 parser = make_parser()
 parser.add_argument(
     '--validationBS',
@@ -117,9 +118,9 @@ if args.verbosity in ("Normal", "Detailed"):
 # Calculate number of samples that is fitting to the BS =====================
 nb_training_samples = len(trainingSet)
 nb_training_samples = int((nb_training_samples*(1-args.validationSplit))/args.trainingBS)*args.trainingBS
-# nb_training_samples = 256*10
+nb_training_samples = 256*10
 nb_validation_samples = int((len(trainingSet)*args.validationSplit)/args.testingBS)*args.testingBS
-# nb_validation_samples = 256
+nb_validation_samples = 256
 if args.verbosity in ["Normal", "Detailed"]:
     print(f'{nb_training_samples} training samples')
     print(f'Discarding {int(len(trainingSet)*(1-args.validationSplit)-nb_training_samples)} training samples')
@@ -164,7 +165,7 @@ e["Solver"]["Learning Rate"] = args.learningRate
 e["Solver"]["Learning Rate Type"] = args.learningRateType
 e["Solver"]["Learning Rate Save"] = True
 
-e["Solver"]["Loss Function"] = "CE"
+e["Solver"]["Loss Function"] = "Cross Entropy"
 e["Solver"]["Metrics"]["Type"] = "Accuracy"
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
@@ -180,9 +181,11 @@ else:
     e["File Output"]["Enabled"] = False
 e["File Output"]["Frequency"] = 0
 e["File Output"]["Path"] = results_dir
-e["Save Only"] = ["Results", "Solver"]
+e["Save Only"] = ["Current Generation" ,"Run ID", "Results", "Solver"]
 
+# ============================================================================
 #  Automatic Training ========================================================
+# ============================================================================
 if args.mode in ["Automatic"]:
     ### Using a neural network solver (deep learning) for inference
     e["Problem"]["Validation Batch Size"] = args.validationBS
@@ -192,35 +195,49 @@ if args.mode in ["Automatic"]:
     e["Problem"]["Data"]["Validation"]["Solution"] = validationLabels
     e["Solver"]["Mode"] = "Automatic Training"
     k.run(e)
+
 #  Training ==================================================================
 elif args.mode == "Training":
     ### Converting images to Korali form (requires a time dimension)
     trainingImages = add_dimension_to_elements(trainingImages)
     validationImages = add_dimension_to_elements(validationImages)
     #  Define the training and testing loop ======================================
-    loss_fu = torch.nn.CrossEntropyLoss()
-    # def loss_fu(y_pred, y_true):
-    #     y_true = torch.tensor(y_true)
-    #     y_pred_logits = torch.tensor(y_pred)
-    #     _, y_true_label = y_true.max(dim=1)
-    #     loss = torch.nn.CrossEntropyLoss()(y_pred_logits, y_true_label).item()
-    #     # print(loss)
-    #     return  loss
-
-    # def dloss_fu(y_pred_logits, y_true, useHardLabel=False):
-    #     y_pred_logits = torch.tensor(y_pred_logits)
-    #     y_true = torch.tensor(y_true)
-    #     # if useHardLabel:
-    #     #     yhat = torch.zeros_like(y_pred_logits)
-    #     #     yhat[torch.arange(yhat.size(0)), y_pred_logits.argmax(dim=1)] = 1
-    #     # else:
-    #     #     yhat = torch.nn.Softmax(dim=1)(y_pred_logits)
-    #     yhat = torch.nn.Softmax(dim=1)(y_pred_logits)
-    #     return (yhat-y_true).tolist()
-
     def train_epoch(e, save_last_model = False):
         # Set train mode for both the encoder and the decoder
         # Iterate the dataloader (we do not need the label values, this is unsupervised learning)
+        train_loss = []
+        stepsPerEpoch = int(len(trainingImages) / args.trainingBS)
+        e["Solver"]["Mode"] = "Training"
+        for step in range(stepsPerEpoch):
+            # Creating minibatch
+            image_batch = trainingImages[step * args.trainingBS : (step+1) * args.trainingBS] # N x C
+            label_batch = trainingLabels[step * args.trainingBS : (step+1) * args.trainingBS]
+            # Save only is save_last_model == True and last generation of epoch
+            e["File Output"]["Enabled"] = True if save_last_model and step == stepsPerEpoch-1 else False
+            # Train models =======================================================
+            e["Problem"]["Input"]["Data"] = image_batch
+            e["Problem"]["Solution"]["Data"] = label_batch
+            k.run(e)
+            loss = e["Results"]["Training Loss"]
+            train_loss.append(loss)
+            # print(f'Step {step+1} / {stepsPerEpoch}\t Training Loss {loss}')
+        return np.mean(train_loss).item()
+
+    def train_epoch_direct_grad(e, save_last_model = False):
+        # TODO: training with direct gradient is not training atm somehow.
+        loss_fu = torch.nn.CrossEntropyLoss()
+        def loss_fu(y_pred, y_true):
+            y_true = torch.tensor(y_true)
+            y_pred_logits = torch.tensor(y_pred)
+            _, y_true_label = y_true.max(dim=1)
+            loss = torch.nn.CrossEntropyLoss()(y_pred_logits, y_true_label).item()
+            return  loss
+        def dloss_fu(y_pred_logits, y_true, useHardLabel=False):
+            y_pred_logits = torch.tensor(y_pred_logits)
+            y_true = torch.tensor(y_true)
+            yhat = torch.nn.Softmax(dim=1)(y_pred_logits)
+            return (yhat-y_true).tolist()
+        e["Solver"]["Loss Function"] = "DG"
         train_loss = []
         stepsPerEpoch = int(len(trainingImages) / args.trainingBS)
         for step in range(stepsPerEpoch):
@@ -233,46 +250,41 @@ elif args.mode == "Training":
             else:
                 e["File Output"]["Enabled"] = False
             # Predict new samples ================================================
-            # e["Solver"]["Mode"] = "Predict"
-            # e["Problem"]["Input"]["Data"] = image_batch
-            # k.run(e)
-            # y_pred_logits = e["Solver"]["Evaluation"]
+            e["Solver"]["Mode"] = "Predict"
+            e["Problem"]["Input"]["Data"] = image_batch
+            k.run(e)
+            y_pred_logits = e["Solver"]["Evaluation"]
             # Calculate the loss and gradient of the loss =======================
-            # loss = loss_fu(y_pred_logits, label_batch)
-            # dloss = dloss_fu(y_pred_logits, label_batch)
+            loss = loss_fu(y_pred_logits, label_batch)
+            dloss = dloss_fu(y_pred_logits, label_batch)
             # Train models on direct grads =======================================
             e["Solver"]["Mode"] = "Training"
             e["Problem"]["Input"]["Data"] = image_batch
-            e["Problem"]["Solution"]["Data"] = label_batch
+            e["Problem"]["Solution"]["Data"] = dloss
             k.run(e)
-            loss = e["Results"]["Training Loss"]
             train_loss.append(loss)
             # print(f'Step {step+1} / {stepsPerEpoch}\t Training Loss {loss}')
         return np.mean(train_loss).item()
 
-    # def test_epoch(e):
-        # TODO
-        # e["File Output"]["Enabled"] = False
-        # e["Problem"]["Testing Batch Size"] = args.testingBS
-        # e["Solver"]["Mode"] = "Testing"
-        # # Set train mode for both the encoder and the decoder
-        # # Iterate the dataloader (we do not need the label values, this is unsupervised learning)
-        # # import pdb; pdb.set_trace()
-        # val_loss = []
-        # stepsPerEpoch = int(len(validationImages) / args.testingBS)
-        # for step in range(stepsPerEpoch):
-        #     # Creating minibatch
-        #     image_batch = validationImages[step * args.testingBS : (step+1) * args.testingBS] # N x T x C
-        #     y = [ x[0] for x in image_batch ] # N x C
-        #     # Passing minibatch to Korali
-        #     e["Problem"]["Input"]["Data"] = image_batch
-        #     e["Problem"]["Solution"]["Data"] = y
-        #     # Evaluate loss
-        #     k.run(e)
-        #     # print(f'Step {step+1} / {stepsPerEpoch}\t Testing Loss {loss}')
-        #     loss = e["Results"]["Testing Loss"]
-        #     val_loss.append(loss)
-        # return np.mean(val_loss).item()
+    def test_epoch(e):
+        e["File Output"]["Enabled"] = False
+        e["Problem"]["Testing Batch Size"] = args.testingBS
+        e["Solver"]["Mode"] = "Testing"
+        val_loss = []
+        stepsPerEpoch = int(len(validationImages) / args.testingBS)
+        for step in range(stepsPerEpoch):
+            # Creating minibatch
+            image_batch = validationImages[step * args.testingBS : (step+1) * args.testingBS] # N x T x C
+            label_batch = validationLabels[step * args.trainingBS : (step+1) * args.trainingBS]
+            # Passing minibatch to Korali
+            e["Problem"]["Input"]["Data"] = image_batch
+            e["Problem"]["Solution"]["Data"] = label_batch
+            # Evaluate loss
+            k.run(e)
+            # print(f'Step {step+1} / {stepsPerEpoch}\t Testing Loss {loss}')
+            loss = e["Results"]["Testing Loss"]
+            val_loss.append(loss)
+        return np.mean(val_loss).item()
 
     #  Training Loop =============================================================
     history={'Training Loss':[],'Validation Loss':[], 'Time per Epoch': []}
@@ -283,19 +295,18 @@ elif args.mode == "Training":
             # saveLastModel = False
             train_loss = train_epoch(e, saveLastModel)
             tp = time.time()-tp_start
-            # val_loss = test_epoch(e)
-            # print(f'EPOCH {epoch + 1}/{args.epochs} {tp:.3f}s \t val loss {val_loss:.3f}')
+            val_loss = test_epoch(e)
             if args.verbosity in ["Normal", "Detailed"]:
-                print(f'EPOCH {epoch + 1}/{args.epochs} {tp:.3f}s \t train loss {train_loss:.3f}')
-                # print(f'EPOCH {epoch + 1}/{args.epochs} {tp:.3f}s \t train loss {train_loss:.3f} \t val loss {val_loss:.3f}')
+                print(f'EPOCH {epoch + 1}/{args.epochs} {tp:.3f}s \t train loss {train_loss:.3f} \t val loss {val_loss:.3f}')
             history['Training Loss'].append(train_loss)
             history['Time per Epoch'].append(tp)
     if args.save:
         results_file = os.path.join(results_dir, "history.json")
         with open(results_file, 'w') as file:
             file.write(json.dumps(history))
+# =============================================================================================
 
-# # PREDICTING ================================================================================
+# PREDICTING ==================================================================================
 e["File Output"]["Enabled"] = False
 if args.mode in ["predict"]:
     if not isStateFound:
@@ -308,7 +319,7 @@ if args.mode in ["predict"]:
 
 # # Plotting Results
 if args.plot:
-    #  Plot Predictions Images ==================================================
+    #  Plot Original Ground Truth ==================================================
     arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
     fig, axes = plt.subplots(nrows=4, ncols=3)
     for row in axes:
@@ -322,82 +333,8 @@ if args.plot:
     plt.subplots_adjust(bottom=0.1,
                         top=0.95,
                         hspace=0.4)
+    # Plot Losses ======================================================================
+    # Note: need to run run-classification.py with --save flag once to get output files.
+    SAVE_PLOT = "None"
+    main(results_dir, False, SAVE_PLOT, False, ["--yscale", "linear"])
     plt.show()
-    #  TODO:
-    #  Plot Reconstruced Images ==================================================
-    # SAMPLES_TO_DISPLAY = 8
-    # arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
-    # fig, axes = plt.subplots(nrows=SAMPLES_TO_DISPLAY, ncols=2)
-    # random.shuffle(testingImages)
-    # e["Problem"]["Testing Batch Size"] = args.testingBS
-    # e["Solver"]["Mode"] = "Predict"
-    # y = [random.choice(testingImages) for i in range(args.testingBS)]
-    # e["Problem"]["Input"]["Data"] = add_dimension_to_elements(y)
-    # k.run(e)
-    # yhat = e["Solver"]["Evaluation"]
-    # for y, yhat, ax in list(zip(y[:SAMPLES_TO_DISPLAY], yhat[:SAMPLES_TO_DISPLAY], axes)):
-    #     ax[0].imshow(arr_to_img(y), cmap='gist_gray')
-    #     ax[1].imshow(arr_to_img(yhat), cmap='gist_gray')
-    # # fig.tight_layout()
-    # if args.save:
-    #     plt.savefig(os.path.join(results_dir, "reconstructions.png"))
-    # #  Plot Losses ===============================================================
-    # sns.set()
-    # with open(results_file, 'r') as f:
-    #     results = json.load(f)
-    # if "Results" in results:
-    #     results = results["Results"]
-    # fig, ax = plt.subplots(figsize=(8, 8))
-    # epochs = range(1, results["Epoch"]+1)
-    # ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.3f"))
-    # ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%d"))
-    # # ax.set_yscale(args.yscale)
-    # ax.semilogy(epochs, results["Training Loss"] ,'-', label="Training Loss", color=train_c)
-    # if 'Validation Loss' in results:
-    #     ax.semilogy(epochs, results["Validation Loss"] ,'-', label="Validation Loss", color=val_c)
-    # ax.set_xlabel('Epochs')
-    # ylabel = results['Loss Function']
-    # if "Regularizer" in results:
-    #     ylabel+= " + " + results["Regularizer"]["Type"]
-    # ax.set_ylabel(ylabel)
-    # if "Description" in results:
-    #     ax.set_title(results["Description"].capitalize())
-    # plt.legend()
-    # if args.save:
-    #     plt.savefig(os.path.join(results_dir, "losses.png"))
-    # if 'Learning Rate' in results:
-    #     ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
-    #     ax2.set_ylabel('Learning Rate')  # we already handled the x-label with ax1
-    #     ax2.plot(epochs, results["Learning Rate"], color=lr_c)
-    #     fig.tight_layout()  # otherwise the right y-label is slightly clipped
-    # plt.show()
-    # with open(results_file, 'r') as f:
-    #     results = json.load(f)
-    # if "Results" in results:
-    #     results = results["Results"]
-    # sns.set()
-    # fig, ax = plt.subplots(figsize=(8, 8))
-    # epochs = range(1, results["Epoch"]+1)
-    # ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.3f"))
-    # ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%d"))
-    # def plot_loss(results):
-    #     # ax.set_yscale(args.yscale)
-    #     ax.semilogy(epochs, results["Training Loss"] ,results["style"], label="Training Loss", color=train_c)
-    #     if 'Validation Loss' in results:
-    #         ax.semilogy(epochs, results["Validation Loss"] ,results["style"], label="Validation Loss", color=val_c)
-    #         ax.set_xlabel('Epochs')
-    #     ylabel = results['Loss Function']
-    #     if "Regularizer" in results:
-    #         ylabel+= " + " + results["Regularizer"]["Type"]
-    #         ax.set_ylabel(ylabel)
-    #     if "Description" in results:
-    #         ax.set_title(results["Description"].capitalize())
-    #     plt.legend()
-    #     # if 'Learning Rate' in results:
-    #     #     ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
-    #     #     ax2.set_ylabel('Learning Rate')  # we already handled the x-label with ax1
-    #     #     ax2.plot(epochs, results["Learning Rate"], color=lr_c)
-    #     #     fig.tight_layout()  # otherwise the right y-label is slightly clipped
-
-    # if args.verbosity in ["Normal", "Detailed"]:
-    #     print_header(width=140)
