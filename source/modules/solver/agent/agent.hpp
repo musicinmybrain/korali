@@ -118,9 +118,9 @@ class Agent : public Solver
   */
    size_t _episodesPerGeneration;
   /**
-  * @brief Number of generations before start sampling posterior.
+  * @brief Boolean indicating if we want to sample posterior.
   */
-   size_t _startSamplingGeneration;
+   int _bayesianLearning;
   /**
   * @brief Number of Samples stored from Stochastic Gradient Decent Trajectory.
   */
@@ -130,9 +130,9 @@ class Agent : public Solver
   */
    int _swag;
   /**
-  * @brief Boolean to determine whether Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf) is used.
+  * @brief Coefficient to control magnitude of noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf).
   */
-   int _langevinDynamics;
+   float _langevinDynamics;
   /**
   * @brief Dropout probability that is used (https://proceedings.mlr.press/v48/gal16.html).
   */

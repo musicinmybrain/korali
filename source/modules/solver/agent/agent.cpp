@@ -76,13 +76,19 @@ void Agent::initialize()
   _episodePosVector.resize(_experienceReplayMaximumSize);
   _episodeIdVector.resize(_experienceReplayMaximumSize);
 
-  // Pre-allocating space for hyperparameters from Stochastic Gradient Descent Trajectory
-  _hyperparameterVector.resize(_numberOfSGDSamples);
-
   //  Pre-allocating space for state time sequence
   _stateTimeSequence.resize(_problem->_agentsPerEnvironment);
   for (size_t agentId = 0; agentId < _problem->_agentsPerEnvironment; ++agentId)
     _stateTimeSequence[agentId].resize(_timeSequenceLength);
+
+  // Pre-allocating space for hyperparameters from Stochastic Gradient Descent Trajectory
+  _hyperparameterVector.resize(_numberOfSGDSamples);
+
+  // Store initial hyperparameters
+  std::vector<std::vector<float>> hyperparameterVectorEntry;
+  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+    hyperparameterVectorEntry.push_back(_criticPolicyLearner[p]->getHyperparameters());
+  _hyperparameterVector.add(hyperparameterVectorEntry);
 
   /*********************************************************************
    * If initial generation, set initial agent configuration
@@ -1147,14 +1153,13 @@ std::vector<float> Agent::samplePosterior( const size_t policyIdx )
   // Declare vector for hyperparameters
   std::vector<float> hyperparameterSample;
 
-  // For Lagevin Dynamics select a sample from the SGD trajectory
-  if( _langevinDynamics )
-  {
-    const size_t numSamples = _hyperparameterVector.size();
-    float x = _uniformGenerator->getRandomNumber();
-    const size_t sampleIdx = std::floor( x*numSamples );
-    hyperparameterSample = _hyperparameterVector[sampleIdx][policyIdx];
-  }
+  // Take sample from the SGD trajectory
+  const size_t numSamples = _hyperparameterVector.size();
+  float x = _uniformGenerator->getRandomNumber();
+  
+  size_t sampleIdx = std::floor( x*numSamples );
+  sampleIdx = sampleIdx == numSamples ? numSamples - 1 : sampleIdx;
+  hyperparameterSample = _hyperparameterVector[sampleIdx][policyIdx];
 
   // For SWAG sample from Gaussian approximation of Posterior
   if( _swag )
@@ -1202,7 +1207,7 @@ std::vector<float> Agent::samplePosterior( const size_t policyIdx )
     }
   }
 
-  if( (_dropout > 0.0) && (_k->_currentGeneration >= _startSamplingGeneration) )
+  if( _dropout > 0.0 )
   {
     // Get current hyperparameters
     hyperparameterSample = _criticPolicyLearner[policyIdx]->getHyperparameters();
@@ -1821,14 +1826,14 @@ void Agent::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Episodes Per Generation'] required by agent.\n"); 
 
- if (isDefined(js, "Start Sampling Generation"))
+ if (isDefined(js, "Bayesian Learning"))
  {
- try { _startSamplingGeneration = js["Start Sampling Generation"].get<size_t>();
+ try { _bayesianLearning = js["Bayesian Learning"].get<int>();
 } catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Start Sampling Generation']\n%s", e.what()); } 
-   eraseValue(js, "Start Sampling Generation");
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Bayesian Learning']\n%s", e.what()); } 
+   eraseValue(js, "Bayesian Learning");
  }
-  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Start Sampling Generation'] required by agent.\n"); 
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Bayesian Learning'] required by agent.\n"); 
 
  if (isDefined(js, "Number Of SGD Samples"))
  {
@@ -1850,7 +1855,7 @@ void Agent::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Langevin Dynamics"))
  {
- try { _langevinDynamics = js["Langevin Dynamics"].get<int>();
+ try { _langevinDynamics = js["Langevin Dynamics"].get<float>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Langevin Dynamics']\n%s", e.what()); } 
    eraseValue(js, "Langevin Dynamics");
@@ -2140,7 +2145,7 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Training"]["Average Depth"] = _trainingAverageDepth;
    js["Concurrent Environments"] = _concurrentEnvironments;
    js["Episodes Per Generation"] = _episodesPerGeneration;
-   js["Start Sampling Generation"] = _startSamplingGeneration;
+   js["Bayesian Learning"] = _bayesianLearning;
    js["Number Of SGD Samples"] = _numberOfSGDSamples;
    js["swag"] = _swag;
    js["Langevin Dynamics"] = _langevinDynamics;
@@ -2214,7 +2219,7 @@ void Agent::getConfiguration(knlohmann::json& js)
 void Agent::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Environments\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Start Sampling Generation\": Infinity, \"Number Of SGD Samples\": 0, \"swag\": false, \"Langevin Dynamics\": false, \"Dropout\": 0.0, \"Normal Generator\": {\"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Strategy\": \"Uniform\", \"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
+ std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Environments\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Bayesian Learning\": false, \"Number Of SGD Samples\": 0, \"swag\": false, \"Langevin Dynamics\": 0.0, \"Dropout\": 0.0, \"Normal Generator\": {\"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Strategy\": \"Uniform\", \"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Solver::applyModuleDefaults(js);

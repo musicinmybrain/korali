@@ -251,10 +251,10 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
         KORALI_LOG_ERROR("Gradient has an invalid value after KL correction: %f\n", gradientLoss[i + 1 + _problem->_actionVectorSize]);
     }
 
-    // Add noise to mimic Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf) - PROBABLY NOT NEEDED IN RL (very noisy gradients anyways)
-    // if( _langevinDynamics && (_k->_currentGeneration >= _startSamplingGeneration) )
-    // for( size_t i = 0; i<2*_problem->_actionVectorSize+1; i++ )
-    //   gradientLoss[i] += std::sqrt(2*_currentLearningRate) * _normalGenerator->getRandomNumber();
+    // Add noise to mimic Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf) - PROBABLY NOT NEEDED IN RL (very noisy gradients)
+    if( _langevinDynamics > 0.0 )
+    for( size_t i = 0; i<2*_problem->_actionVectorSize+1; i++ )
+      gradientLoss[i] += std::sqrt(_langevinDynamics * _currentLearningRate) * _normalGenerator->getRandomNumber();
 
     // Set Gradient of Loss as Solution
     _criticPolicyProblem[policyIdx]->_solutionData[b] = gradientLoss;

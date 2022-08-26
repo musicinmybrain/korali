@@ -112,14 +112,14 @@ void __className__::getAction(korali::Sample &sample)
     // Forward state sequence to get the Gaussian means and sigmas from policy
     std::vector<policy_t> policy;
 
-    if ( _problem->_ensembleLearning || _swag || _langevinDynamics )
+    if ( _problem->_ensembleLearning || _bayesianLearning )
     {
       // Producing random number and select policy to produce the action
       const float x = _uniformGenerator->getRandomNumber();
       size_t policyIdx = std::floor( x * (float)numPolicies );
       policyIdx = policyIdx == numPolicies ? numPolicies-1 : policyIdx;
       
-      if ( (_swag || _langevinDynamics) && (_k->_currentGeneration >= _startSamplingGeneration) && (_policyUpdateCount>0) )
+      if ( _bayesianLearning )
       {
         // Compute posterior sample
         auto hyperparameters = samplePosterior( policyIdx );

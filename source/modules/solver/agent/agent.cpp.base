@@ -72,13 +72,19 @@ void __className__::initialize()
   _episodePosVector.resize(_experienceReplayMaximumSize);
   _episodeIdVector.resize(_experienceReplayMaximumSize);
 
-  // Pre-allocating space for hyperparameters from Stochastic Gradient Descent Trajectory
-  _hyperparameterVector.resize(_numberOfSGDSamples);
-
   //  Pre-allocating space for state time sequence
   _stateTimeSequence.resize(_problem->_agentsPerEnvironment);
   for (size_t agentId = 0; agentId < _problem->_agentsPerEnvironment; ++agentId)
     _stateTimeSequence[agentId].resize(_timeSequenceLength);
+
+  // Pre-allocating space for hyperparameters from Stochastic Gradient Descent Trajectory
+  _hyperparameterVector.resize(_numberOfSGDSamples);
+
+  // Store initial hyperparameters
+  std::vector<std::vector<float>> hyperparameterVectorEntry;
+  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+    hyperparameterVectorEntry.push_back(_criticPolicyLearner[p]->getHyperparameters());
+  _hyperparameterVector.add(hyperparameterVectorEntry);
 
   /*********************************************************************
    * If initial generation, set initial agent configuration
@@ -1143,14 +1149,13 @@ std::vector<float> __className__::samplePosterior( const size_t policyIdx )
   // Declare vector for hyperparameters
   std::vector<float> hyperparameterSample;
 
-  // For Lagevin Dynamics select a sample from the SGD trajectory
-  if( _langevinDynamics )
-  {
-    const size_t numSamples = _hyperparameterVector.size();
-    float x = _uniformGenerator->getRandomNumber();
-    const size_t sampleIdx = std::floor( x*numSamples );
-    hyperparameterSample = _hyperparameterVector[sampleIdx][policyIdx];
-  }
+  // Take sample from the SGD trajectory
+  const size_t numSamples = _hyperparameterVector.size();
+  float x = _uniformGenerator->getRandomNumber();
+  
+  size_t sampleIdx = std::floor( x*numSamples );
+  sampleIdx = sampleIdx == numSamples ? numSamples - 1 : sampleIdx;
+  hyperparameterSample = _hyperparameterVector[sampleIdx][policyIdx];
 
   // For SWAG sample from Gaussian approximation of Posterior
   if( _swag )
@@ -1198,7 +1203,7 @@ std::vector<float> __className__::samplePosterior( const size_t policyIdx )
     }
   }
 
-  if( (_dropout > 0.0) && (_k->_currentGeneration >= _startSamplingGeneration) )
+  if( _dropout > 0.0 )
   {
     // Get current hyperparameters
     hyperparameterSample = _criticPolicyLearner[policyIdx]->getHyperparameters();
