@@ -122,9 +122,11 @@ if args.verbosity in ("Normal", "Detailed"):
 # Calculate number of samples that is fitting to the BS =====================
 nb_training_samples = len(trainingSet)
 nb_training_samples = int((nb_training_samples*(1-args.validationSplit))/args.trainingBS)*args.trainingBS
-nb_training_samples = 256*10
+if args.test:
+    nb_training_samples = 256*10
 nb_validation_samples = int((len(trainingSet)*args.validationSplit)/args.testingBS)*args.testingBS
-nb_validation_samples = 256
+if args.test:
+    nb_validation_samples = 256
 if args.verbosity in ["Normal", "Detailed"]:
     print(f'{nb_training_samples} training samples')
     print(f'Discarding {int(len(trainingSet)*(1-args.validationSplit)-nb_training_samples)} training samples')
