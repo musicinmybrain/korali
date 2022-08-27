@@ -1,18 +1,18 @@
 # This script is an adpated version of:
 # https://roberttlange.github.io/posts/2020/03/blog-post-10/
 
-import numpy as onp
+#import numpy as onp
 import jax.numpy as np
 from jax import grad, jit, vmap, value_and_grad
 from jax import random
 
 import math
 
-from jax.scipy.special import logsumexp
+#from jax.scipy.special import logsumexp
 from jax.example_libraries import optimizers
 
-import torch
-from torchvision import datasets, transforms
+#import torch
+#from torchvision import datasets, transforms
 
 import time
 #from helpers import plot_mnist_examples
