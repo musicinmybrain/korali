@@ -35,7 +35,6 @@ forcing = True
 s       = int(N/N2)
 dt_sgs  = dt*s
 
-
 # Initialize both versions
 dns = Burger(L=L, N=N,  dt=dt,     nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed, forcing=forcing, s=s)
 sgs = Burger(L=L, N=N2, dt=dt_sgs, nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed, forcing=forcing, s=s)
@@ -54,11 +53,10 @@ print("Simulate DNS ..")
 dns.simulate()
 dns.compute_Ek()
 
-print("Simulate SGS..")
+print("Simulate SGS ..")
 ## simulate
 sgs.simulate()
 sgs.compute_Ek()
-
 
 #------------------------------------------------------------------------------
 # Store solutions
@@ -67,22 +65,29 @@ sgs_sol = sgs.uu
 
 # Prepare variables for training
 dns_indices = range(0, N, s)
+dns_short_sol = dns_sol[:, dns_indices]
+#print(dns_short_sol[-1])
+#print(sgs_sol[-1])
 
 # Test: Those should be the same
 #print(sgs.x)
 #print(dns.x[dns_indices])
 
 # Test: Print some solutions
-number_of_sol = 3
-for i in range(number_of_sol):
-    t = i * tEnd/number_of_sol
-    dns_idx = int(t/dt)
-    sgs_idx = int(t/dt_sgs)
-    print("SGS solutions:")
-    print(sgs_sol[sgs_idx, :])
-    print("DNS solutions:")
-    print(dns_sol[dns_idx, dns_indices])
-    print("\n")
+#number_of_sol = 3
+#for i in range(number_of_sol):
+#    t = i * tEnd/number_of_sol
+#    dns_idx = int(t/dt)
+#    sgs_idx = int(t/dt_sgs)
+#    print("SGS solutions:")
+#    print(sgs_sol[sgs_idx, :])
+#    print("DNS solutions:")
+#    print(dns_sol[dns_idx, dns_indices])
+#    print("\n")
+
+print("Simulations done. Start with the training ..")
+
+
 
 
 
@@ -113,9 +118,9 @@ def ReLU(x):
 jit_ReLU = jit(ReLU)
 
 # Define dimensions
-batch_dim = 128   # Number of iterations in training step (number of different time steps)
+batch_dim = 200   # Number of iterations in training step (number of different time steps)
 feature_dim = N2  # Size of input / output (size of x-grid)
-hidden_dim = 512  # Hidden layers in network
+hidden_dim = 1024  # Hidden layers in network
 batch_size = feature_dim
 
 # Defining an optimizer in Jax
@@ -137,9 +142,9 @@ def relu_layer(params, x):
     """ Simple ReLu layer for single sample """
     return ReLU(jnp.dot(params[0], x) + params[1])
 
-#def vmap_relu_layer(params, x):
-#    """ vmap version of the ReLU layer """
-#    return jit(vmap(relu_layer, in_axes=(None, 0), out_axes=0))
+def vmap_relu_layer(params, x):
+    """ vmap version of the ReLU layer """
+    return jit(vmap(relu_layer, in_axes=(None, 0), out_axes=0))
 
 # Initialize weights
 def initialize_mlp(sizes, key):
@@ -202,14 +207,17 @@ def run_mnist_training_loop(num_epochs, opt_state, net_type="MLP"):
     for epoch in range(num_epochs):
         start_time = time.time()
         for i in range(batch_dim):
-#            x_arr =
-#            y_arr = 
-#            x = jnp.array(x_arr).reshape(1, batch_size)
-#            y = jnp.array(y_arr[:, None] == jnp.arange(1), jnp.float32)
-#            params, opt_state, loss = update(params, x, y, opt_state)
-#            train_loss.append(loss)
-            # print(loss) # This prints the loss after every single step
-             dummy = 0 # dummy line (TODO: Uncomment and change lines above and delete this)
+            t = i * tEnd/batch_dim
+            dns_idx = int(t/dt)
+            sgs_idx = int(t/dt_sgs)
+            dns_arr = dns_short_sol[dns_idx]
+            sgs_arr = sgs_sol[sgs_idx]
+            x_arr = sgs_arr
+            y_arr = dns_arr
+            x = jnp.array(x_arr).reshape(1, batch_size)
+            y = jnp.array(y_arr[:, None] == jnp.arange(1), jnp.float32)
+            params, opt_state, loss = update(params, x, y, opt_state)
+            train_loss.append(loss)
 
         latest_loss = train_loss[-1]
         epoch_time = time.time() - start_time
@@ -217,3 +225,14 @@ def run_mnist_training_loop(num_epochs, opt_state, net_type="MLP"):
 
     return train_loss
 
+# Run the function
+train_loss = run_mnist_training_loop(num_epochs, opt_state, net_type="MLP")
+
+#------------------------------------------------------------------------------
+# Testing
+sgs_final = sgs_sol[-1]
+dns_final = dns_short_sol[-1]
+x = jnp.array(sgs_final).reshape(1, batch_size)
+test = vmap_relu_layer(params, x)
+print(dns_final)
+print(test)
