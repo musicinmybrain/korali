@@ -404,7 +404,8 @@ void DeepSupervisor::runEpoch()
         IforE = NV / BS;
         _currentValidationLoss = 0.0f;
         _currentMetrics = 0.0f;
-        #pragma omp parallel for simd reduction(+:_currentValidationLoss)
+        // # TODO: reduction leads to segmentation fault
+        // pragma omp parallel for reduction(+:_currentValidationLoss, _currentMetrics)
         for (bId = 0; bId < IforE; bId++) {
           // TODO: make this more efficient: loss expects a const vector maybe we can pass an rvalue reference instead somehow
           auto &&input = std::vector<std::vector<std::vector<float>>>{_problem->_dataValidationInput.begin()+bId*BS, _problem->_dataValidationInput.begin()+(bId+1)*BS};
@@ -412,7 +413,9 @@ void DeepSupervisor::runEpoch()
           auto y_val = getEvaluation(std::move(input));
           _currentValidationLoss += _loss->loss(y, y_val);
           if(_metrics){
-            // TODO: make a loop for different metrics and make metrics a vector to calcualte different
+            // TODO: make a loop for different metrics and make metrics a vector to calcualte different metrics
+            /* for(auto metric : metrics )..
+            */
             _currentMetrics += _metrics->compute(y, y_val);
           }
         }
