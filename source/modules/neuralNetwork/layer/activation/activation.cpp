@@ -50,7 +50,7 @@ void Activation::createForwardPipeline()
       if (_function == "Elementwise/Clip") _activationAlgorithm = algorithm::eltwise_clip;
       if (_function == "Elementwise/Linear") _activationAlgorithm = algorithm::eltwise_linear;
       if (_function == "Elementwise/Log") _activationAlgorithm = algorithm::eltwise_log;
-      if (_function == "Elementwise/Logistic") _activationAlgorithm = algorithm::eltwise_logistic;
+      if ((_function == "Elementwise/Logistic") || (_function == "Elementwise/Sigmoid")) _activationAlgorithm = algorithm::eltwise_logistic;
       if (_function == "Elementwise/ReLU") _activationAlgorithm = algorithm::eltwise_relu;
       if (_function == "Elementwise/SoftReLU") _activationAlgorithm = algorithm::eltwise_soft_relu;
       if (_function == "Elementwise/SoftSign") KORALI_LOG_ERROR("ONEDNN does not support activation functions of type 'Elementwise/SoftSign'.");
@@ -108,7 +108,7 @@ void Activation::createForwardPipeline()
     if (_function == "Elementwise/Clip") activationMode = CUDNN_ACTIVATION_CLIPPED_RELU;
     if (_function == "Elementwise/Linear") activationMode = CUDNN_ACTIVATION_IDENTITY;
     if (_function == "Elementwise/Log") KORALI_LOG_ERROR("Activation function not supported: %s.\n", _function.c_str());
-    if (_function == "Elementwise/Logistic") activationMode = CUDNN_ACTIVATION_SIGMOID;
+    if ((_function == "Elementwise/Logistic") || (_function == "Elementwise/Sigmoid")) activationMode = CUDNN_ACTIVATION_SIGMOID;
     if (_function == "Elementwise/ReLU") activationMode = CUDNN_ACTIVATION_RELU;
     if (_function == "Elementwise/SoftReLU") KORALI_LOG_ERROR("CUDNN does not support activation functions of type 'Elementwise/SoftSign'.");
     if (_function == "Elementwise/SoftSign") KORALI_LOG_ERROR("CUDNN does not support activation functions of type 'Elementwise/SoftSign'.");
@@ -223,7 +223,7 @@ void Activation::forwardData(const size_t t)
       for (size_t i = 0; i < N * OC; i++)
         _outputValues[i] = std::tanh(_prevLayer->_outputValues[i]);
     }
-    if (_function == "Elementwise/Logistic")
+    if ((_function == "Elementwise/Logistic") || (_function == "Elementwise/Sigmoid"))
     {
       for (size_t i = 0; i < N * OC; i++)
         _outputValues[i] = 1.0f / (1.0f + std::exp(-_prevLayer->_outputValues[i]));
@@ -340,7 +340,7 @@ void Activation::backwardData(const size_t t)
       for (size_t i = 0; i < N * OC; i++)
         _prevLayer->_outputGradient[i] = _outputGradient[i] * (1.0f - _outputValues[i] * _outputValues[i]);
 
-    if (_function == "Elementwise/Logistic")
+    if ((_function == "Elementwise/Logistic") || (_function == "Elementwise/Sigmoid"))
       for (size_t i = 0; i < N * OC; i++)
         _prevLayer->_outputGradient[i] = _outputGradient[i] * _outputValues[i] * (1.0f - _outputValues[i]);
 
@@ -432,13 +432,14 @@ void Activation::setConfiguration(knlohmann::json& js)
         if (_function == "Elementwise/Linear") validOption = true; 
         if (_function == "Elementwise/Log") validOption = true; 
         if (_function == "Elementwise/Logistic") validOption = true; 
+        if (_function == "Elementwise/Sigmoid") validOption = true; 
         if (_function == "Elementwise/ReLU") validOption = true; 
         if (_function == "Elementwise/SoftReLU") validOption = true; 
         if (_function == "Elementwise/SoftSign") validOption = true; 
         if (_function == "Elementwise/Tanh") validOption = true; 
         if (_function == "Softmax") validOption = true; 
         if (_function == "Logsoftmax") validOption = true; 
-        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Function'] required by activation.\n Valid Options are:\n  - Elementwise/Clip\n  - Elementwise/Linear\n  - Elementwise/Log\n  - Elementwise/Logistic\n  - Elementwise/ReLU\n  - Elementwise/SoftReLU\n  - Elementwise/SoftSign\n  - Elementwise/Tanh\n  - Softmax\n  - Logsoftmax\n",_function.c_str()); 
+        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Function'] required by activation.\n Valid Options are:\n  - Elementwise/Clip\n  - Elementwise/Linear\n  - Elementwise/Log\n  - Elementwise/Logistic\n  - Elementwise/Sigmoid\n  - Elementwise/ReLU\n  - Elementwise/SoftReLU\n  - Elementwise/SoftSign\n  - Elementwise/Tanh\n  - Softmax\n  - Logsoftmax\n",_function.c_str()); 
       }
     eraseValue(js, "Function");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Function'] required by activation.\n"); 
