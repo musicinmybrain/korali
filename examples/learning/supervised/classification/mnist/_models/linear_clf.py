@@ -1,11 +1,10 @@
 import math
 
 
-def LogisticRegression(e, img_width, img_height, channels, latentDim):
+def LogisticRegression(e, img_width, img_height, channels):
     """Configure one hidden layer autoencoder.
 
     :param e: korali experiment
-    :param latentDim: encoding dimension
     :param img_height: input/output image height
     :param img_width: input/output image height
     """
@@ -16,11 +15,10 @@ def LogisticRegression(e, img_width, img_height, channels, latentDim):
     e["Solver"]["Neural Network"]["Output Activation"] = "Softmax"
 
 
-def LinearClf(e, img_width, img_height, channels, latentDim):
+def FFNN_300_100(e, img_width, img_height, channels):
     """Configure one hidden layer autoencoder.
 
     :param e: korali experiment
-    :param latentDim: encoding dimension
     :param img_height: input/output image height
     :param img_width: input/output image height
     """
@@ -44,3 +42,4 @@ def LinearClf(e, img_width, img_height, channels, latentDim):
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Function"] = "Elementwise/Tanh"
     ## Linear Layer =============================================================================
     e["Solver"]["Neural Network"]["Output Activation"] = "Softmax"
+

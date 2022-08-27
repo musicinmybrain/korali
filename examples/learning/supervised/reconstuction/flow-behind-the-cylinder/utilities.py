@@ -53,7 +53,7 @@ def initialize_constants():
     RE100 = "RE100"
     global PATH_DATA_TEST_1000
     # BASE_PROJECT_PATH = os.path.normpath("/project/s929/pollakg/cyl/_data")
-    BASE_PROJECT_PATH = os.path.normpath("/home/pollakg/polybox/CSE/master/6th_term/master_thesis/korali/examples/learning/supervised/Cylinder/_data/")
+    BASE_PROJECT_PATH = os.path.normpath("/home/pollakg/polybox/CSE/master/6th_term/master_thesis/korali/examples/learning/supervised/reconstuction/flow-behind-the-cylinder/_data/")
     PATH_DATA_TEST_1000 = os.path.join(BASE_PROJECT_PATH, "data.pickle")
     global PATH_DATA_TEST_128
     PATH_DATA_TEST_128 = os.path.join(BASE_PROJECT_PATH, "test.pickle")
@@ -179,7 +179,7 @@ def make_parser():
     parser.add_argument(
         "--data-type",
         help="Type of data to use.",
-        default=RE100,
+        default=TEST1000,
         choices=[TEST128, TEST1000, RE100, RE1000],
         required=False,
     )

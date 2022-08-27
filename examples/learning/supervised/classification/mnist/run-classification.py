@@ -69,13 +69,17 @@ if len(sys.argv) != 0:
         IPYTHON = True
 args = parser.parse_args()
 sys.argv = tmp
-#  Select Model ==============================================================
+
+#  MODEL SELECTION ===========================================================
 if args.model == "Logistic Regression":
     from linear_clf import LogisticRegression as classifier
-elif args.model == "300-100":
-    from linear_clf import LinearClf as classifier
+elif args.model == "ffnn300-100":
+    from linear_clf import FFNN_300_100 as classifier
+elif args.model == "lenet1":
+    from lenet import LeNet1 as classifier
 else:
     sys.exit(f"{args.model} is not a valid model.")
+#  ===========================================================================
 k = korali.Engine()
 e = korali.Experiment()
 ### Hyperparameters
@@ -170,7 +174,7 @@ e["Solver"]["Metrics"]["Type"] = "Accuracy"
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 # MODEL DEFINTION ================================================================================
-classifier(e, img_width, img_height, input_channels, args.latentDim)
+classifier(e, img_width, img_height, input_channels)
 # ================================================================================
 ### Configuring output
 e["Console Output"]["Verbosity"] = args.verbosity

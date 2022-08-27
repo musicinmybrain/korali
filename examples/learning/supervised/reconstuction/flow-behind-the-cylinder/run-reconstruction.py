@@ -32,9 +32,10 @@ TIMESTEPS = 0
 parser = make_parser()
 isMaster = lambda: args.conduit != constants.DISTRIBUTED or (args.conduit == constants.DISTRIBUTED and MPIrank == MPIroot)
 
-iPython = True
+iPython = False
+print(sys.argv[0])
 if sys.argv[0] in ["/usr/bin/ipython", "/users/pollakg/.local/bin/ipython"]:
-    # a = ['--data-type', 'test128', '--plot', '--epochs', '50', '--save', '--overwrite', '--learningRateType', 'Time Based', '--initialLearningRate', '0.01', '--learningRateDecayFactor', '0.001', '--learningRateLowerBound', '0.001']
+    # a = ['--data-type', 'test128', '--plot', '--epochs', '200', '--save', '--overwrite', '--learningRateType', 'Time Based', '--initialLearningRate', '0.01', '--learningRateDecayFactor', '0.001', '--learningRateLowerBound', '0.001']
     tmp_args = sys.argv
     sys.argv = ['']
     iPython = True

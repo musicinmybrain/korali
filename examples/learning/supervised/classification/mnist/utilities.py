@@ -51,13 +51,6 @@ def make_parser():
         type=float,
         required=False)
     parser.add_argument(
-        "--latentDim",
-        help="Latent dimension of the encoder",
-        default=4,
-        required=False,
-        type=int
-    )
-    parser.add_argument(
         "-p",
         "--plot",
         help="Indicates if to plot the losses.",
