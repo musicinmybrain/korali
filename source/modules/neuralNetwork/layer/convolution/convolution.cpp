@@ -36,8 +36,12 @@ void Convolution::initialize()
   N = _batchSize;
   IH = _imageHeight;
   IW = _imageWidth;
-  KH = _kernelHeight;
-  KW = _kernelWidth;
+  // Kernel ===============================================================================
+  KH = KW = _kernelSize;
+  if(_kernelWidth != -1)
+    KW = _kernelWidth;
+  if( _kernelHeight != -1)
+    KH = _kernelHeight;
   // Strides ==============================================================================
   SV = SH = _stride;
   if( _verticalStride != -1)
@@ -45,7 +49,7 @@ void Convolution::initialize()
   if( _horizontalStride != -1)
     SH = _horizontalStride;
   // Paddings =============================================================================
-  PT = PL = PB = PR = _padding;
+  PT = PL = PB = PR = _paddingSize;
   if( _paddingVertical != -1)
     PT = PB = _paddingVertical;
   if( _paddingHorizontal != -1)
@@ -640,6 +644,17 @@ void Convolution::setConfiguration(knlohmann::json& js)
     eraseValue(js, "Image Width");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Image Width'] required by convolution.\n"); 
 
+  if (isDefined(js, "Kernel Size"))
+  {
+    try
+    {
+      _kernelSize = js["Kernel Size"].get<ssize_t>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ convolution ] \n + Key:    ['Kernel Size']\n%s", e.what());
+    }
+    eraseValue(js, "Kernel Size");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Kernel Size'] required by convolution.\n"); 
+
   if (isDefined(js, "Kernel Height"))
   {
     try
@@ -761,16 +776,16 @@ void Convolution::setConfiguration(knlohmann::json& js)
     eraseValue(js, "Padding Horizontal");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Padding Horizontal'] required by convolution.\n"); 
 
-  if (isDefined(js, "Padding"))
+  if (isDefined(js, "Padding Size"))
   {
     try
     {
-      _padding = js["Padding"].get<ssize_t>();
+      _paddingSize = js["Padding Size"].get<ssize_t>();
     } catch (const std::exception& e) {
-      KORALI_LOG_ERROR(" + Object: [ convolution ] \n + Key:    ['Padding']\n%s", e.what());
+      KORALI_LOG_ERROR(" + Object: [ convolution ] \n + Key:    ['Padding Size']\n%s", e.what());
     }
-    eraseValue(js, "Padding");
-  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Padding'] required by convolution.\n"); 
+    eraseValue(js, "Padding Size");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Padding Size'] required by convolution.\n"); 
 
   if (isDefined(js, "Filters"))
   {
@@ -795,6 +810,7 @@ void Convolution::getConfiguration(knlohmann::json& js)
   js["Type"] = _type;
    js["Image Height"] = _imageHeight;
    js["Image Width"] = _imageWidth;
+   js["Kernel Size"] = _kernelSize;
    js["Kernel Height"] = _kernelHeight;
    js["Kernel Width"] = _kernelWidth;
    js["Vertical Stride"] = _verticalStride;
@@ -806,7 +822,7 @@ void Convolution::getConfiguration(knlohmann::json& js)
    js["Padding Bottom"] = _paddingBottom;
    js["Padding Vertical"] = _paddingVertical;
    js["Padding Horizontal"] = _paddingHorizontal;
-   js["Padding"] = _padding;
+   js["Padding Size"] = _paddingSize;
    js["Filters"] = _filters;
  Layer::getConfiguration(js);
 } 
@@ -814,7 +830,7 @@ void Convolution::getConfiguration(knlohmann::json& js)
 void Convolution::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Image Height\": -1, \"Image Width\": -1, \"Padding Top\": -1, \"Padding Bottom\": -1, \"Padding Left\": -1, \"Padding Right\": -1, \"Padding Vertical\": -1, \"Padding Horizontal\": -1, \"Padding\": 0, \"Vertical Stride\": -1, \"Horizontal Stride\": -1, \"Stride\": 1, \"Filters\": -1}";
+ std::string defaultString = "{\"Image Height\": -1, \"Image Width\": -1, \"Kernel Size\": -1, \"Kernel Width\": -1, \"Kernel Height\": -1, \"Padding Top\": -1, \"Padding Bottom\": -1, \"Padding Left\": -1, \"Padding Right\": -1, \"Padding Vertical\": -1, \"Padding Horizontal\": -1, \"Padding Size\": 0, \"Vertical Stride\": -1, \"Horizontal Stride\": -1, \"Stride\": 1, \"Filters\": -1}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Layer::applyModuleDefaults(js);

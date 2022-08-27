@@ -41,11 +41,15 @@ class Pooling : public Layer
   */
    ssize_t _imageWidth;
   /**
-  * @brief Height of the incoming 2D image.
+  * @brief Height/Width of the 2D filter.
+  */
+   ssize_t _kernelSize;
+  /**
+  * @brief Height of the 2D filter.
   */
    ssize_t _kernelHeight;
   /**
-  * @brief Width of the incoming 2D image.
+  * @brief Width of the 2D filter.
   */
    ssize_t _kernelWidth;
   /**
@@ -87,7 +91,7 @@ class Pooling : public Layer
   /**
   * @brief Paddings for the image Bottom side.
   */
-   ssize_t _padding;
+   ssize_t _paddingSize;
   /**
   * @brief If specified 'Ouput Channels is calculated automatically. For -1: Filters = IC
   */

@@ -30,8 +30,12 @@ void __className__::initialize()
   N = _batchSize;
   IH = _imageHeight;
   IW = _imageWidth;
-  KH = _kernelHeight;
-  KW = _kernelWidth;
+  // Kernel ===============================================================================
+  KH = KW = _kernelSize;
+  if(_kernelWidth != -1)
+    KW = _kernelWidth;
+  if( _kernelHeight != -1)
+    KH = _kernelHeight;
   // Strides ==============================================================================
   SV = SH = _stride;
   if( _verticalStride != -1)
@@ -39,7 +43,7 @@ void __className__::initialize()
   if( _horizontalStride != -1)
     SH = _horizontalStride;
   // Paddings =============================================================================
-  PT = PL = PB = PR = _padding;
+  PT = PL = PB = PR = _paddingSize;
   if( _paddingVertical != -1)
     PT = PB = _paddingVertical;
   if( _paddingHorizontal != -1)
