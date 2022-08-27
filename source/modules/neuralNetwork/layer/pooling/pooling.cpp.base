@@ -120,8 +120,8 @@ void __className__::initialize()
   IC = _prevLayer->_outputChannels / (IH * IW);
 
   // Deriving output height and width
-  OH = (IH - (KH - (PR + PL)) / SH) + 1;
-  OW = (IW - (KW - (PT + PB)) / SV) + 1;
+  OH = ((IH - KH + PR + PL) / SH) + 1;
+  OW = ((IW - KW + PT + PB) / SV) + 1;
   if( ((IH - KH + PT + PB) % SV) != 0)
     _k->_logger->logInfo("Normal", "[Convolutional layer %zu] (IH - KH + PT + PB) / SV = %lu using floor.\n", _index-1, OH-1);
   if( ((IW - KW + PR + PL) % SH) != 0)
