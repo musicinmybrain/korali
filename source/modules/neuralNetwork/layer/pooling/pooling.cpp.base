@@ -1,4 +1,7 @@
 #include "modules/neuralNetwork/layer/pooling/pooling.hpp"
+#include "modules/neuralNetwork/layer/convolution/convolution.hpp"
+#include "modules/neuralNetwork/layer/deconvolution/deconvolution.hpp"
+#include "modules/neuralNetwork/layer/resampling/resampling.hpp"
 #include "modules/neuralNetwork/neuralNetwork.hpp"
 
 #ifdef _KORALI_USE_CUDNN
@@ -19,7 +22,7 @@ void __className__::initialize()
 {
   // Checking Layer size
   if (_filters == -1 && _outputChannels == 0){
-    _k->_logger->logInfo("Detailed", "[Pooling Layer %lu] No output channels specified, assuming OC = IC.\n", _index-1);
+    _k->_logger->logInfo("Detailed", "[%s Layer %lu] No output channels specified, assuming OC = IC.\n", _type.c_str(), _index-1);
   }
 
   // Checking position
@@ -54,17 +57,63 @@ void __className__::initialize()
   if( _paddingRight != -1)
     PR = _paddingRight;
 
-  // Check for non zeros
-  if (IH <= 0) KORALI_LOG_ERROR("Image height must be larger than zero for pooling layer.\n");
-  if (IW <= 0) KORALI_LOG_ERROR("Image width must be larger than zero for pooling layer.\n");
+  // Image Height and Image Width (if not given deduction from prev layer) =================
+  // TODO: make this better
+  if (IW <= 0 || IH <= 0){
+    Layer *_prevHiddenLayer{};
+    if(_prevLayer->_type == "layer/activation")
+      _prevHiddenLayer = _prevLayer->_prevLayer;
+    else
+      _prevHiddenLayer = _prevLayer;
+    if (auto _prevCastedLayer = dynamic_cast<const Convolution*>(_prevHiddenLayer)){
+      if (IH <= 0) {
+        if (IH <= 0) IH = _prevCastedLayer->OH;
+        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image height %lu from previous layer.\n", _type.c_str(), _index-1, IH);
+      }
+      if (IW <= 0){
+        if (IW <= 0) IW = _prevCastedLayer->OW;
+        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image width %lu from previous layer.\n", _type.c_str(), _index-1, IW);
+      }
+    } else if (auto _prevCastedLayer = dynamic_cast<const Deconvolution*>(_prevHiddenLayer)){
+      if (IH <= 0) {
+        if (IH <= 0) IH = _prevCastedLayer->OH;
+        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image height %lu from previous layer.\n", _type.c_str(), _index-1, IH);
+      }
+      if (IW <= 0){
+        if (IW <= 0) IW = _prevCastedLayer->OW;
+        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image width %lu from previous layer.\n", _type.c_str(), _index-1, IW);
+      }
+    } else if (auto _prevCastedLayer = dynamic_cast<const Pooling*>(_prevHiddenLayer)){
+      if (IH <= 0) {
+        if (IH <= 0) IH = _prevCastedLayer->OH;
+        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image height %lu from previous layer.\n", _type.c_str(), _index-1, IH);
+      }
+      if (IW <= 0){
+        if (IW <= 0) IW = _prevCastedLayer->OW;
+        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image width %lu from previous layer.\n", _type.c_str(), _index-1, IW);
+      }
+    } else if (auto _prevCastedLayer = dynamic_cast<const Resampling*>(_prevHiddenLayer)){
+      if (IH <= 0) {
+        if (IH <= 0) IH = _prevCastedLayer->OH;
+        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image height %lu from previous layer.\n", _type.c_str(), _index-1, IH);
+      }
+      if (IW <= 0){
+        if (IW <= 0) IW = _prevCastedLayer->OW;
+        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image width %lu from previous layer.\n", _type.c_str(), _index-1, IW);
+      }
+    }
+  }
+  if (IW <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image width cannot be deduced from previous layer and must be larger than zero.\n", _type.c_str(), _index-1);
+  if (IH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image height cannot be deduced from previous layer and must be larger than zero.\n", _type.c_str(), _index-1);
+  // ======================================================================================
   if (KH <= 0) KORALI_LOG_ERROR("Kernel height must be larger than zero for pooling layer.\n");
   if (KW <= 0) KORALI_LOG_ERROR("Kernel width must be larger than zero for pooling layer.\n");
   if (SV <= 0) KORALI_LOG_ERROR("Vertical stride must be larger than zero for pooling layer.\n");
   if (SH <= 0) KORALI_LOG_ERROR("Horizontal stride must be larger than zero for pooling layer.\n");
 
   // Several sanity checks
-  if (KH > IH + PR + PL) KORALI_LOG_ERROR("[Convolutional layer %zu] Kernel height cannot be larger than input image height plus padding.\n", _index-1);
-  if (KW > IW + PT + PB) KORALI_LOG_ERROR("[Convolutional layer %zu] Kernel width cannot be larger than input image width plus padding.\n",_index-1);
+  if (KH > IH + PR + PL) KORALI_LOG_ERROR("[%s layer %zu] Kernel height cannot be larger than input image height plus padding.\n", _type.c_str(), _index-1);
+  if (KW > IW + PT + PB) KORALI_LOG_ERROR("[%s layer %zu] Kernel width cannot be larger than input image width plus padding.\n", _type.c_str(), _index-1);
 
   // Check whether the output channels of the previous layer is divided by the height and width
   if (_prevLayer->_outputChannels % (IH * IW) > 0) KORALI_LOG_ERROR("[Pooling layer %zu] Previous layer contains a number of channels (%lu) not divisible by the pooling 2D HxW setup (%lux%lu).\n", _index-1, _prevLayer->_outputChannels, IH, IW);
