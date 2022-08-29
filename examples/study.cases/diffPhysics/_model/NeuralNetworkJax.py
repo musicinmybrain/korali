@@ -128,9 +128,13 @@ def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state):
     fig, ax = plt.subplots()
 
     # Plot and save figure
-    ax.plot(x_arr, sgs_final,   '-',  color=colors[0])
-    ax.plot(x_arr, dns_final,   '-',  color=colors[1])
-    ax.plot(x_arr, predict[-1], '--', color=colors[2])
+    ax.plot(x_arr, sgs_final,   '-',  color=colors[1], label='SGS solution')
+    ax.plot(x_arr, dns_final,   '-',  color=colors[0], label='DNS solution')
+    ax.plot(x_arr, predict[-1], '--', color=colors[2], label='Predicted values')
+    ax.set_title('Non-Korali version')
+    ax.set_xlabel('x')
+    ax.set_ylabel('u(x)')
+    ax.legend()
     fig.savefig(figName)
     print("Plot has been saved under the name: Solution_and_Prediction_Plot.pdf")
 
