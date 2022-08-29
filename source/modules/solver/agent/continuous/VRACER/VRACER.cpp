@@ -88,11 +88,15 @@ void VRACER::initializeAgent()
 
 void VRACER::trainPolicy()
 {
+  auto beginTime = std::chrono::steady_clock::now();
   // Obtaining Minibatch experience ids
   const auto miniBatch = generateMiniBatch();
 
   // Gathering state sequences for selected minibatch
   const auto stateSequenceBatch = getMiniBatchStateSequence(miniBatch);
+  auto endTime = std::chrono::steady_clock::now(); 
+  _sessionCreateMinibatchTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
+  _generationCreateMinibatchTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
 
   // Prepare stateSequenceBatch and miniBatch
   auto _miniBatch          = miniBatch;
@@ -123,19 +127,35 @@ void VRACER::trainPolicy()
 
     // Forward NN
     std::vector<policy_t> policyInfo;
+    beginTime = std::chrono::steady_clock::now(); 
     runPolicy(_stateSequenceBatch, policyInfo, p);
+    endTime = std::chrono::steady_clock::now(); 
+    _sessionRunPolicyTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
+    _generationRunPolicyTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
 
     // Using policy information to update experience's metadata
+    beginTime = std::chrono::steady_clock::now();
     updateExperienceMetadata(_miniBatch, policyInfo);
+    endTime = std::chrono::steady_clock::now();
+    _sessionUpdateMetadataTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
+    _generationUpdateMetadataTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
 
     // Now calculating policy gradients
+    beginTime = std::chrono::steady_clock::now();
     calculatePolicyGradients(_miniBatch, p);
+    endTime = std::chrono::steady_clock::now();
+    _sessionPolicyGradientTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
+    _generationPolicyGradientTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
 
     // Updating learning rate for critic/policy learner guided by REFER
     _criticPolicyLearner[p]->_learningRate = _currentLearningRate;
 
     // Now applying gradients to update policy NN
+    beginTime = std::chrono::steady_clock::now();
     _criticPolicyLearner[p]->runGeneration();
+    endTime = std::chrono::steady_clock::now();
+    _sessionRunGenerationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
+    _generationRunGenerationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
 
     // Store policyData for agent p for later update of metadata
     if ( (numPolicies > 1) && (_multiAgentRelationship != "Competition") && !_problem->_ensembleLearning )

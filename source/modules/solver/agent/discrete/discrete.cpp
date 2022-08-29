@@ -28,7 +28,7 @@ void Discrete::getAction(korali::Sample &sample)
     auto state = sample["State"][i].get<std::vector<float>>();
 
     // Adding state to the state time sequence
-    _stateTimeSequence[i].add(state);
+    _stateTimeSequence[i].push_back(state);
 
     // Preparing storage for policy information and flag available actions if provided
     std::vector<policy_t> policy(1);
@@ -36,9 +36,9 @@ void Discrete::getAction(korali::Sample &sample)
 
     // Getting the probability of the actions given by the agent's policy
     if (_problem->_policiesPerEnvironment == 1)
-      runPolicy({_stateTimeSequence[i].getVector()}, policy);
+      runPolicy({boostToVector(_stateTimeSequence[i])}, policy);
     else
-      runPolicy({_stateTimeSequence[i].getVector()}, policy, i);
+      runPolicy({boostToVector(_stateTimeSequence[i])}, policy, i);
 
     const auto &qValAndInvTemp = policy[0].distributionParameters;
     const auto &pActions = policy[0].actionProbabilities;

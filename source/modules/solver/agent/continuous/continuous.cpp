@@ -110,7 +110,7 @@ void Continuous::getAction(korali::Sample &sample)
     auto state = sample["State"][i];
 
     // Adding state to the state time sequence
-    _stateTimeSequence[i].add(state);
+    _stateTimeSequence[i].push_back(state);
 
     // Storage for the action to select
     std::vector<float> action(_problem->_actionVectorSize);
@@ -134,12 +134,12 @@ void Continuous::getAction(korali::Sample &sample)
         _criticPolicyLearner[policyIdx]->setHyperparameters(hyperparameters);
       }
 
-      runPolicy({_stateTimeSequence[i].getVector()}, policy, policyIdx);
+      runPolicy({boostToVector(_stateTimeSequence[i])}, policy, policyIdx);
     }
     else if (_problem->_policiesPerEnvironment == 1)
-      runPolicy({_stateTimeSequence[i].getVector()}, policy);
+      runPolicy({boostToVector(_stateTimeSequence[i])}, policy);
     else
-      runPolicy({_stateTimeSequence[i].getVector()}, policy, i);
+      runPolicy({boostToVector(_stateTimeSequence[i])}, policy, i);
 
     /*****************************************************************************
      * During Training we select action according to policy's probability

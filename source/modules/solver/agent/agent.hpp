@@ -20,6 +20,7 @@
 #include "sample/sample.hpp"
 #include <algorithm> // std::shuffle
 #include <random>
+#include <boost/circular_buffer.hpp>
 
 namespace korali
 {
@@ -462,102 +463,92 @@ class Agent : public Solver
   /**
    * @brief Stores the state of the experience
    */
-  cBuffer<std::vector<std::vector<float>>> _stateVector;
+  boost::circular_buffer<std::vector<std::vector<float>>> _stateVector;
 
   /**
    * @brief Stores the action taken by the agent at the given state
    */
-  cBuffer<std::vector<std::vector<float>>> _actionVector;
+  boost::circular_buffer<std::vector<std::vector<float>>> _actionVector;
 
   /**
    * @brief Stores the current sequence of states observed by the agent (limited to time sequence length defined by the user)
    */
-  std::vector<cBuffer<std::vector<float>>> _stateTimeSequence;
+  std::vector<boost::circular_buffer<std::vector<float>>> _stateTimeSequence;
 
   /**
    * @brief Episode that experience belongs to
    */
-  cBuffer<size_t> _episodeIdVector;
+  boost::circular_buffer<size_t> _episodeIdVector;
 
   /**
    * @brief Position within the episode of this experience
    */
-  cBuffer<size_t> _episodePosVector;
+  boost::circular_buffer<size_t> _episodePosVector;
 
   /**
    * @brief Contains the latest calculation of the experience's importance weight
    */
-  cBuffer<std::vector<float>> _importanceWeightVector;
+  boost::circular_buffer<std::vector<float>> _importanceWeightVector;
 
   /**
    * @brief Contains the latest calculation of the experience's truncated importance weight
    */
-  cBuffer<std::vector<float>> _truncatedImportanceWeightVector;
+  boost::circular_buffer<std::vector<float>> _truncatedImportanceWeightVector;
 
   /**
    * @brief Contains the latest calculation of the product of the product of the experience's importance weights
    */
-  cBuffer<float> _productImportanceWeightVector;
-
-  /**
-   * @brief For prioritized experience replay, this stores the experience's priority
-   */
-  cBuffer<std::vector<float>> _priorityVector;
-
-  /**
-   * @brief For prioritized experience replay, this stores the experience's probability
-   */
-  cBuffer<std::vector<float>> _probabilityVector;
+  boost::circular_buffer<float> _productImportanceWeightVector;
 
   /**
    * @brief Contains the most current policy information given the experience state
    */
-  cBuffer<std::vector<policy_t>> _curPolicyVector;
+  boost::circular_buffer<std::vector<policy_t>> _curPolicyVector;
 
   /**
    * @brief Contains the policy information produced at the moment of the action was taken
    */
-  cBuffer<std::vector<policy_t>> _expPolicyVector;
+  boost::circular_buffer<std::vector<policy_t>> _expPolicyVector;
 
   /**
    * @brief Indicates whether the experience is on policy, given the specified off-policiness criteria
    */
-  cBuffer<std::vector<char>> _isOnPolicyVector;
+  boost::circular_buffer<std::vector<char>> _isOnPolicyVector;
 
   /**
    * @brief Specifies whether the experience is terminal (truncated or normal) or not.
    */
-  cBuffer<termination_t> _terminationVector;
+  boost::circular_buffer<termination_t> _terminationVector;
 
   /**
    * @brief Contains the result of the retrace (Vtbc) function for the currrent experience
    */
-  cBuffer<std::vector<float>> _retraceValueVector;
+  boost::circular_buffer<std::vector<float>> _retraceValueVector;
 
   /**
    * @brief If this is a truncated terminal experience, this contains the state value for that state
    */
-  cBuffer<std::vector<float>> _truncatedStateValueVector;
+  boost::circular_buffer<std::vector<float>> _truncatedStateValueVector;
 
   /**
    * @brief If this is a truncated terminal experience, the truncated state is also saved here
    */
-  cBuffer<std::vector<std::vector<float>>> _truncatedStateVector;
+  boost::circular_buffer<std::vector<std::vector<float>>> _truncatedStateVector;
 
   /**
    * @brief Contains the rewards of every experience
    */
-  cBuffer<std::vector<float>> _rewardVector;
+  boost::circular_buffer<std::vector<float>> _rewardVector;
 
   /**
    * @brief Contains the state value evaluation for every experience
    */
-  cBuffer<std::vector<float>> _stateValueVector;
+  boost::circular_buffer<std::vector<float>> _stateValueVector;
 
   /**
    * @brief Contains the state value evaluation for every experience
    */
-  cBuffer<std::vector<std::vector<float>>> _hyperparameterVector;
+  boost::circular_buffer<std::vector<std::vector<float>>> _hyperparameterVector;
 
   /**
    * @brief Stores the priority annealing rate.
@@ -619,6 +610,31 @@ class Agent : public Solver
   double _sessionPolicyUpdateTime;
 
   /**
+   * @brief [Profiling] Measures the time taken to update the policy in the current generation
+   */
+  double _sessionCreateMinibatchTime;
+
+  /**
+   * @brief [Profiling] Measures the time taken to update the policy in the current generation
+   */
+  double _sessionRunPolicyTime;
+
+  /**
+   * @brief [Profiling] Measures the time taken to update the policy in the current generation
+   */
+  double _sessionUpdateMetadataTime;
+
+  /**
+   * @brief [Profiling] Measures the time taken to update the policy in the current generation
+   */
+  double _sessionPolicyGradientTime;
+
+  /**
+   * @brief [Profiling] Measures the time taken to update the policy in the current generation
+   */
+  double _sessionRunGenerationTime;
+
+  /**
    * @brief [Profiling] Measures the time taken to update the attend the agent's state
    */
   double _sessionAgentAttendingTime;
@@ -656,6 +672,31 @@ class Agent : public Solver
    * @brief [Profiling] Measures the time taken to update the policy in the current generation
    */
   double _generationPolicyUpdateTime;
+
+  /**
+   * @brief [Profiling] Measures the time taken to update the policy in the current generation
+   */
+  double _generationCreateMinibatchTime;
+
+  /**
+   * @brief [Profiling] Measures the time taken to update the policy in the current generation
+   */
+  double _generationRunPolicyTime;
+
+  /**
+   * @brief [Profiling] Measures the time taken to update the policy in the current generation
+   */
+  double _generationUpdateMetadataTime;
+
+  /**
+   * @brief [Profiling] Measures the time taken to update the policy in the current generation
+   */
+  double _generationPolicyGradientTime;
+
+  /**
+   * @brief [Profiling] Measures the time taken to update the policy in the current generation
+   */
+  double _generationRunGenerationTime;
 
   /**
    * @brief [Profiling] Measures the time taken to update the attend the agent's state
