@@ -125,7 +125,6 @@ train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state,
 
 #------------------------------------------------------------------------------
 # Testing (tests the final time iteration and plots the values)
-# TODO: plot this nicely
 
 PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new)
 
