@@ -37,6 +37,10 @@ class Deconvolution : public Layer
   */
    ssize_t _imageWidth;
   /**
+  * @brief Height/Width of the 2D filter.
+  */
+   ssize_t _kernelSize;
+  /**
   * @brief Height of the incoming 2D image.
   */
    ssize_t _kernelHeight;
@@ -53,6 +57,10 @@ class Deconvolution : public Layer
   */
    ssize_t _horizontalStride;
   /**
+  * @brief Strides for the image on the vertical/horizontal dimension.
+  */
+   ssize_t _strideSize;
+  /**
   * @brief Paddings for the image left side.
   */
    ssize_t _paddingLeft;
@@ -68,6 +76,22 @@ class Deconvolution : public Layer
   * @brief Paddings for the image Bottom side.
   */
    ssize_t _paddingBottom;
+  /**
+  * @brief Paddings for the image Top and Bottom side.
+  */
+   ssize_t _paddingVertical;
+  /**
+  * @brief Paddings for the image left and right side.
+  */
+   ssize_t _paddingHorizontal;
+  /**
+  * @brief Paddings for the image Bottom side.
+  */
+   ssize_t _paddingSize;
+  /**
+  * @brief If specified 'Ouput Channels is calculated automatically
+  */
+   ssize_t _filters;
   
  
   /**

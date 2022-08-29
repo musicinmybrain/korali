@@ -24,49 +24,66 @@ namespace layer
 void Deconvolution::initialize()
 {
   // Checking Layer size
-  if (_outputChannels == 0) KORALI_LOG_ERROR("Node count for layer (%lu) should be larger than zero.\n", _index);
+  if (_filters == -1 && _outputChannels == 0) KORALI_LOG_ERROR("[%s Layer %lu] No output channesl or filter number specified for layer (%lu).\n", _type.c_str(), _index-1);
 
   // Checking position
-  if (_index == 0) KORALI_LOG_ERROR("Deconvolutional layers cannot be the starting layer of the NN\n");
-  if (_index == _nn->_layers.size() - 1) KORALI_LOG_ERROR("Deconvolutional layers cannot be the last layer of the NN\n");
+  if (_index == 0) KORALI_LOG_ERROR("[%s Layer %lu] layers cannot be the starting layer of the NN\n", _type.c_str(), _index-1);
+  if (_index == _nn->_layers.size() - 1) KORALI_LOG_ERROR("[%s Layer %lu] layers cannot be the last layer of the NN\n", _type.c_str(), _index-1);
 
   // Precalculating values for the deconvolution operation
   N = _batchSize;
   OH = _imageHeight;
   OW = _imageWidth;
-  KH = _kernelHeight;
-  KW = _kernelWidth;
-
-  SV = _verticalStride;
-  SH = _horizontalStride;
-  PT = _paddingTop;
-  PL = _paddingLeft;
-  PB = _paddingBottom;
-  PR = _paddingRight;
-
+  // Kernel ===============================================================================
+  KH = KW = _kernelSize;
+  if(_kernelWidth != -1)
+    KW = _kernelWidth;
+  if( _kernelHeight != -1)
+    KH = _kernelHeight;
+  // Strides ==============================================================================
+  SV = SH = _strideSize;
+  if( _verticalStride != -1)
+    SV = _verticalStride;
+  if( _horizontalStride != -1)
+    SH = _horizontalStride;
+  // Paddings =============================================================================
+  PT = PL = PB = PR = _paddingSize;
+  if( _paddingVertical != -1)
+    PT = PB = _paddingVertical;
+  if( _paddingHorizontal != -1)
+    PL = PR = _paddingVertical;
+  if( _paddingTop != -1)
+    PT = _paddingTop;
+  if( _paddingBottom != -1)
+    PB = _paddingBottom;
+  if( _paddingLeft != -1)
+    PL = _paddingLeft;
+  if( _paddingRight != -1)
+    PR = _paddingRight;
   // Check for non zeros
-  if (OH <= 0) KORALI_LOG_ERROR("[Deconvolutional layer %zu] Image height must be larger than zero for deconvolutional layer.\n", _index-1);
-  if (OW <= 0) KORALI_LOG_ERROR("[Deconvolutional layer %zu] Image width must be larger than zero for deconvolutional layer.\n", _index-1);
-  if (KH <= 0) KORALI_LOG_ERROR("[Deconvolutional layer %zu] Kernel height must be larger than zero for deconvolutional layer.\n", _index-1);
-  if (KW <= 0) KORALI_LOG_ERROR("[Deconvolutional layer %zu] Kernel width must be larger than zero for deconvolutional layer.\n", _index-1);
-  if (SV <= 0) KORALI_LOG_ERROR("[Deconvolutional layer %zu] Vertical stride must be larger than zero for deconvolutional layer.\n", _index-1);
-  if (SH <= 0) KORALI_LOG_ERROR("[Deconvolutional layer %zu] Horizontal stride must be larger than zero for deconvolutional layer.\n", _index-1);
+  if (OH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image height must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index-1);
+  if (OW <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image width must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index-1);
+  if (KH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Kernel height must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index-1);
+  if (KW <= 0) KORALI_LOG_ERROR("[%s layer %zu] Kernel width must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index-1);
+  if (SV <= 0) KORALI_LOG_ERROR("[%s layer %zu] Vertical stride must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index-1);
+  if (SH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Horizontal stride must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index-1);
 
   // Several sanity checks
-  if (KH > OH + PR + PL) KORALI_LOG_ERROR("[Deconvolutional layer %zu] Kernel height cannot be larger than output image height plus padding.\n", _index-1);
-  if (KW > OW + PT + PB) KORALI_LOG_ERROR("[Deconvolutional layer %zu] Kernel width cannot be larger than output image width plus padding.\n",_index-1);
+  // TODO: check this, this might be wrong
+  if (KH > OH + PR + PL) KORALI_LOG_ERROR("[%s layer %zu] Kernel height cannot be larger than output image height plus padding.\n", _type.c_str(), _index-1);
+  if (KW > OW + PT + PB) KORALI_LOG_ERROR("[%s layer %zu] Kernel width cannot be larger than output image width plus padding.\n", _type.c_str(), _index-1);
+  if(_outputChannels == 0)
+    _outputChannels = _filters*OH*OW;
 
   // Check whether the output channels of the previous layer is divided by the height and width
   if (_outputChannels % (OH * OW) > 0) KORALI_LOG_ERROR("[Deconvolutional layer %zu] Number of channels (%lu) not divisible by the 2D HxW setup (%lux%lu).\n", _index-1, _outputChannels, OH, OW);
   OC = _outputChannels / (OH * OW);
-
   // Deriving input height and width
-  IH = (OH - KH + PT + PB) / SV + 1;
-  IW = (OW - KW + PR + PL) / SH + 1;
-  // printf("OH %zu\n", OH); fflush(stdout);
-  // Check whether the output channels of the previous layer is divided by the height and width
-  if (_prevLayer->_outputChannels % (IH * IW) > 0) KORALI_LOG_ERROR("[Deconvolutional layer %zu] Previous layer contains a number of output channels (%lu) not divisible by the image size (%lux%lu) \
-                                                                      given kernel (%lux%lu) size and padding/stride configuration.\n", _index-1, _prevLayer->_outputChannels, IH, IW, KH, KW);
+  IH = ((OH - KH + PT + PB) / SV) + 1;
+  IW = ((OW - KW + PR + PL) / SH) + 1;
+  // Check whether the output channels of the previous layer is divided by the height and width i.e. if previous layer is a linear layer
+  if (_prevLayer->_outputChannels % (IH * IW) > 0) KORALI_LOG_ERROR("[%s layer %zu] Previous layer contains a number of output channels (%lu) not divisible by the image size (%lux%lu) \
+                                                                      given kernel (%lux%lu) size and padding/stride configuration.\n", _index-1, _type.c_str(), _prevLayer->_outputChannels, IH, IW, KH, KW);
   IC = _prevLayer->_outputChannels / (IH * IW);
 }
 
@@ -328,6 +345,17 @@ void Deconvolution::setConfiguration(knlohmann::json& js)
     eraseValue(js, "Image Width");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Image Width'] required by deconvolution.\n"); 
 
+  if (isDefined(js, "Kernel Size"))
+  {
+    try
+    {
+      _kernelSize = js["Kernel Size"].get<ssize_t>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ deconvolution ] \n + Key:    ['Kernel Size']\n%s", e.what());
+    }
+    eraseValue(js, "Kernel Size");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Kernel Size'] required by deconvolution.\n"); 
+
   if (isDefined(js, "Kernel Height"))
   {
     try
@@ -371,6 +399,17 @@ void Deconvolution::setConfiguration(knlohmann::json& js)
     }
     eraseValue(js, "Horizontal Stride");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Horizontal Stride'] required by deconvolution.\n"); 
+
+  if (isDefined(js, "Stride Size"))
+  {
+    try
+    {
+      _strideSize = js["Stride Size"].get<ssize_t>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ deconvolution ] \n + Key:    ['Stride Size']\n%s", e.what());
+    }
+    eraseValue(js, "Stride Size");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Stride Size'] required by deconvolution.\n"); 
 
   if (isDefined(js, "Padding Left"))
   {
@@ -416,6 +455,50 @@ void Deconvolution::setConfiguration(knlohmann::json& js)
     eraseValue(js, "Padding Bottom");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Padding Bottom'] required by deconvolution.\n"); 
 
+  if (isDefined(js, "Padding Vertical"))
+  {
+    try
+    {
+      _paddingVertical = js["Padding Vertical"].get<ssize_t>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ deconvolution ] \n + Key:    ['Padding Vertical']\n%s", e.what());
+    }
+    eraseValue(js, "Padding Vertical");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Padding Vertical'] required by deconvolution.\n"); 
+
+  if (isDefined(js, "Padding Horizontal"))
+  {
+    try
+    {
+      _paddingHorizontal = js["Padding Horizontal"].get<ssize_t>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ deconvolution ] \n + Key:    ['Padding Horizontal']\n%s", e.what());
+    }
+    eraseValue(js, "Padding Horizontal");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Padding Horizontal'] required by deconvolution.\n"); 
+
+  if (isDefined(js, "Padding Size"))
+  {
+    try
+    {
+      _paddingSize = js["Padding Size"].get<ssize_t>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ deconvolution ] \n + Key:    ['Padding Size']\n%s", e.what());
+    }
+    eraseValue(js, "Padding Size");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Padding Size'] required by deconvolution.\n"); 
+
+  if (isDefined(js, "Filters"))
+  {
+    try
+    {
+      _filters = js["Filters"].get<ssize_t>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ deconvolution ] \n + Key:    ['Filters']\n%s", e.what());
+    }
+    eraseValue(js, "Filters");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Filters'] required by deconvolution.\n"); 
+
  Layer::setConfiguration(js);
  _type = "layer/deconvolution";
  if(isDefined(js, "Type")) eraseValue(js, "Type");
@@ -428,21 +511,27 @@ void Deconvolution::getConfiguration(knlohmann::json& js)
   js["Type"] = _type;
    js["Image Height"] = _imageHeight;
    js["Image Width"] = _imageWidth;
+   js["Kernel Size"] = _kernelSize;
    js["Kernel Height"] = _kernelHeight;
    js["Kernel Width"] = _kernelWidth;
    js["Vertical Stride"] = _verticalStride;
    js["Horizontal Stride"] = _horizontalStride;
+   js["Stride Size"] = _strideSize;
    js["Padding Left"] = _paddingLeft;
    js["Padding Right"] = _paddingRight;
    js["Padding Top"] = _paddingTop;
    js["Padding Bottom"] = _paddingBottom;
+   js["Padding Vertical"] = _paddingVertical;
+   js["Padding Horizontal"] = _paddingHorizontal;
+   js["Padding Size"] = _paddingSize;
+   js["Filters"] = _filters;
  Layer::getConfiguration(js);
 } 
 
 void Deconvolution::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{}";
+ std::string defaultString = "{\"Image Height\": -1, \"Image Width\": -1, \"Kernel Size\": -1, \"Kernel Width\": -1, \"Kernel Height\": -1, \"Padding Top\": -1, \"Padding Bottom\": -1, \"Padding Left\": -1, \"Padding Right\": -1, \"Padding Vertical\": -1, \"Padding Horizontal\": -1, \"Padding Size\": 0, \"Vertical Stride\": -1, \"Horizontal Stride\": -1, \"Stride Size\": 1, \"Filters\": -1}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Layer::applyModuleDefaults(js);
