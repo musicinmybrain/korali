@@ -132,7 +132,7 @@ def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state):
     ax.plot(x_arr, dns_final,   '-',  color=colors[1])
     ax.plot(x_arr, predict[-1], '--', color=colors[2])
     fig.savefig(figName)
-    print("Plot has been saved under: Solution_and_Prediction_Plot.pdf")
+    print("Plot has been saved under the name: Solution_and_Prediction_Plot.pdf")
 
 #    # Output in text form
 #    print("DNS solution:")
@@ -141,5 +141,7 @@ def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state):
 #    print(sgs_final)
 #    print("Predictions:")
 #    print(predict[-1])
-    print("Loss:")
-    print(loss_final)
+#    print("Loss:")
+#    print(loss_final)
+
+    return loss_final

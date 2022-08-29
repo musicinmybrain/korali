@@ -125,7 +125,10 @@ train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state,
 
 #------------------------------------------------------------------------------
 # Testing (tests the final time iteration and plots the values)
+print("Plotting Solutions and Prediction ..")
 
-PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new)
+test_loss = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new)
 
+print("The loss is:")
+print(test_loss)
 
