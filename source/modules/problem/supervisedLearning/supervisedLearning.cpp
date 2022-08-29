@@ -34,7 +34,7 @@ void SupervisedLearning::verifyData()
     // Checking that all batch entries have the correct size
     for (size_t t = 0; t < _inputData[b].size(); t++)
       if (_inputData[b][t].size() != _inputSize)
-        KORALI_LOG_ERROR("Vector size of timestep %lu input data %lu is inconsistent. Size: %lu - Expected: %lu.\n", b, t, _inputData[b][t].size(), _inputSize);
+        KORALI_LOG_ERROR("InputData[%zu][%zu].size() = %lu, is inconsistent with specified input size e['Problem']['Input']['Size'] = %lu.\n", b, t, _inputData[b][t].size(), _inputSize);
   }
 
   // Checking batch size for solution data
