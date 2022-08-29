@@ -104,6 +104,12 @@ def make_parser():
         required=False,
         choices=["Silent", "Normal", "Detailed"]
     )
+    parser.add_argument(
+        "--test",
+        help="Use a reduce data set for faster training/evaluation.",
+        required=False,
+        action="store_true"
+    )
     return parser
 
 

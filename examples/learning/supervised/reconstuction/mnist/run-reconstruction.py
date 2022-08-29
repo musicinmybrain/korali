@@ -95,19 +95,21 @@ random.shuffle(trainingImages)
 # Calculate number of samples that is fitting to the BS =====================
 nb_training_samples = len(trainingImages)
 nb_training_samples = int((nb_training_samples*(1-args.validationSplit))/args.trainingBS)*args.trainingBS
+if args.test:
+    nb_training_samples = args.trainingBS*10
 nb_validation_samples = int((len(trainingImages)*args.validationSplit)/args.testingBS)*args.testingBS
+if args.test:
+    nb_validation_samples = args.validationBS*256
 if args.verbosity in ["Normal", "Detailed"]:
     print(f'{nb_training_samples} training samples')
     print(f'Discarding {int(len(trainingImages)*(1-args.validationSplit)-nb_training_samples)} training samples')
     print(f'{nb_validation_samples} validation samples')
     print(f'Discarding {int(len(trainingImages)*args.validationSplit-nb_validation_samples)} validation samples')
-# nb_training_samples = 256*3
-# nb_validation_samples = 256*1
 trainingImages = trainingImages[:(nb_training_samples+nb_validation_samples)]
 trainingImages = [[p/MAX_RGB for p in img] for img in trainingImages]
 testingImages = [[p/MAX_RGB for p in img] for img in testingImages]
 # Split train data into validation and train data ==============================================
-validationImages = trainingImages[:nb_training_samples]
+validationImages = trainingImages[:nb_validation_samples]
 trainingImages = trainingImages[nb_validation_samples:]
 nb_training_samples = len(trainingImages)
 assert len(validationImages) % args.testingBS == 0
