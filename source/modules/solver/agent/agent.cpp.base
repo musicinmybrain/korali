@@ -219,6 +219,8 @@ void __className__::trainingGeneration()
   _generationCreateMinibatchTime = 0.0;
   _generationRunPolicyTime = 0.0;
   _generationUpdateMetadataTime = 0.0;
+  _generationUpdateMetadataTimePart1 = 0.0;
+  _generationUpdateMetadataTimePart2 = 0.0;
   _generationPolicyGradientTime = 0.0;
   _generationRunGenerationTime = 0.0;
   _generationAgentAttendingTime = 0.0;
@@ -811,6 +813,7 @@ std::vector<std::vector<std::vector<float>>> __className__::getMiniBatchStateSeq
 
 void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<policy_t> &policyData)
 {
+  auto beginTime = std::chrono::steady_clock::now();
   const size_t miniBatchSize = miniBatch.size();
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
@@ -854,7 +857,7 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
   std::vector<int> offPolicyCountDelta(numAgents, 0);
 
 #pragma omp parallel for reduction(vec_int_plus \
-                                   : offPolicyCountDelta)
+                                   : offPolicyCountDelta) schedule(dynamic, numAgents)
   for (size_t i = 0; i < updateMinibatch.size(); i++)
   {
     // Get current expId and agentId
@@ -1039,6 +1042,8 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
     if (_problem->_policiesPerEnvironment == 1)
       _experienceReplayOffPolicyRatio[d] /= (float)(_problem->_agentsPerEnvironment);
   }
+  auto endTime = std::chrono::steady_clock::now();
+  _generationUpdateMetadataTimePart1 += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
 
   /* Update Retrace value */
 
@@ -1058,61 +1063,107 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
     if (curEpisode != nextEpisode) retraceMiniBatch.push_back(currExpId);
   }
 
+  beginTime = std::chrono::steady_clock::now();
+
+  if( _problem->_agentsPerEnvironment == 1 ) {
 // Calculating retrace value for the oldest experiences of unique episodes
 #pragma omp parallel for schedule(guided, 1)
-  for (size_t i = 0; i < retraceMiniBatch.size(); i++)
-  {
-    // Determine start of the episode
-    ssize_t endId = retraceMiniBatch[i];
-    ssize_t startId = endId - _episodePosVector[endId];
-
-    // If start of episode has been discarded, take earliest one
-    if (startId < 0) startId = 0;
-
-    // Storage for the retrace value
-    std::vector<float> retV(_problem->_agentsPerEnvironment, 0.0f);
-
-    // For truncated episode, set truncated state value function
-    if (_terminationVector[endId] == e_truncated)
-      retV = _truncatedStateValueVector[endId];
-
-    // If non-terminal state, set next retrace value
-    if (_terminationVector[endId] == e_nonTerminal)
-      retV = _retraceValueVector[endId + 1];
-
-    // Now iterating backwards and compute retrace value
-    for (ssize_t curId = endId; curId >= startId; curId--)
+    for (size_t i = 0; i < retraceMiniBatch.size(); i++)
     {
-      // Load truncated importance weight
-      std::vector<float> truncatedImportanceWeights = _truncatedImportanceWeightVector[curId];
+      // Determine start of the episode
+      ssize_t endId = retraceMiniBatch[i];
+      ssize_t startId = endId - _episodePosVector[endId];
 
-      // Handle multi-agent correlation
-      if (_multiAgentCorrelation)
+      // If start of episode has been discarded, take earliest one
+      if (startId < 0) startId = 0;
+
+      // Storage for the retrace value
+      float retV = 0.0f;
+
+      // For truncated episode, set truncated state value function
+      if (_terminationVector[endId] == e_truncated)
+        retV = _truncatedStateValueVector[endId][0];
+
+      // If non-terminal state, set next retrace value
+      if (_terminationVector[endId] == e_nonTerminal)
+        retV = _retraceValueVector[endId + 1][0];
+
+      // Now iterating backwards and compute retrace value
+      for (ssize_t curId = endId; curId >= startId; curId--)
       {
-        // Truncate product of importance weight
-        const float truncatedProdImportanceWeight = std::min(_importanceWeightTruncationLevel, _productImportanceWeightVector[curId]);
+        // Load truncated importance weight
+        float truncatedImportanceWeights = _truncatedImportanceWeightVector[curId][0];
 
-        // Overwrite truncated importance weights
-        std::fill(truncatedImportanceWeights.begin(), truncatedImportanceWeights.end(), truncatedProdImportanceWeight);
-      }
+        // Load state value
+        const auto stateValue = _stateValueVector[curId][0];
 
-      // Load state value
-      const auto &stateValue = _stateValueVector[curId];
-
-      // Updated Retrace value
-      for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
-      {
         // Getting current reward, action, and state
-        const float curReward = getScaledReward(_rewardVector[curId][d]);
+        const float curReward = getScaledReward(_rewardVector[curId][0]);
 
         // Apply recursion
-        retV[d] = stateValue[d] + truncatedImportanceWeights[d] * (curReward + _discountFactor * retV[d] - stateValue[d]);
+        _retraceValueVector[curId][0] = stateValue + truncatedImportanceWeights * (curReward + _discountFactor * retV - stateValue);
       }
-
-      // Store retrace value
-      _retraceValueVector[curId] = retV;
     }
   }
+  else{
+// Calculating retrace value for the oldest experiences of unique episodes
+#pragma omp parallel for schedule(guided, 1)
+    for (size_t i = 0; i < retraceMiniBatch.size(); i++)
+    {
+      // Determine start of the episode
+      ssize_t endId = retraceMiniBatch[i];
+      ssize_t startId = endId - _episodePosVector[endId];
+
+      // If start of episode has been discarded, take earliest one
+      if (startId < 0) startId = 0;
+
+      // Storage for the retrace value
+      std::vector<float> retV(_problem->_agentsPerEnvironment, 0.0f);
+
+      // For truncated episode, set truncated state value function
+      if (_terminationVector[endId] == e_truncated)
+        retV = _truncatedStateValueVector[endId];
+
+      // If non-terminal state, set next retrace value
+      if (_terminationVector[endId] == e_nonTerminal)
+        retV = _retraceValueVector[endId + 1];
+
+      // Now iterating backwards and compute retrace value
+      for (ssize_t curId = endId; curId >= startId; curId--)
+      {
+        // Load truncated importance weight
+        std::vector<float> truncatedImportanceWeights = _truncatedImportanceWeightVector[curId];
+
+        // Handle multi-agent correlation
+        if (_multiAgentCorrelation)
+        {
+          // Truncate product of importance weight
+          const float truncatedProdImportanceWeight = std::min(_importanceWeightTruncationLevel, _productImportanceWeightVector[curId]);
+
+          // Overwrite truncated importance weights
+          std::fill(truncatedImportanceWeights.begin(), truncatedImportanceWeights.end(), truncatedProdImportanceWeight);
+        }
+
+        // Load state value
+        const auto &stateValue = _stateValueVector[curId];
+
+        // Updated Retrace value
+        for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
+        {
+          // Getting current reward, action, and state
+          const float curReward = getScaledReward(_rewardVector[curId][d]);
+
+          // Apply recursion
+          retV[d] = stateValue[d] + truncatedImportanceWeights[d] * (curReward + _discountFactor * retV[d] - stateValue[d]);
+        }
+
+        // Store retrace value
+        _retraceValueVector[curId] = retV;
+      }
+    }
+  }
+  endTime = std::chrono::steady_clock::now();
+  _generationUpdateMetadataTimePart2 += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
 }
 
 size_t __className__::getTimeSequenceStartExpId(size_t expId)
@@ -1482,11 +1533,13 @@ void __className__::printGenerationAfter()
     _k->_logger->logInfo("Detailed", " + Avg Agent Communication/Wait Time:   [%5.3fs]     - [%3.3fs]\n", _generationAgentCommunicationTime / 1.0e+9, _sessionAgentCommunicationTime / 1.0e+9);
     _k->_logger->logInfo("Detailed", " + Avg Agent Policy Evaluation Time:    [%5.3fs]     - [%3.3fs]\n", _generationAgentPolicyEvaluationTime / 1.0e+9, _sessionAgentPolicyEvaluationTime / 1.0e+9);
     _k->_logger->logInfo("Detailed", " + Policy Update Time:                  [%5.3fs]     - [%3.3fs]\n", _generationPolicyUpdateTime / 1.0e+9, _sessionPolicyUpdateTime / 1.0e+9);
-    _k->_logger->logInfo("Detailed", "   + Create Minibatch:                  [%5.3fs]     - [%3.3fs]\n", _generationCreateMinibatchTime / 1.0e+9, _sessionCreateMinibatchTime / 1.0e+9);
-    _k->_logger->logInfo("Detailed", "   + Run Policy:                        [%5.3fs]     - [%3.3fs]\n", _generationRunPolicyTime / 1.0e+9, _sessionRunPolicyTime / 1.0e+9);
-    _k->_logger->logInfo("Detailed", "   + Update Experience Metadata:        [%5.3fs]     - [%3.3fs]\n", _generationUpdateMetadataTime / 1.0e+9, _sessionUpdateMetadataTime / 1.0e+9);
-    _k->_logger->logInfo("Detailed", "   + Calculate Policy Gradient:         [%5.3fs]     - [%3.3fs]\n", _generationPolicyGradientTime / 1.0e+9, _sessionPolicyGradientTime / 1.0e+9);
-    _k->_logger->logInfo("Detailed", "   + Run Generation:                    [%5.3fs]     - [%3.3fs]\n", _generationRunGenerationTime / 1.0e+9, _sessionRunGenerationTime / 1.0e+9);
+    _k->_logger->logInfo("Detailed", "   - Create Minibatch:                  [%5.3fs]     - [%3.3fs]\n", _generationCreateMinibatchTime / 1.0e+9, _sessionCreateMinibatchTime / 1.0e+9);
+    _k->_logger->logInfo("Detailed", "   - Run Policy:                        [%5.3fs]     - [%3.3fs]\n", _generationRunPolicyTime / 1.0e+9, _sessionRunPolicyTime / 1.0e+9);
+    _k->_logger->logInfo("Detailed", "   - Update Experience Metadata:        [%5.3fs]     - [%3.3fs]\n", _generationUpdateMetadataTime / 1.0e+9, _sessionUpdateMetadataTime / 1.0e+9);
+    _k->_logger->logInfo("Detailed", "   - Update Experience Metadata Part 1: [%5.3fs]\n", _generationUpdateMetadataTimePart1 / 1.0e+9);
+    _k->_logger->logInfo("Detailed", "   - Update Experience Metadata Part 2: [%5.3fs]\n", _generationUpdateMetadataTimePart2 / 1.0e+9);
+    _k->_logger->logInfo("Detailed", "   - Calculate Policy Gradient:         [%5.3fs]     - [%3.3fs]\n", _generationPolicyGradientTime / 1.0e+9, _sessionPolicyGradientTime / 1.0e+9);
+    _k->_logger->logInfo("Detailed", "   - Run Generation:                    [%5.3fs]     - [%3.3fs]\n", _generationRunGenerationTime / 1.0e+9, _sessionRunGenerationTime / 1.0e+9);
     _k->_logger->logInfo("Detailed", " + Running Time:                        [%5.3fs]     - [%3.3fs]\n", _generationRunningTime / 1.0e+9, _sessionRunningTime / 1.0e+9);
     _k->_logger->logInfo("Detailed", " + [I/O] Result File Saving Time:        %5.3fs\n", _k->_resultSavingTime / 1.0e+9);
   }

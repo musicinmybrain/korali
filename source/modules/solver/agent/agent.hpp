@@ -691,6 +691,16 @@ class Agent : public Solver
   /**
    * @brief [Profiling] Measures the time taken to update the policy in the current generation
    */
+  double _generationUpdateMetadataTimePart1;
+
+  /**
+   * @brief [Profiling] Measures the time taken to update the policy in the current generation
+   */
+  double _generationUpdateMetadataTimePart2;
+
+  /**
+   * @brief [Profiling] Measures the time taken to update the policy in the current generation
+   */
   double _generationPolicyGradientTime;
 
   /**
