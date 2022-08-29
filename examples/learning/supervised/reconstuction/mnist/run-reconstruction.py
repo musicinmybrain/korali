@@ -59,14 +59,6 @@ f_c = palette[0]
 
 add_time_dimension = lambda l : [ [y] for y in l]
 args = parser.parse_args()
-#  Select Model ==============================================================
-if args.model == "linear":
-    from linear_autoencoder import configure_autencoder as autoencoder
-elif args.model == "medium":
-    from cnn_autoencoder import configure_autencoder as autoencoder
-else:
-    sys.exit("No model selected")
-
 k = korali.Engine()
 e = korali.Experiment()
 ### Hyperparameters
@@ -99,7 +91,7 @@ if args.test:
     nb_training_samples = args.trainingBS*10
 nb_validation_samples = int((len(trainingImages)*args.validationSplit)/args.testingBS)*args.testingBS
 if args.test:
-    nb_validation_samples = args.validationBS*256
+    nb_validation_samples = args.validationBS*1
 if args.verbosity in ["Normal", "Detailed"]:
     print(f'{nb_training_samples} training samples')
     print(f'Discarding {int(len(trainingImages)*(1-args.validationSplit)-nb_training_samples)} training samples')
@@ -158,7 +150,13 @@ e["Solver"]["Loss Function"] = "Mean Squared Error"
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 # MODEL DEFINTION ================================================================================
-autoencoder(e, img_width, img_height, input_channels, args.latentDim)
+if args.model == "linear":
+    from linear_autoencoder import configure_autencoder as autoencoder
+elif args.model == "simple":
+    from cnn_autoencoder import simple_cnn_autoencoder as autoencoder
+else:
+    sys.exit(f"No valid model '{args.model}' selected")
+autoencoder(e, img_width, img_height, args.latentDim, input_channels)
 # ================================================================================
 ### Configuring output
 e["Console Output"]["Verbosity"] = args.verbosity
@@ -228,7 +226,6 @@ elif args.mode == "Training":
         e["Solver"]["Mode"] = "Testing"
         # Set train mode for both the encoder and the decoder
         # Iterate the dataloader (we do not need the label values, this is unsupervised learning)
-        # import pdb; pdb.set_trace()
         val_loss = []
         stepsPerEpoch = int(len(validationImages) / args.testingBS)
         for step in range(stepsPerEpoch):

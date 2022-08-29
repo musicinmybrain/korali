@@ -87,7 +87,6 @@ def make_parser():
         help="Indicates which model to use.",
         required=False,
         type=str,
-        choices=["linear", "medium"],
         default="linear"
     )
     parser.add_argument(

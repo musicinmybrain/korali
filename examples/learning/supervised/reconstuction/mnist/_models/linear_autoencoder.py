@@ -22,5 +22,4 @@ def configure_autencoder(e, img_width, img_height, channels, latentDim):
     #                       Decoder
     #  ==========================================================================================
     ## latentDim -> 28x28x1
-    ## Linear Layer =============================================================================
-    e["Solver"]["Neural Network"]["Output Activation"] = "Elementwise/Logistic"
+    ## Linear layer impliclity add by Korali through given solution size

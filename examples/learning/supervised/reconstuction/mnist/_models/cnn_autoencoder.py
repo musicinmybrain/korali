@@ -1,5 +1,51 @@
 import math
 
+def simple_cnn_autoencoder(e, img_width, img_height, latentDim, channels = 1):
+    """Configure one hidden layer autoencoder.
+
+    :param e: korali experiment
+    :param img_height: input/output image height
+    :param img_width: input/output image height
+    :param latentDim: encoding dimension
+    """
+    input_size = output_size = img_width*img_height*channels
+    # ===================== Input Layer
+    e["Problem"]["Input"]["Size"] = input_size
+    #  ==========================================================================================
+    #                       Encoder
+    #  ==========================================================================================
+    #  1 x 28*28 -> 4 x 12*12
+    lidx = 0
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Convolution"
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Height"]      = img_width
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"]       = img_height
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Kernel Size"]       = 5
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Stride Size"]       = 2
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Filters"]           = 4
+    #  Linear Layer =============================================================================
+    #  4 x 12*12 = 567 flat -> latentDim
+    lidx += 1
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Linear"
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Output Channels"] = latentDim
+    ## ENCODED SPACE
+    #  Linear Layer =============================================================================
+    #  latentDim -> 4 x 12*12 = 567 flat
+    lidx += 1
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Linear"
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Output Channels"] = 4*12*12
+    #  ==========================================================================================
+    #                       Decoder
+    #  ==========================================================================================
+    #  4 x 12*12 -> 1 x 28*28
+    lidx += 1
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Deconvolution"
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Height"]      = img_width
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"]       = img_height
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Kernel Size"]       = 5
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Stride Size"]       = 2
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Filters"]           = 1
+    # TODO: maybe add output padding
+
 def configure_autencoder(e, img_width, img_height, channels, latentDim):
     """Configure one hidden layer autoencoder.
 
