@@ -260,13 +260,6 @@ void Convolution::copyHyperparameterPointers(Layer *dstLayer)
 
 void Convolution::createForwardPipeline()
 {
-  // Calling base layer function
-  /*
-  ** - cuDNN: 1. sets _forwardMode
-  **          2. set OC = _outputChannels (here _outputChannels / (OH * OW) )
-  **          3. creates _outputTensorDesc of size N, OC, 1, 1
-  **          4. creates _outputTensor of size N x OC of size float
-  */
   Layer::createForwardPipeline();
 
   if (_nn->_engine == "Korali") KORALI_LOG_ERROR("Convolutional Layers still not supported in Korali's NN backend. Use OneDNN.\n");
@@ -298,6 +291,13 @@ void Convolution::createForwardPipeline()
 #endif
 
 #ifdef _KORALI_USE_CUDNN
+    // Calling base layer function
+    /*
+    ** - cuDNN: 1. sets _forwardMode
+    **          2. set OC = _outputChannels (here _outputChannels / (OH * OW) )
+    **          3. creates _outputTensorDesc of size N, OC, 1, 1
+    **          4. creates _outputTensor of size N x OC of size float
+    */
     if (_nn->_engine == "CuDNN")
     {
       // Input Tensor
@@ -320,7 +320,7 @@ void Convolution::createForwardPipeline()
                       /*channels=*/OC,
                       /*image_height=*/OH,
                       /*image_width=*/OW));
-      // Concolution Descriptor
+      // Convolution Descriptor
       cudnnErrCheck(cudnnCreateConvolutionDescriptor(&convolutionDescriptor));
       cudnnErrCheck(cudnnSetConvolution2dDescriptor(convolutionDescriptor,
                                                     /*pad_height=PB=*/PT,

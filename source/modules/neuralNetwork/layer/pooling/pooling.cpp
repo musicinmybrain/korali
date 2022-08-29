@@ -70,7 +70,7 @@ void Pooling::initialize()
     PR = _paddingRight;
 
   // Image Height and Image Width (if not given deduction from prev layer) =================
-  // TODO: make this better
+  // TODO: make this better or remove completely
   if (IW <= 0 || IH <= 0){
     Layer *_prevHiddenLayer{};
     if(_prevLayer->_type == "layer/activation")
@@ -146,6 +146,15 @@ void Pooling::initialize()
   // Check whether the output channels of the previous layer is divided by the height and width
   if (_outputChannels % (OH * OW) > 0) KORALI_LOG_ERROR("[Pooling layer %zu] Number of output channels (%lu) not divisible by the output image size (%lux%lu) given kernel (%lux%lu) size and padding/stride configuration.\n", _index-1, _outputChannels, OH, OW, KH, KW);
   OC = _outputChannels / (OH * OW);
+#ifdef _KORALI_USE_CUDNN
+  if (_nn->_engine == "CuDNN")
+  {
+    if (PT != PB)
+      KORALI_LOG_ERROR("[%s layer %zu] does not allow an symmetric top %zu and bottom %zu padding.\n", _index-1, _type.c_str(), PT, PB);
+    if (PT != PB)
+      KORALI_LOG_ERROR("[%s layer %zu] does not allow an symmetric left %zu and right %zu padding.\n", _index-1, _type.c_str(), PL, PR);
+  }
+#endif
 }
 
 void Pooling::createForwardPipeline()
@@ -154,7 +163,7 @@ void Pooling::createForwardPipeline()
   Layer::createForwardPipeline();
 
   if (_nn->_engine == "Korali") KORALI_LOG_ERROR("Pooling Layers still not supported in Korali's NN backend. Use OneDNN.\n");
-  if (_nn->_engine == "CuDNN") KORALI_LOG_ERROR("Pooling Layers still not supported in CuDNNbackend. Use OneDNN.\n");
+  if (_nn->_engine == " CuDNN") KORALI_LOG_ERROR("Pooling Layers still not supported in CuDNNbackend. Use OneDNN.\n");
 
 #ifdef _KORALI_USE_ONEDNN
   if (_nn->_engine == "OneDNN")
@@ -172,13 +181,13 @@ void Pooling::createForwardPipeline()
     memory::dims kernelDims = {KH, KW};
 
     // Determining algorithm
-    dnnl::algorithm algorithmType;
-    if (_function == "Max") algorithmType = dnnl::algorithm::pooling_max;
-    if (_function == "Inclusive Average" || _function == "Average") algorithmType = dnnl::algorithm::pooling_avg_include_padding;
-    if (_function == "Exclusive Average") algorithmType = dnnl::algorithm::pooling_avg_exclude_padding;
+    if (_function == "Max") _algorithm_t = dnnl::algorithm::pooling_max;
+    else if (_function == "Inclusive Average" || _function == "Average") _algorithm_t = dnnl::algorithm::pooling_avg_include_padding;
+    else if (_function == "Exclusive Average") _algorithm_t = dnnl::algorithm::pooling_avg_exclude_padding;
+    else KORALI_LOG_ERROR("[%s Layer %zu] pooling method \"%s\" is not a valid option for oneDNN engine [\"Max\", \"Inclusive Average\", \"Exclusive Average\"].\n", _type.c_str(), _index-1, _function.c_str());
 
     // We create the pooling operation
-    auto pooling_d = pooling_forward::desc(_propKind, algorithmType, _srcMemDesc, _dstMemDesc, ST, kernelDims, PTL, PBR);
+    auto pooling_d = pooling_forward::desc(_propKind, std::get<dnnl::algorithm>(_algorithm_t), _srcMemDesc, _dstMemDesc, ST, kernelDims, PTL, PBR);
 
     // Create inner product primitive descriptor.
     dnnl::primitive_attr poolingPrimitiveAttributes;
@@ -193,6 +202,53 @@ void Pooling::createForwardPipeline()
     _forwardPoolingPrimitive = pooling_forward(_forwardPoolingPrimitiveDesc);
   }
 #endif
+
+#ifdef _KORALI_USE_CUDNN
+  if (_nn->_engine == "CuDNN")
+  {
+    // Determining algorithm
+    if (_function == "Max") _algorithm_t = CUDNN_POOLING_MAX;
+    else if (_function == "Inclusive Average" || _function == "Average") _algorithm_t = CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
+    else if (_function == "Exclusive Average") _algorithm_t = CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING;
+    else KORALI_LOG_ERROR("[%s Layer %zu] pooling method \"%s\" is not a valid option for cuDNN engine [\"Max\", \"Inclusive Average\", \"Exclusive Average\"].\n", _type.c_str(), _index-1, _function.c_str());
+
+    // Input Tensor
+    cudnnErrCheck(cudnnCreateTensorDescriptor(&_inputDescriptor));
+    cudnnErrCheck(cudnnSetTensor4dDescriptor(
+                    /*Inp. Tensor Descr.=*/ _inputDescriptor,
+                    /*format=*/CUDNN_TENSOR_NHWC,
+                    /*dataType=*/CUDNN_DATA_FLOAT,
+                    /*batch_size=*/1,
+                    /*channels=*/IC,
+                    /*image_height=*/IH,
+                    /*image_width=*/IW));
+    // Output Tensor
+    cudnnErrCheck(cudnnCreateTensorDescriptor(&_outputDescriptor));
+    cudnnErrCheck(cudnnSetTensor4dDescriptor(
+                    /*Output. Tensor Descr.=*/ _outputDescriptor,
+                    /*format=*/CUDNN_TENSOR_NHWC,
+                    /*dataType=*/CUDNN_DATA_FLOAT,
+                    /*batch_size=*/1,
+                    /*channels=*/OC,
+                    /*image_height=*/OH,
+                    /*image_width=*/OW));
+
+    //create descriptor handle
+    cudnnErrCheck(cudnnCreatePoolingDescriptor(&_poolingDescriptor));
+    //initialize descriptor
+    cudnnErrCheck(cudnnSetPooling2dDescriptor(pooling_desc,
+                                           /*mode=*/std::get<cudnnPoolingMode_t>(_algorithm_t),
+                                           /*NAN propg. mode=*/CUDNN_NOT_PROPAGATE_NAN, // vs. CUDNN_PROPAGATE_NAN
+                                           /*filter height=*/KH,
+                                           /*filter width*/KW,
+                                           /*vert. padding=PB=*/PT,
+                                           /*horizontal padding=PL=*/PR,
+                                           /*vertical stride=*/SV,
+                                           /*horizontal stride=*/SH));
+
+  }
+#endif
+
 }
 
 void Pooling::createBackwardPipeline()
@@ -217,14 +273,8 @@ void Pooling::createBackwardPipeline()
     // Creating work memory
     memory::dims kernelDims = {KH, KW};
 
-    // Determining algorithm
-    dnnl::algorithm algorithmType;
-    if (_function == "Max") algorithmType = dnnl::algorithm::pooling_max;
-    if (_function == "Inclusive Average" || _function == "Average") algorithmType = dnnl::algorithm::pooling_avg_include_padding;
-    if (_function == "Exclusive Average") algorithmType = dnnl::algorithm::pooling_avg_exclude_padding;
-
     auto backwardDataDesc = pooling_backward::desc(
-      algorithmType,
+      std::get<dnnl::algorithm>(_algorithm_t),
       _srcMemDesc,
       _dstMemDesc,
       ST,
@@ -235,6 +285,13 @@ void Pooling::createBackwardPipeline()
     // Create the primitive.
     auto backwardDataPrimitiveDesc = pooling_backward::primitive_desc(backwardDataDesc, _nn->_dnnlEngine, _forwardPoolingPrimitiveDesc);
     _backwardDataPrimitive = pooling_backward(backwardDataPrimitiveDesc);
+  }
+#endif
+
+#ifdef _KORALI_USE_CUDNN
+  if (_nn->_engine == "CuDNN")
+  {
+    // Noting todo here the filter has no trainable weights
   }
 #endif
 }
@@ -252,6 +309,24 @@ void Pooling::forwardData(const size_t t)
     _forwardPoolingPrimitive.execute(_nn->_dnnlStream, forwardPoolingArgs);
   }
 #endif
+
+
+#ifdef _KORALI_USE_CUDNN
+  if (_nn->_engine == "CuDNN")
+  {
+    float alpha = 1.0f;
+    float beta = 0.0f;
+    // dstValue = alpha[0]*resultValue + beta[0]*priorDstValue
+    cudnnErrCheck(cudnnPoolingForward(_nn->_cuDNNHandle,
+                                      _poolingDescriptor,
+                                      &alpha,
+                                      _inputDescriptor,
+                                      /*input data=*/_prevLayer->_outputTensor[t],
+                                      &beta,
+                                      _outputDescriptor,
+                                      /*output data=*/_outputTensor[t]));
+  }
+#endif
 }
 
 void Pooling::backwardData(const size_t t)
@@ -266,6 +341,27 @@ void Pooling::backwardData(const size_t t)
     _backwardDataArgs[DNNL_ARG_DIFF_SRC] = _prevLayer->_outputGradientMem[t]; // Output
     _backwardDataArgs[DNNL_ARG_WORKSPACE] = _workspaceMem[t];
     _backwardDataPrimitive.execute(_nn->_dnnlStream, _backwardDataArgs);
+  }
+#endif
+
+#ifdef _KORALI_USE_CUDNN
+  if (_nn->_engine == "CuDNN")
+  {
+    stype alpha = 1.0f;
+    stype beta = 0.0f;
+    //call pooling operator to compute gradient
+    cudnnErrCheck(cudnnPoolingBackward(_nn->_cuDNNHandle,    
+                                       _poolingDescriptor,
+                                       &alpha,
+                                       /*y/out Desc          =*/_outputDescriptor,
+                                       /*y/outoutput on GPU  =*/_outputTensor[t],
+                                       /*dy/d_input tensor des.      =*/_outputDescriptor,
+                                       /*dy                  =*/_outputGradientTensor[t],
+                                       /*x/in Desc.          =*/_inputDescriptor,
+                                       /*x/input Tensor      =*/_prevLayer->_outputTensor[t],
+                                       &beta,
+                                       /*dx/d_input desc     =*/_inputDescriptor,
+                                       /*dx/d_input          =*/_prevLayer->_outputGradientTensor[t]));
   }
 #endif
 }

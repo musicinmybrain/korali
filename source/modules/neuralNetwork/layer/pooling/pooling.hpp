@@ -198,7 +198,20 @@ class Pooling : public Layer
    */
   ssize_t SV;
 
+#if defined(_KORALI_USE_ONEDNN) && defined(_KORALI_USE_CUDNN)
+  /**
+   * @brief Defines the pooling method to be useed for either of type oneDNN or cuDNN.
+   */
+    std::variant<dnnl::algorithm, cudnnPoolingMode_t> _algorithm_t;
+#endif
+
 #ifdef _KORALI_USE_ONEDNN
+  #ifndef _KORALI_USE_CUDNN
+      /**
+      * @brief Defines the pooling method to be used for oneDNN.
+      */
+      std::variant<dnnl::algorithm> _algorithm_t;
+  #endif
 
   /**
    * @brief Memory descriptor for the 2D mapping of the scalar input channels
@@ -235,6 +248,27 @@ class Pooling : public Layer
    */
   dnnl::primitive _backwardDataPrimitive;
 
+#endif
+
+#ifdef _KORALI_USE_CUDNN
+  #ifndef _KORALI_USE_ONEDNN
+      /**
+      * @brief Defines the pooling method to be used with cuDNN.
+      */
+      std::variant<cudnnPoolingMode_t> _algorithm_t;
+  #endif
+  /**
+   * @brief cuDNN Descriptor for the input data
+   */
+  cudnnTensorDescriptor_t _inputDescriptor;
+  /**
+   * @brief cuDNN Descriptor for the output data
+   */
+  cudnnTensorDescriptor_t _outputDescriptor;
+  /**
+   * @brief cuDNN pooling descriptor.
+   */
+  cudnnTensorDescriptor_t  _poolingDescriptor;
 #endif
 
   void initialize() override;

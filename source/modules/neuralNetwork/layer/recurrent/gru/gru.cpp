@@ -463,7 +463,7 @@ try{
       _rnnDesc,                                                  // rnnDesc
       _devSequenceLengths,                                       // devSeqLengths
       _outputRNNDataDesc,                                        // yDesc
-      _outputTensor[t],                                          // y
+      _outputTensor[t],                                          // y/output
       _outputGradientTensor[t],                                  // dy
       _inputRNNDataDesc,                                         // xDesc
       _prevLayer->_outputGradientTensor[t],                      // dx
