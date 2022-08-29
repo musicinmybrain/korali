@@ -63,7 +63,7 @@ class Pooling : public Layer
   /**
   * @brief Strides for the image on the vertical/horizontal dimension.
   */
-   ssize_t _stride;
+   ssize_t _strideSize;
   /**
   * @brief Paddings for the image left side.
   */

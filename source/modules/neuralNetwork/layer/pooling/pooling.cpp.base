@@ -43,7 +43,7 @@ void __className__::initialize()
   if( _kernelHeight != -1)
     KH = _kernelHeight;
   // Strides ==============================================================================
-  SV = SH = _stride;
+  SV = SH = _strideSize;
   if( _verticalStride != -1)
     SV = _verticalStride;
   if( _horizontalStride != -1)

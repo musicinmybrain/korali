@@ -21,10 +21,10 @@ __startNamespace__;
 void __className__::initialize()
 {
   // Checking Layer size
-  if (_filters == -1 && _outputChannels == 0) KORALI_LOG_ERROR("[Layer %lu] No output channesl or filter number specified for layer (%lu).\n", _index-1);
+  if (_filters == -1 && _outputChannels == 0) KORALI_LOG_ERROR("[%s Layer %lu] No output channesl or filter number specified for layer (%lu).\n", _type.c_str(), _index-1);
   // Checking position
-  if (_index == 0) KORALI_LOG_ERROR("Convolutional layers cannot be the starting layer of the NN\n");
-  if (_index == _nn->_layers.size() - 1) KORALI_LOG_ERROR("Convolutional layers cannot be the last layer of the NN\n");
+  if (_index == 0) KORALI_LOG_ERROR("[%s Layer %lu] layers cannot be the starting layer of the NN\n", _type.c_str(), _index-1);
+  if (_index == _nn->_layers.size() - 1) KORALI_LOG_ERROR("[%s Layer %lu] layers cannot be the last layer of the NN\n", _type.c_str(), _index-1);
 
   // Precalculating values for the convolution operation
   N = _batchSize;
@@ -37,7 +37,7 @@ void __className__::initialize()
   if( _kernelHeight != -1)
     KH = _kernelHeight;
   // Strides ==============================================================================
-  SV = SH = _stride;
+  SV = SH = _strideSize;
   if( _verticalStride != -1)
     SV = _verticalStride;
   if( _horizontalStride != -1)
@@ -57,7 +57,7 @@ void __className__::initialize()
   if( _paddingRight != -1)
     PR = _paddingRight;
   // // Image Height and Image Width (if not given deduction from prev layer) ================
-  // TODO: make this better
+  // TODO: make this better or remove altogether
   if (IW <= 0 || IH <= 0){
     Layer *_prevHiddenLayer{};
     if(_prevLayer->_type == "layer/activation")
@@ -254,13 +254,6 @@ void __className__::copyHyperparameterPointers(Layer *dstLayer)
 
 void __className__::createForwardPipeline()
 {
-  // Calling base layer function
-  /*
-  ** - cuDNN: 1. sets _forwardMode
-  **          2. set OC = _outputChannels (here _outputChannels / (OH * OW) )
-  **          3. creates _outputTensorDesc of size N, OC, 1, 1
-  **          4. creates _outputTensor of size N x OC of size float
-  */
   Layer::createForwardPipeline();
 
   if (_nn->_engine == "Korali") KORALI_LOG_ERROR("Convolutional Layers still not supported in Korali's NN backend. Use OneDNN.\n");
@@ -292,6 +285,13 @@ void __className__::createForwardPipeline()
 #endif
 
 #ifdef _KORALI_USE_CUDNN
+    // Calling base layer function
+    /*
+    ** - cuDNN: 1. sets _forwardMode
+    **          2. set OC = _outputChannels (here _outputChannels / (OH * OW) )
+    **          3. creates _outputTensorDesc of size N, OC, 1, 1
+    **          4. creates _outputTensor of size N x OC of size float
+    */
     if (_nn->_engine == "CuDNN")
     {
       // Input Tensor
