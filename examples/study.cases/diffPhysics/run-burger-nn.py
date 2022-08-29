@@ -1,15 +1,9 @@
 # GET REFERENCE SOLUTION AND LOW RESOLUTION SOLUTION TO BE TRAINED
 
-#import matplotlib
-#matplotlib.use('Agg')
-#import matplotlib.pyplot as plt
-
 import sys
-#import argparse
 sys.path.append('./_model/')
 
 import numpy as np
-#from plotting import *
 from Burger import *
 
 #------------------------------------------------------------------------------
@@ -94,158 +88,45 @@ print("Simulations done. Start with the training ..")
 # TRAINING WITH NEURAL NETWORK
 
 import jax.numpy as jnp
-from jax import grad, jit, vmap, value_and_grad
 from jax import random
 
 from jax.example_libraries import optimizers
 
-#import torch
-#from torchvision import datasets, transforms
-
-import time
+from NeuralNetworkJax import *
 
 #------------------------------------------------------------------------------
-# Initialization and define functions
+# Initialization
 
 # Generate key which is used to generate random numbers
 key = random.PRNGKey(1)
 
-# Define ReLU function
-def ReLU(x):
-    """ Rectified Linear Unit (ReLU) activation function """
-    return jnp.maximum(0, x)
-
-jit_ReLU = jit(ReLU)
-
 # Define dimensions
-batch_dim = 200   # Number of iterations in training step (number of different time steps)
-feature_dim = N2  # Size of input / output (size of x-grid)
-hidden_dim = 2048  # Hidden layers in network
+batch_dim = 200    # Number of iterations in training step (number of different time steps)
+feature_dim = N2   # Size of input / output (size of x-grid)
+hidden_dim = 2048  # Hidden units in network
 batch_size = feature_dim
-
-# Defining an optimizer in Jax
-step_size = 1e-3
-opt_init, opt_update, get_params = optimizers.adam(step_size)
 
 # Number of training epochs in in training function
 num_epochs = 40
-
-# Generate a batch of vectors to process
-X = random.normal(key, (batch_dim, feature_dim))
 
 # Generate Gaussian weights and biases
 params = [random.normal(key, (hidden_dim, feature_dim)),
           random.normal(key, (hidden_dim, ))]
 
-# Define ReLu layers
-def relu_layer(params, x):
-    """ Simple ReLu layer for single sample """
-    return ReLU(jnp.dot(params[0], x) + params[1])
-
-def vmap_relu_layer(params, x):
-    """ vmap version of the ReLU layer """
-    return jit(vmap(relu_layer, in_axes=(None, 0), out_axes=0))
-    #return vmap(relu_layer, in_axes=(None, 0), out_axes=0)
-
-# Initialize weights
-def initialize_mlp(sizes, key):
-    """ Initialize the weights of all layers of a linear layer network """
-    keys = random.split(key, len(sizes))
-    # Initialize a single layer with Gaussian weights -  helper function
-    def initialize_layer(m, n, key, scale=1e-2):
-        w_key, b_key = random.split(key)
-        return scale * random.normal(w_key, (n, m)), scale * random.normal(b_key, (n,))
-    return [initialize_layer(m, n, k) for m, n, k in zip(sizes[:-1], sizes[1:], keys)]
-
 # Define layer, parameters and optimal state
 layer_sizes = [feature_dim, hidden_dim, hidden_dim, feature_dim]
 # Return a list of tuples of layer weights
-params = initialize_mlp(layer_sizes, key)
+params = initialize_weights(layer_sizes, key)
 opt_state = opt_init(params)
 
-# Forward pass / predict function
-def forward_pass(params, in_array):
-    """ Compute the forward pass for each example individually """
-    activations = in_array
-
-    # Loop over the ReLU hidden layers
-    for w, b in params[:-1]:
-        activations = relu_layer([w, b], activations)
-
-    # Perform final trafo to logits
-    final_w, final_b = params[-1]
-    logits = jnp.dot(final_w, activations) + final_b
-    return logits
-
-# Make a batched version of the `predict` function
-batch_forward = vmap(forward_pass, in_axes=(None, 0), out_axes=0)
-
-# MSE loss
-def loss(params, in_arrays, targets):
-    """ Compute the mean squared error loss """
-    preds = batch_forward(params, in_arrays)
-#    return ((preds-targets)**2).mean()
-    return jnp.mean((preds - targets)**2)
-
-# Update function
-@jit
-def update(params, x, y, opt_state):
-    """ Compute the gradient for a batch and update the parameters """
-    value, grads = value_and_grad(loss)(params, x, y)
-    opt_state = opt_update(0, grads, opt_state)
-    return get_params(opt_state), opt_state, value
+#------------------------------------------------------------------------------
+# Run the training function and get losses and optimal parameters / states
+train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs)
 
 #------------------------------------------------------------------------------
-# Training function
-def run_mnist_training_loop(num_epochs, opt_state, net_type="MLP"):
-    """ Implements a learning loop over epochs. """
-    # Initialize placeholder for loggin
-    train_loss = []
+# Testing (tests the final time iteration and plots the values)
+# TODO: plot this nicely
 
-    # Get the initial set of parameters
-    params = get_params(opt_state)
+PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new)
 
-    # Loop over the training epochs
-    for epoch in range(num_epochs):
-        start_time = time.time()
-        for i in range(batch_dim):
-            t = (i+1) * tEnd/batch_dim
-            dns_idx = int(t/dt)
-            sgs_idx = int(t/dt_sgs)
-            dns_arr = dns_short_sol[dns_idx-1]
-            sgs_arr = sgs_sol[sgs_idx-1]
-            x_arr = sgs_arr
-            y_arr = dns_arr
-            x = jnp.array(x_arr).reshape(1, batch_size)
-            y = jnp.array(y_arr).reshape(1, batch_size)
-            params, opt_state, loss = update(params, x, y, opt_state)
-            train_loss.append(loss)
 
-        latest_loss = train_loss[-1]
-        epoch_time = time.time() - start_time
-        print("Epoch {} | T: {:0.2f} | Latest Loss: {:0.10f}".format(epoch+1, epoch_time, latest_loss))
-
-    return train_loss, params, opt_state
-
-# Run the function
-train_loss, params_new, opt_state_new = run_mnist_training_loop(num_epochs, opt_state, net_type="MLP")
-
-#------------------------------------------------------------------------------
-# Testing (tests the final time iteration and prints the values)
-sgs_final = sgs_sol[-1]
-dns_final = dns_short_sol[-1]
-x = jnp.array(sgs_final).reshape(1, batch_size)
-y = jnp.array(dns_final).reshape(1, batch_size)
-params_new = get_params(opt_state_new)
-test = batch_forward(params_new, x)
-print("DNS solution:")
-print(dns_final)
-#print(y)
-print("SGS solution:")
-print(sgs_final)
-#print(x)
-print("Predictions:")
-print(test)
-print("Loss:")
-loss_new = loss(params_new, x, y)
-print(loss_new)
