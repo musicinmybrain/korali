@@ -16,7 +16,7 @@ from Burger import *
 # Initialization
 
 # Discetization grid (those should be 2^integer)
-N = 512
+N = 1024
 N2 = 32
 
 # Set parameters
@@ -145,6 +145,7 @@ def relu_layer(params, x):
 def vmap_relu_layer(params, x):
     """ vmap version of the ReLU layer """
     return jit(vmap(relu_layer, in_axes=(None, 0), out_axes=0))
+    #return vmap(relu_layer, in_axes=(None, 0), out_axes=0)
 
 # Initialize weights
 def initialize_mlp(sizes, key):
@@ -207,11 +208,11 @@ def run_mnist_training_loop(num_epochs, opt_state, net_type="MLP"):
     for epoch in range(num_epochs):
         start_time = time.time()
         for i in range(batch_dim):
-            t = i * tEnd/batch_dim
+            t = (i+1) * tEnd/batch_dim
             dns_idx = int(t/dt)
             sgs_idx = int(t/dt_sgs)
-            dns_arr = dns_short_sol[dns_idx]
-            sgs_arr = sgs_sol[sgs_idx]
+            dns_arr = dns_short_sol[dns_idx-1]
+            sgs_arr = sgs_sol[sgs_idx-1]
             x_arr = sgs_arr
             y_arr = dns_arr
             x = jnp.array(x_arr).reshape(1, batch_size)
@@ -233,6 +234,11 @@ train_loss = run_mnist_training_loop(num_epochs, opt_state, net_type="MLP")
 sgs_final = sgs_sol[-1]
 dns_final = dns_short_sol[-1]
 x = jnp.array(sgs_final).reshape(1, batch_size)
-test = vmap_relu_layer(params, x)
+test = batch_forward(params, x)
+print("DNS solution:")
 print(dns_final)
+print("SGS solution:")
+print(sgs_final)
+print("Predictions:")
 print(test)
+
