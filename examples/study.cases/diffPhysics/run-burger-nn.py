@@ -120,7 +120,7 @@ jit_ReLU = jit(ReLU)
 # Define dimensions
 batch_dim = 200   # Number of iterations in training step (number of different time steps)
 feature_dim = N2  # Size of input / output (size of x-grid)
-hidden_dim = 1024  # Hidden layers in network
+hidden_dim = 2048  # Hidden layers in network
 batch_size = feature_dim
 
 # Defining an optimizer in Jax
@@ -128,7 +128,7 @@ step_size = 1e-3
 opt_init, opt_update, get_params = optimizers.adam(step_size)
 
 # Number of training epochs in in training function
-num_epochs = 10
+num_epochs = 40
 
 # Generate a batch of vectors to process
 X = random.normal(key, (batch_dim, feature_dim))
@@ -184,7 +184,8 @@ batch_forward = vmap(forward_pass, in_axes=(None, 0), out_axes=0)
 def loss(params, in_arrays, targets):
     """ Compute the mean squared error loss """
     preds = batch_forward(params, in_arrays)
-    return ((preds-targets)**2).mean()
+#    return ((preds-targets)**2).mean()
+    return jnp.mean((preds - targets)**2)
 
 # Update function
 @jit
@@ -216,7 +217,7 @@ def run_mnist_training_loop(num_epochs, opt_state, net_type="MLP"):
             x_arr = sgs_arr
             y_arr = dns_arr
             x = jnp.array(x_arr).reshape(1, batch_size)
-            y = jnp.array(y_arr[:, None] == jnp.arange(1), jnp.float32)
+            y = jnp.array(y_arr).reshape(1, batch_size)
             params, opt_state, loss = update(params, x, y, opt_state)
             train_loss.append(loss)
 
@@ -224,21 +225,27 @@ def run_mnist_training_loop(num_epochs, opt_state, net_type="MLP"):
         epoch_time = time.time() - start_time
         print("Epoch {} | T: {:0.2f} | Latest Loss: {:0.10f}".format(epoch+1, epoch_time, latest_loss))
 
-    return train_loss
+    return train_loss, params, opt_state
 
 # Run the function
-train_loss = run_mnist_training_loop(num_epochs, opt_state, net_type="MLP")
+train_loss, params_new, opt_state_new = run_mnist_training_loop(num_epochs, opt_state, net_type="MLP")
 
 #------------------------------------------------------------------------------
-# Testing
+# Testing (tests the final time iteration and prints the values)
 sgs_final = sgs_sol[-1]
 dns_final = dns_short_sol[-1]
 x = jnp.array(sgs_final).reshape(1, batch_size)
-test = batch_forward(params, x)
+y = jnp.array(dns_final).reshape(1, batch_size)
+params_new = get_params(opt_state_new)
+test = batch_forward(params_new, x)
 print("DNS solution:")
 print(dns_final)
+#print(y)
 print("SGS solution:")
 print(sgs_final)
+#print(x)
 print("Predictions:")
 print(test)
-
+print("Loss:")
+loss_new = loss(params_new, x, y)
+print(loss_new)
