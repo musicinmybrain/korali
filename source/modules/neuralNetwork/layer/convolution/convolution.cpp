@@ -361,7 +361,7 @@ void Convolution::createForwardPipeline()
 
 #ifdef DEBUG
       // TODO remove at some point
-      _k->_logger->logInfo("Normal", "[%s layer %zu] Allocating %f MB for cuDNN convolution workspace.\n", _type.c_str(), _index-1, _convolutionWorkspaceSize/(1024.0*1024.0));
+      _k->_logger->logInfo("Detailed", "[%s layer %zu] Allocating %f MB for cuDNN convolution workspace.\n", _type.c_str(), _index-1, _convolutionWorkspaceSize/(1024.0*1024.0));
 #endif
       // Create workspace memory
       cudaErrCheck(cudaMalloc((void **)&_convolutionWorkspace, _convolutionWorkspaceSize * sizeof(float)));
@@ -494,10 +494,10 @@ void Convolution::forwardData(const size_t t)
                                           /*beta=*/&alpha2,
                                           _outputDescriptor,
                                           _outputTensor[t]));
+    float alpha = 1.0f;
+    float beta = 1.0f;
+    cudnnAddTensor(_nn->_cuDNNHandle, &alpha, _biasTensorDesc, _biasTensor, &beta, _outputTensorDesc, _outputTensor[t]);
   }
-  float alpha = 1.0f;
-  float beta = 1.0f;
-  cudnnAddTensor(_nn->_cuDNNHandle, &alpha, _biasTensorDesc, _biasTensor, &beta, _outputTensorDesc, _outputTensor[t]);
 #endif
 }
 
