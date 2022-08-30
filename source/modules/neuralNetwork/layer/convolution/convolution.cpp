@@ -320,9 +320,19 @@ void Convolution::createForwardPipeline()
                       /*channels=*/OC,
                       /*image_height=*/OH,
                       /*image_width=*/OW));
+                            // Kernel/Filter Descriptor
+      cudnnErrCheck(cudnnCreateFilterDescriptor(&_kernelDescriptor));
+      // Filter/Kernel Descriptor
+      cudnnErrCheck(cudnnSetFilter4dDescriptor(_kernelDescriptor,
+                                      /*dataType=*/CUDNN_DATA_FLOAT,
+                                      /*format=*/CUDNN_TENSOR_NCHW,
+                                      /*out_channels=*/OC,
+                                      /*in_channels=*/IC,
+                                      /*kernel_height=*/KH,
+                                      /*kernel_width=*/KW));
       // Convolution Descriptor
-      cudnnErrCheck(cudnnCreateConvolutionDescriptor(&convolutionDescriptor));
-      cudnnErrCheck(cudnnSetConvolution2dDescriptor(convolutionDescriptor,
+      cudnnErrCheck(cudnnCreateConvolutionDescriptor(&_convolutionDescriptor));
+      cudnnErrCheck(cudnnSetConvolution2dDescriptor(_convolutionDescriptor,
                                                     /*pad_height=PB=*/PT,
                                                     /*pad_width=PL=*/PR,
                                                     /*vertical_stride=*/SV,
@@ -332,29 +342,30 @@ void Convolution::createForwardPipeline()
                                                     /*mode=*/CUDNN_CONVOLUTION,
                                                     /*computeType=*/CUDNN_DATA_FLOAT));
       // TODO: change this to cuDNN 8 API
-      cudnnErrCheck(cudnnGetConvolutionForwardAlgorithm_v7(_nn->_cuDNNHandle,
-                                                           _inputDescriptor,
-                                                           _weightsFilterDesc,
-                                                           _convolutionDescriptor,
-                                                           _output_descriptor,
-                                                           CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
-                                                           /*memoryLimitInBytes=*/0,
-                                                           &_convolutionAlgorithm));
+      // cudnnErrCheck(cudnnGetConvolutionForwardAlgorithm_v7(_nn->_cuDNNHandle,
+      //                                                      _inputDescriptor,
+      //                                                      _weightsFilterDesc,
+      //                                                      _convolutionDescriptor,
+      //                                                      _outputDescriptor,
+      //                                                      CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
+      //                                                      /*memoryLimitInBytes=*/0,
+      //                                                      &_convolutionAlgorithm));
 
       cudnnErrCheck(cudnnGetConvolutionForwardWorkspaceSize(_nn->_cuDNNHandle,
                                                          _inputDescriptor,
                                                          _kernelDescriptor,
                                                          _convolutionDescriptor,
                                                          _outputDescriptor,
-                                                         _convolutionAlgorithm,
+                                                         /*_convolutionAlgorith=*/CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM,
                                                          &_convolutionWorkspaceSize));
 
 #ifdef DEBUG
       // TODO remove at some point
-      _k->_logger->logInfo("Normal", "[Convolutional layer %zu] Allocating %f MB for cuDNN convolution workspace.\n", _index-1, _convolutionWorkspaceSize/(1024.0*1024.0));
+      _k->_logger->logInfo("Normal", "[%s layer %zu] Allocating %f MB for cuDNN convolution workspace.\n", _type.c_str(), _index-1, _convolutionWorkspaceSize/(1024.0*1024.0));
 #endif
       // Create workspace memory
       cudaErrCheck(cudaMalloc((void **)&_convolutionWorkspace, _convolutionWorkspaceSize * sizeof(float)));
+    }
 #endif
   } catch (...) {
     eptr = std::current_exception();
@@ -446,7 +457,7 @@ void Convolution::createBackwardPipeline()
   //   cudnnConvolutionBwdDataAlgoPerf_t     *perfResults)
 
 #endif
-
+  }
 }
 
 void Convolution::forwardData(const size_t t)
@@ -518,10 +529,10 @@ void Convolution::backwardData(const size_t t)
       _weightsFilter,
       /*TODO: check*/_outputDescriptor,
       _outputGradientTensor[t],
-      _convolutionDesc,
+      _convolutionDescriptor,
       // TODO: change algorithm type
       CUDNN_CONVOLUTION_BWD_DATA_ALGO_0,
-      _convolutionWorkspace[t],
+      _convolutionWorkspace,
       _convolutionWorkspaceSize,
       &beta,
       /*TODO: check*/_inputDescriptor,
@@ -572,10 +583,10 @@ void Convolution::backwardHyperparameters(size_t t)
                     _prevLayer->_outputTensor[t],
                     /*TODO: check*/_outputDescriptor,
                     _outputGradientTensor[t],
-                    _convolutionDesc,
+                    _convolutionDescriptor,
                     // TODO: change algorithm type
                     CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0,
-                    _convolutionWorkspace[t],
+                    _convolutionWorkspace,
                     _convolutionWorkspaceSize,
                     &beta,
                     _weightsFilterDesc,

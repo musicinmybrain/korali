@@ -236,7 +236,7 @@ void Pooling::createForwardPipeline()
     //create descriptor handle
     cudnnErrCheck(cudnnCreatePoolingDescriptor(&_poolingDescriptor));
     //initialize descriptor
-    cudnnErrCheck(cudnnSetPooling2dDescriptor(pooling_desc,
+    cudnnErrCheck(cudnnSetPooling2dDescriptor(_poolingDescriptor,
                                            /*mode=*/std::get<cudnnPoolingMode_t>(_algorithm_t),
                                            /*NAN propg. mode=*/CUDNN_NOT_PROPAGATE_NAN, // vs. CUDNN_PROPAGATE_NAN
                                            /*filter height=*/KH,
@@ -347,8 +347,8 @@ void Pooling::backwardData(const size_t t)
 #ifdef _KORALI_USE_CUDNN
   if (_nn->_engine == "CuDNN")
   {
-    stype alpha = 1.0f;
-    stype beta = 0.0f;
+    float alpha = 1.0f;
+    float beta = 0.0f;
     //call pooling operator to compute gradient
     cudnnErrCheck(cudnnPoolingBackward(_nn->_cuDNNHandle,    
                                        _poolingDescriptor,

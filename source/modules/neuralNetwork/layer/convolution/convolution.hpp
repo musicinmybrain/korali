@@ -292,6 +292,10 @@ class Convolution : public Layer
    */
   cudnnTensorDescriptor_t _outputDescriptor;
   /**
+   * @brief cuDNN kernel/filter descriptor.
+   */
+  cudnnFilterDescriptor_t _kernelDescriptor;
+  /**
    * @brief cuDNN convolution descriptor.
    */
   cudnnConvolutionDescriptor_t _convolutionDescriptor;

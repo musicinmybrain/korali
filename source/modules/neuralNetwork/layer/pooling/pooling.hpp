@@ -268,7 +268,7 @@ class Pooling : public Layer
   /**
    * @brief cuDNN pooling descriptor.
    */
-  cudnnTensorDescriptor_t  _poolingDescriptor;
+  cudnnPoolingDescriptor_t  _poolingDescriptor;
 #endif
 
   void initialize() override;
