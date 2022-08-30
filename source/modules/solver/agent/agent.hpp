@@ -491,11 +491,6 @@ class Agent : public Solver
   boost::circular_buffer<std::vector<float>> _importanceWeightVector;
 
   /**
-   * @brief Contains the latest calculation of the experience's truncated importance weight
-   */
-  boost::circular_buffer<std::vector<float>> _truncatedImportanceWeightVector;
-
-  /**
    * @brief specialization of truncated importance weight vector for single-agent RL
    */
   boost::circular_buffer<float> _truncatedImportanceWeightVectorContiguous;
@@ -526,11 +521,6 @@ class Agent : public Solver
   boost::circular_buffer<termination_t> _terminationVector;
 
   /**
-   * @brief Contains the result of the retrace (Vtbc) function for the currrent experience
-   */
-  boost::circular_buffer<std::vector<float>> _retraceValueVector;
-
-  /**
    * @brief Specialization of retrace (Vtbc) vector for single-agent RL
    */
   boost::circular_buffer<float> _retraceValueVectorContiguous;
@@ -546,19 +536,9 @@ class Agent : public Solver
   boost::circular_buffer<std::vector<std::vector<float>>> _truncatedStateVector;
 
   /**
-   * @brief Contains the rewards of every experience
-   */
-  boost::circular_buffer<std::vector<float>> _rewardVector;
-
-  /**
    * @brief Specialization of reward vector for single-agent RL
    */
   boost::circular_buffer<float> _rewardVectorContiguous;
-
-  /**
-   * @brief Contains the state value evaluation for every experience
-   */
-  boost::circular_buffer<std::vector<float>> _stateValueVector;
 
   /**
    * @brief Specialization of state value vector for single-agent RL

@@ -190,18 +190,8 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     const auto &expAction = _actionVector[expId][agentId];
 
     // Gathering metadata
-    float stateValue;
-    float expVtbc;
-    if( _problem->_agentsPerEnvironment == 1 )
-    {
-      stateValue = _stateValueVectorContiguous[expId];
-      expVtbc = _retraceValueVectorContiguous[expId];
-    }
-    else
-    {
-      stateValue = _stateValueVector[expId][agentId];
-      expVtbc = _retraceValueVector[expId][agentId];
-    }
+    const float stateValue = _stateValueVectorContiguous[expId + agentId];
+    const float expVtbc = _retraceValueVectorContiguous[expId + agentId];
     const auto &curPolicy = _curPolicyVector[expId][agentId];
 
     // Storage for the update gradient
@@ -222,20 +212,12 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     if (_isOnPolicyVector[expId][agentId])
     {
       // Qret for terminal state is just reward
-      float Qret;
-      if( _problem->_agentsPerEnvironment == 1 )
-        Qret = getScaledReward(_rewardVectorContiguous[expId]);
-      else
-        Qret = getScaledReward(_rewardVector[expId][agentId]);
+      float Qret = getScaledReward(_rewardVectorContiguous[expId+agentId]);
 
       // If experience is non-terminal, add Vtbc
       if (_terminationVector[expId] == e_nonTerminal)
       {
-        float nextExpVtbc;
-        if(_problem->_agentsPerEnvironment == 1)
-          nextExpVtbc = _retraceValueVectorContiguous[expId + 1];
-        else
-          nextExpVtbc = _retraceValueVector[expId + 1][agentId];
+        const float nextExpVtbc = _retraceValueVectorContiguous[expId + 1 + agentId];
         Qret += _discountFactor * nextExpVtbc;
       }
 
