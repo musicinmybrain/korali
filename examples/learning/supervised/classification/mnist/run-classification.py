@@ -126,7 +126,7 @@ if args.test:
     nb_training_samples = args.trainingBS*10
 nb_validation_samples = int((len(trainingSet)*args.validationSplit)/args.testingBS)*args.testingBS
 if args.test:
-    nb_validation_samples = args.validationBS*256
+    nb_validation_samples = args.validationBS*1
 if args.verbosity in ["Normal", "Detailed"]:
     print(f'{nb_training_samples} training samples')
     print(f'Discarding {int(len(trainingSet)*(1-args.validationSplit)-nb_training_samples)} training samples')
@@ -173,7 +173,7 @@ e["Solver"]["Learning Rate Save"] = True
 
 e["Solver"]["Loss Function"] = "Cross Entropy"
 e["Solver"]["Metrics"]["Type"] = "Accuracy"
-e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
+e["Solver"]["Neural Network"]["Engine"] = args.engine
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 # MODEL DEFINTION ================================================================================
 classifier(e, img_width, img_height, input_channels)
