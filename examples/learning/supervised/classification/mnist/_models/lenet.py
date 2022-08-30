@@ -29,7 +29,7 @@ def LeNet1(e, img_width, img_height, channels):
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Height"]      = 24
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"]       = 24
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Kernel Size"]       = 2
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Stride"]            = 2
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Stride Size"]       = 2
     ## Convolutional Layer ======================================================================
     ## 4 x 12*12 -> 12 x 8*8
     lidx += 1
@@ -50,7 +50,7 @@ def LeNet1(e, img_width, img_height, channels):
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Height"]      = 8
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"]       = 8
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Kernel Size"]       = 2
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Stride"]            = 2
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Stride Size"]       = 2
     # Convolutiona =============================================================================
     e["Solver"]["Neural Network"]["Output Activation"] = "Softmax"
 
@@ -85,7 +85,7 @@ def LeNet5(e, img_width, img_height, channels):
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Height"]      = 28
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"]       = 28
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Kernel Size"]       = 2
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Stride"]            = 2
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Stride Size"]       = 2
     ## Convolutional Layer ======================================================================
     ## 6 x 14*14 -> 16 x 10*10
     lidx += 1
@@ -106,7 +106,7 @@ def LeNet5(e, img_width, img_height, channels):
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Height"]      = 10
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"]       = 10
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Kernel Size"]       = 2
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Stride"]            = 2
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Stride Size"]       = 2
     # Linear Layer =============================================================================
     lidx += 1
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Linear"
