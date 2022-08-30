@@ -260,6 +260,7 @@ void Activation::forwardData(const size_t t)
 #endif
 
 #ifdef _KORALI_USE_CUDNN
+  // dstValue = alpha[0]*result + beta[0]*priorDstValue
   if (_nn->_engine == "CuDNN")
   {
     if (_function == "Elementwise/Linear")
@@ -274,14 +275,18 @@ void Activation::forwardData(const size_t t)
     {
       cudnnErrCheck(cudnnSoftmaxForward(
         _nn->_cuDNNHandle,
-        CUDNN_SOFTMAX_LOG,
-        CUDNN_SOFTMAX_MODE_CHANNEL,
+        /*algorithm=*/CUDNN_SOFTMAX_ACCURATE,
+        /*mode=*/CUDNN_SOFTMAX_MODE_CHANNEL,
         &_alpha,
-        _prevLayer->_outputTensorDesc,
-        _prevLayer->_outputTensor[t],
+        /*xDesc/input desc*/_prevLayer->_outputTensorDesc,
+        /*x/input=*/_prevLayer->_outputTensor[t],
         &_beta,
-        _outputTensorDesc,
-        _outputTensor[t]));
+        /*yDesc/output desc=*/_outputTensorDesc,
+        /*y/output*/_outputTensor[t]));
+    }
+    else if (_function == "Logsoftmax")
+    {
+      KORALI_LOG_ERROR("CuDNN Logsoftmax to be implemented!.");
     }
     else
     {
@@ -383,16 +388,21 @@ void Activation::backwardData(const size_t t)
     {
       cudnnErrCheck(cudnnSoftmaxBackward(
         _nn->_cuDNNHandle,
-        CUDNN_SOFTMAX_LOG,
-        CUDNN_SOFTMAX_MODE_CHANNEL,
+        /*algorithm=*/CUDNN_SOFTMAX_ACCURATE,
+        /*mode=*/CUDNN_SOFTMAX_MODE_CHANNEL,
         &_alpha,
-        _outputTensorDesc,
-        _outputTensor[t],
-        _outputTensorDesc,
-        _outputGradientTensor[t],
+        /*xDesc/input desc=*/_outputTensorDesc,
+        /*x/input=*/_outputTensor[t],
+        /*yDesc/output desc=*/_outputTensorDesc,
+        /*dy/d_output*/_outputGradientTensor[t],
         &_beta,
-        _prevLayer->_outputTensorDesc,
-        _prevLayer->_outputGradientTensor[t]));
+        /*xDesc/input desc=*/_prevLayer->_outputTensorDesc,
+        /*dx/d_input*/_prevLayer->_outputGradientTensor[t]));
+
+    }
+    else if (_function == "Logsoftmax")
+    {
+      KORALI_LOG_ERROR("CuDNN Logsoftmax to be implemented!.");
     }
     else
     {
