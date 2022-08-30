@@ -2,7 +2,7 @@
 
 ###### Check if necessary python modules are installed ######
 
-python3 -m pip install gym
+python3 -m pip install gym[mujoco]
 exit_code=$?
 
 ./install_deps.sh

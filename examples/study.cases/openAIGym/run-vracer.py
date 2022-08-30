@@ -26,7 +26,6 @@ e = korali.Experiment()
 
 dis_dir = args.dis.replace(" ","_")
 resultFolder = '_result_vracer_' + args.env + '_' + dis_dir + '_' + str(args.lr) + '_' + str(args.opt) + '_' + str(args.l2) + '/'
-e.loadState(resultFolder + '/latest');
 
 ### Initializing openAI Gym environment
 
