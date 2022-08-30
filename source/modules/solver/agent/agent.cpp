@@ -982,9 +982,14 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
       // Write to prodImportanceWeight vector
       _productImportanceWeightVector[expId] = std::exp(logProdImportanceWeight);
 
-      // Record change of on-policyness
+      // Truncate product of importance weight
+      const float truncatedProdImportanceWeight = std::min(_importanceWeightTruncationLevel, _productImportanceWeightVector[expId]);
+
+      // Record change of on-policyness / truncated importance weight
       for (size_t d = 0; d < numAgents; d++)
       {
+        _truncatedImportanceWeightVectorContiguous[expId + d] = truncatedProdImportanceWeight;
+
         if (isOnPolicy[d] == true && onPolicy == false)
           offPolicyCountDelta[d]++;
 
@@ -1103,39 +1108,22 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
 
     // Now iterating backwards and compute retrace value
     for (ssize_t curId = endId; curId >= startId; curId--)
+    for (size_t d = 0; d < numAgents; d++)
     {
-      // Load truncated importance weight
+      // Getting current reward, action, and state
+      const float curReward = getScaledReward(_rewardVectorContiguous[curId+d]);
 
-      std::vector<float> truncatedImportanceWeights(numAgents);
+      // Getting state value
+      const float stateValue = _stateValueVectorContiguous[curId+d];
 
-      for(size_t a = 0; a<numAgents; a++)
-        truncatedImportanceWeights[a] = _truncatedImportanceWeightVectorContiguous[curId + a];
+      // Getting truncated importance weight
+      const float truncatedImportanceWeight = _truncatedImportanceWeightVectorContiguous[curId + d];
 
-      // Handle multi-agent correlation
-      if (_multiAgentCorrelation)
-      {
-        // Truncate product of importance weight
-        const float truncatedProdImportanceWeight = std::min(_importanceWeightTruncationLevel, _productImportanceWeightVector[curId]);
+      // Apply recursion
+      retV[d] = stateValue + truncatedImportanceWeight * (curReward + _discountFactor * retV[d] - stateValue);
 
-        // Overwrite truncated importance weights
-        std::fill(truncatedImportanceWeights.begin(), truncatedImportanceWeights.end(), truncatedProdImportanceWeight);
-      }
-
-      // Updated Retrace value
-      for (size_t d = 0; d < numAgents; d++)
-      {
-        // Getting current reward, action, and state
-        const float curReward = getScaledReward(_rewardVectorContiguous[curId+d]);
-
-        // Getting state value
-        const float stateValue = _stateValueVectorContiguous[curId+d];
-
-        // Apply recursion
-        retV[d] = stateValue + truncatedImportanceWeights[d] * (curReward + _discountFactor * retV[d] - stateValue);
-
-        // Store retrace value
-        _retraceValueVectorContiguous[curId + d] = retV[d];
-      }
+      // Store retrace value
+      _retraceValueVectorContiguous[curId + d] = retV[d];
     }
   }
 }
