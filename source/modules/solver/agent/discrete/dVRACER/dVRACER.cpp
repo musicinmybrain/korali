@@ -155,8 +155,18 @@ void dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_
     const auto &curPolicy = _curPolicyVector[expId][agentId];
 
     // Getting state-value and estimator
-    const auto &stateValue = _stateValueVector[expId][agentId];
-    const auto &expVtbc = _retraceValueVector[expId][agentId];
+    float stateValue;
+    float expVtbc;
+    if( _problem->_agentsPerEnvironment == 1 )
+    {
+      stateValue = _stateValueVectorContiguous[expId];
+      expVtbc = _retraceValueVectorContiguous[expId];
+    }
+    else
+    {
+      stateValue = _stateValueVector[expId][agentId];
+      expVtbc = _retraceValueVector[expId][agentId];
+    }
 
     // Storage for the update gradient
     std::vector<float> gradientLoss(1 + _policyParameterCount, 0.0f);
@@ -172,12 +182,20 @@ void dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_
     if (_isOnPolicyVector[expId][agentId])
     {
       // Qret for terminal state is just reward
-      float Qret = getScaledReward(_rewardVector[expId][agentId]);
+      float Qret;
+      if( _problem->_agentsPerEnvironment == 1 )
+        Qret = getScaledReward(_rewardVectorContiguous[expId]);
+      else
+        Qret = getScaledReward(_rewardVector[expId][agentId]);
 
       // If experience is non-terminal, add Vtbc
       if (_terminationVector[expId] == e_nonTerminal)
       {
-        float nextExpVtbc = _retraceValueVector[expId + 1][agentId];
+        float nextExpVtbc;
+        if( _problem->_agentsPerEnvironment == 1 )
+          nextExpVtbc = _retraceValueVectorContiguous[expId + 1];
+        else
+          nextExpVtbc = _retraceValueVector[expId + 1][agentId];
         Qret += _discountFactor * nextExpVtbc;
       }
 

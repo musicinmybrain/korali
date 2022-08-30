@@ -496,6 +496,11 @@ class Agent : public Solver
   boost::circular_buffer<std::vector<float>> _truncatedImportanceWeightVector;
 
   /**
+   * @brief specialization of truncated importance weight vector for single-agent RL
+   */
+  boost::circular_buffer<float> _truncatedImportanceWeightVectorContiguous;
+
+  /**
    * @brief Contains the latest calculation of the product of the product of the experience's importance weights
    */
   boost::circular_buffer<float> _productImportanceWeightVector;
@@ -526,6 +531,11 @@ class Agent : public Solver
   boost::circular_buffer<std::vector<float>> _retraceValueVector;
 
   /**
+   * @brief Specialization of retrace (Vtbc) vector for single-agent RL
+   */
+  boost::circular_buffer<float> _retraceValueVectorContiguous;
+
+  /**
    * @brief If this is a truncated terminal experience, this contains the state value for that state
    */
   boost::circular_buffer<std::vector<float>> _truncatedStateValueVector;
@@ -541,9 +551,19 @@ class Agent : public Solver
   boost::circular_buffer<std::vector<float>> _rewardVector;
 
   /**
+   * @brief Specialization of reward vector for single-agent RL
+   */
+  boost::circular_buffer<float> _rewardVectorContiguous;
+
+  /**
    * @brief Contains the state value evaluation for every experience
    */
   boost::circular_buffer<std::vector<float>> _stateValueVector;
+
+  /**
+   * @brief Specialization of state value vector for single-agent RL
+   */
+  boost::circular_buffer<float> _stateValueVectorContiguous;
 
   /**
    * @brief Contains the state value evaluation for every experience
@@ -687,16 +707,6 @@ class Agent : public Solver
    * @brief [Profiling] Measures the time taken to update the policy in the current generation
    */
   double _generationUpdateMetadataTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _generationUpdateMetadataTimePart1;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _generationUpdateMetadataTimePart2;
 
   /**
    * @brief [Profiling] Measures the time taken to update the policy in the current generation
