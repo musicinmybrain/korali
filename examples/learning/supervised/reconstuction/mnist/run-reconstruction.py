@@ -68,7 +68,7 @@ MAX_RGB = 255.0
 ### Total 60 000 training samples
 ### Lading data ==============================================================================
 t0 = time.time_ns()
-mndata = MNIST("./_data")
+mndata = MNIST("../../data/mnist")
 mndata.gz = True
 trainingImages, _ = mndata.load_training()
 testingImages, _ = mndata.load_testing()
