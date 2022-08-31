@@ -10,21 +10,21 @@ from Burger import *
 # Initialization
 
 # Discetization grid (those should be 2^integer)
-N = 1024
-N2 = 32
+N = 512 # Discretization / number of grid points of DNS
+N2 = 32 # Discretization / number of grid points of UGS
 
 # Set parameters
-L       = 2*pi
-dt      = 0.001
-tEnd    = 100
-nu      = 0.02
+L       = 2*pi  # Length of domain
+dt      = 0.001 # Simulator time step
+tEnd    = 5     # Duration simulation / end time
+nu      = 0.02  # Viscosity
 #ic      = 'zero'
 #ic      = 'turbulence'
-ic      = 'sinus'
+ic      = 'sinus' # initial condition
 #ic      = 'forced'
-noise   = 0.
-seed    = 42
-forcing = True
+noise   = 0.    # Standard deviation of IC
+seed    = 42    # Random seed
+forcing = False # Use forcing term in equation
 
 s       = int(N/N2)
 dt_sgs  = dt*s
@@ -101,13 +101,13 @@ from NeuralNetworkJax import *
 key = random.PRNGKey(1)
 
 # Define dimensions
-batch_dim = 200    # Number of iterations in training step (number of different time steps)
+batch_dim = 500    # Number of iterations in training step (number of different time steps)
 feature_dim = N2   # Size of input / output (size of x-grid)
-hidden_dim = 2048  # Hidden units in network
+hidden_dim = 256   # Size / width of hidden layer
 batch_size = feature_dim
 
-# Number of training epochs in in training function
-num_epochs = 40
+# Number of training epochs (per run) in training function
+num_epochs = 20
 
 # Generate Gaussian weights and biases
 params = [random.normal(key, (hidden_dim, feature_dim)),

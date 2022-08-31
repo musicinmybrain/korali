@@ -13,8 +13,14 @@ def ReLU(x):
     """ Rectified Linear Unit (ReLU) activation function """
     return jnp.maximum(0, x)
 
-# jit version of ReLU function
-jit_ReLU = jit(ReLU)
+# Define tanh non-linearity function
+def tanhU(x):
+    """ tanh activation function """
+    return jnp.tanh(x)
+
+# jit versions of functions above
+jit_ReLU  = jit(ReLU)
+jit_tanhU = jit(tanhU)
 
 
 # Defining an optimizer in Jax
@@ -27,6 +33,10 @@ def relu_layer(params, x):
     """ Simple ReLu layer for single sample """
     return ReLU(jnp.dot(params[0], x) + params[1])
 
+# Define tanh layers
+def tanh_layer(params, x):
+    """ Simple tanh layer for single sample """
+    return tanhU(jnp.dot(params[0], x) + params[1])
 
 # Function to initialize weights
 def initialize_weights(sizes, key):
@@ -38,15 +48,15 @@ def initialize_weights(sizes, key):
         return scale * random.normal(w_key, (n, m)), scale * random.normal(b_key, (n,))
     return [initialize_layer(m, n, k) for m, n, k in zip(sizes[:-1], sizes[1:], keys)]
 
-
 # Forward pass / predict function
 def forward_pass(params, in_array):
     """ Compute the forward pass for each example individually """
     activations = in_array
 
-    # Loop over the ReLU hidden layers
+    # Loop over the ReLU / tanh hidden layers
     for w, b in params[:-1]:
-        activations = relu_layer([w, b], activations)
+#        activations = relu_layer([w, b], activations)
+        activations = tanh_layer([w, b], activations)
 
     # Perform final trafo to returned prediction
     final_w, final_b = params[-1]
