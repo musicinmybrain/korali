@@ -156,9 +156,6 @@ void Convolution::initialize()
 std::vector<float> Convolution::generateInitialHyperparameters()
 {
   std::vector<float> hyperparameters;
-  size_t weightCount = OC * IC * KH * KW;
-  size_t biasCount = OC;
-
   // If this is not the initial layer, calculate hyperparameters for weight and bias operation
   if (_prevLayer != nullptr)
   {
@@ -166,11 +163,11 @@ std::vector<float> Convolution::generateInitialHyperparameters()
     float xavierConstant = std::sqrt(6.0f) / std::sqrt(_outputChannels + _prevLayer->_outputChannels);
 
     // Adding layer's weights hyperparameter values
-    for (size_t i = 0; i < weightCount; i++)
+    for (auto i = 0; i < _weightsCount; i++)
       hyperparameters.push_back(_weightScaling * xavierConstant * _nn->_uniformGenerator->getRandomNumber());
 
     // Adding layer's bias hyperparameter values
-    for (size_t i = 0; i < biasCount; i++)
+    for (auto i = 0; i < _biasCount; i++)
       hyperparameters.push_back(0.0f);
   }
 
@@ -180,10 +177,10 @@ std::vector<float> Convolution::generateInitialHyperparameters()
 void Convolution::createHyperparameterMemory()
 {
   // Setting hyperparameter count
-  size_t weightCount = OC * IC * KH * KW;
-  size_t biasCount = OC;
+  _weightsCount = OC * IC * KH * KW;
+  _biasCount = OC;
 
-  _hyperparameterCount = weightCount + biasCount;
+  _hyperparameterCount = _weightsCount + _biasCount;
 
   std::exception_ptr eptr;
   try{
@@ -205,7 +202,7 @@ void Convolution::createHyperparameterMemory()
       // Kernel/Filter Memory
       cudnnErrCheck(cudnnCreateFilterDescriptor(&_weightsFilterDesc));
       cudnnErrCheck(cudnnSetFilter4dDescriptor(_weightsFilterDesc,
-                                            /*dataType=*/CUDNN_DATA_FLOAT,
+                                              /*dataType=*/CUDNN_DATA_FLOAT,
                                                /*format=*/CUDNN_TENSOR_NCHW,
                                                /*out_channels=*/OC,
                                                /*in_channels=*/IC,
@@ -213,11 +210,11 @@ void Convolution::createHyperparameterMemory()
                                                /*kernel_width=*/KW));
       // _weightsFilter.resize(_nn->_timestepCount);
       // for (size_t i = 0; i < _nn->_timestepCount; i++)
-      cudaErrCheck(cudaMalloc((void **)&_weightsFilter, IC * KH * KW * OC * sizeof(float)));
+      cudaErrCheck(cudaMalloc((void **)&_weightsFilter, _weightsCount * sizeof(float)));
       // Create Bias Tensors
       cudnnErrCheck(cudnnCreateTensorDescriptor(&_biasTensorDesc));
       cudnnErrCheck(cudnnSetTensor4dDescriptor(_biasTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, OC, 1, 1));
-      cudaErrCheck(cudaMalloc((void **)&_biasTensor, OC * sizeof(float)));
+      cudaErrCheck(cudaMalloc((void **)&_biasTensor, _biasCount * sizeof(float)));
     }
 #endif
   } catch (...) {
@@ -304,7 +301,7 @@ void Convolution::createForwardPipeline()
       cudnnErrCheck(cudnnCreateTensorDescriptor(&_inputDescriptor));
       cudnnErrCheck(cudnnSetTensor4dDescriptor(
                       /*Inp. Tensor Descr.=*/ _inputDescriptor,
-                      /*format=*/CUDNN_TENSOR_NHWC,
+                      /*format=*/CUDNN_TENSOR_NCHW,
                       /*dataType=*/CUDNN_DATA_FLOAT,
                       /*batch_size=*/1,
                       /*channels=*/IC,
@@ -314,23 +311,15 @@ void Convolution::createForwardPipeline()
       cudnnErrCheck(cudnnCreateTensorDescriptor(&_outputDescriptor));
       cudnnErrCheck(cudnnSetTensor4dDescriptor(
                       /*Output. Tensor Descr.=*/ _outputDescriptor,
-                      /*format=*/CUDNN_TENSOR_NHWC,
+                      /*format=*/CUDNN_TENSOR_NCHW,
                       /*dataType=*/CUDNN_DATA_FLOAT,
                       /*batch_size=*/1,
                       /*channels=*/OC,
                       /*image_height=*/OH,
                       /*image_width=*/OW));
                             // Kernel/Filter Descriptor
-      cudnnErrCheck(cudnnCreateFilterDescriptor(&_kernelDescriptor));
-      // Filter/Kernel Descriptor
-      cudnnErrCheck(cudnnSetFilter4dDescriptor(_kernelDescriptor,
-                                      /*dataType=*/CUDNN_DATA_FLOAT,
-                                      /*format=*/CUDNN_TENSOR_NCHW,
-                                      /*out_channels=*/OC,
-                                      /*in_channels=*/IC,
-                                      /*kernel_height=*/KH,
-                                      /*kernel_width=*/KW));
-      // Convolution Descriptor
+
+      // Convolution Descriptor describes the type of convolution we want to perform
       cudnnErrCheck(cudnnCreateConvolutionDescriptor(&_convolutionDescriptor));
       cudnnErrCheck(cudnnSetConvolution2dDescriptor(_convolutionDescriptor,
                                                     /*pad_height=PB=*/PT,
@@ -350,21 +339,19 @@ void Convolution::createForwardPipeline()
       //                                                      CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
       //                                                      /*memoryLimitInBytes=*/0,
       //                                                      &_convolutionAlgorithm));
-
       cudnnErrCheck(cudnnGetConvolutionForwardWorkspaceSize(_nn->_cuDNNHandle,
-                                                         _inputDescriptor,
-                                                         _kernelDescriptor,
-                                                         _convolutionDescriptor,
-                                                         _outputDescriptor,
-                                                         /*_convolutionAlgorith=*/CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM,
-                                                         &_convolutionWorkspaceSize));
+                                                            _inputDescriptor,
+                                                            _weightsFilterDesc,
+                                                            _convolutionDescriptor,
+                                                            _outputDescriptor,
+                                                            /*_convolutionAlgorith=*/CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM,
+                                                            &_convolutionWorkspaceSize));
 
 #ifdef DEBUG
       // TODO remove at some point
       _k->_logger->logInfo("Detailed", "[%s layer %zu] Allocating %f MB for cuDNN convolution workspace.\n", _type.c_str(), _index-1, _convolutionWorkspaceSize/(1024.0*1024.0));
 #endif
-      // Create workspace memory
-      cudaErrCheck(cudaMalloc((void **)&_convolutionWorkspace, _convolutionWorkspaceSize * sizeof(float)));
+      // Create workspace memory in createBackwardpipeline
     }
 #endif
   } catch (...) {
@@ -429,8 +416,11 @@ void Convolution::createBackwardPipeline()
   // TODO
   if (_nn->_engine == "CuDNN")
   {
-    cudaErrCheck(cudaMalloc((void **)&_weightsGradientFilter, IC * KH * KW * OC * sizeof(float)));
-    cudaErrCheck(cudaMalloc((void **)&_biasGradientTensor, OC * sizeof(float)));
+    cudaErrCheck(cudaMalloc((void **)&_weightsGradientFilter, _weightsCount * sizeof(float)));
+    cudaErrCheck(cudaMalloc((void **)&_biasGradientTensor, _biasCount * sizeof(float)));
+    auto backwardWsSize = getBackwardWsSize();
+    _convolutionWorkspaceSize = std::max(_convolutionWorkspaceSize, backwardWsSize);
+    cudaErrCheck(cudaMalloc((void **)&_convolutionWorkspace, _convolutionWorkspaceSize * sizeof(float)));
 
   //   v8: cudnnFindConvolutionBackwardFilterAlgorithm
   // TODO Either v7 API
@@ -497,6 +487,7 @@ void Convolution::forwardData(const size_t t)
     float alpha = 1.0f;
     float beta = 1.0f;
     cudnnAddTensor(_nn->_cuDNNHandle, &alpha, _biasTensorDesc, _biasTensor, &beta, _outputTensorDesc, _outputTensor[t]);
+    // cudnnConvolutionBiasActivationForward()
   }
 #endif
 }
@@ -527,20 +518,27 @@ void Convolution::backwardData(const size_t t)
       &alpha,
       _weightsFilterDesc,
       _weightsFilter,
-      /*TODO: check*/_outputDescriptor,
-      _outputGradientTensor[t],
+      // TODO: check =========================
+      // _prevLayer->_outputTensorDesc,
+      // =====================================
+      _outputDescriptor,
+      _prevLayer->_outputGradientTensor[t],
       _convolutionDescriptor,
       // TODO: change algorithm type
-      CUDNN_CONVOLUTION_BWD_DATA_ALGO_0,
+      CUDNN_CONVOLUTION_BWD_DATA_ALGO_1,
       _convolutionWorkspace,
       _convolutionWorkspaceSize,
       &beta,
-      /*TODO: check*/_inputDescriptor,
-      _prevLayer->_outputGradientTensor[t]));
+      // TODO: check =========================
+      // _outputTensorDesc,
+      _inputDescriptor,
+      // =====================================
+      _outputGradientTensor[t]));
   }
 #endif
-
 }
+
+// 1.
 
 void Convolution::backwardHyperparameters(size_t t)
 {
@@ -567,30 +565,30 @@ void Convolution::backwardHyperparameters(size_t t)
     float alpha = 1.0f;
     float beta = 0.0f;
 
-    cudnnErrCheck(cudnnConvolutionBackwardBias(
-                    _nn->_cuDNNHandle,
-                    &alpha,
-                    /*TODO: check*/_outputDescriptor,
-                    _outputGradientTensor[t],
-                    &beta,
-                    _biasTensorDesc,
-                    _biasGradientTensor));
+    // cudnnErrCheck(cudnnConvolutionBackwardBias(
+    //                 _nn->_cuDNNHandle,
+    //                 &alpha,
+    //                 /*TODO: check*/_outputDescriptor,
+    //                 _outputGradientTensor[t],
+    //                 &beta,
+    //                 _biasTensorDesc,
+    //                 _biasGradientTensor));
 
-    cudnnErrCheck(cudnnConvolutionBackwardFilter(
-                    _nn->_cuDNNHandle,
-                    &alpha,
-                    /*TODO: check*/_inputDescriptor,
-                    _prevLayer->_outputTensor[t],
-                    /*TODO: check*/_outputDescriptor,
-                    _outputGradientTensor[t],
-                    _convolutionDescriptor,
-                    // TODO: change algorithm type
-                    CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0,
-                    _convolutionWorkspace,
-                    _convolutionWorkspaceSize,
-                    &beta,
-                    _weightsFilterDesc,
-                    _weightsGradientFilter));
+    // cudnnErrCheck(cudnnConvolutionBackwardFilter(
+    //                 _nn->_cuDNNHandle,
+    //                 &alpha,
+    //                 /*TODO: check*/_inputDescriptor,
+    //                 _prevLayer->_outputTensor[t],
+    //                 /*TODO: check*/_outputDescriptor,
+    //                 _outputGradientTensor[t],
+    //                 _convolutionDescriptor,
+    //                 // TODO: change algorithm type
+    //                 CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1,
+    //                 _convolutionWorkspace,
+    //                 _convolutionWorkspaceSize,
+    //                 &beta,
+    //                 _weightsFilterDesc,
+    //                 _weightsGradientFilter));
   }
 #endif
 
@@ -602,7 +600,14 @@ void Convolution::setHyperparameters(const float *hyperparameters)
   if (_nn->_engine == "OneDNN")
   {
     write_to_dnnl_memory(&hyperparameters[0], _weightsMem);
-    write_to_dnnl_memory(&hyperparameters[OC * IC * KH * KW], _biasMem);
+    write_to_dnnl_memory(&hyperparameters[_weightsCount], _biasMem);
+  }
+#endif
+
+#ifdef _KORALI_USE_CUDNN
+  if (_nn->_engine == "CuDNN"){
+    cudaErrCheck(cudaMemcpy(_weightsFilter, &hyperparameters[0], _weightsCount * sizeof(float), cudaMemcpyHostToDevice));
+    cudaErrCheck(cudaMemcpy(_biasTensor, &hyperparameters[_weightsCount], _biasCount * sizeof(float), cudaMemcpyHostToDevice));
   }
 #endif
 }
@@ -613,7 +618,14 @@ void Convolution::getHyperparameters(float *hyperparameters)
   if (_nn->_engine == "OneDNN")
   {
     read_from_dnnl_memory(&hyperparameters[0], _weightsMem);
-    read_from_dnnl_memory(&hyperparameters[OC * IC * KH * KW], _biasMem);
+    read_from_dnnl_memory(&hyperparameters[_weightsCount], _biasMem);
+  }
+#endif
+
+#ifdef _KORALI_USE_CUDNN
+  if (_nn->_engine == "CuDNN"){
+    cudaErrCheck(cudaMemcpy(&hyperparameters[0], _weightsFilter, _weightsCount * sizeof(float), cudaMemcpyDeviceToHost));
+    cudaErrCheck(cudaMemcpy(&hyperparameters[_weightsCount], _biasTensor, _biasCount * sizeof(float), cudaMemcpyDeviceToHost));
   }
 #endif
 }
@@ -624,10 +636,45 @@ void Convolution::getHyperparameterGradients(float *gradient)
   if (_nn->_engine == "OneDNN")
   {
     read_from_dnnl_memory(&gradient[0], _weightsGradientMem);
-    read_from_dnnl_memory(&gradient[OC * IC * KH * KW], _biasGradientMem);
+    read_from_dnnl_memory(&gradient[_weightsCount], _biasGradientMem);
+  }
+#endif
+
+#ifdef _KORALI_USE_CUDNN
+  if (_nn->_engine == "CuDNN")
+  {
+    cudaErrCheck(cudaMemcpy(&gradient[0], _weightsGradientFilter, _weightsCount * sizeof(float), cudaMemcpyDeviceToHost));
+    cudaErrCheck(cudaMemcpy(&gradient[_weightsCount], _biasGradientTensor, _biasCount * sizeof(float), cudaMemcpyDeviceToHost));
   }
 #endif
 }
+
+#ifdef _KORALI_USE_CUDNN
+size_t Convolution::getBackwardWsSize() {
+        size_t sizeFilterAlg = 0;
+        size_t sizeDataAlg = 0;
+        // if (!_algorithmBackwardFilter.empty())
+        // TODO: algorithm search cuDNN v8
+        cudnnErrCheck(cudnnGetConvolutionBackwardFilterWorkspaceSize(_nn->_cuDNNHandle,
+                                                                     _inputDescriptor,
+                                                                     _outputDescriptor,
+                                                                     _convolutionDescriptor,
+                                                                     _weightsFilterDesc,
+                                                                     CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1,
+                                                                     &sizeFilterAlg));
+        // if (!_algorithmBackwardData.empty())
+        // TODO: algorithm search cuDNN v8
+        cudnnErrCheck(cudnnGetConvolutionBackwardDataWorkspaceSize(_nn->_cuDNNHandle,
+                                                                   _weightsFilterDesc,
+                                                                   _outputDescriptor,
+                                                                   _convolutionDescriptor,
+                                                                   _inputDescriptor,
+                                                                   CUDNN_CONVOLUTION_BWD_DATA_ALGO_0,
+                                                                   &sizeDataAlg));
+        return std::max(sizeFilterAlg, sizeDataAlg);
+}
+#endif
+
 
 void Convolution::setConfiguration(knlohmann::json& js) 
 {
@@ -809,6 +856,39 @@ void Convolution::setConfiguration(knlohmann::json& js)
     eraseValue(js, "Filters");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Filters'] required by convolution.\n"); 
 
+  if (isDefined(js, "Algorithm", "Forward"))
+  {
+    try
+    {
+      _algorithmForward = js["Algorithm"]["Forward"].get<std::string>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ convolution ] \n + Key:    ['Algorithm']['Forward']\n%s", e.what());
+    }
+    eraseValue(js, "Algorithm", "Forward");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Algorithm']['Forward'] required by convolution.\n"); 
+
+  if (isDefined(js, "Algorithm", "Backward", "Data"))
+  {
+    try
+    {
+      _algorithmBackwardData = js["Algorithm"]["Backward"]["Data"].get<std::string>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ convolution ] \n + Key:    ['Algorithm']['Backward']['Data']\n%s", e.what());
+    }
+    eraseValue(js, "Algorithm", "Backward", "Data");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Algorithm']['Backward']['Data'] required by convolution.\n"); 
+
+  if (isDefined(js, "Algorithm", "Backward", "Filter"))
+  {
+    try
+    {
+      _algorithmBackwardFilter = js["Algorithm"]["Backward"]["Filter"].get<std::string>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ convolution ] \n + Key:    ['Algorithm']['Backward']['Filter']\n%s", e.what());
+    }
+    eraseValue(js, "Algorithm", "Backward", "Filter");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Algorithm']['Backward']['Filter'] required by convolution.\n"); 
+
  Layer::setConfiguration(js);
  _type = "layer/convolution";
  if(isDefined(js, "Type")) eraseValue(js, "Type");
@@ -835,13 +915,16 @@ void Convolution::getConfiguration(knlohmann::json& js)
    js["Padding Horizontal"] = _paddingHorizontal;
    js["Padding Size"] = _paddingSize;
    js["Filters"] = _filters;
+   js["Algorithm"]["Forward"] = _algorithmForward;
+   js["Algorithm"]["Backward"]["Data"] = _algorithmBackwardData;
+   js["Algorithm"]["Backward"]["Filter"] = _algorithmBackwardFilter;
  Layer::getConfiguration(js);
 } 
 
 void Convolution::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Image Height\": -1, \"Image Width\": -1, \"Kernel Size\": -1, \"Kernel Width\": -1, \"Kernel Height\": -1, \"Padding Top\": -1, \"Padding Bottom\": -1, \"Padding Left\": -1, \"Padding Right\": -1, \"Padding Vertical\": -1, \"Padding Horizontal\": -1, \"Padding Size\": 0, \"Vertical Stride\": -1, \"Horizontal Stride\": -1, \"Stride Size\": 1, \"Filters\": -1}";
+ std::string defaultString = "{\"Image Height\": -1, \"Image Width\": -1, \"Kernel Size\": -1, \"Kernel Width\": -1, \"Kernel Height\": -1, \"Padding Top\": -1, \"Padding Bottom\": -1, \"Padding Left\": -1, \"Padding Right\": -1, \"Padding Vertical\": -1, \"Padding Horizontal\": -1, \"Padding Size\": 0, \"Vertical Stride\": -1, \"Horizontal Stride\": -1, \"Stride Size\": 1, \"Filters\": -1, \"Algorithm\": {\"Forward\": \"\", \"Backward\": {\"Data\": \"\", \"Filter\": \"\"}}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Layer::applyModuleDefaults(js);

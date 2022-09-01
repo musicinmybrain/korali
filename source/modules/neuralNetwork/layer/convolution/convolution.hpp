@@ -92,6 +92,18 @@ class Convolution : public Layer
   * @brief If specified 'Ouput Channels is calculated automatically
   */
    ssize_t _filters;
+  /**
+  * @brief Forward Convolution Algorithm to be used.
+  */
+   std::string _algorithmForward;
+  /**
+  * @brief Backward Convolution Data Algorithm to be used.
+  */
+   std::string _algorithmBackwardData;
+  /**
+  * @brief Backward Convolution Filter Algorithm to be used.
+  */
+   std::string _algorithmBackwardFilter;
   
  
   /**
@@ -193,6 +205,14 @@ class Convolution : public Layer
    * @brief Pre-calculated values for vertical stride
    */
   ssize_t SV;
+  /**
+   * @brief Number of trainable weights.
+   */
+  ssize_t _weightsCount;
+  /**
+   * @brief Number of bias weights.
+   */
+  ssize_t _biasCount;
 
 #ifdef _KORALI_USE_ONEDNN
 
@@ -259,8 +279,9 @@ class Convolution : public Layer
 #endif
 
 #ifdef _KORALI_USE_CUDNN
+  size_t getBackwardWsSize();
   /**
-   * @brief cuDNN Descriptor for the filter weights
+   * @brief cuDNN kernel/filter descriptor.
    */
   cudnnFilterDescriptor_t _weightsFilterDesc;
   /**
@@ -291,10 +312,6 @@ class Convolution : public Layer
    * @brief cuDNN Descriptor for the output data
    */
   cudnnTensorDescriptor_t _outputDescriptor;
-  /**
-   * @brief cuDNN kernel/filter descriptor.
-   */
-  cudnnFilterDescriptor_t _kernelDescriptor;
   /**
    * @brief cuDNN convolution descriptor.
    */

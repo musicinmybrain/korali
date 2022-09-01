@@ -85,6 +85,14 @@ class __className__ : public __parentClassName__
    * @brief Pre-calculated values for vertical stride
    */
   ssize_t SV;
+  /**
+   * @brief Number of trainable weights.
+   */
+  ssize_t _weightsCount;
+  /**
+   * @brief Number of bias weights.
+   */
+  ssize_t _biasCount;
 
 #ifdef _KORALI_USE_ONEDNN
 
@@ -151,8 +159,9 @@ class __className__ : public __parentClassName__
 #endif
 
 #ifdef _KORALI_USE_CUDNN
+  size_t getBackwardWsSize();
   /**
-   * @brief cuDNN Descriptor for the filter weights
+   * @brief cuDNN kernel/filter descriptor.
    */
   cudnnFilterDescriptor_t _weightsFilterDesc;
   /**
@@ -183,10 +192,6 @@ class __className__ : public __parentClassName__
    * @brief cuDNN Descriptor for the output data
    */
   cudnnTensorDescriptor_t _outputDescriptor;
-  /**
-   * @brief cuDNN kernel/filter descriptor.
-   */
-  cudnnFilterDescriptor_t _kernelDescriptor;
   /**
    * @brief cuDNN convolution descriptor.
    */

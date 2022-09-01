@@ -79,6 +79,7 @@ void Deconvolution::initialize()
   if (_outputChannels % (OH * OW) > 0) KORALI_LOG_ERROR("[Deconvolutional layer %zu] Number of channels (%lu) not divisible by the 2D HxW setup (%lux%lu).\n", _index-1, _outputChannels, OH, OW);
   OC = _outputChannels / (OH * OW);
   // Deriving input height and width
+  // TODO Check if this is simply same padding convolution
   IH = ((OH - KH + PT + PB) / SV) + 1;
   IW = ((OW - KW + PR + PL) / SH) + 1;
   // Check whether the output channels of the previous layer is divided by the height and width i.e. if previous layer is a linear layer
@@ -152,7 +153,6 @@ void Deconvolution::createForwardPipeline()
   Layer::createForwardPipeline();
 
   if (_nn->_engine == "Korali") KORALI_LOG_ERROR("Deconvolutional Layers still not supported in Korali's NN backend. Use OneDNN.\n");
-  if (_nn->_engine == "CuDNN") KORALI_LOG_ERROR("Deconvolutional Layers still not supported in CuDNNbackend. Use OneDNN.\n");
 
 #ifdef _KORALI_USE_ONEDNN
   if (_nn->_engine == "OneDNN")
