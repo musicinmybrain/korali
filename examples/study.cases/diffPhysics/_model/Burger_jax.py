@@ -217,7 +217,8 @@ class Burger_jax:
 
                     # Sinus
                     elif case == 'sinus':
-                        u0 = np.sin(self.x+offset)
+                        u0 = np.sin(4.*np.pi*(self.x+offset)/self.L)
+                        #u0 = np.sin(self.x+offset)
 
                     # Turbulence
                     elif case == 'turbulence':

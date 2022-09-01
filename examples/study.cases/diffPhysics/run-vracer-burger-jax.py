@@ -7,7 +7,8 @@ parser.add_argument('--N', help='Discretization / number of grid points of UGS',
 parser.add_argument('--NA', help='Number of actions', required=False, type=int, default=32)
 parser.add_argument('--NE', help='Number of experiences', required=False, type=int, default=5e5)
 parser.add_argument('--width', help='Size of hidden layer', required=False, type=int, default=256)
-parser.add_argument('--iex', help='Initial exploration', required=False, type=float, default=0.01)
+parser.add_argument('--iex', help='Initial exploration', required=False, type=float, default=0.1)
+#parser.add_argument('--iex', help='Initial exploration', required=False, type=float, default=0.01)
 parser.add_argument('--episodelength', help='Actual length of episode / number of actions', required=False, type=int, default=500)
 parser.add_argument('--noise', help='Standard deviation of IC', required=False, type=float, default=0.)
 parser.add_argument('--ic', help='Initial condition', required=False, type=str, default='sinus')
@@ -16,7 +17,8 @@ parser.add_argument('--specreward', help='Use spectral reward', action='store_tr
 parser.add_argument('--seed', help='Random seed', required=False, type=int, default=42)
 parser.add_argument('--dt', help='Simulator time step', required=False, type=float, default=0.001)
 parser.add_argument('--nu', help='Viscosity', required=False, type=float, default=0.02)
-parser.add_argument('--tend', help='Simulation length', required=False, type=int, default=10)
+parser.add_argument('--tend', help='Simulation length', required=False, type=int, default=5.)
+#parser.add_argument('--tend', help='Simulation length', required=False, type=int, default=10)
 parser.add_argument('--run', help='Run tag', required=False, type=int, default=0)
 parser.add_argument('--test', action='store_true', help='Run tag', required=False)
 
@@ -64,8 +66,11 @@ e["Problem"]["Environment Function"] = lambda s : bje.environment(
         args.seed, 
         dns_default )
 
-e["Problem"]["Testing Frequency"] = 100
-e["Problem"]["Policy Testing Episodes"] = 1
+e["Problem"]["Testing Frequency"] = 50
+e["Problem"]["Policy Testing Episodes"] = 20
+#e["Problem"]["Testing Frequency"] = 100
+#e["Problem"]["Policy Testing Episodes"] = 1
+
 
 ### Defining Agent Configuration 
 
@@ -111,7 +116,8 @@ e["Solver"]["Reward"]["Rescaling"]["Enabled"] = True
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
 e["Solver"]['Neural Network']['Optimizer'] = "Adam"
 e["Solver"]["L2 Regularization"]["Enabled"] = False
-e["Solver"]["L2 Regularization"]["Importance"] = 1.0
+e["Solver"]["L2 Regularization"]["Importance"] = 0.
+#e["Solver"]["L2 Regularization"]["Importance"] = 1.0
 
 e["Solver"]["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear"
 e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Channels"] = args.width
@@ -132,7 +138,8 @@ e["Solver"]["Termination Criteria"]["Max Experiences"] = args.NE
 e["Solver"]["Experience Replay"]["Serialize"] = True
 e["Console Output"]["Verbosity"] = "Detailed"
 e["File Output"]["Enabled"] = True
-e["File Output"]["Frequency"] = 100
+e["File Output"]["Frequency"] = 15
+#e["File Output"]["Frequency"] = 100
 e["File Output"]["Path"] = resultFolder
 
 if args.test:
