@@ -473,8 +473,8 @@ void Convolution::forwardData(const size_t t)
     float alpha2 = 0.0f;
     cudnnErrCheck(cudnnConvolutionForward(_nn->_cuDNNHandle,
                                           /*alpha=*/&alpha1,
-                                          _inputDescriptor,
-                                          _prevLayer->_outputTensor[t],
+                                          /*xDesc/inputDesc=*/_inputDescriptor,
+                                          /*x/input=*/_prevLayer->_outputTensor[t],
                                           _weightsFilterDesc,
                                           _weightsFilter,
                                           _convolutionDescriptor,
@@ -482,11 +482,11 @@ void Convolution::forwardData(const size_t t)
                                           _convolutionWorkspace,
                                           _convolutionWorkspaceSize,
                                           /*beta=*/&alpha2,
-                                          _outputDescriptor,
-                                          _outputTensor[t]));
+                                          /*yDesc/outputDesc=*/_outputDescriptor,
+                                          /*y/output=*/_outputTensor[t]));
     float alpha = 1.0f;
     float beta = 1.0f;
-    cudnnAddTensor(_nn->_cuDNNHandle, &alpha, _biasTensorDesc, _biasTensor, &beta, _outputTensorDesc, _outputTensor[t]);
+    // cudnnAddTensor(_nn->_cuDNNHandle, &alpha, _biasTensorDesc, _biasTensor, &beta, _outputDescriptor, _outputTensor[t]);
     // cudnnConvolutionBiasActivationForward()
   }
 #endif
@@ -521,8 +521,8 @@ void Convolution::backwardData(const size_t t)
       // TODO: check =========================
       // _prevLayer->_outputTensorDesc,
       // =====================================
-      _outputDescriptor,
-      _prevLayer->_outputGradientTensor[t],
+      /*dyDesc=*/_outputDescriptor,
+      /*dy=*/_outputGradientTensor[t],
       _convolutionDescriptor,
       // TODO: change algorithm type
       CUDNN_CONVOLUTION_BWD_DATA_ALGO_1,
@@ -531,9 +531,9 @@ void Convolution::backwardData(const size_t t)
       &beta,
       // TODO: check =========================
       // _outputTensorDesc,
-      _inputDescriptor,
+      /*dxDesc=*/_inputDescriptor,
       // =====================================
-      _outputGradientTensor[t]));
+      /*dx=*/_prevLayer->_outputGradientTensor[t]));
   }
 #endif
 }
@@ -568,27 +568,26 @@ void Convolution::backwardHyperparameters(size_t t)
     // cudnnErrCheck(cudnnConvolutionBackwardBias(
     //                 _nn->_cuDNNHandle,
     //                 &alpha,
-    //                 /*TODO: check*/_outputDescriptor,
+    //                 /*TODO: check*/_outputTensorDesc,
     //                 _outputGradientTensor[t],
     //                 &beta,
     //                 _biasTensorDesc,
     //                 _biasGradientTensor));
 
-    // cudnnErrCheck(cudnnConvolutionBackwardFilter(
-    //                 _nn->_cuDNNHandle,
-    //                 &alpha,
-    //                 /*TODO: check*/_inputDescriptor,
-    //                 _prevLayer->_outputTensor[t],
-    //                 /*TODO: check*/_outputDescriptor,
-    //                 _outputGradientTensor[t],
-    //                 _convolutionDescriptor,
-    //                 // TODO: change algorithm type
-    //                 CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1,
-    //                 _convolutionWorkspace,
-    //                 _convolutionWorkspaceSize,
-    //                 &beta,
-    //                 _weightsFilterDesc,
-    //                 _weightsGradientFilter));
+    cudnnErrCheck(cudnnConvolutionBackwardFilter(
+                    _nn->_cuDNNHandle,
+                    &alpha,
+                    /*xDesc=*/_inputDescriptor,
+                    /*x=*/_prevLayer->_outputTensor[t],
+                    /*dyDesc=*/_outputDescriptor,
+                    /*y=*/_outputGradientTensor[t],
+                    _convolutionDescriptor,
+                    CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1,
+                    _convolutionWorkspace,
+                    _convolutionWorkspaceSize,
+                    &beta,
+                    _weightsFilterDesc,
+                    _weightsGradientFilter));
   }
 #endif
 
