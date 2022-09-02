@@ -30,9 +30,17 @@ def makePlot(dns, sgs, fileName, spectralReward=True):
         k = int(i / 4)
         l = i % 4
         
-#        axs2[k,l].plot(base.x, base.uu[tidx_sgs,:], '-', color=colors[1])
-        axs2[k,l].plot(sgs.x, sgs.uu[tidx_sgs,:], '-', color=colors[2])
-        axs2[k,l].plot(dns.x, dns.uu[tidx,:], '--', color=colors[0])
+        # Plot figures 
+        axs2[k,l].plot(base.x, base.uu[tidx_sgs,:], '--',  color=colors[2])
+        axs2[k,l].plot(sgs.x,  sgs.uu[tidx_sgs,:],  '-',  color=colors[1])
+        axs2[k,l].plot(dns.x,  dns.uu[tidx,:],      '-', color=colors[0])
+
+        # Add labels
+        axs[k,l].set_xlabel('x')
+        axs[k,l].set_ylabel('u(x)')
+
+    # Add legend to first plot
+    axs[0,0].legend() 
 
     fig2.savefig(figName2)
 

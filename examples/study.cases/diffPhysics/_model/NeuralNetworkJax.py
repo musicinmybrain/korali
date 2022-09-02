@@ -149,16 +149,19 @@ def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_
         predict = batch_forward(params, x)
         losses.append(loss(params, x, y))
 
-        # Plot and save figure
+        # Plot figures
         axs[k,l].plot(x_arr, sgs_sol,     '-',  color=colors[1], label='SGS solution')
         axs[k,l].plot(x_arr, dns_sol,     '-',  color=colors[0], label='DNS solution')
         axs[k,l].plot(x_arr, predict[-1], '--', color=colors[2], label='Predicted values')
 
-        # Add title, labels, legend and save figure
+        # Add labels
         #axs[k,l].set_title('Non-Korali version')
         axs[k,l].set_xlabel('x')
         axs[k,l].set_ylabel('u(x)')
         #axs[k,l].legend()
+
+    # Add legend to first plot
+    axs[0,0].legend()
 
     # Save figure
     fig.savefig(figName)

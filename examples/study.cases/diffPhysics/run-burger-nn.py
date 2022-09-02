@@ -131,6 +131,6 @@ print("Plotting Solutions and Prediction ..")
 
 test_loss = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
 
-print("The loss is:")
-print(test_loss)
+#print("The losses are:")
+#print(test_loss)
 
