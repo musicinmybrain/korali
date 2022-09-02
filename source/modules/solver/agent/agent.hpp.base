@@ -477,11 +477,16 @@ class __className__ : public __parentClassName__
   }
 
   /**
-   * @brief Rescales states to have a zero mean and unit variance
+   * @brief Get Sample from Posterior for Bayesian RL
    * @param Index of policy for which sample is computed
    * @return The hyperparameter sample from the posterior
    */
   std::vector<float> samplePosterior( const size_t policyIdx );
+
+  /**
+   * @brief Run a generation of HMC to update the hyperparameters of the neural network
+   */
+  void runGenerationHMC();
 
   /****************************************************************************************************
    * Virtual functions (responsibilities) for learning algorithms to fulfill

@@ -98,13 +98,9 @@ class DeepSupervisor : public Learner
   */
    float _currentLoss;
   /**
-  * @brief [Internal Use] Stores the current neural network normalization mean parameters.
+  * @brief [Internal Use] Stores the gradient of the neural network parameters.
   */
-   std::vector<float> _normalizationMeans;
-  /**
-  * @brief [Internal Use] Stores the current neural network normalization variance parameters.
-  */
-   std::vector<float> _normalizationVariances;
+   std::vector<float> _hyperparameterGradients;
   /**
   * @brief [Termination Criteria] Specifies the maximum number of suboptimal generations.
   */

@@ -96,6 +96,9 @@ void DeepSupervisor::initialize()
   // If the hyperparameters have not been specified, produce new initial ones
   if (_hyperparameters.size() == 0) _hyperparameters = _neuralNetwork->generateInitialHyperparameters();
 
+  // Allocate memory for hyperparameter gradients
+  _hyperparameterGradients.resize(_hyperparameters.size());
+
   /*****************************************************************
    * Setting up weight and bias optimization experiment
    *****************************************************************/
@@ -200,9 +203,6 @@ void DeepSupervisor::runTrainingGeneration()
   // Checking that incoming data has a correct format
   _problem->verifyData();
 
-  // Hyperparameter gradient storage
-  std::vector<float> nnHyperparameterGradients;
-
   // In case we run Mean Squared Error with concurrency, distribute the work among samples
   if (_lossFunction == "Mean Squared Error" && _batchConcurrency > 1)
   {
@@ -251,12 +251,12 @@ void DeepSupervisor::runTrainingGeneration()
 
     // Assembling hyperparameters and the total mean squared loss
     _currentLoss = 0.0f;
-    nnHyperparameterGradients = std::vector<float>(_neuralNetwork->_hyperparameterCount, 0.0f);
+    _hyperparameterGradients = std::vector<float>(_neuralNetwork->_hyperparameterCount, 0.0f);
     for (size_t i = 0; i < _batchConcurrency; i++)
     {
       _currentLoss += KORALI_GET(float, samples[i], "Squared Loss");
       const auto workerGradients = KORALI_GET(std::vector<float>, samples[i], "Hyperparameter Gradients");
-      for (size_t j = 0; j < workerGradients.size(); j++) nnHyperparameterGradients[j] += workerGradients[j];
+      for (size_t j = 0; j < workerGradients.size(); j++) _hyperparameterGradients[j] += workerGradients[j];
     }
     _currentLoss = _currentLoss / ((float)N * 2.0f);
   }
@@ -285,14 +285,14 @@ void DeepSupervisor::runTrainingGeneration()
     _currentLoss = _currentLoss / ((float)N * 2.0f);
 
     // Running back propagation on the MSE vector
-    nnHyperparameterGradients = backwardGradients(MSEVector);
+    _hyperparameterGradients = backwardGradients(MSEVector);
   }
 
   // If the solution represents the gradients, just pass them on
-  if (_lossFunction == "Direct Gradient") nnHyperparameterGradients = backwardGradients(_problem->_solutionData);
+  if (_lossFunction == "Direct Gradient") _hyperparameterGradients = backwardGradients(_problem->_solutionData);
 
   // Passing hyperparameter gradients through a gradient descent update
-  _optimizer->processResult(0.0f, nnHyperparameterGradients);
+  _optimizer->processResult(0.0f, _hyperparameterGradients);
 
   // Getting new set of hyperparameters from the gradient descent algorithm
   _neuralNetwork->setHyperparameters(_optimizer->_currentValue);
@@ -469,20 +469,12 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Current Loss");
  }
 
- if (isDefined(js, "Normalization Means"))
+ if (isDefined(js, "Hyperparameter Gradients"))
  {
- try { _normalizationMeans = js["Normalization Means"].get<std::vector<float>>();
+ try { _hyperparameterGradients = js["Hyperparameter Gradients"].get<std::vector<float>>();
 } catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Normalization Means']\n%s", e.what()); } 
-   eraseValue(js, "Normalization Means");
- }
-
- if (isDefined(js, "Normalization Variances"))
- {
- try { _normalizationVariances = js["Normalization Variances"].get<std::vector<float>>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Normalization Variances']\n%s", e.what()); } 
-   eraseValue(js, "Normalization Variances");
+ { KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Hyperparameter Gradients']\n%s", e.what()); } 
+   eraseValue(js, "Hyperparameter Gradients");
  }
 
  if (isDefined(js, "Mode"))
@@ -658,8 +650,7 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
    js["Termination Criteria"]["Target Loss"] = _targetLoss;
    js["Evaluation"] = _evaluation;
    js["Current Loss"] = _currentLoss;
-   js["Normalization Means"] = _normalizationMeans;
-   js["Normalization Variances"] = _normalizationVariances;
+   js["Hyperparameter Gradients"] = _hyperparameterGradients;
  for (size_t i = 0; i <  _k->_variables.size(); i++) { 
  } 
  Learner::getConfiguration(js);

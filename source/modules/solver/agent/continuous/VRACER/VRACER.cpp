@@ -173,12 +173,15 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
   // Resetting statistics
   std::fill(_miniBatchPolicyMean.begin(), _miniBatchPolicyMean.end(), 0.0);
   std::fill(_miniBatchPolicyStdDev.begin(), _miniBatchPolicyStdDev.end(), 0.0);
+  _valueLoss = 0.0;
+  _policyLoss = 0.0;
 
   const size_t miniBatchSize = miniBatch.size();
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
 #pragma omp parallel for schedule(guided, numAgents) reduction(vec_float_plus \
-                                                               : _miniBatchPolicyMean, _miniBatchPolicyStdDev)
+                                                               : _miniBatchPolicyMean, _miniBatchPolicyStdDev) \
+                                                                reduction(+: _valueLoss, _policyLoss )
   for (size_t b = 0; b < miniBatchSize; b++)
   {
     // Getting index of current experiment
@@ -199,6 +202,9 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
 
     // Gradient of Value Function V(s) (eq. (9); *-1 because the optimizer is maximizing)
     gradientLoss[0] = (expVtbc - stateValue);
+
+    // Cumulate value loss
+    _valueLoss += 0.5 * (expVtbc - stateValue) * (expVtbc - stateValue);
 
     //Gradient has to be divided by Number of Agents in Cooperation models
     if (_multiAgentRelationship == "Cooperation")
@@ -231,8 +237,12 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       // Compute Off-Policy Objective (eq. 5)
       const float lossOffPolicy = Qret - stateValue;
 
+      // Cumulate policy loss
+      const float importanceWeight = _importanceWeightVector[expId][agentId];
+      _policyLoss += importanceWeight * ( Qret - stateValue );
+
       // Compute Off-Policy Gradient
-      auto polGrad = calculateImportanceWeightGradient(expAction, curPolicy, expPolicy);
+      auto polGrad = calculateImportanceWeightGradient(expAction, curPolicy, expPolicy, importanceWeight);
 
       // Multi-agent correlation implies additional factor
       if (_multiAgentCorrelation)
@@ -293,6 +303,9 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     _miniBatchPolicyMean[i] /= (float)miniBatchSize;
     _miniBatchPolicyStdDev[i] /= (float)miniBatchSize;
   }
+
+  _valueLoss /= (float)miniBatchSize;
+  _policyLoss /= (float)miniBatchSize;
 }
 
 float VRACER::calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx)

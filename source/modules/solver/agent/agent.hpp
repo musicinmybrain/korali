@@ -123,9 +123,9 @@ class Agent : public Solver
   */
    int _bayesianLearning;
   /**
-  * @brief Number of Samples stored from Stochastic Gradient Decent Trajectory.
+  * @brief Number of Samples stored from Posterior.
   */
-   size_t _numberOfSGDSamples;
+   size_t _numberOfSamples;
   /**
   * @brief Boolean to determine whether Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf) is used.
   */
@@ -138,6 +138,10 @@ class Agent : public Solver
   * @brief Dropout probability that is used (https://proceedings.mlr.press/v48/gal16.html).
   */
    float _dropout;
+  /**
+  * @brief Coefficient to control magnitude of the mass-matrix for Stochastic Gradient Hamilton Monte Carlo is used (https://arxiv.org/abs/1402.4102).
+  */
+   float _hmc;
   /**
   * @brief Gaussian random number generator.
   */
@@ -250,6 +254,14 @@ class Agent : public Solver
   * @brief [Internal Use] Indicates the current episode being processed.
   */
    size_t _currentEpisode;
+  /**
+  * @brief [Internal Use] Counts the number of candidates for HMC.
+  */
+   size_t _numberOfCandidates;
+  /**
+  * @brief [Internal Use] Counts the number of accepted candidates for HMC.
+  */
+   size_t _numberOfAcceptedCandidates;
   /**
   * @brief [Internal Use] Keeps a history of all training episode rewards.
   */
@@ -370,6 +382,14 @@ class Agent : public Solver
   * @brief [Internal Use] Effective Minibatch Size in the context of MARL.
   */
    size_t _effectiveMinibatchSize;
+  /**
+  * @brief [Internal Use] Stores the average loss for the value function in a minibatch.
+  */
+   float _valueLoss;
+  /**
+  * @brief [Internal Use] Stores the average loss for the policy in a minibatch.
+  */
+   float _policyLoss;
   /**
   * @brief [Termination Criteria] The solver will stop when the given number of episodes have been run.
   */
@@ -812,11 +832,16 @@ class Agent : public Solver
   }
 
   /**
-   * @brief Rescales states to have a zero mean and unit variance
+   * @brief Get Sample from Posterior for Bayesian RL
    * @param Index of policy for which sample is computed
    * @return The hyperparameter sample from the posterior
    */
   std::vector<float> samplePosterior( const size_t policyIdx );
+
+  /**
+   * @brief Run a generation of HMC to update the hyperparameters of the neural network
+   */
+  void runGenerationHMC();
 
   /****************************************************************************************************
    * Virtual functions (responsibilities) for learning algorithms to fulfill

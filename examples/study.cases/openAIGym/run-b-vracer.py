@@ -15,10 +15,11 @@ parser.add_argument('--opt', help='Off Policy Target.', required=False, type=flo
 parser.add_argument('--lr', help='Learning Rate.', required=False, type=float, default = 0.0001)
 parser.add_argument('--nPolicies', help='Number of Policies in Ensemble.', required=False, type=int, default = 1)
 parser.add_argument('--bBayesian', help='Boolean to decide whether we use Bayesian Learning.', required=False, type=bool, default = True)
-parser.add_argument('--nSGD', help='Number of Hyperparameters recorded along the SGD trajectory.', required=False, type=int, default = 1)
+parser.add_argument('--nSGD', help='Number of Hyperparameters recorded.', required=False, type=int, default = 5)
 parser.add_argument('--bSWAG', help='Boolean to decide whether we use SWAG.', required=False, type=bool, default = False)
 parser.add_argument('--langevin', help='Weighting of gradient noise for Langevin Dynamics.', required=False, type=float, default=0.0)
-parser.add_argument('--dropout', help='Dropout probability.', required=False, type=float, default=0.01)
+parser.add_argument('--dropout', help='Dropout probability.', required=False, type=float, default=0.00)
+parser.add_argument('--hmc', help='HMC variance.', required=False, type=float, default=0.0001)
 args = parser.parse_args()
 print(args)
 
@@ -55,7 +56,7 @@ e["Problem"]["Ensemble Learning"] = args.nPolicies > 1
 
 # Posterior Sampling
 e["Solver"]["Bayesian Learning"] =args.bBayesian
-e["Solver"]["Number Of SGD Samples"] = args.nSGD
+e["Solver"]["Number Of Samples"] = args.nSGD
 
 # Enable SWAG (https://arxiv.org/pdf/1902.02476.pdf)
 e["Solver"]["swag"] = args.bSWAG
@@ -65,6 +66,9 @@ e["Solver"]["Langevin Dynamics"] = args.langevin
 
 # Enable Dropout (https://proceedings.mlr.press/v48/gal16.html)
 e["Solver"]["Dropout"] = args.dropout
+
+# Enable Hamiltonian Monte Carlo (https://proceedings.mlr.press/v48/gal16.html)
+e["Solver"]["hmc"] = args.hmc
 
 ### Setting Experience Replay and REFER settings
 
