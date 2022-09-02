@@ -164,14 +164,4 @@ def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_
     fig.savefig(figName)
     print("Plot has been saved under the name: Solution_and_Prediction_Plot.pdf")
 
-#    # Output in text form
-#    print("DNS solution:")
-#    print(dns_final)
-#    print("SGS solution:")
-#    print(sgs_final)
-#    print("Predictions:")
-#    print(predict[-1])
-#    print("Loss:")
-#    print(loss_final)
-
     return losses
