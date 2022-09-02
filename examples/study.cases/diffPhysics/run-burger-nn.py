@@ -4,7 +4,7 @@ import sys
 sys.path.append('./_model/')
 
 import numpy as np
-from Burger import *
+from Burger_jax import *
 
 #------------------------------------------------------------------------------
 # Initialization
@@ -30,14 +30,16 @@ s       = int(N/N2)
 dt_sgs  = dt*s
 
 # Initialize both versions
-dns = Burger(L=L, N=N,  dt=dt,     nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed, forcing=forcing, s=s)
-sgs = Burger(L=L, N=N2, dt=dt_sgs, nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed, forcing=forcing, s=s)
+dns = Burger_jax(L=L, N=N,  dt=dt,     nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed)
+sgs = Burger_jax(L=L, N=N2, dt=dt_sgs, nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed)
+#dns = Burger(L=L, N=N,  dt=dt,     nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed, forcing=forcing, s=s)
+#sgs = Burger(L=L, N=N2, dt=dt_sgs, nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed, forcing=forcing, s=s)
 
 v0 = np.concatenate((dns.v0[:((N2+1)//2)], dns.v0[-(N2-1)//2:]))
 sgs.IC( v0 = v0 * N2 / N )
 
-sgs.randfac1 = dns.randfac1
-sgs.randfac2 = dns.randfac2
+#sgs.randfac1 = dns.randfac1
+#sgs.randfac2 = dns.randfac2
 
 #------------------------------------------------------------------------------
 # Perform simulations for both versions
@@ -127,7 +129,7 @@ train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state,
 # Testing (tests the final time iteration and plots the values)
 print("Plotting Solutions and Prediction ..")
 
-test_loss = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new)
+test_loss = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
 
 print("The loss is:")
 print(test_loss)

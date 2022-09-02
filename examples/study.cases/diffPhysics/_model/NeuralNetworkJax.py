@@ -97,12 +97,12 @@ def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tE
         start_time = time.time()
         for i in range(batch_dim):
             # Define indices for sgs and dns
-            t = (i+1) * tEnd/batch_dim
+            t = i * tEnd/batch_dim
             dns_idx = int(t/dt_dns)
             sgs_idx = int(t/dt_sgs)
             # Prepare variables
-            dns_arr = dns[dns_idx-1]
-            sgs_arr = sgs[sgs_idx-1]
+            dns_arr = dns[dns_idx]
+            sgs_arr = sgs[sgs_idx]
             x = jnp.array(sgs_arr).reshape(1, batch_size)
             y = jnp.array(dns_arr).reshape(1, batch_size)
             # Training step
@@ -122,29 +122,45 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt 
 
 # Plotting function
-def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state):
-    # Prepare variables to be plotted
-    sgs_final = sgs[-1]
-    dns_final = dns[-1]
-    x = jnp.array(sgs_final).reshape(1, batch_size)
-    y = jnp.array(dns_final).reshape(1, batch_size)
+def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_sgs):
+    # Get optimal parameters
     params = get_params(opt_state)
-    predict = batch_forward(params, x)
-    loss_final = loss(params, x, y)
+    losses = []
 
     # Prepare plot
     figName = "Solution_and_Prediction_Plot.pdf"
     colors = ['black','royalblue','seagreen']
-    fig, ax = plt.subplots()
+    fig, axs = plt.subplots(4,4, sharex=True, sharey=True, figsize=(15,15))
 
-    # Plot and save figure
-    ax.plot(x_arr, sgs_final,   '-',  color=colors[1], label='SGS solution')
-    ax.plot(x_arr, dns_final,   '-',  color=colors[0], label='DNS solution')
-    ax.plot(x_arr, predict[-1], '--', color=colors[2], label='Predicted values')
-    ax.set_title('Non-Korali version')
-    ax.set_xlabel('x')
-    ax.set_ylabel('u(x)')
-    ax.legend()
+    for i in range(16):
+        # Prepare index variables
+        t = i * tEnd / 16
+        tidx_dns = int(t/dt_dns)
+        tidx_sgs = int(t/dt_sgs)
+        k = int(i / 4)
+        l = i % 4
+
+        # Prepare variables to be plotted
+        sgs_sol = sgs[tidx_sgs]
+        dns_sol = dns[tidx_dns]
+        x = jnp.array(sgs_sol).reshape(1, batch_size)
+        y = jnp.array(dns_sol).reshape(1, batch_size)
+        params = get_params(opt_state)
+        predict = batch_forward(params, x)
+        losses.append(loss(params, x, y))
+
+        # Plot and save figure
+        axs[k,l].plot(x_arr, sgs_sol,     '-',  color=colors[1], label='SGS solution')
+        axs[k,l].plot(x_arr, dns_sol,     '-',  color=colors[0], label='DNS solution')
+        axs[k,l].plot(x_arr, predict[-1], '--', color=colors[2], label='Predicted values')
+
+        # Add title, labels, legend and save figure
+        #axs[k,l].set_title('Non-Korali version')
+        axs[k,l].set_xlabel('x')
+        axs[k,l].set_ylabel('u(x)')
+        #axs[k,l].legend()
+
+    # Save figure
     fig.savefig(figName)
     print("Plot has been saved under the name: Solution_and_Prediction_Plot.pdf")
 
@@ -158,4 +174,4 @@ def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state):
 #    print("Loss:")
 #    print(loss_final)
 
-    return loss_final
+    return losses
