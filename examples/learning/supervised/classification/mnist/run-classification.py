@@ -77,6 +77,8 @@ elif args.model == "ffnn300-100":
     from linear_clf import FFNN_300_100 as classifier
 elif args.model == "lenet1":
     from lenet import LeNet1 as classifier
+elif args.model == "cnn1":
+    from cnn_classifier import simple_one_layer_cnn as classifier
 else:
     sys.exit(f"{args.model} is not a valid model.")
 #  ===========================================================================
@@ -89,7 +91,7 @@ MAX_RGB = 255.0
 ### Total 60 000 training samples
 ### Lading data ==============================================================================
 t0 = time.time_ns()
-mndata = MNIST("./_data")
+mndata = MNIST("../../data/mnist")
 mndata.gz = True
 trainingImages, trainingLabels = mndata.load_training()
 ### One hot encode the labels
@@ -138,8 +140,8 @@ trainingSet = trainingSet[:(nb_training_samples+nb_validation_samples)]
 trainingSet = [([p/MAX_RGB for p in img], label) for img, label in trainingSet]
 testingImages = [[p/MAX_RGB for p in img] for img in testingImages]
 # Split train data into validation and train data ==============================================
-trainingImages, trainingLabels = list(zip(*trainingSet[nb_validation_samples:]))
-validationImages, validationLabels = zip(*trainingSet[:nb_training_samples])
+trainingImages, trainingLabels = list(zip(*trainingSet[:nb_training_samples]))
+validationImages, validationLabels = zip(*trainingSet[-nb_validation_samples:])
 nb_training_samples = len(trainingImages)
 assert len(validationImages) % args.testingBS == 0
 assert len(trainingImages) % args.trainingBS == 0
@@ -172,7 +174,7 @@ e["Solver"]["Learning Rate Type"] = args.learningRateType
 e["Solver"]["Learning Rate Save"] = True
 
 e["Solver"]["Loss Function"] = "Cross Entropy"
-e["Solver"]["Metrics"]["Type"] = "Accuracy"
+# e["Solver"]["Metrics"]["Type"] = "Accuracy"
 e["Solver"]["Neural Network"]["Engine"] = args.engine
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 # MODEL DEFINTION ================================================================================
@@ -194,11 +196,11 @@ e["Save Only"] = ["Current Generation" ,"Run ID", "Results", "Solver"]
 # ============================================================================
 if args.mode in ["Automatic"]:
     ### Using a neural network solver (deep learning) for inference
-    e["Problem"]["Validation Batch Size"] = args.validationBS
+    # e["Problem"]["Validation Batch Size"] = args.validationBS
     e["Problem"]["Input"]["Data"] = add_dimension_to_elements(trainingImages)
     e["Problem"]["Solution"]["Data"] = trainingLabels
-    e["Problem"]["Data"]["Validation"]["Input"] = add_dimension_to_elements(validationImages)
-    e["Problem"]["Data"]["Validation"]["Solution"] = validationLabels
+    # e["Problem"]["Data"]["Validation"]["Input"] = add_dimension_to_elements(validationImages)
+    # e["Problem"]["Data"]["Validation"]["Solution"] = validationLabels
     e["Solver"]["Mode"] = "Automatic Training"
     k.run(e)
 

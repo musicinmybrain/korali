@@ -83,7 +83,7 @@ def make_parser():
         help="Indicates which model to use.",
         required=False,
         type=str,
-        choices=["Logistic Regression", "300-100", "lenet1"],
+        choices=["Logistic Regression", "300-100", "lenet1", "cnn1"],
         default="Logistic Regression"
     )
     parser.add_argument(
