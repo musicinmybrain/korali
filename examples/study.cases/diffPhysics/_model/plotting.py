@@ -6,7 +6,7 @@ import numpy as np
 from scipy import interpolate
 from scipy.stats import gaussian_kde
 
-def makePlot(dns, sgs, fileName, spectralReward=True):
+def makePlot(dns, base, sgs, fileName, spectralReward=True):
  
 #------------------------------------------------------------------------------
 
@@ -31,16 +31,16 @@ def makePlot(dns, sgs, fileName, spectralReward=True):
         l = i % 4
         
         # Plot figures 
-        axs2[k,l].plot(base.x, base.uu[tidx_sgs,:], '--',  color=colors[2])
-        axs2[k,l].plot(sgs.x,  sgs.uu[tidx_sgs,:],  '-',  color=colors[1])
-        axs2[k,l].plot(dns.x,  dns.uu[tidx,:],      '-', color=colors[0])
+        axs2[k,l].plot(base.x, base.uu[tidx_sgs,:], '--', color=colors[2], label='Predicted values')
+        axs2[k,l].plot(sgs.x,  sgs.uu[tidx_sgs,:],  '-',  color=colors[1], label='SGS solution')
+        axs2[k,l].plot(dns.x,  dns.uu[tidx,:],      '-',  color=colors[0], label='DNS solution')
 
         # Add labels
-        axs[k,l].set_xlabel('x')
-        axs[k,l].set_ylabel('u(x)')
+        axs2[k,l].set_xlabel('x')
+        axs2[k,l].set_ylabel('u(x)')
 
     # Add legend to first plot
-    axs[0,0].legend() 
+    axs2[0,0].legend() 
 
     fig2.savefig(figName2)
 

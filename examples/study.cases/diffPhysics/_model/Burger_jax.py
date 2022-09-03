@@ -335,7 +335,7 @@ class Burger_jax:
     def grad(self, actions, u, v):
         return jexpl_RK3_grad(actions, u, v, self.dt, self.dx, self.nu, self.basis, self.k1, self.k2)[0]
  
-    def step( self, actions=None, correction=None, nIntermed=1 ):
+    def step( self, actions=None, nIntermed=1, correction=None ):
 
         Fforcing = np.zeros(self.N)
         self.gradient = np.zeros((self.N, self.M))
@@ -348,6 +348,7 @@ class Burger_jax:
             if self.dforce:
                 Fforcing = fft( forcing )
             else:
+                u = self.uu[self.ioutnum,:]
                 up = np.roll(u,1)
                 um = np.roll(u,-1)
                 d2udx2 = (up - 2.*u + um)/self.dx**2
@@ -406,9 +407,9 @@ class Burger_jax:
                     self.step()
             else:
                 for n in range(1,self.nsteps+1):
-#                    self.step()
-#                    self.v += correction
-                    self.step(correction=correction)
+                    self.step()
+                    self.v += correction
+#                    self.step(correction=correction)
 
         except FloatingPointError:
             print("[Burger_jax] Floating point exception occured", flush=True)
