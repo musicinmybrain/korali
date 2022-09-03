@@ -213,7 +213,13 @@ void Convolution::createHyperparameterMemory()
       cudaErrCheck(cudaMalloc((void **)&_weightsFilter, _weightsCount * sizeof(float)));
       // Create Bias Tensors
       cudnnErrCheck(cudnnCreateTensorDescriptor(&_biasTensorDesc));
-      cudnnErrCheck(cudnnSetTensor4dDescriptor(_biasTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, OC, 1, 1));
+      cudnnErrCheck(cudnnSetTensor4dDescriptor(_biasTensorDesc,
+                                               CUDNN_TENSOR_NCHW,
+                                               CUDNN_DATA_FLOAT,
+                                               1,
+                                               OC,
+                                               1,
+                                               1));
       cudaErrCheck(cudaMalloc((void **)&_biasTensor, _biasCount * sizeof(float)));
     }
 #endif
@@ -317,7 +323,6 @@ void Convolution::createForwardPipeline()
                       /*channels=*/OC,
                       /*image_height=*/OH,
                       /*image_width=*/OW));
-                            // Kernel/Filter Descriptor
 
       // Convolution Descriptor describes the type of convolution we want to perform
       cudnnErrCheck(cudnnCreateConvolutionDescriptor(&_convolutionDescriptor));
@@ -486,7 +491,7 @@ void Convolution::forwardData(const size_t t)
                                           /*y/output=*/_outputTensor[t]));
     float alpha = 1.0f;
     float beta = 1.0f;
-    // cudnnAddTensor(_nn->_cuDNNHandle, &alpha, _biasTensorDesc, _biasTensor, &beta, _outputDescriptor, _outputTensor[t]);
+    cudnnAddTensor(_nn->_cuDNNHandle, &alpha, _biasTensorDesc, _biasTensor, &beta, _outputDescriptor, _outputTensor[t]);
     // cudnnConvolutionBiasActivationForward()
   }
 #endif
@@ -518,9 +523,6 @@ void Convolution::backwardData(const size_t t)
       &alpha,
       _weightsFilterDesc,
       _weightsFilter,
-      // TODO: check =========================
-      // _prevLayer->_outputTensorDesc,
-      // =====================================
       /*dyDesc=*/_outputDescriptor,
       /*dy=*/_outputGradientTensor[t],
       _convolutionDescriptor,
@@ -529,8 +531,6 @@ void Convolution::backwardData(const size_t t)
       _convolutionWorkspace,
       _convolutionWorkspaceSize,
       &beta,
-      // TODO: check =========================
-      // _outputTensorDesc,
       /*dxDesc=*/_inputDescriptor,
       // =====================================
       /*dx=*/_prevLayer->_outputGradientTensor[t]));
@@ -564,15 +564,14 @@ void Convolution::backwardHyperparameters(size_t t)
   {
     float alpha = 1.0f;
     float beta = 0.0f;
-
-    // cudnnErrCheck(cudnnConvolutionBackwardBias(
-    //                 _nn->_cuDNNHandle,
-    //                 &alpha,
-    //                 /*TODO: check*/_outputTensorDesc,
-    //                 _outputGradientTensor[t],
-    //                 &beta,
-    //                 _biasTensorDesc,
-    //                 _biasGradientTensor));
+    cudnnErrCheck(cudnnConvolutionBackwardBias(
+      _nn->_cuDNNHandle,
+      &alpha,
+      _outputDescriptor,
+      _outputGradientTensor[t],
+      &beta,
+      _biasTensorDesc,
+      _biasGradientTensor));
 
     cudnnErrCheck(cudnnConvolutionBackwardFilter(
                     _nn->_cuDNNHandle,
@@ -588,6 +587,8 @@ void Convolution::backwardHyperparameters(size_t t)
                     &beta,
                     _weightsFilterDesc,
                     _weightsGradientFilter));
+
+
   }
 #endif
 
