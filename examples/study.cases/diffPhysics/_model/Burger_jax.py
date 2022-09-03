@@ -516,7 +516,7 @@ class Burger_jax:
         um = np.roll(u,-1)
         d2udx2 = (up - 2.*u + um)/self.dx**2
         
-        state = d2udx2 # This corresponds to version 0 in non-JAX script
+        # state = d2udx2 # This corresponds to version 0 in non-JAX script
         
         # The following lines correspond to version 1 in non-JAX script
         umt = self.uu[self.ioutnum-1,:] if self.ioutnum > 0 else self.uu[self.ioutnum, :]
