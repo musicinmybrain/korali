@@ -109,7 +109,7 @@ hidden_dim = 256   # Size / width of hidden layer
 batch_size = feature_dim
 
 # Number of training epochs (per run) in training function
-num_epochs = 20
+num_epochs = 100
 
 # Generate Gaussian weights and biases
 params = [random.normal(key, (hidden_dim, feature_dim)),
@@ -126,9 +126,13 @@ opt_state = opt_init(params)
 train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs)
 
 #------------------------------------------------------------------------------
-# Testing (tests the final time iteration and plots the values)
-print("Plotting Solutions and Prediction ..")
+# Run a testing loop
 
+# TODO: Setup testing loop
+test_loss, params_new, opt_state_new = run_testing_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs)
+
+# Print solutions
+print("Plotting Solutions and Prediction ..")
 test_loss = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
 
 #print("The losses are:")

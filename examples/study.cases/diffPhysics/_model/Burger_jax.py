@@ -406,8 +406,9 @@ class Burger_jax:
                     self.step()
             else:
                 for n in range(1,self.nsteps+1):
-                    self.step()
-                    self.v += correction
+#                    self.step()
+#                    self.v += correction
+                    self.step(correction=correction)
 
         except FloatingPointError:
             print("[Burger_jax] Floating point exception occured", flush=True)
