@@ -84,7 +84,9 @@ e["Solver"]["Mini Batch"]["Size"] = 256
 
 ### Defining Variables
 
-nState  = args.N
+nState  = args.N   # This corresponds to version 0 in non-JAX script
+#nState  = 2*args.N # This corresponds to version 1 in non-JAX script
+
 # States (flow at sensor locations)
 for i in range(nState):
 	e["Variables"][i]["Name"] = "Field Information " + str(i)

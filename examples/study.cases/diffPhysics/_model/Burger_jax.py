@@ -97,6 +97,7 @@ class Burger_jax:
         self.dx     = L/N
         self.x      = np.linspace(0, self.L, N, endpoint=False)
         self.nu     = nu
+        #self.nu     = 0.01+0.02*np.random.uniform() # noisy version of viscosity nu
         self.nsteps = nsteps
         self.nout   = nsteps
 
@@ -515,6 +516,11 @@ class Burger_jax:
         um = np.roll(u,-1)
         d2udx2 = (up - 2.*u + um)/self.dx**2
         
-        state = d2udx2
-       
+        state = d2udx2 # This corresponds to version 0 in non-JAX script
+        
+        # The following lines correspond to version 1 in non-JAX script
+        umt = self.uu[self.ioutnum-1,:] if self.ioutnum > 0 else self.uu[self.ioutnum, :]
+        dudt = (u - umt)/self.dt
+        state = np.vstack((dudt,d2udx2))        
+
         return state   
