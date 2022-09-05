@@ -21,7 +21,7 @@ def simple_cnn_autoencoder(e, img_width, img_height, latentDim, channels = 1):
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"]       = img_height
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Kernel Size"]       = 5
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Stride Size"]       = 2
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Filters"]           = 4
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Filters"]           = 1
     #  Linear Layer =============================================================================
     #  4 x 12*12 = 567 flat -> latentDim
     lidx += 1
@@ -32,7 +32,7 @@ def simple_cnn_autoencoder(e, img_width, img_height, latentDim, channels = 1):
     #  latentDim -> 4 x 12*12 = 567 flat
     lidx += 1
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Linear"
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Output Channels"] = 4*12*12
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Output Channels"] = 1*12*12
     #  ==========================================================================================
     #                       Decoder
     #  ==========================================================================================

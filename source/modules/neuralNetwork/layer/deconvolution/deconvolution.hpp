@@ -41,11 +41,11 @@ class Deconvolution : public Layer
   */
    ssize_t _kernelSize;
   /**
-  * @brief Height of the incoming 2D image.
+  * @brief Height of the 2D filter.
   */
    ssize_t _kernelHeight;
   /**
-  * @brief Width of the incoming 2D image.
+  * @brief Width of the 2D filter.
   */
    ssize_t _kernelWidth;
   /**
@@ -193,6 +193,14 @@ class Deconvolution : public Layer
    * @brief Pre-calculated values for vertical stride
    */
   ssize_t SV;
+  /**
+   * @brief Number of trainable weights.
+   */
+  ssize_t _weightsCount;
+  /**
+   * @brief Number of bias weights.
+   */
+  ssize_t _biasCount;
 
 #ifdef _KORALI_USE_ONEDNN
 
@@ -255,6 +263,59 @@ class Deconvolution : public Layer
    * @brief oneDNN primitive for the backward propagation of the gradient wrt Weights and Biases
    */
   dnnl::primitive _backwardWeightsPrimitive;
+
+#endif
+
+#ifdef _KORALI_USE_CUDNN
+  size_t getBackwardWsSize();
+  /**
+   * @brief cuDNN kernel/filter descriptor.
+   */
+  cudnnFilterDescriptor_t _weightsFilterDesc;
+  /**
+   * @brief cuDNN Device memory pointer for the filter weights
+   */
+  void * _weightsFilter;
+  /**
+   * @brief cuDNN Device memory pointer for the filter weights gradients
+   */
+  void *_weightsGradientFilter;
+  /**
+   * @brief cuDNN Descriptor for the bias memory
+   */
+  cudnnTensorDescriptor_t _biasTensorDesc;
+  /**
+   * @brief cuDNN Device memory pointer for the bias tensor
+   */
+  void *_biasTensor;
+  /**
+   * @brief cuDNN Device memory pointer for the bias gradients
+   */
+  void *_biasGradientTensor;
+  /**
+   * @brief cuDNN Descriptor for the input data
+   */
+  cudnnTensorDescriptor_t _inputDescriptor;
+  /**
+   * @brief cuDNN Descriptor for the output data
+   */
+  cudnnTensorDescriptor_t _outputDescriptor;
+  /**
+   * @brief cuDNN convolution descriptor.
+   */
+  cudnnConvolutionDescriptor_t _convolutionDescriptor;
+  /**
+   * @brief cuDNN Placeholder for the convolution workspace size (bytes)
+   */
+  size_t _convolutionWorkspaceSize;
+  /**
+   * @brief cuDNN Device memory pointer for the convolution workspace
+   */
+  void *_convolutionWorkspace;
+  /**
+   * @brief cuDNN enum of convolution algorithm to be use.
+   */
+  cudnnConvolutionFwdAlgo_t _convolutionAlgorithm;
 
 #endif
 
