@@ -218,7 +218,9 @@ class Burger_jax:
 
                     # Sinus
                     elif case == 'sinus':
+                        # This is the same IC than in Burger.py
                         u0 = np.sin(4.*np.pi*(self.x+offset)/self.L)
+                        # This was the orignal IC in this script
                         #u0 = np.sin(self.x+offset)
 
                     # Turbulence
@@ -349,7 +351,8 @@ class Burger_jax:
             if self.dforce:
                 Fforcing = fft( forcing )
             else:
-                u = self.uu[self.ioutnum,:]
+                # Note: u was not assigned in the original version
+                u = self.uu[self.ioutnum,:] # copied from Burger.py
                 up = np.roll(u,1)
                 um = np.roll(u,-1)
                 d2udx2 = (up - 2.*u + um)/self.dx**2
