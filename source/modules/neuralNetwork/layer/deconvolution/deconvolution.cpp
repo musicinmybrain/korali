@@ -270,13 +270,6 @@ void Deconvolution::createForwardPipeline()
                                                     /*dilation_width=*/1,
                                                     /*mode=*/CUDNN_CONVOLUTION,
                                                     /*computeType=*/CUDNN_DATA_FLOAT));
-      // cudnnErrCheck(cudnnGetConvolutionForwardWorkspaceSize(_nn->_cuDNNHandle,
-      //                                                       /*xDesc=*/_outputDescriptor,
-      //                                                       tmpWeightsFilterDesc,
-      //                                                       _convolutionDescriptor,
-      //                                                       /*yDesc*/_inputDescriptor,
-      //                                                       /*_convolutionAlgorith=*/CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM,
-      //                                                       &_convolutionWorkspaceSize));
       // NOTE: this must be like in forward to get right ws -> need to turn output and input arround again
         cudnnErrCheck(cudnnGetConvolutionBackwardDataWorkspaceSize(_nn->_cuDNNHandle,
                                                                       /*wDesc=*/_weightsFilterDesc,
@@ -447,19 +440,19 @@ void Deconvolution::backwardData(const size_t t)
   {
     float alpha1 = 1.0f;
     float alpha2 = 0.0f;
-    // cudnnErrCheck(cudnnConvolutionForward(_nn->_cuDNNHandle,
-    //                                       /*alpha=*/&alpha1,
-    //                                       /*xDesc/inputDesc=*/_outputDescriptor,
-    //                                       /*x/input=*/_outputGradientTensor[t],
-    //                                       _weightsFilterDesc,
-    //                                       _weightsFilter,
-    //                                       _convolutionDescriptor,
-    //                                       _convolutionAlgorithm,
-    //                                       _convolutionWorkspace,
-    //                                       _convolutionWorkspaceSize,
-    //                                       /*beta=*/&alpha2,
-    //                                       /*yDesc/outputDesc=*/_inputDescriptor,
-    //                                       /*y/output=*/_prevLayer->_outputGradientTensor[t]));
+    cudnnErrCheck(cudnnConvolutionForward(_nn->_cuDNNHandle,
+                                          /*alpha=*/&alpha1,
+                                          /*xDesc/inputDesc=*/_outputDescriptor,
+                                          /*x/_prevLayer->_outputTensor[t]=*/_outputGradientTensor[t],
+                                          _weightsFilterDesc,
+                                          _weightsFilter,
+                                          _convolutionDescriptor,
+                                          _convolutionAlgorithm,
+                                          _convolutionWorkspace,
+                                          _convolutionWorkspaceSize,
+                                          /*beta=*/&alpha2,
+                                          /*yDesc/outputDesc=*/_inputDescriptor,
+                                          /*y/_outputTensor[t])/result=*/_prevLayer->_outputGradientTensor[t]));
     float alpha = 1.0f;
     float beta = 1.0f;
     // cudnnAddTensor(_nn->_cuDNNHandle, &alpha, _biasTensorDesc, _biasTensor, &beta, _outputDescriptor, _outputTensor[t]);
@@ -578,13 +571,15 @@ size_t Deconvolution::getBackwardWsSize() {
                                                                      &sizeFilterAlg));
         // if (!_algorithmBackwardData.empty())
         // TODO: algorithm search cuDNN v8
-        cudnnErrCheck(cudnnGetConvolutionBackwardDataWorkspaceSize(_nn->_cuDNNHandle,
-                                                                   tmpWeightsFilterDesc,
-                                                                   _inputDescriptor,
-                                                                   _convolutionDescriptor,
-                                                                   _outputDescriptor,
-                                                                   CUDNN_CONVOLUTION_BWD_DATA_ALGO_0,
-                                                                   &sizeDataAlg));
+       // Backward Data Part
+       // Input descriptor is now output descriptor as this is backward
+        cudnnErrCheck(cudnnGetConvolutionForwardWorkspaceSize(_nn->_cuDNNHandle,
+                                                              /*xDesc=*/_outputDescriptor,
+                                                              _weightsFilterDesc,
+                                                              _convolutionDescriptor,
+                                                              /*yDesc*/_inputDescriptor,
+                                                              /*_convolutionAlgorith=*/CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM,
+                                                              &_convolutionWorkspaceSize));
         return std::max(sizeFilterAlg, sizeDataAlg);
 }
 #endif
