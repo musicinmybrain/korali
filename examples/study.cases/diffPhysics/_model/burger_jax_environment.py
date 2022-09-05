@@ -44,6 +44,12 @@ def environment( s , N, gridSize, numActions, dt, nu, episodeLength, ic, spectra
     sgs.setup_basis(numActions, basis)
     sgs.setGroundTruth(dns.tt, dns.x, dns.uu)
 
+    # The next 4 lines are copied from burger_envirionment.py and have been adapted
+    offset = np.random.normal(loc=0., scale=self.noise) if sgs.noise > 0 else 0.
+    newx = sgs.x + offset
+    newx[newx>L] = newx[newx>L] - L
+    newx[newx<0] = newx[newx<0] + L
+
     ## get initial state
     state = sgs.getState().flatten().tolist()
     s["State"] = state
@@ -135,17 +141,86 @@ def environment( s , N, gridSize, numActions, dt, nu, episodeLength, ic, spectra
 
         print("[burger_jax_env] Running uncontrolled SGS..")
         base = Burger_jax(L=L, N=gridSize, dt=dt, nu=nu, tend=tEnd, noise=0.)
+
         if spectralReward:
             print("[burger_jax_env] Init spectrum.")
             v0 = np.concatenate((dns.v0[:((gridSize+1)//2)], dns.v0[-(gridSize-1)//2:]))
             base.IC( v0 = v0 * gridSize / dns.N )
 
         else:
+            # The next 2 lines belong to the original version of burger_jax_environment.py
+            #print("[burger_jax_env] Init interpolation.")
+            #base.IC( u0 = f_restart(base.x) )
+
+            # The next 7 lines are copied from burger_environment.py and adapted
             print("[burger_jax_env] Init interpolation.")
-            base.IC( u0 = f_restart(base.x) )
+            midx = np.argmax(newx)
+            if midx == len(newx)-1:
+                ic = base.f_truth(newx, 0)
+            else:
+                ic = np.concatenate(((base.f_truth(newx[:midx+1], 0.)), base.f_truth(newx[midx+1:], 0.)))
+            base.IC( u0 = ic )
 
-        base.simulate()
-        base.fou2real()
-        base.compute_Ek()
+        # The next 4 lines belong to the original version of burger_jax_environment.py
+        #base.simulate()
+        #base.fou2real()
+        #base.compute_Ek()
+        #makePlot(dns, base, sgs, fileName)
 
-        makePlot(dns, base, sgs, fileName)
+        # All following lines are copied from burger_environment.py and adapted
+
+        # reinit vars
+        numAgents = 1
+        step = 0
+        error = 0
+        kPrevRelErr = 0.
+        cumreward = np.zeros(numAgents)
+
+        actions = np.zeros(numActions)
+
+        while step < episodeLength and error == 0:
+
+            # init reward
+            reward = 0.
+
+            # apply action and advance environment
+            try:
+                for _ in range(nIntermediate):
+                    base.step(actions)
+
+                    # calculate MSE reward
+                    if spectralReward == False:
+                        reward += rewardFactor*sgs.getMseReward() / nIntermediate
+
+            except Exception as e:
+                print("[burger_jax_environment] Exception occured during stepping:")
+                print(str(e))
+                error = 1
+                break
+
+
+            # calculate reward
+            if spectralReward:
+                base.fou2real()
+                base.compute_Ek()
+                #print(dns.Ek_ktt[base.ioutnum,:gridSize//2])
+                #print(dns.Ek_ktt[base.ioutnum,:gridSize//2])
+                kRelErr = np.mean((np.abs(dns.Ek_ktt[base.ioutnum,:gridSize//2] - base.Ek_ktt[base.ioutnum,:gridSize//2])/dns.Ek_ktt[base.ioutnum,:gridSize//2])**2)
+                reward = np.full(numAgents, [rewardFactor*(kPrevRelErr-kRelErr)])
+                kPrevRelErr = kRelErr
+
+            # accumulate reward
+            cumreward += reward
+
+            if (np.isfinite(reward).all() == False):
+                print("[burger_jax_environment] Nan reward detected")
+                error = 1
+                break
+
+            step += 1
+
+        print("[burger_jax_environment] uncontrolled cumreward")
+        print(cumreward)
+
+        makePlot(dns, base, sgs, fileName, spectralReward)
+
