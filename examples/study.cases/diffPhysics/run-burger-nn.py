@@ -128,13 +128,24 @@ train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state,
 #------------------------------------------------------------------------------
 # Run a testing loop
 
-# TODO: Setup testing loop
+# create interpolated IC
+f_restart = interpolate.interp1d(dns.x, dns.u0, kind='cubic')
+
+# Create new base solution
+base = Burger_jax(L=L, N=N2, dt=dt_sgs, nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed)
+base.IC( u0 = f_restart(base.x) )
+base.simulate()
+base.fou2real()
+base.compute_Ek()
+
+# TODO: Implement proper testing loop
 test_loss, params_new, opt_state_new = run_testing_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs)
+
 
 # Print solutions
 print("Plotting Solutions and Prediction ..")
-test_loss = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
+test_losses = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
 
-#print("The losses are:")
-#print(test_loss)
-
+## Testing the alternative plot
+#from plotting import makePlot
+#makePlot(dns, base, sgs, "Test")
