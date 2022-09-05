@@ -31,7 +31,7 @@ def makePlot(dns, base, sgs, fileName, spectralReward=True):
         l = i % 4
         
         # Plot figures 
-        axs2[k,l].plot(base.x, base.uu[tidx_sgs,:], '--', color=colors[2], label='Predicted values')
+        axs2[k,l].plot(base.x, base.uu[tidx_sgs,:], '--', color=colors[2], label='Base solution')
         axs2[k,l].plot(sgs.x,  sgs.uu[tidx_sgs,:],  '-',  color=colors[1], label='SGS solution')
         axs2[k,l].plot(dns.x,  dns.uu[tidx,:],      '-',  color=colors[0], label='DNS solution')
 
