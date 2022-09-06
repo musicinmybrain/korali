@@ -84,14 +84,17 @@ void __className__::initialize()
   _trainingLoss.reserve(_epochs);
   _validationLoss.reserve(_epochs);
   // TRAINING ====================================================================
-  if (!_problem->_trainingBatchSize && _mode == "Training"){
-    KORALI_LOG_ERROR("Training Batch Size is not set.");
-    // Check whether the minibatch size (N) can be divided by the requested concurrency TODO make this a warning and add batch size for reminder Need to also adapt verifyData() of supervisedLearning problem.
-    if (_problem->_trainingBatchSize % _batchConcurrency > 0) KORALI_LOG_ERROR("The training concurrency requested (%lu) does not divide the training mini batch size (%lu) perfectly.", _batchConcurrency, _problem->_trainingBatchSize);
+  if (_mode == "Training" || _mode == "Automatic Training"){
+    if(!_problem->_trainingBatchSize)
+      KORALI_LOG_ERROR("Training Batch Size is not set.");
     // BATCH SIZES needed for the neual network architecture ==========================================
     batchSizes.push_back(_problem->_trainingBatchSize);
     // If we parallize by _batchConcurrency workers, we need to support the split up batch size as well
-  if (_batchConcurrency > 1) batchSizes.push_back(_problem->_trainingBatchSize / _batchConcurrency);
+    if (_problem->_trainingBatchSize % _batchConcurrency > 0)
+      KORALI_LOG_ERROR("The training concurrency requested (%lu) does not divide the training mini batch size (%lu) perfectly.", _batchConcurrency, _problem->_trainingBatchSize);
+    if (_batchConcurrency > 1)
+      batchSizes.push_back(_problem->_trainingBatchSize / _batchConcurrency);
+    // Check whether the minibatch size (N) can be divided by the requested concurrency TODO make this a warning and add batch size for reminder Need to also adapt verifyData() of supervisedLearning problem.
   }
   // TESTING ======================================================================
   if (!_problem->_testingBatchSizes.empty()){
