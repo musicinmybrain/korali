@@ -120,6 +120,11 @@ void DeepSupervisor::initialize()
       if (_batchConcurrency > 1) batchSizes.push_back(_problem->_testingBatchSize / _batchConcurrency);
     }
   }
+  // Erase duplicates
+  batchSizes.erase(std::unique(batchSizes.begin(), batchSizes.end()), batchSizes.end());
+  /*****************************************************************
+   * Save learning rate
+   *****************************************************************/
   if(_learningRateSave)
     (*_k)["Results"]["Learning Rate"] = true;
   // ================================================================================================
