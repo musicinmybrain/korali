@@ -427,18 +427,21 @@ void DeepSupervisor::runEpoch()
             _currentMetrics += _metrics->compute(y, y_val);
           }
         }
-      }
         _currentValidationLoss = _currentValidationLoss / (float)(_batchConcurrency*IforE);
         _validationLoss.push_back(_currentValidationLoss);
-        _currentMetrics = _currentMetrics / (float)(_batchConcurrency*IforE);
-        _totalMetrics.push_back(_currentMetrics);
-        if(_mode == "Automatic Training"){
+        if(_mode == "Automatic Training")
           (*_k)["Results"]["Validation Loss"] = _validationLoss;
-          (*_k)["Results"]["Metrics"] = _totalMetrics;
-        } else{
+        else
           (*_k)["Results"]["Validation Loss"] = _validationLoss.back();
-          (*_k)["Results"]["Metrics"] = _totalMetrics.back();
+        if(_metrics){
+          _currentMetrics = _currentMetrics / (float)(_batchConcurrency*IforE);
+          _totalMetrics.push_back(_currentMetrics);
+          if(_mode == "Automatic Training")
+            (*_k)["Results"]["Metrics"] = _totalMetrics;
+          else
+            (*_k)["Results"]["Metrics"] = _totalMetrics.back();
         }
+      }
       if(_mode == "Automatic Training")
         (*_k)["Results"]["Training Loss"] = _trainingLoss;
       else
@@ -671,10 +674,11 @@ void DeepSupervisor::printGenerationAfter()
     _k->_logger->progressBar((_epochCount+1)/(float)(_epochs+1), bar, width);
     // Create output string
     output << std::fixed << std::setprecision(4) << "\r[Korali] Epoch " << _epochCount << " / " << _epochs << " " << bar << " Train Loss: " << _currentTrainingLoss;
-    if(_hasValidationSet)
+    if(_hasValidationSet){
       output << sep << "Val. Loss: " << _currentValidationLoss;
-    if(_metrics)
-      output << sep << _metricsType.c_str() << " " << _currentMetrics;
+      if(_metrics)
+        output << sep << _metricsType.c_str() << " " << _currentMetrics;
+    }
     output << sep << "Time " << _k->_genTime.back();
     if (!(_learningRateType == "Const" || _learningRateType.empty()))
       output << sep << "Learning Rate: " << _optimizer->_eta;
