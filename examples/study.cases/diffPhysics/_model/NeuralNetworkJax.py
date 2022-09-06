@@ -119,29 +119,37 @@ def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tE
 #------------------------------------------------------------------------------
 # Testing function
 def run_testing_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tEnd, dt_dns, dt_sgs):
-    """ Implements a learning loop over one epoch. """
+    """ Implements a testing loop over one epoch. """
+    # Initialize placeholder for losses
+    corrections = []
+
     # Get the initial set of parameters
     params = get_params(opt_state)
 
     # Do one epoch of testing
     start_time = time.time()
-    for i in range(batch_dim):
+    for i in range(int(tEnd/dt_sgs)):
         # Define indices for sgs and dns
-        t = i * tEnd/batch_dim
-        dns_idx = int(t/dt_dns)
-        sgs_idx = int(t/dt_sgs)
+        #t = i * dt_sgs
+        #dns_idx = int(t/dt_dns)
+        sgs_idx = int(i)
+
         # Prepare variables
-        dns_arr = dns[dns_idx]
+        #dns_arr = dns[dns_idx]
         sgs_arr = sgs[sgs_idx]
         x = jnp.array(sgs_arr).reshape(1, batch_size)
-        y = jnp.array(dns_arr).reshape(1, batch_size)
-        # Training step
-        params, opt_state, loss = update(params, x, y, opt_state)
+        #y = jnp.array(dns_arr).reshape(1, batch_size)
+
+        # Getting corrections
+        predict = batch_forward(params, x)
+        correction = sgs_arr - predict[-1]
+        corrections.append(correction)
+
+        # 
 
     epoch_time = time.time() - start_time
-    print("Testing | T: {:0.2f} | Latest Loss: {:0.10f}".format(epoch_time, loss))
-
-    return loss, params, opt_state
+    print("Testing | T: {:0.2f}".format(epoch_time))
+    return corrections
 
 #------------------------------------------------------------------------------
 import matplotlib as mpl

@@ -13,7 +13,7 @@ import argparse
 sys.path.append('./../_model/')
 
 import numpy as np
-from plotting_jax import *
+from plotting import *
 from Burger_jax import *
 
 #------------------------------------------------------------------------------

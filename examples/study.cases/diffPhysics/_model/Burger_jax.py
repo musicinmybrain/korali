@@ -382,7 +382,7 @@ class Burger_jax:
         if (correction is not None):
             # apply correction to solution
             self.u = u + correction
-            self.v = v + fft(correction)
+            self.v = fft(self.u)
 
             # store solution in time-series
             self.uu[self.ioutnum,:] = self.u
