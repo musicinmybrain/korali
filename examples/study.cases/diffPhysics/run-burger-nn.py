@@ -134,12 +134,12 @@ print("Simulate new solution ..")
 base = Burger_jax(L=L, N=N2, dt=dt_sgs, nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed)
 # Apply correction
 base.step(correction = np.array(corrections))
-base.ioutnum = 0
+base.ioutnum = 0 # This has to be reset manually before we start a new simulation
 base.simulate()
 
-# Plot solutions (plot predicted value at the end of training)
-print("Plotting Solutions and Prediction ..")
-test_losses = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
+## Plot solutions (plot predicted value at the end of training)
+#print("Plotting Solutions and Prediction ..")
+#test_losses = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
 
 # Plot solutions (plot testing values)
 from plotting import makePlot

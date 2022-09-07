@@ -172,7 +172,6 @@ def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_
         dns_sol = dns[tidx_dns]
         x = jnp.array(sgs_sol).reshape(1, batch_size)
         y = jnp.array(dns_sol).reshape(1, batch_size)
-        #params, _, _ = update(params, x, y, opt_state)
         predict = batch_forward(params, x)
         losses.append(loss(params, x, y))
 
