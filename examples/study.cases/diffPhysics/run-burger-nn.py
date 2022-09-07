@@ -126,8 +126,13 @@ opt_state = opt_init(params)
 train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs)
 
 #------------------------------------------------------------------------------
-# Run a testing loop
-test_loss, params_new, opt_state_new = run_testing_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs)
+# Get corrections
+corrections = get_corrections(opt_state, batch_size, sgs_sol, tEnd, dt_sgs)
+
+## simulate a new base solution with corrections
+base = sgs
+base.ioutnum = 0
+base.step(correction = np.array(corrections))
 
 # TODO: Change plot or even combine it with the testing
 # Print solutions
@@ -135,5 +140,5 @@ print("Plotting Solutions and Prediction ..")
 test_losses = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
 
 ## Testing the alternative plot
-#from plotting import makePlot
-#makePlot(dns, base, sgs, "Test")
+from plotting import makePlot
+makePlot(dns, base, sgs, "Test")

@@ -117,35 +117,26 @@ def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tE
 
 
 #------------------------------------------------------------------------------
-# Testing function
-def run_testing_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tEnd, dt_dns, dt_sgs):
+# Function to get corrections
+def get_corrections(opt_state, batch_size, sgs, tEnd, dt_sgs):
     """ Implements a testing loop over one epoch. """
-    # Initialize placeholder for losses
+    # Initialize placeholder for corrections
     corrections = []
 
-    # Get the initial set of parameters
+    # Get the current set of parameters
     params = get_params(opt_state)
 
-    # Do one epoch of testing
+    # Do one epoch to get corrections
     start_time = time.time()
     for i in range(int(tEnd/dt_sgs)):
-        # Define indices for sgs and dns
-        #t = i * dt_sgs
-        #dns_idx = int(t/dt_dns)
-        sgs_idx = int(i)
-
         # Prepare variables
-        #dns_arr = dns[dns_idx]
-        sgs_arr = sgs[sgs_idx]
+        sgs_arr = sgs[i]
         x = jnp.array(sgs_arr).reshape(1, batch_size)
-        #y = jnp.array(dns_arr).reshape(1, batch_size)
 
         # Getting corrections
         predict = batch_forward(params, x)
         correction = sgs_arr - predict[-1]
         corrections.append(correction)
-
-        # 
 
     epoch_time = time.time() - start_time
     print("Testing | T: {:0.2f}".format(epoch_time))
