@@ -130,15 +130,12 @@ train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state,
 corrections, predictions = get_corrections(opt_state_new, batch_size, sgs_sol, tEnd, dt_sgs)
 
 # Simulate a new base solution with same data than sgs solution
+print("Simulate new solution ..")
 base = Burger_jax(L=L, N=N2, dt=dt_sgs, nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed)
+# Apply correction
+base.step(correction = np.array(corrections))
 base.ioutnum = 0
 base.simulate()
-
-# Apply correction
-base.ioutnum = 0
-base.step(correction = np.array(corrections))
-base.compute_Ek()
-#base.uu = np.array(predictions)
 
 # Plot solutions (plot predicted value at the end of training)
 print("Plotting Solutions and Prediction ..")
@@ -146,4 +143,4 @@ test_losses = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_
 
 # Plot solutions (plot testing values)
 from plotting import makePlot
-makePlot(dns, base, sgs, "Test")
+makePlot(dns, base, sgs, "FeedforwardNN")
