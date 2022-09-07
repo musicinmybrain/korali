@@ -379,14 +379,14 @@ class Burger_jax:
             self.vv[self.ioutnum,:] = v
             self.tt[self.ioutnum]   = self.t
 
-        if (correction is not None):
-            # apply correction to solution
-            self.u = u + correction[self.ioutnum,:]
-            self.v = fft(self.u)
+            if (correction is not None):
+                # apply correction to solution
+                self.u = u + correction[self.ioutnum,:]
+                self.v = fft(self.u)
 
-            # store solution in time-series
-            self.uu[self.ioutnum,:] = self.u
-            self.vv[self.ioutnum,:] = self.v
+                # store solution in time-series
+                self.uu[self.ioutnum,:] = self.u
+                self.vv[self.ioutnum,:] = self.v
 
     def simulate(self, nsteps=None, restart=False, correction=[]):
         #

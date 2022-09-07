@@ -120,8 +120,9 @@ def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tE
 # Function to get corrections
 def get_corrections(opt_state, batch_size, sgs, tEnd, dt_sgs):
     """ Implements a testing loop over one epoch. """
-    # Initialize placeholder for corrections
+    # Initialize placeholder for corrections and predictions
     corrections = []
+    predictions = []
 
     # Get the current set of parameters
     params = get_params(opt_state)
@@ -137,10 +138,11 @@ def get_corrections(opt_state, batch_size, sgs, tEnd, dt_sgs):
         predict = batch_forward(params, x)
         correction = sgs_arr - predict[-1]
         corrections.append(correction)
+        predictions.append(predict[-1])
 
     epoch_time = time.time() - start_time
     print("Testing | T: {:0.2f}".format(epoch_time))
-    return corrections
+    return corrections, predictions
 
 #------------------------------------------------------------------------------
 import matplotlib as mpl

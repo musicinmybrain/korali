@@ -127,18 +127,23 @@ train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state,
 
 #------------------------------------------------------------------------------
 # Get corrections
-corrections = get_corrections(opt_state, batch_size, sgs_sol, tEnd, dt_sgs)
+corrections, predictions = get_corrections(opt_state_new, batch_size, sgs_sol, tEnd, dt_sgs)
 
-## simulate a new base solution with corrections
-base = sgs
+# Simulate a new base solution with same data than sgs solution
+base = Burger_jax(L=L, N=N2, dt=dt_sgs, nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed)
+base.ioutnum = 0
+base.simulate()
+
+# Apply correction
 base.ioutnum = 0
 base.step(correction = np.array(corrections))
+base.compute_Ek()
+#base.uu = np.array(predictions)
 
-# TODO: Change plot or even combine it with the testing
-# Print solutions
+# Plot solutions (plot predicted value at the end of training)
 print("Plotting Solutions and Prediction ..")
 test_losses = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
 
-## Testing the alternative plot
+# Plot solutions (plot testing values)
 from plotting import makePlot
 makePlot(dns, base, sgs, "Test")
