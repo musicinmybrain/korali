@@ -6,3 +6,4 @@ test('sampling', e,
       depends: python_extension,
       env: nomalloc
     )
+subdir('resampling')

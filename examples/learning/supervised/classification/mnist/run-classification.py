@@ -91,7 +91,7 @@ MAX_RGB = 255.0
 ### Total 60 000 training samples
 ### Lading data ==============================================================================
 t0 = time.time_ns()
-mndata = MNIST("../../data/mnist")
+mndata = MNIST("../../../../../data/mnist")
 mndata.gz = True
 trainingImages, trainingLabels = mndata.load_training()
 ### One hot encode the labels
@@ -134,8 +134,6 @@ if args.verbosity in ["Normal", "Detailed"]:
     print(f'Discarding {int(len(trainingSet)*(1-args.validationSplit)-nb_training_samples)} training samples')
     print(f'{nb_validation_samples} validation samples')
     print(f'Discarding {int(len(trainingSet)*args.validationSplit-nb_validation_samples)} validation samples')
-# nb_training_samples = 256*3
-# nb_validation_samples = 256*1
 trainingSet = trainingSet[:(nb_training_samples+nb_validation_samples)]
 trainingSet = [([p/MAX_RGB for p in img], label) for img, label in trainingSet]
 testingImages = [[p/MAX_RGB for p in img] for img in testingImages]
@@ -143,7 +141,7 @@ testingImages = [[p/MAX_RGB for p in img] for img in testingImages]
 trainingImages, trainingLabels = list(zip(*trainingSet[:nb_training_samples]))
 validationImages, validationLabels = zip(*trainingSet[-nb_validation_samples:])
 nb_training_samples = len(trainingImages)
-assert len(validationImages) % args.testingBS == 0
+assert len(validationImages) % args.validationBS == 0
 assert len(trainingImages) % args.trainingBS == 0
 ### Load Previous model if desired
 results_dir = os.path.join("_korali_result", args.mode, args.model)
@@ -174,7 +172,7 @@ e["Solver"]["Learning Rate Type"] = args.learningRateType
 e["Solver"]["Learning Rate Save"] = True
 
 e["Solver"]["Loss Function"] = "Cross Entropy"
-# e["Solver"]["Metrics"]["Type"] = "Accuracy"
+e["Solver"]["Metrics"]["Type"] = "Accuracy"
 e["Solver"]["Neural Network"]["Engine"] = args.engine
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 # MODEL DEFINTION ================================================================================
@@ -196,11 +194,11 @@ e["Save Only"] = ["Current Generation" ,"Run ID", "Results", "Solver"]
 # ============================================================================
 if args.mode in ["Automatic"]:
     ### Using a neural network solver (deep learning) for inference
-    # e["Problem"]["Validation Batch Size"] = args.validationBS
     e["Problem"]["Input"]["Data"] = add_dimension_to_elements(trainingImages)
     e["Problem"]["Solution"]["Data"] = trainingLabels
-    # e["Problem"]["Data"]["Validation"]["Input"] = add_dimension_to_elements(validationImages)
-    # e["Problem"]["Data"]["Validation"]["Solution"] = validationLabels
+    e["Problem"]["Validation Batch Size"] = args.validationBS
+    e["Problem"]["Data"]["Validation"]["Input"] = add_dimension_to_elements(validationImages)
+    e["Problem"]["Data"]["Validation"]["Solution"] = validationLabels
     e["Solver"]["Mode"] = "Automatic Training"
     k.run(e)
 

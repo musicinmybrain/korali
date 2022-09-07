@@ -20,13 +20,13 @@ def make_parser():
     parser.add_argument(
         '--trainingBS',
         help='Batch size to use for training data',
-        default=256,
+        default=128,
         type=int,
         required=False)
     parser.add_argument(
         '--testingBS',
         help='Batch size to use for test data',
-        default=256,
+        default=128,
         type=int,
         required=False)
     parser.add_argument(

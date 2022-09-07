@@ -23,7 +23,7 @@ parser = make_parser()
 parser.add_argument(
     '--validationBS',
     help='Batch Size to use for the validation set',
-    default=256,
+    default=128,
     type=int,
     required=False)
 parser.add_argument(
@@ -68,7 +68,7 @@ MAX_RGB = 255.0
 ### Total 60 000 training samples
 ### Lading data ==============================================================================
 t0 = time.time_ns()
-mndata = MNIST("../../data/mnist")
+mndata = MNIST("../../../../../data/mnist")
 mndata.gz = True
 trainingImages, _ = mndata.load_training()
 testingImages, _ = mndata.load_testing()
@@ -101,10 +101,13 @@ trainingImages = trainingImages[:(nb_training_samples+nb_validation_samples)]
 trainingImages = [[p/MAX_RGB for p in img] for img in trainingImages]
 testingImages = [[p/MAX_RGB for p in img] for img in testingImages]
 # Split train data into validation and train data ==============================================
-validationImages = trainingImages[:nb_validation_samples]
-trainingImages = trainingImages[nb_validation_samples:]
+trainingImages = trainingImages[:nb_training_samples]
+validationImages = trainingImages[-nb_validation_samples:]
 nb_training_samples = len(trainingImages)
-assert len(validationImages) % args.testingBS == 0
+nb_validation_samples = len(validationImages)
+args.nb_training_samples = nb_training_samples
+args.nb_validation_samples = nb_validation_samples
+assert len(validationImages) % args.validationBS == 0
 assert len(trainingImages) % args.trainingBS == 0
 # ==================================================================================
 # In case of iPython need to temporaily set sys.args to [''] in order to parse them
@@ -147,7 +150,7 @@ e["Solver"]["Learning Rate Type"] = args.learningRateType
 e["Solver"]["Learning Rate Save"] = True
 
 e["Solver"]["Loss Function"] = "Mean Squared Error"
-e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
+e["Solver"]["Neural Network"]["Engine"] = args.engine
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 # MODEL DEFINTION ================================================================================
 if args.model == "linear":
