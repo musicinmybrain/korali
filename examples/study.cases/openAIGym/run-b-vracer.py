@@ -15,11 +15,11 @@ parser.add_argument('--opt', help='Off Policy Target.', required=False, type=flo
 parser.add_argument('--lr', help='Learning Rate.', required=False, type=float, default = 0.0001)
 parser.add_argument('--nPolicies', help='Number of Policies in Ensemble.', required=False, type=int, default = 1)
 parser.add_argument('--bBayesian', help='Boolean to decide whether we use Bayesian Learning.', required=False, type=bool, default = True)
-parser.add_argument('--nSGD', help='Number of Hyperparameters recorded.', required=False, type=int, default = 5)
+parser.add_argument('--nSGD', help='Number of Samples from Posterior that are stored.', required=False, type=int, default = 5)
 parser.add_argument('--bSWAG', help='Boolean to decide whether we use SWAG.', required=False, type=bool, default = False)
 parser.add_argument('--langevin', help='Weighting of gradient noise for Langevin Dynamics.', required=False, type=float, default=0.0)
-parser.add_argument('--dropout', help='Dropout probability.', required=False, type=float, default=0.00)
-parser.add_argument('--hmc', help='HMC variance.', required=False, type=float, default=0.0001)
+parser.add_argument('--dropout', help='Dropout probability.', required=False, type=float, default=1e-5)
+parser.add_argument('--hmc', help='HMC Mass.', required=False, type=float, default=0.0)
 args = parser.parse_args()
 print(args)
 
@@ -61,18 +61,21 @@ e["Solver"]["Number Of Samples"] = args.nSGD
 # Enable SWAG (https://arxiv.org/pdf/1902.02476.pdf)
 e["Solver"]["swag"] = args.bSWAG
 
-# Coefficient to control magnitude of noise for Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
-e["Solver"]["Langevin Dynamics"] = args.langevin
+# Enable Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
+e["Solver"]["Langevin Dynamics Noise Level"] = args.langevin
 
 # Enable Dropout (https://proceedings.mlr.press/v48/gal16.html)
-e["Solver"]["Dropout"] = args.dropout
+e["Solver"]["Dropout Probability"] = args.dropout
 
 # Enable Hamiltonian Monte Carlo (https://proceedings.mlr.press/v48/gal16.html)
-e["Solver"]["hmc"] = args.hmc
+e["Solver"]["hmc"]["Mass"] = args.hmc
+e["Solver"]["hmc"]["Number Of Steps"] = 5
+e["Solver"]["hmc"]["Step Size"] = 1e-4
+e["Solver"]["hmc"]["Enabled"] = args.hmc > 0.0
 
 ### Setting Experience Replay and REFER settings
 
-e["Solver"]["Experience Replay"]["Start Size"] = 131072
+e["Solver"]["Experience Replay"]["Start Size"] = 1024 #131072
 e["Solver"]["Experience Replay"]["Maximum Size"] = 262144
 e["Solver"]["Experience Replay"]["Off Policy"]["Annealing Rate"] = 5.0e-8
 e["Solver"]["Experience Replay"]["Off Policy"]["Cutoff Scale"] = 4.0
