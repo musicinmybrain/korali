@@ -136,7 +136,7 @@ def get_corrections(opt_state, batch_size, sgs, tEnd, dt_sgs):
 
         # Getting corrections
         predict = batch_forward(params, x)
-        correction = sgs_arr - predict[-1]
+        correction = predict[-1] - sgs_arr
         corrections.append(correction)
         predictions.append(predict[-1])
 
@@ -202,8 +202,16 @@ def PlotLosses(losses, epochs, batch_dim):
     figName = "Loss_Plot.pdf"
     fig, axs = plt.subplots(4,4, sharex=True, sharey=True, figsize=(15,15))
 
-    # x-range
-    x_arr = range(1, epochs+1, 1)
+    # If there are too many epochs, only plot some of them
+    if epochs > 100:
+        step_size = int(epochs / 100)
+        plot_indices = range(0, epochs, step_size)
+        # x-range
+        x_arr = range(1, epochs+1, step_size)
+    else:
+        plot_indices = range(0, epochs, 1)
+        # x-range
+        x_arr = range(1, epochs+1, 1)
 
     for i in range(16):
         # Prepare index variables
@@ -215,7 +223,7 @@ def PlotLosses(losses, epochs, batch_dim):
         loss_arr = losses[:, epoch_idx]
 
         # Plot figures
-        axs[k,l].plot(x_arr, loss_arr, '-', label='Loss')
+        axs[k,l].plot(x_arr, loss_arr[plot_indices], '-', label='Loss')
         axs[k,l].set_yscale('log')
 
         # Add labels
@@ -233,15 +241,21 @@ def PlotMeanLoss(losses, epochs, batch_dim):
     colors = ['black','royalblue','seagreen']
     fig, axs = plt.subplots(1,1, sharex=True, sharey=True, figsize=(15,15))
     
-
-    # x-range
-    x_arr = range(1, epochs+1, 1)
+    if epochs > 100:
+        step_size = int(epochs / 100)
+        plot_indices = range(0, epochs, step_size)
+        # x-range
+        x_arr = range(1, epochs+1, step_size)
+    else:
+        plot_indices = range(0, epochs, 1)
+        # x-range
+        x_arr = range(1, epochs+1, 1)
 
     # Prepare variables to be plotted
     loss_arr = np.mean(losses, axis=1)
 
     # Plot figures
-    axs.plot(x_arr, loss_arr, '-',  color=colors[0], label='Mean Loss')
+    axs.plot(x_arr, loss_arr[plot_indices], '-',  color=colors[0], label='Mean Loss')
     axs.set_yscale('log')
 
     # Add labels

@@ -115,7 +115,7 @@ hidden_dim = 256   # Size / width of hidden layer
 batch_size = feature_dim
 
 # Number of training epochs (per run) in training function
-num_epochs = 1000
+num_epochs = 100
 
 # Generate Gaussian weights and biases
 params = [random.normal(key, (hidden_dim, feature_dim)),
@@ -143,9 +143,12 @@ corrections, predictions = get_corrections(opt_state_new, batch_size, sgs_sol, t
 # Simulate a new base solution with same data than sgs solution
 print("Simulate new solution ..")
 base = Burger_jax(L=L, N=N2, dt=dt_sgs, nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed)
+base.IC( v0 = v0 * N2 / N )
 # Apply correction
 base.step(correction = np.array(corrections))
 base.ioutnum = 0 # This has to be reset manually before we start a new simulation
+base.t = 0.0     # This has to be reset manually before we start a new simulation
+base.stepnum = 0 # This has to be reset manually before we start a new simulation
 base.simulate()
 
 # Plot solutions (plot predicted value at the end of training)
