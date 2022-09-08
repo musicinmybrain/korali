@@ -26,6 +26,12 @@ noise   = 0.    # Standard deviation of IC
 seed    = 42    # Random seed
 forcing = False # Use forcing term in equation
 
+# Adapt time steps and end time (just some testing)
+new_fraction = 1.0
+dt   *= new_fraction
+tEnd *= new_fraction
+
+# Compute time step for sgs
 s       = int(N/N2)
 dt_sgs  = dt*s
 
@@ -125,6 +131,11 @@ opt_state = opt_init(params)
 # Run the training function and get losses and optimal parameters / states
 train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs)
 
+# Optional: Plot losses (mean or 16 losses for different times)
+losses = np.array(train_loss).reshape(batch_dim, num_epochs)
+PlotMeanLoss(losses, num_epochs, batch_dim)
+PlotLosses(losses, num_epochs, batch_dim)
+
 #------------------------------------------------------------------------------
 # Get corrections
 corrections, predictions = get_corrections(opt_state_new, batch_size, sgs_sol, tEnd, dt_sgs)
@@ -137,9 +148,9 @@ base.step(correction = np.array(corrections))
 base.ioutnum = 0 # This has to be reset manually before we start a new simulation
 base.simulate()
 
-## Plot solutions (plot predicted value at the end of training)
-#print("Plotting Solutions and Prediction ..")
-#test_losses = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
+# Plot solutions (plot predicted value at the end of training)
+print("Plotting Solutions and Prediction ..")
+test_losses = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
 
 # Plot solutions (plot testing values)
 from plotting import makePlot

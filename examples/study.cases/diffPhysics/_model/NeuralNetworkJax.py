@@ -147,8 +147,9 @@ def get_corrections(opt_state, batch_size, sgs, tEnd, dt_sgs):
 #------------------------------------------------------------------------------
 import matplotlib as mpl
 import matplotlib.pyplot as plt 
+import numpy as np
 
-# Plotting function
+# Plotting function for SGS, DNS and predicted solution
 def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_sgs):
     # Get optimal parameters
     params = get_params(opt_state)
@@ -194,3 +195,60 @@ def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_
     print("Plot has been saved under the name: Solution_and_Prediction_Plot.pdf")
 
     return losses
+
+# Plotting function for losses
+def PlotLosses(losses, epochs, batch_dim):
+    # Prepare plot
+    figName = "Loss_Plot.pdf"
+    fig, axs = plt.subplots(4,4, sharex=True, sharey=True, figsize=(15,15))
+
+    # x-range
+    x_arr = range(1, epochs+1, 1)
+
+    for i in range(16):
+        # Prepare index variables
+        epoch_idx= int(i*batch_dim / 16)
+        k = int(i / 4)
+        l = i % 4
+
+        # Prepare variables to be plotted
+        loss_arr = losses[epoch_idx]
+
+        # Plot figures
+        axs[k,l].plot(x_arr, loss_arr, '-', label='Loss')
+        axs[k,l].set_yscale('log')
+
+        # Add labels
+        axs[k,l].set_xlabel('Training epoch')
+        axs[k,l].set_ylabel('Loss')
+
+    # Save figure
+    fig.savefig(figName)
+    print("Plot has been saved under the name: Loss_Plot.pdf")
+
+# Plotting function for mean loss
+def PlotMeanLoss(losses, epochs, batch_dim):
+    # Prepare plot
+    figName = "MeanLoss_Plot.pdf"
+    colors = ['black','royalblue','seagreen']
+    fig, axs = plt.subplots(1,1, sharex=True, sharey=True, figsize=(15,15))
+    
+
+    # x-range
+    x_arr = range(1, epochs+1, 1)
+
+    # Prepare variables to be plotted
+    loss_arr = np.mean(losses, axis=0)
+
+    # Plot figures
+    axs.plot(x_arr, loss_arr, '-',  color=colors[0], label='Mean Loss')
+    axs.set_yscale('log')
+
+    # Add labels
+    axs.set_xlabel('Training epoch')
+    axs.set_ylabel('Mean Loss')
+
+    # Save figure
+    fig.savefig(figName)
+    print("Plot has been saved under the name: MeanLoss_Plot.pdf")
+
