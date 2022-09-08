@@ -115,7 +115,7 @@ hidden_dim = 256   # Size / width of hidden layer
 batch_size = feature_dim
 
 # Number of training epochs (per run) in training function
-num_epochs = 100
+num_epochs = 300
 
 # Generate Gaussian weights and biases
 params = [random.normal(key, (hidden_dim, feature_dim)),
@@ -139,6 +139,7 @@ PlotLosses(losses, num_epochs, batch_dim)
 #------------------------------------------------------------------------------
 # Get corrections
 corrections, predictions = get_corrections(opt_state_new, batch_size, sgs_sol, tEnd, dt_sgs)
+# print(corrections) # Note: Corrections seem to be right
 
 # Simulate a new base solution with same data than sgs solution
 print("Simulate new solution ..")
@@ -150,6 +151,10 @@ base.ioutnum = 0 # This has to be reset manually before we start a new simulatio
 base.t = 0.0     # This has to be reset manually before we start a new simulation
 base.stepnum = 0 # This has to be reset manually before we start a new simulation
 base.simulate()
+#base.ioutnum = 0 # This has to be reset manually before we start a new simulation
+#base.t = 0.0     # This has to be reset manually before we start a new simulation
+#base.stepnum = 0 # This has to be reset manually before we start a new simulation
+#base.step(correction = np.array(corrections))
 
 # Plot solutions (plot predicted value at the end of training)
 print("Plotting Solutions and Prediction ..")
