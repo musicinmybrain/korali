@@ -299,18 +299,14 @@ void Convolution::createForwardPipeline()
       //                                                      CUDNN_CONVOLUTION_FWD_PREFER_FASTEST,
       //                                                      /*memoryLimitInBytes=*/0,
       //                                                      &_convolutionAlgorithm));
+      _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
       cudnnErrCheck(cudnnGetConvolutionForwardWorkspaceSize(_nn->_cuDNNHandle,
                                                             _inputDescriptor,
                                                             _weightsFilterDesc,
                                                             _convolutionDescriptor,
                                                             _outputDescriptor,
-                                                            /*_convolutionAlgorith=*/CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM,
+                                                            /*_convolutionAlgorith=*/_convolutionFwdAlgorithm,
                                                             &_convolutionWorkspaceSize));
-
-#ifdef DEBUG
-      // TODO remove at some point
-      _k->_logger->logInfo("Detailed", "[%s layer %zu] Allocating %f MB for cuDNN convolution workspace.\n", _type.c_str(), _index-1, _convolutionWorkspaceSize/(1024.0*1024.0));
-#endif
       // Create workspace memory in createBackwardpipeline
     }
 #endif
@@ -405,9 +401,11 @@ void Convolution::createBackwardPipeline()
   //   const int                              requestedAlgoCount,
   //   int                                   *returnedAlgoCount,
   //   cudnnConvolutionBwdDataAlgoPerf_t     *perfResults)
-
+#ifdef DEBUG
+      _k->_logger->logInfo("Detailed", "[%s layer %zu] Allocating %f MB for cuDNN convolution workspace.\n", _type.c_str(), _index-1, _convolutionWorkspaceSize/(1024.0*1024.0));
 #endif
   }
+#endif
 }
 
 void Convolution::forwardData(const size_t t)
@@ -438,7 +436,7 @@ void Convolution::forwardData(const size_t t)
                                           _weightsFilterDesc,
                                           _weightsFilter,
                                           _convolutionDescriptor,
-                                          _convolutionAlgorithm,
+                                          _convolutionFwdAlgorithm,
                                           _convolutionWorkspace,
                                           _convolutionWorkspaceSize,
                                           /*beta=*/&alpha2,
@@ -534,7 +532,7 @@ void Convolution::backwardHyperparameters(size_t t)
                     /*xDesc=*/_inputDescriptor,
                     /*x=*/_prevLayer->_outputTensor[t],
                     /*dyDesc=*/_outputDescriptor,
-                    /*y=*/_outputGradientTensor[t],
+                    /*dy=*/_outputGradientTensor[t],
                     _convolutionDescriptor,
                     CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1,
                     _convolutionWorkspace,

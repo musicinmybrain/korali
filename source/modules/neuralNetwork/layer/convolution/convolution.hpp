@@ -327,7 +327,7 @@ class Convolution : public Layer
   /**
    * @brief cuDNN enum of convolution algorithm to be use.
    */
-  cudnnConvolutionFwdAlgo_t _convolutionAlgorithm;
+  cudnnConvolutionFwdAlgo_t _convolutionFwdAlgorithm;
 
 #endif
 

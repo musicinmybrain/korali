@@ -207,7 +207,7 @@ class __className__ : public __parentClassName__
   /**
    * @brief cuDNN enum of convolution algorithm to be use.
    */
-  cudnnConvolutionFwdAlgo_t _convolutionAlgorithm;
+  cudnnConvolutionFwdAlgo_t _convolutionFwdAlgorithm;
 
 #endif
 
