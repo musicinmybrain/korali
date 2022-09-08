@@ -107,8 +107,23 @@ void Agent::initialize()
     hyperparameterVectorEntry.push_back(_criticPolicyLearner[p]->getHyperparameters());
   _hyperparameterVector.push_back(hyperparameterVectorEntry);
 
+  // Check configuration of Bayesian RL
+  if( _bayesianLearning )
+  {
+    if( _swag && _dropoutProbability )
+      KORALI_LOG_ERROR("Choose either swag or dropout");
+    if( _swag && _hmcEnabled )
+      KORALI_LOG_ERROR("Choose either swag or hmc");
+    if( _swag && (_langevinDynamicsNoiseLevel > 0.0) )
+      KORALI_LOG_ERROR("Choose either swag or langevin dynamics");
+    if( _dropoutProbability && _hmcEnabled )
+      KORALI_LOG_ERROR("Choose either dropout or hmc");
+    if( _dropoutProbability && (_langevinDynamicsNoiseLevel > 0.0) )
+      KORALI_LOG_ERROR("Choose either dropout or langevin dynamics");
+  }
+
   // HMC only compatible with single policy
-  if( (_hmc > 0.0) && (_problem->_policiesPerEnvironment > 1) )
+  if( _hmcEnabled && (_problem->_policiesPerEnvironment > 1) )
     KORALI_LOG_ERROR("HMC only compatible with single policy!");
 
   /*********************************************************************
@@ -290,11 +305,10 @@ void Agent::trainingGeneration()
         auto beginTime = std::chrono::steady_clock::now(); // Profiling
 
         // Calling the algorithm specific policy training algorithm
-        trainPolicy();
-
-        // Perform HMC step
-        if( _hmc > 0.0 )
+        if( _hmcEnabled ) // Perform HMC step
           runGenerationHMC();
+        else
+          trainPolicy();
 
         auto endTime = std::chrono::steady_clock::now(); // Profiling
         _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
@@ -1238,7 +1252,7 @@ std::vector<float> Agent::samplePosterior( const size_t policyIdx )
     }
   }
 
-  if( _dropout > 0.0 )
+  if( _dropoutProbability > 0.0 )
   {
     // Get current hyperparameters
     hyperparameterSample = _criticPolicyLearner[policyIdx]->getHyperparameters();
@@ -1247,7 +1261,7 @@ std::vector<float> Agent::samplePosterior( const size_t policyIdx )
     for( size_t n = 0; n<hyperparameterSample.size(); n++ )
     {
       const float p = _uniformGenerator->getRandomNumber();
-      if( p < _dropout )
+      if( p < _dropoutProbability )
         hyperparameterSample[n] = 0.0;
     }
   }
@@ -1257,59 +1271,69 @@ std::vector<float> Agent::samplePosterior( const size_t policyIdx )
 
 void Agent::runGenerationHMC( )
 {
-  const size_t numSteps = 5;
-
+  // Increase candidate counter to track acceptance rate
   _numberOfCandidates++;
 
   // Get current hyperparameters
   auto hyperparameters = _hyperparameterVector.back()[0];
 
+  // Run generation of SGD to compute gradient w.r.t. current hyperparameters
+  trainPolicy();
+
+  // Get gradient of hyperparameters
+  auto hyperparameterGradient = _criticPolicyLearner[0]->_hyperparameterGradients;
+
   // Get number of hyperparameters
   const size_t nHyperparameters = hyperparameters.size();
 
-  // Get current hyperparameter gradient
-  const auto& hyperparameterGradientFirst = _criticPolicyLearner[0]->_hyperparameterGradients;
-
   // Sample momentum
   std::vector<float> momentum(nHyperparameters);
+  #pragma omp parallel for simd
   for( size_t n = 0; n<nHyperparameters; n++ )
-    momentum[n] = _hmc * _normalGenerator->getRandomNumber();
+    momentum[n] = std::sqrt(_hmcMass)  * _normalGenerator->getRandomNumber();
 
-  // Compute kinetic energy
+  // Compute current kinetic energy
   float oldK = 0.0;
+  #pragma omp parallel for simd
   for (size_t n = 0; n < momentum.size(); ++n)
-    oldK += _hmc * momentum[n] * momentum[n];
+    oldK += ( 0.5 / _hmcMass ) * momentum[n] * momentum[n];
 
+  // Get current potential energy
   float oldU = _valueLoss - _policyLoss;
 
-  for( size_t t = 0; t < numSteps; t++ )
+  // Simulate Hamiltonian dynamics using Leapfrog integration (in kick-drift-kick form)
+  for( size_t t = 0; t < _hmcNumberOfSteps; t++ )
   {
     // Perform first half-step integration of momentum
+    #pragma omp parallel for simd
     for (size_t n = 0; n < momentum.size(); ++n)
-      momentum[n] += 0.5 * _learningRate * hyperparameterGradientFirst[n];
+      momentum[n] += 0.5 * _hmcStepSize * hyperparameterGradient[n];
 
     // Perform integration of location
+    #pragma omp parallel for simd
     for (size_t n = 0; n < hyperparameters.size(); ++n)
-      hyperparameters[n] += _learningRate * _hmc * momentum[n];
+      hyperparameters[n] += ( _hmcStepSize / _hmcMass ) * momentum[n];
 
     // Set new hyperparameters
     _criticPolicyLearner[0]->setHyperparameters(hyperparameters);
 
-    // Run generation of SGD
+    // Run generation of SGD to compute gradient w.r.t. current hyperparameters
     trainPolicy();
 
     // Get hyperparameter gradient
-    const auto& hyperparameterGradientSecond = _criticPolicyLearner[0]->_hyperparameterGradients;
+    hyperparameterGradient = _criticPolicyLearner[0]->_hyperparameterGradients;
 
     // Perform second half-step integration of momentum
+    #pragma omp parallel for simd
     for (size_t n = 0; n < momentum.size(); ++n)
-      momentum[n] += 0.5 * _learningRate * hyperparameterGradientSecond[n];
+      momentum[n] += 0.5 * _hmcStepSize * hyperparameterGradient[n];
   }
 
   // Compute kinetic energy
   float newK = 0.0;
+  #pragma omp parallel for simd
   for (size_t n = 0; n < momentum.size(); ++n)
-    newK += _hmc * momentum[n] * momentum[n];
+    newK += _hmcMass * momentum[n] * momentum[n];
 
   // Compute kinetic energy
   const float newU = _valueLoss - _policyLoss;
@@ -1548,7 +1572,8 @@ void Agent::printGenerationAfter()
     else
       _k->_logger->logInfo("Normal", " + Policy Update Count:         %lu\n", _policyUpdateCount);
 
-    _k->_logger->logInfo("Normal",   " + HMC Acceptance Rate:         %f\n", (float)_numberOfAcceptedCandidates/(float)_numberOfCandidates);
+    if ( _hmcEnabled )
+      _k->_logger->logInfo("Normal",   " + HMC Acceptance Rate:         %f\n", (float)_numberOfAcceptedCandidates/(float)_numberOfCandidates);
 
     size_t numPolicies = _problem->_policiesPerEnvironment;
     for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
@@ -2000,32 +2025,59 @@ void Agent::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['swag'] required by agent.\n"); 
 
- if (isDefined(js, "Langevin Dynamics"))
+ if (isDefined(js, "Langevin Dynamics Noise Level"))
  {
- try { _langevinDynamics = js["Langevin Dynamics"].get<float>();
+ try { _langevinDynamicsNoiseLevel = js["Langevin Dynamics Noise Level"].get<float>();
 } catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Langevin Dynamics']\n%s", e.what()); } 
-   eraseValue(js, "Langevin Dynamics");
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Langevin Dynamics Noise Level']\n%s", e.what()); } 
+   eraseValue(js, "Langevin Dynamics Noise Level");
  }
-  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Langevin Dynamics'] required by agent.\n"); 
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Langevin Dynamics Noise Level'] required by agent.\n"); 
 
- if (isDefined(js, "Dropout"))
+ if (isDefined(js, "Dropout Probability"))
  {
- try { _dropout = js["Dropout"].get<float>();
+ try { _dropoutProbability = js["Dropout Probability"].get<float>();
 } catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Dropout']\n%s", e.what()); } 
-   eraseValue(js, "Dropout");
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Dropout Probability']\n%s", e.what()); } 
+   eraseValue(js, "Dropout Probability");
  }
-  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Dropout'] required by agent.\n"); 
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Dropout Probability'] required by agent.\n"); 
 
- if (isDefined(js, "hmc"))
+ if (isDefined(js, "hmc", "Enabled"))
  {
- try { _hmc = js["hmc"].get<float>();
+ try { _hmcEnabled = js["hmc"]["Enabled"].get<int>();
 } catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['hmc']\n%s", e.what()); } 
-   eraseValue(js, "hmc");
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['hmc']['Enabled']\n%s", e.what()); } 
+   eraseValue(js, "hmc", "Enabled");
  }
-  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['hmc'] required by agent.\n"); 
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['hmc']['Enabled'] required by agent.\n"); 
+
+ if (isDefined(js, "hmc", "Mass"))
+ {
+ try { _hmcMass = js["hmc"]["Mass"].get<float>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['hmc']['Mass']\n%s", e.what()); } 
+   eraseValue(js, "hmc", "Mass");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['hmc']['Mass'] required by agent.\n"); 
+
+ if (isDefined(js, "hmc", "Number Of Steps"))
+ {
+ try { _hmcNumberOfSteps = js["hmc"]["Number Of Steps"].get<size_t>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['hmc']['Number Of Steps']\n%s", e.what()); } 
+   eraseValue(js, "hmc", "Number Of Steps");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['hmc']['Number Of Steps'] required by agent.\n"); 
+
+ if (isDefined(js, "hmc", "Step Size"))
+ {
+ try { _hmcStepSize = js["hmc"]["Step Size"].get<size_t>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['hmc']['Step Size']\n%s", e.what()); } 
+   eraseValue(js, "hmc", "Step Size");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['hmc']['Step Size'] required by agent.\n"); 
 
  if (isDefined(js, "Normal Generator"))
  {
@@ -2304,9 +2356,12 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Bayesian Learning"] = _bayesianLearning;
    js["Number Of Samples"] = _numberOfSamples;
    js["swag"] = _swag;
-   js["Langevin Dynamics"] = _langevinDynamics;
-   js["Dropout"] = _dropout;
-   js["hmc"] = _hmc;
+   js["Langevin Dynamics Noise Level"] = _langevinDynamicsNoiseLevel;
+   js["Dropout Probability"] = _dropoutProbability;
+   js["hmc"]["Enabled"] = _hmcEnabled;
+   js["hmc"]["Mass"] = _hmcMass;
+   js["hmc"]["Number Of Steps"] = _hmcNumberOfSteps;
+   js["hmc"]["Step Size"] = _hmcStepSize;
  if(_normalGenerator != NULL) _normalGenerator->getConfiguration(js["Normal Generator"]);
    js["Mini Batch"]["Size"] = _miniBatchSize;
    js["Mini Batch"]["Strategy"] = _miniBatchStrategy;
@@ -2380,7 +2435,7 @@ void Agent::getConfiguration(knlohmann::json& js)
 void Agent::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Environments\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Bayesian Learning\": false, \"Number Of Samples\": 1, \"swag\": false, \"Langevin Dynamics\": 0.0, \"Dropout\": 0.0, \"hmc\": 0.0, \"Normal Generator\": {\"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Strategy\": \"Uniform\", \"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
+ std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Environments\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Bayesian Learning\": false, \"Number Of Samples\": 1, \"swag\": false, \"Langevin Dynamics Noise Level\": 0.0, \"Dropout Probability\": 0.0, \"hmc\": {\"Enabled\": false, \"Mass\": 0.0, \"Number Of Steps\": 0}, \"Normal Generator\": {\"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Strategy\": \"Uniform\", \"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Solver::applyModuleDefaults(js);

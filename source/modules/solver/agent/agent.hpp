@@ -133,15 +133,27 @@ class Agent : public Solver
   /**
   * @brief Coefficient to control magnitude of noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf).
   */
-   float _langevinDynamics;
+   float _langevinDynamicsNoiseLevel;
   /**
   * @brief Dropout probability that is used (https://proceedings.mlr.press/v48/gal16.html).
   */
-   float _dropout;
+   float _dropoutProbability;
   /**
-  * @brief Coefficient to control magnitude of the mass-matrix for Stochastic Gradient Hamilton Monte Carlo is used (https://arxiv.org/abs/1402.4102).
+  * @brief Boolean to enable Hamilton Monte Carlo (https://arxiv.org/abs/1402.4102).
   */
-   float _hmc;
+   int _hmcEnabled;
+  /**
+  * @brief Mass for Stochastic Gradient Hamilton Monte Carlo (https://arxiv.org/abs/1402.4102).
+  */
+   float _hmcMass;
+  /**
+  * @brief Number of Steps for Stochastic Gradient Hamilton Monte Carlo (https://arxiv.org/abs/1402.4102).
+  */
+   size_t _hmcNumberOfSteps;
+  /**
+  * @brief Step-size for Stochastic Gradient Hamilton Monte Carlo (https://arxiv.org/abs/1402.4102).
+  */
+   size_t _hmcStepSize;
   /**
   * @brief Gaussian random number generator.
   */
