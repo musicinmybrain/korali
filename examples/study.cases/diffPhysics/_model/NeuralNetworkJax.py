@@ -212,7 +212,7 @@ def PlotLosses(losses, epochs, batch_dim):
         l = i % 4
 
         # Prepare variables to be plotted
-        loss_arr = losses[epoch_idx]
+        loss_arr = losses[:, epoch_idx]
 
         # Plot figures
         axs[k,l].plot(x_arr, loss_arr, '-', label='Loss')
@@ -238,7 +238,7 @@ def PlotMeanLoss(losses, epochs, batch_dim):
     x_arr = range(1, epochs+1, 1)
 
     # Prepare variables to be plotted
-    loss_arr = np.mean(losses, axis=0)
+    loss_arr = np.mean(losses, axis=1)
 
     # Plot figures
     axs.plot(x_arr, loss_arr, '-',  color=colors[0], label='Mean Loss')

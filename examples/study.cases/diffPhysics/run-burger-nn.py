@@ -115,7 +115,7 @@ hidden_dim = 256   # Size / width of hidden layer
 batch_size = feature_dim
 
 # Number of training epochs (per run) in training function
-num_epochs = 100
+num_epochs = 1000
 
 # Generate Gaussian weights and biases
 params = [random.normal(key, (hidden_dim, feature_dim)),
@@ -132,7 +132,7 @@ opt_state = opt_init(params)
 train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs)
 
 # Optional: Plot losses (mean or 16 losses for different times)
-losses = np.array(train_loss).reshape(batch_dim, num_epochs)
+losses = np.array(train_loss).reshape(num_epochs, batch_dim)
 PlotMeanLoss(losses, num_epochs, batch_dim)
 PlotLosses(losses, num_epochs, batch_dim)
 
