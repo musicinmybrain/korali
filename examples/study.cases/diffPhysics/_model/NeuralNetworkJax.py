@@ -238,7 +238,6 @@ def PlotLosses(losses, epochs, batch_dim):
 def PlotMeanLoss(losses, epochs, batch_dim):
     # Prepare plot
     figName = "MeanLoss_Plot.pdf"
-    colors = ['black','royalblue','seagreen']
     fig, axs = plt.subplots(1,1, sharex=True, sharey=True, figsize=(15,15))
     
     if epochs > 100:
@@ -255,7 +254,7 @@ def PlotMeanLoss(losses, epochs, batch_dim):
     loss_arr = np.mean(losses, axis=1)
 
     # Plot figures
-    axs.plot(x_arr, loss_arr[plot_indices], '-',  color=colors[0], label='Mean Loss')
+    axs.plot(x_arr, loss_arr[plot_indices], '-', label='Mean Loss')
     axs.set_yscale('log')
 
     # Add labels
