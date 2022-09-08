@@ -69,54 +69,8 @@ void Pooling::initialize()
   if( _paddingRight != -1)
     PR = _paddingRight;
 
-  // Image Height and Image Width (if not given deduction from prev layer) =================
-  // TODO: make this better or remove completely
-  if (IW <= 0 || IH <= 0){
-    Layer *_prevHiddenLayer{};
-    if(_prevLayer->_type == "layer/activation")
-      _prevHiddenLayer = _prevLayer->_prevLayer;
-    else
-      _prevHiddenLayer = _prevLayer;
-    if (auto _prevCastedLayer = dynamic_cast<const Convolution*>(_prevHiddenLayer)){
-      if (IH <= 0) {
-        if (IH <= 0) IH = _prevCastedLayer->OH;
-        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image height %lu from previous layer.\n", _type.c_str(), _index-1, IH);
-      }
-      if (IW <= 0){
-        if (IW <= 0) IW = _prevCastedLayer->OW;
-        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image width %lu from previous layer.\n", _type.c_str(), _index-1, IW);
-      }
-    } else if (auto _prevCastedLayer = dynamic_cast<const Deconvolution*>(_prevHiddenLayer)){
-      if (IH <= 0) {
-        if (IH <= 0) IH = _prevCastedLayer->OH;
-        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image height %lu from previous layer.\n", _type.c_str(), _index-1, IH);
-      }
-      if (IW <= 0){
-        if (IW <= 0) IW = _prevCastedLayer->OW;
-        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image width %lu from previous layer.\n", _type.c_str(), _index-1, IW);
-      }
-    } else if (auto _prevCastedLayer = dynamic_cast<const Pooling*>(_prevHiddenLayer)){
-      if (IH <= 0) {
-        if (IH <= 0) IH = _prevCastedLayer->OH;
-        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image height %lu from previous layer.\n", _type.c_str(), _index-1, IH);
-      }
-      if (IW <= 0){
-        if (IW <= 0) IW = _prevCastedLayer->OW;
-        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image width %lu from previous layer.\n", _type.c_str(), _index-1, IW);
-      }
-    } else if (auto _prevCastedLayer = dynamic_cast<const Resampling*>(_prevHiddenLayer)){
-      if (IH <= 0) {
-        if (IH <= 0) IH = _prevCastedLayer->OH;
-        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image height %lu from previous layer.\n", _type.c_str(), _index-1, IH);
-      }
-      if (IW <= 0){
-        if (IW <= 0) IW = _prevCastedLayer->OW;
-        _k->_logger->logInfo("Detailed", "[%s layer %zu] Deducing image width %lu from previous layer.\n", _type.c_str(), _index-1, IW);
-      }
-    }
-  }
-  if (IW <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image width cannot be deduced from previous layer and must be larger than zero.\n", _type.c_str(), _index-1);
-  if (IH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image height cannot be deduced from previous layer and must be larger than zero.\n", _type.c_str(), _index-1);
+  if (IW <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image width not given.\n", _type.c_str(), _index-1);
+  if (IH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image height not given.\n", _type.c_str(), _index-1);
   // ======================================================================================
   if (KH <= 0) KORALI_LOG_ERROR("Kernel height must be larger than zero for pooling layer.\n");
   if (KW <= 0) KORALI_LOG_ERROR("Kernel width must be larger than zero for pooling layer.\n");
