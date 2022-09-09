@@ -53,12 +53,10 @@ sgs.IC( v0 = v0 * N2 / N )
 print("Simulate DNS ..")
 ## simulate
 dns.simulate()
-dns.compute_Ek()
 
 print("Simulate SGS ..")
 ## simulate
 sgs.simulate()
-sgs.compute_Ek()
 
 #------------------------------------------------------------------------------
 # Store solutions
@@ -131,6 +129,10 @@ opt_state = opt_init(params)
 # Run the training function and get losses and optimal parameters / states
 train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs)
 
+# Plot solutions (plot predicted value at the end of training)
+print("Plotting Solutions and Prediction ..")
+test_losses = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
+
 # Optional: Plot losses (mean or 16 losses for different times)
 losses = np.array(train_loss).reshape(num_epochs, batch_dim)
 PlotMeanLoss(losses, num_epochs, batch_dim)
@@ -148,18 +150,39 @@ base.IC( v0 = v0 * N2 / N )
 
 # Apply correction
 base.step(correction = np.array(corrections))
-#base.uu = base.uu + corrections
+# advance in time for nsteps steps
+try:
+    for n in range(1,base.nsteps+1):
+        base.step(correction = np.array(corrections))
 
-base.ioutnum = 0 # This has to be reset manually before we start a new simulation
-base.t = 0.0     # This has to be reset manually before we start a new simulation
-base.stepnum = 0 # This has to be reset manually before we start a new simulation
-base.simulate()
-#base.uu = base.uu + corrections
-
-# Plot solutions (plot predicted value at the end of training)
-print("Plotting Solutions and Prediction ..")
-test_losses = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
+except FloatingPointError:
+    print("[Burger_jax] Floating point exception occured", flush=True)
+    # something exploded
+    # cut time series to last saved solution and return
+    base.nout = base.ioutnum
+    base.vv.resize((base.nout+1,base.N)) # nout+1 because the IC is in [0]
+    base.tt.resize(base.nout+1)          # nout+1 because the IC is in [0]
 
 # Plot solutions (plot testing values)
 from plotting import makePlot
 makePlot(dns, base, sgs, "FeedforwardNN")
+
+## Test a new mu
+#dns2  = Burger_jax(L=L, N=N,  dt=dt,     nu=nu*0.9, tend=tEnd, case=ic, noise=noise, seed=seed)
+#base2 = Burger_jax(L=L, N=N2, dt=dt_sgs, nu=nu*0.9, tend=tEnd, case=ic, noise=noise, seed=seed)
+#v0 = np.concatenate((dns2.v0[:((N2+1)//2)], dns2.v0[-(N2-1)//2:]))
+#base2.IC( v0 = v0 * N2 / N )
+#print("Simulate DNS ..")
+### simulate
+#dns2.simulate()
+#dns2.compute_Ek()
+#print("Simulate SGS ..")
+### simulate
+#base2.simulate()
+#base2.compute_Ek()
+#dns2_sol = dns2.uu
+#base2_sol = base2.uu
+#dns2_short_sol = dns2_sol[:, dns_indices]
+#print("Plotting Solutions and Prediction ..")
+#test_losses = PlotSolsAndPredict(base2_sol, dns2_short_sol, base2.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
+
