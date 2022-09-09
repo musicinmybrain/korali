@@ -194,7 +194,8 @@ void Convolution::copyHyperparameterPointers(Layer *dstLayer)
 {
   Convolution *dstPtr = dynamic_cast<Convolution *>(dstLayer);
   dstPtr->_hyperparameterCount = _hyperparameterCount;
-
+  dstPtr->_weightsCount = _weightsCount;
+  dstPtr->_biasCount = _biasCount;
 #ifdef _KORALI_USE_ONEDNN
   if (_nn->_engine == "OneDNN")
   {
