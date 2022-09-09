@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <stdio.h>
 #include <stdlib.h>
+#include <iostream>
 
 namespace korali
 {
@@ -94,8 +95,8 @@ void Logger::logError [[noreturn]] (const char *fileName, const int lineNumber, 
 
   snprintf(info, sizeof(info) - 1, " + From %s:%d\n", fileName, lineNumber);
   outString += info;
-
-  throw std::runtime_error(outString.c_str());
+  std::cerr << outString;
+  exit(-1);
 }
 
 void Logger::progressBar(float progress, char *buf, size_t width){
