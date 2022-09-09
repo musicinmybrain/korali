@@ -66,8 +66,6 @@ sgs_sol = sgs.uu
 # Prepare variables for training
 dns_indices = range(0, N, s)
 dns_short_sol = dns_sol[:, dns_indices]
-#print(dns_short_sol[-1])
-#print(sgs_sol[-1])
 
 # Test: Those should be the same
 #print(sgs.x)
@@ -139,21 +137,18 @@ PlotMeanLoss(losses, num_epochs, batch_dim)
 PlotLosses(losses, num_epochs, batch_dim)
 
 #------------------------------------------------------------------------------
-# Get corrections
-corrections, predictions = get_corrections(opt_state_new, batch_size, sgs_sol, tEnd, dt_sgs)
-# print(corrections) # Note: Corrections seem to be right
-
 # Simulate a new base solution with same data than sgs solution
 print("Simulate new solution ..")
 base = Burger_jax(L=L, N=N2, dt=dt_sgs, nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed)
 base.IC( v0 = v0 * N2 / N )
 
-# Apply correction
-base.step(correction = np.array(corrections))
+# Apply corrections
 # advance in time for nsteps steps
 try:
     for n in range(1,base.nsteps+1):
-        base.step(correction = np.array(corrections))
+        #correction, _ = get_corrections(opt_state_new, batch_size, base.uu, base.ioutnum)
+        correction, _ = get_corrections(opt_state_new, batch_size, base.uu, n)
+        base.step(correction = np.array(correction))
 
 except FloatingPointError:
     print("[Burger_jax] Floating point exception occured", flush=True)
