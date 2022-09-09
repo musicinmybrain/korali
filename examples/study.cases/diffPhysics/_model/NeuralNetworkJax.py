@@ -129,7 +129,7 @@ def get_corrections(opt_state, batch_size, sgs, tEnd, dt_sgs):
 
     # Do one epoch to get corrections
     start_time = time.time()
-    for i in range(int(tEnd/dt_sgs)):
+    for i in range(int(tEnd/dt_sgs)+1):
         # Prepare variables
         sgs_arr = sgs[i]
         x = jnp.array(sgs_arr).reshape(1, batch_size)
@@ -141,7 +141,7 @@ def get_corrections(opt_state, batch_size, sgs, tEnd, dt_sgs):
         predictions.append(predict[-1])
 
     epoch_time = time.time() - start_time
-    print("Testing | T: {:0.2f}".format(epoch_time))
+    print("Getting Corrections | T: {:0.2f}".format(epoch_time))
     return corrections, predictions
 
 #------------------------------------------------------------------------------

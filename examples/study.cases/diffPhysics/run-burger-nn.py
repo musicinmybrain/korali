@@ -148,12 +148,13 @@ base.IC( v0 = v0 * N2 / N )
 
 # Apply correction
 base.step(correction = np.array(corrections))
-#base.uu = np.array(predictions)
+#base.uu = base.uu + corrections
 
 base.ioutnum = 0 # This has to be reset manually before we start a new simulation
-#base.t = 0.0     # This has to be reset manually before we start a new simulation
-#base.stepnum = 0 # This has to be reset manually before we start a new simulation
+base.t = 0.0     # This has to be reset manually before we start a new simulation
+base.stepnum = 0 # This has to be reset manually before we start a new simulation
 base.simulate()
+#base.uu = base.uu + corrections
 
 # Plot solutions (plot predicted value at the end of training)
 print("Plotting Solutions and Prediction ..")
