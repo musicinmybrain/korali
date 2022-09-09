@@ -43,7 +43,7 @@ def makePlot(dns, base, sgs, fileName, spectralReward=True):
     axs2[0,0].legend() 
 
     # Fix y range
-    plt.ylim([-1.2, 1.2])
+    plt.ylim([-1.3, 1.3])
 
     fig2.savefig(figName2)
 

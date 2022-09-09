@@ -177,6 +177,9 @@ def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_
     # Add legend to first plot
     axs[0,0].legend()
 
+    # Fix y range
+    plt.ylim([-1.3, 1.3])
+
     # Save figure
     fig.savefig(figName)
     print("Plot has been saved under the name: Solution_and_Prediction_Plot.pdf")

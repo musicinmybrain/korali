@@ -377,10 +377,10 @@ class Burger_jax:
                 self.actionHistory[self.ioutnum,:] = actions
 
             # update after grads computed
-            self.u = u
-            self.v = v
-            #self.u = u + noise
-            #self.v = v + noise
+            #self.u = u
+            #self.v = v
+            self.u = u + noise
+            self.v = v + noise
 
             self.ioutnum += 1
             self.uu[self.ioutnum,:] = self.u
