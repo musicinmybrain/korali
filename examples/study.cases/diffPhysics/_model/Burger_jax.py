@@ -366,6 +366,10 @@ class Burger_jax:
             
         for _ in range(nIntermed):
 
+            # Add noise
+            self.u = self.u + noise
+            self.v = self.v + noise
+
             u, v = self.expl_RK3( Fforcing, self.u, self.v) 
 
             self.stepnum += 1
@@ -377,10 +381,8 @@ class Burger_jax:
                 self.actionHistory[self.ioutnum,:] = actions
 
             # update after grads computed
-            #self.u = u
-            #self.v = v
-            self.u = u + noise
-            self.v = v + noise
+            self.u = u
+            self.v = v
 
             self.ioutnum += 1
             self.uu[self.ioutnum,:] = self.u
