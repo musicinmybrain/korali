@@ -47,8 +47,7 @@ dns.simulate()
 
 print("Simulate SGS ..")
 ## simulate
-np.random.seed(noise_seed)
-sgs.simulate(step_noise = step_noise)
+sgs.simulate()
 
 #------------------------------------------------------------------------------
 # Store solutions
@@ -117,7 +116,7 @@ opt_state = opt_init(params)
 
 #------------------------------------------------------------------------------
 # Run the training function and get losses and optimal parameters / states
-train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs)
+train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs, step_noise, noise_seed)
 
 # Plot solutions (plot predicted value at the end of training)
 print("Plotting Solutions and Prediction ..")

@@ -338,13 +338,7 @@ class Burger_jax:
     def grad(self, actions, u, v):
         return jexpl_RK3_grad(actions, u, v, self.dt, self.dx, self.nu, self.basis, self.k1, self.k2)[0]
  
-    def step( self, actions=None, nIntermed=1, correction=None, step_noise = 0 ):
-
-        # Compute a gaussian noise
-        if step_noise != 0:
-            noise = np.random.normal(0, step_noise, self.N)
-        else:
-            noise = np.zeros(self.N)
+    def step( self, actions=None, nIntermed=1, correction=None ):
 
         Fforcing = np.zeros(self.N)
         self.gradient = np.zeros((self.N, self.M))
@@ -365,10 +359,6 @@ class Burger_jax:
                 Fforcing = fft( forcing*d2udx2 )
             
         for _ in range(nIntermed):
-
-            # Add noise
-            self.u = self.u + noise
-            self.v = self.v + noise
 
             u, v = self.expl_RK3( Fforcing, self.u, self.v) 
 
@@ -398,7 +388,7 @@ class Burger_jax:
             self.uu[self.ioutnum,:] = self.u
             self.vv[self.ioutnum,:] = self.v
 
-    def simulate(self, nsteps=None, restart=False, correction=[], step_noise = 0):
+    def simulate(self, nsteps=None, restart=False, correction=[]):
         # If not provided explicitly, get internal values
         if (nsteps is None):
             nsteps = self.nsteps
@@ -417,10 +407,10 @@ class Burger_jax:
         try:
             if (correction==[]):
                 for n in range(1,self.nsteps+1):
-                    self.step(step_noise = step_noise)
+                    self.step()
             else:
                 for n in range(1,self.nsteps+1):
-                    self.step(step_noise = step_noise)
+                    self.step()
                     self.v += correction
 
         except FloatingPointError:

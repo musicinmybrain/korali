@@ -67,16 +67,19 @@ def forward_pass(params, in_array):
 batch_forward = vmap(forward_pass, in_axes=(None, 0), out_axes=0)
 
 # MSE loss
-def loss(params, in_arrays, targets):
+def loss(params, in_arrays, targets, step_noise, key):
     """ Compute the mean squared error loss """
-    preds = batch_forward(params, in_arrays)
+    # Add noise to training
+    noise = random.normal(key, (1, 32)) * step_noise
+
+    preds = batch_forward(params, in_arrays) + noise
     return jnp.mean((preds - targets)**2)
 
 # Update function
 @jit
-def update(params, x, y, opt_state):
+def update(params, x, y, opt_state, step_noise, key):
     """ Compute the gradient for a batch and update the parameters """
-    value, grads = value_and_grad(loss)(params, x, y)
+    value, grads = value_and_grad(loss)(params, x, y, step_noise, key)
     opt_state = opt_update(0, grads, opt_state)
     return get_params(opt_state), opt_state, value
 
@@ -84,10 +87,13 @@ def update(params, x, y, opt_state):
 
 #------------------------------------------------------------------------------
 # Training function
-def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tEnd, dt_dns, dt_sgs):
+def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tEnd, dt_dns, dt_sgs, step_noise, noise_seed):
     """ Implements a learning loop over epochs. """
     # Initialize placeholder for losses
     train_loss = []
+
+    # Generate key
+    key = random.PRNGKey(noise_seed)
 
     # Get the initial set of parameters
     params = get_params(opt_state)
@@ -105,8 +111,10 @@ def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tE
             sgs_arr = sgs[sgs_idx]
             x = jnp.array(sgs_arr).reshape(1, batch_size)
             y = jnp.array(dns_arr).reshape(1, batch_size)
+            # Create new key
+            key, subkey = random.split(key)
             # Training step
-            params, opt_state, loss = update(params, x, y, opt_state)
+            params, opt_state, loss = update(params, x, y, opt_state, step_noise, subkey)
             train_loss.append(loss)
 
         latest_loss = train_loss[-1]
