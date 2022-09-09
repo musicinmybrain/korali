@@ -338,7 +338,13 @@ class Burger_jax:
     def grad(self, actions, u, v):
         return jexpl_RK3_grad(actions, u, v, self.dt, self.dx, self.nu, self.basis, self.k1, self.k2)[0]
  
-    def step( self, actions=None, nIntermed=1, correction=None ):
+    def step( self, actions=None, nIntermed=1, correction=None, step_noise = 0 ):
+
+        # Compute a gaussian noise
+        if step_noise != 0:
+            noise = np.random.normal(0, step_noise, self.N)
+        else:
+            noise = np.zeros(self.N)
 
         Fforcing = np.zeros(self.N)
         self.gradient = np.zeros((self.N, self.M))
@@ -373,23 +379,24 @@ class Burger_jax:
             # update after grads computed
             self.u = u
             self.v = v
+            #self.u = u + noise
+            #self.v = v + noise
 
             self.ioutnum += 1
-            self.uu[self.ioutnum,:] = u
-            self.vv[self.ioutnum,:] = v
+            self.uu[self.ioutnum,:] = self.u
+            self.vv[self.ioutnum,:] = self.v
             self.tt[self.ioutnum]   = self.t
 
-            if (correction is not None):
-                # apply correction to solution
-                self.u = u + correction
-                self.v = fft(self.u)
+        if (correction is not None):
+            # apply correction to solution
+            self.u = u + correction
+            self.v = fft(self.u)
 
-                # store solution in time-series
-                self.uu[self.ioutnum,:] = self.u
-                self.vv[self.ioutnum,:] = self.v
+            # store solution in time-series
+            self.uu[self.ioutnum,:] = self.u
+            self.vv[self.ioutnum,:] = self.v
 
-    def simulate(self, nsteps=None, restart=False, correction=[]):
-        #
+    def simulate(self, nsteps=None, restart=False, correction=[], step_noise = 0):
         # If not provided explicitly, get internal values
         if (nsteps is None):
             nsteps = self.nsteps
@@ -408,10 +415,10 @@ class Burger_jax:
         try:
             if (correction==[]):
                 for n in range(1,self.nsteps+1):
-                    self.step()
+                    self.step(step_noise = step_noise)
             else:
                 for n in range(1,self.nsteps+1):
-                    self.step()
+                    self.step(step_noise = step_noise)
                     self.v += correction
 
         except FloatingPointError:

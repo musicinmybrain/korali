@@ -24,12 +24,8 @@ ic      = 'sinus' # initial condition
 #ic      = 'forced'
 noise   = 0.    # Standard deviation of IC
 seed    = 42    # Random seed
-forcing = False # Use forcing term in equation
-
-# Adapt time steps and end time (just some testing)
-new_fraction = 1.0
-dt   *= new_fraction
-tEnd *= new_fraction
+step_noise = 0.05 # Standard deviation of gaussian noise in steps
+noise_seed = 42   # Seed for noise in steps
 
 # Compute time step for sgs
 s       = int(N/N2)
@@ -38,14 +34,9 @@ dt_sgs  = dt*s
 # Initialize both versions
 dns = Burger_jax(L=L, N=N,  dt=dt,     nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed)
 sgs = Burger_jax(L=L, N=N2, dt=dt_sgs, nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed)
-#dns = Burger(L=L, N=N,  dt=dt,     nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed, forcing=forcing, s=s)
-#sgs = Burger(L=L, N=N2, dt=dt_sgs, nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed, forcing=forcing, s=s)
 
 v0 = np.concatenate((dns.v0[:((N2+1)//2)], dns.v0[-(N2-1)//2:]))
 sgs.IC( v0 = v0 * N2 / N )
-
-#sgs.randfac1 = dns.randfac1
-#sgs.randfac2 = dns.randfac2
 
 #------------------------------------------------------------------------------
 # Perform simulations for both versions
@@ -56,7 +47,8 @@ dns.simulate()
 
 print("Simulate SGS ..")
 ## simulate
-sgs.simulate()
+np.random.seed(noise_seed)
+sgs.simulate(step_noise = step_noise)
 
 #------------------------------------------------------------------------------
 # Store solutions
@@ -129,7 +121,7 @@ train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state,
 
 # Plot solutions (plot predicted value at the end of training)
 print("Plotting Solutions and Prediction ..")
-test_losses = PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
+PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
 
 # Optional: Plot losses (mean or 16 losses for different times)
 losses = np.array(train_loss).reshape(num_epochs, batch_dim)
@@ -147,7 +139,7 @@ base.IC( v0 = v0 * N2 / N )
 try:
     for n in range(1,base.nsteps+1):
         #correction, _ = get_corrections(opt_state_new, batch_size, base.uu, base.ioutnum)
-        correction, _ = get_corrections(opt_state_new, batch_size, base.uu, n)
+        correction, _ = get_corrections(opt_state_new, batch_size, base.uu[n])
         base.step(correction = np.array(correction))
 
 except FloatingPointError:
@@ -179,5 +171,5 @@ makePlot(dns, base, sgs, "FeedforwardNN")
 #base2_sol = base2.uu
 #dns2_short_sol = dns2_sol[:, dns_indices]
 #print("Plotting Solutions and Prediction ..")
-#test_losses = PlotSolsAndPredict(base2_sol, dns2_short_sol, base2.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
+#PlotSolsAndPredict(base2_sol, dns2_short_sol, base2.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
 

@@ -116,20 +116,20 @@ def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tE
     return train_loss, params, opt_state
 
 
+
 #------------------------------------------------------------------------------
 # Function to get corrections
-def get_corrections(opt_state, batch_size, sgs, t_idx):
+def get_corrections(opt_state, batch_size, sgs):
     """ Implements a testing loop over one epoch. """
     # Get the current set of parameters
     params = get_params(opt_state)
 
     # Prepare variables
-    sgs_arr = sgs[t_idx]
-    x = jnp.array(sgs_arr).reshape(1, batch_size)
+    x = jnp.array(sgs).reshape(1, batch_size)
 
     # Getting corrections
     predict = batch_forward(params, x)
-    correction = predict[-1] - sgs_arr
+    correction = predict[-1] - sgs
 
     return correction, predict
 
@@ -142,7 +142,6 @@ import numpy as np
 def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_sgs):
     # Get optimal parameters
     params = get_params(opt_state)
-    losses = []
 
     # Prepare plot
     figName = "Solution_and_Prediction_Plot.pdf"
@@ -163,7 +162,6 @@ def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_
         x = jnp.array(sgs_sol).reshape(1, batch_size)
         y = jnp.array(dns_sol).reshape(1, batch_size)
         predict = batch_forward(params, x)
-        losses.append(loss(params, x, y))
 
         # Plot figures
         axs[k,l].plot(x_arr, sgs_sol,     '-',  color=colors[1], label='SGS solution')
@@ -182,8 +180,6 @@ def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_
     # Save figure
     fig.savefig(figName)
     print("Plot has been saved under the name: Solution_and_Prediction_Plot.pdf")
-
-    return losses
 
 # Plotting function for losses
 def PlotLosses(losses, epochs, batch_dim):
