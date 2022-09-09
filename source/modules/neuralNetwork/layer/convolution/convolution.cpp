@@ -378,7 +378,8 @@ void Convolution::createBackwardPipeline()
     auto backwardWsSize = getBackwardWsSize();
     _convolutionWorkspaceSize = std::max(_convolutionWorkspaceSize, backwardWsSize);
     cudaErrCheck(cudaMalloc((void **)&_convolutionWorkspace, _convolutionWorkspaceSize * sizeof(float)));
-
+    _convolutionBwdDataAlgorithm = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
+    _convolutionBwdFilterAlgorithm = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
   //   v8: cudnnFindConvolutionBackwardFilterAlgorithm
   // TODO Either v7 API
   //   cudnnStatus_t cudnnGetConvolutionBackwardFilterAlgorithm_v7(
@@ -481,7 +482,7 @@ void Convolution::backwardData(const size_t t)
       /*dy=*/_outputGradientTensor[t],
       _convolutionDescriptor,
       // TODO: change algorithm type
-      CUDNN_CONVOLUTION_BWD_DATA_ALGO_1,
+      _convolutionBwdDataAlgorithm,
       _convolutionWorkspace,
       _convolutionWorkspaceSize,
       &beta,
@@ -535,7 +536,7 @@ void Convolution::backwardHyperparameters(size_t t)
                     /*dyDesc=*/_outputDescriptor,
                     /*dy=*/_outputGradientTensor[t],
                     _convolutionDescriptor,
-                    CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1,
+                    _convolutionBwdFilterAlgorithm,
                     _convolutionWorkspace,
                     _convolutionWorkspaceSize,
                     &beta,
@@ -614,7 +615,7 @@ size_t Convolution::getBackwardWsSize() {
                                                                      _outputDescriptor,
                                                                      _convolutionDescriptor,
                                                                      _weightsFilterDesc,
-                                                                     CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1,
+                                                                     _convolutionBwdFilterAlgorithm,
                                                                      &sizeFilterAlg));
         // if (!_algorithmBackwardData.empty())
         // TODO: algorithm search cuDNN v8
@@ -623,7 +624,7 @@ size_t Convolution::getBackwardWsSize() {
                                                                    _outputDescriptor,
                                                                    _convolutionDescriptor,
                                                                    _inputDescriptor,
-                                                                   CUDNN_CONVOLUTION_BWD_DATA_ALGO_0,
+                                                                   _convolutionBwdDataAlgorithm,
                                                                    &sizeDataAlg));
         return std::max(sizeFilterAlg, sizeDataAlg);
 }

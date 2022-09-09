@@ -313,9 +313,17 @@ class Deconvolution : public Layer
    */
   void *_convolutionWorkspace;
   /**
-   * @brief cuDNN enum of convolution algorithm to be use.
+   * @brief cuDNN enum of FORWARD convolution algorithm to be use.
    */
-  cudnnConvolutionFwdAlgo_t _convolutionAlgorithm;
+  cudnnConvolutionBwdDataAlgo_t _convolutionBwdDataAlgorithm;
+  /**
+   * @brief cuDNN enum of BACKWARD DATA convolution algorithm to be use.
+   */
+  cudnnConvolutionFwdAlgo_t _convolutionFwdAlgorithm;
+  /**
+   * @brief cuDNN enum of backward filter convolution algorithm to be use.
+   */
+   cudnnConvolutionBwdFilterAlgo_t _convolutionBwdFilterAlgorithm;
 
 #endif
 

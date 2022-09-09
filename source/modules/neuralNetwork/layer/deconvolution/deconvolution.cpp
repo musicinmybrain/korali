@@ -273,18 +273,15 @@ void Deconvolution::createForwardPipeline()
                                                     /*mode=*/CUDNN_CONVOLUTION,
                                                     /*computeType=*/CUDNN_DATA_FLOAT));
       // NOTE: this must be like in forward to get right ws -> need to turn output and input arround again
-        cudnnErrCheck(cudnnGetConvolutionBackwardDataWorkspaceSize(_nn->_cuDNNHandle,
-                                                                      /*wDesc=*/_weightsFilterDesc,
-                                       /*dyDesc/_outputGradientTensor[t] desc=*/_inputDescriptor,
-                                                                   /*convDesc=*/_convolutionDescriptor,
-                           /*dxDesc/_prevLayer->_outputGradientTensor[t] desc=*/_outputDescriptor,
-                                                                       /*algo=*/CUDNN_CONVOLUTION_BWD_DATA_ALGO_1,
-                                                              /* *sizeInBytes=*/&_convolutionWorkspaceSize));
+      _convolutionBwdDataAlgorithm  = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
+      cudnnErrCheck(cudnnGetConvolutionBackwardDataWorkspaceSize(_nn->_cuDNNHandle,
+                                                                 /*wDesc=*/_weightsFilterDesc,
+                                                                 /*dyDesc/_outputGradientTensor[t] desc=*/_inputDescriptor,
+                                                                 /*convDesc=*/_convolutionDescriptor,
+                                                                 /*dxDesc/_prevLayer->_outputGradientTensor[t] desc=*/_outputDescriptor,
+                                                                 /*algo=*/_convolutionBwdDataAlgorithm,
+                                                                 /* *sizeInBytes=*/&_convolutionWorkspaceSize));
 
-#ifdef DEBUG
-      // TODO remove at some point
-      _k->_logger->logInfo("Detailed", "[%s layer %zu] Allocating %f MB for cuDNN convolution workspace.\n", _type.c_str(), _index-1, _convolutionWorkspaceSize/(1024.0*1024.0));
-#endif
       // Create workspace memory in createBackwardpipeline
     }
 #endif
@@ -351,8 +348,14 @@ void Deconvolution::createBackwardPipeline()
   {
     cudaErrCheck(cudaMalloc((void **)&_weightsGradientFilter, _weightsCount * sizeof(float)));
     cudaErrCheck(cudaMalloc((void **)&_biasGradientTensor, _biasCount * sizeof(float)));
+    _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
+    _convolutionBwdFilterAlgorithm = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
+
     auto backwardWsSize = getBackwardWsSize();
     _convolutionWorkspaceSize = std::max(_convolutionWorkspaceSize, backwardWsSize);
+#ifdef DEBUG
+      _k->_logger->logInfo("Detailed", "[%s layer %zu] Allocating %f MB for cuDNN %1$s workspace.\n", _type.c_str(), _index-1, (float) _convolutionWorkspaceSize/(1024.0*1024.0));
+#endif
     cudaErrCheck(cudaMalloc((void **)&_convolutionWorkspace, _convolutionWorkspaceSize * sizeof(float)));
 
   //   v8: cudnnFindConvolutionBackwardFilterAlgorithm
@@ -449,7 +452,7 @@ void Deconvolution::backwardData(const size_t t)
                                           _weightsFilterDesc,
                                           _weightsFilter,
                                           _convolutionDescriptor,
-                                          _convolutionAlgorithm,
+                                          _convolutionFwdAlgorithm,
                                           _convolutionWorkspace,
                                           _convolutionWorkspaceSize,
                                           /*beta=*/&alpha2,
@@ -457,7 +460,7 @@ void Deconvolution::backwardData(const size_t t)
                                           /*y/_outputTensor[t])/result=*/_prevLayer->_outputGradientTensor[t]));
     float alpha = 1.0f;
     float beta = 1.0f;
-    // cudnnAddTensor(_nn->_cuDNNHandle, &alpha, _biasTensorDesc, _biasTensor, &beta, _outputDescriptor, _outputTensor[t]);
+    cudnnAddTensor(_nn->_cuDNNHandle, &alpha, _biasTensorDesc, _biasTensor, &beta, _outputDescriptor, _outputTensor[t]);
     // cudnnConvolutionBiasActivationForward()
   }
 #endif
@@ -495,7 +498,8 @@ void Deconvolution::backwardHyperparameters(size_t t)
     //   &beta,
     //   _biasTensorDesc,
     //   _biasGradientTensor));
-
+    // NOTE: 1. Standard
+    // Classification: not working
     // cudnnErrCheck(cudnnConvolutionBackwardFilter(
     //                 _nn->_cuDNNHandle,
     //                 &alpha,
@@ -509,8 +513,7 @@ void Deconvolution::backwardHyperparameters(size_t t)
     //                 _convolutionWorkspaceSize,
     //                 &beta,
     //                 _weightsFilterDesc,
-    //                 _weightsGradientFilter));
-
+    //                 /*result=*/_weightsGradientFilter));
 
   }
 #endif
@@ -569,7 +572,7 @@ size_t Deconvolution::getBackwardWsSize() {
                                                                      _inputDescriptor,
                                                                      _convolutionDescriptor,
                                                                      tmpWeightsFilterDesc,
-                                                                     CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1,
+                                                                     _convolutionBwdFilterAlgorithm,
                                                                      &sizeFilterAlg));
         // if (!_algorithmBackwardData.empty())
         // TODO: algorithm search cuDNN v8
@@ -580,7 +583,7 @@ size_t Deconvolution::getBackwardWsSize() {
                                                               _weightsFilterDesc,
                                                               _convolutionDescriptor,
                                                               /*yDesc*/_inputDescriptor,
-                                                              /*_convolutionAlgorith=*/CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM,
+                                                              /*_convolutionAlgorith=*/_convolutionFwdAlgorithm,
                                                               &_convolutionWorkspaceSize));
         return std::max(sizeFilterAlg, sizeDataAlg);
 }

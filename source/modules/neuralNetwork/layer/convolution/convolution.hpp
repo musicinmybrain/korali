@@ -325,10 +325,21 @@ class Convolution : public Layer
    */
   void *_convolutionWorkspace;
   /**
-   * @brief cuDNN enum of convolution algorithm to be use.
+   * @brief cuDNN enum of forward convolution algorithm to be use.
    */
   cudnnConvolutionFwdAlgo_t _convolutionFwdAlgorithm;
-
+  /**
+   * @brief cuDNN enum of backward data convolution algorithm to be use.
+   */
+  cudnnConvolutionBwdDataAlgo_t _convolutionBwdDataAlgorithm;
+  /**
+   * @brief cuDNN enum of backward filter convolution algorithm to be use.
+   */
+   cudnnConvolutionBwdFilterAlgo_t _convolutionBwdFilterAlgorithm;
+  /**
+   * @brief cuDNN type holding performance results for finding best fwd runtime algorithm.
+   */
+  cudnnConvolutionFwdAlgoPerf_t sdf;
 #endif
 
   void copyHyperparameterPointers(Layer *dstLayer) override;
