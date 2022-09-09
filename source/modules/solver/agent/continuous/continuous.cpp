@@ -129,7 +129,7 @@ void Continuous::getAction(korali::Sample &sample)
       {
         // Compute posterior sample
         auto hyperparameters = samplePosterior( policyIdx );
-           
+
         // Set parameters in neural network
         _criticPolicyLearner[policyIdx]->setHyperparameters(hyperparameters);
       }

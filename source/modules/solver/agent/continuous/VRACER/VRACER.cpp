@@ -125,6 +125,16 @@ void VRACER::trainPolicy()
       _stateSequenceBatch = stateSequenceBuffer;
     }
 
+    // Ensure consistency between training and testing
+    if ( _bayesianLearning )
+    {
+      // Compute posterior sample
+      auto hyperparameters = samplePosterior( p );
+
+      // Set parameters in neural network
+      _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
+    }
+
     // Forward NN
     std::vector<policy_t> policyInfo;
     beginTime = std::chrono::steady_clock::now(); 
