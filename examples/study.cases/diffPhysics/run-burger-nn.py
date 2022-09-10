@@ -24,7 +24,7 @@ ic      = 'sinus' # initial condition
 #ic      = 'forced'
 noise   = 0.    # Standard deviation of IC
 seed    = 42    # Random seed
-step_noise = 0.05 # Standard deviation of gaussian noise in steps
+step_noise = 0.00 # Standard deviation of gaussian noise in steps
 noise_seed = 42   # Seed for noise in steps
 
 # Compute time step for sgs
@@ -121,6 +121,10 @@ train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state,
 # Plot solutions (plot predicted value at the end of training)
 print("Plotting Solutions and Prediction ..")
 PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
+
+# Plot animated solutions
+print("Plotting animated Solutions and Prediction ..")
+SolsAndPredictAnimation(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
 
 # Optional: Plot losses (mean or 16 losses for different times)
 losses = np.array(train_loss).reshape(num_epochs, batch_dim)

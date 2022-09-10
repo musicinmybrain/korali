@@ -72,7 +72,7 @@ def loss(params, in_arrays, targets, step_noise, key):
     # Add noise to training
     noise = random.normal(key, (1, 32)) * step_noise
 
-    preds = batch_forward(params, in_arrays) + noise
+    preds = batch_forward(params, in_arrays+noise)
     return jnp.mean((preds - targets)**2)
 
 # Update function
@@ -192,6 +192,8 @@ def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_
     fig.savefig(figName)
     print("Plot has been saved under the name: Solution_and_Prediction_Plot.pdf")
 
+
+
 # Plotting function for losses
 def PlotLosses(losses, epochs, batch_dim):
     # Prepare plot
@@ -261,3 +263,58 @@ def PlotMeanLoss(losses, epochs, batch_dim):
     fig.savefig(figName)
     print("Plot has been saved under the name: MeanLoss_Plot.pdf")
 
+#------------------------------------------------------------------------------
+import matplotlib.animation as animation
+
+# Plotting animated function for SGS, DNS and predicted solution
+def SolsAndPredictAnimation(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_sgs):
+    # Get optimal parameters
+    params = get_params(opt_state)
+
+    # Compute frames and ratio dt_sgs / dt_dns
+    frames = int(tEnd/dt_sgs)
+    s = int(dt_sgs/dt_dns)
+
+    # Prepare plot
+    fig = plt.figure()
+    colors = ['black','royalblue','seagreen']
+    axis = plt.axes(xlim = (0, 6.3), ylim = (-1.3, 1.3))
+
+    line1, = axis.plot([], [], '-',  color=colors[1], label='SGS solution')
+    line2, = axis.plot([], [], '-',  color=colors[0], label='DNS solution')
+    line3, = axis.plot([], [], '--', color=colors[2], label='Predicted values')
+
+    # Initializing function
+    def init():
+        line1.set_data([], [])
+        line2.set_data([], [])
+        line3.set_data([], [])
+        return line1, line2, line3,
+
+    # Animation function
+    def animate(i):
+        # Prepare variables to be plotted
+        sgs_sol = sgs[i]
+        dns_sol = dns[i*s]
+        x = jnp.array(sgs_sol).reshape(1, batch_size)
+        y = jnp.array(dns_sol).reshape(1, batch_size)
+        predict = batch_forward(params, x)
+
+        # Assign values
+        line1.set_data(x_arr, sgs_sol)
+        line2.set_data(x_arr, dns_sol)
+        line3.set_data(x_arr, predict[-1])
+
+        return line1, line2, line3,
+
+    # Call the animation function    
+    anim = animation.FuncAnimation(fig, animate, init_func = init, frames = frames, interval = 20, blit = True)
+
+    # Add labels
+    axis.set_xlabel('x')
+    axis.set_ylabel('u(x)')
+
+    # Save animation
+    anim.save('Solution_and_Prediction_Animation.mp4', writer = 'ffmpeg', fps = 30)
+    print("Animation has been saved under the name: Solution_and_Prediction_Animation.mp4")
+ 
