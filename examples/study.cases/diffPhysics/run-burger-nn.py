@@ -146,7 +146,7 @@ try:
         base.step(correction = np.array(correction))
 
 except FloatingPointError:
-    print("[Burger_jax] Floating point exception occured", flush=True)
+    print("Floating point exception occured", flush=True)
     # something exploded
     # cut time series to last saved solution and return
     base.nout = base.ioutnum
@@ -154,8 +154,12 @@ except FloatingPointError:
     base.tt.resize(base.nout+1)          # nout+1 because the IC is in [0]
 
 # Plot solutions (plot testing values)
-from plotting import makePlot
-makePlot(dns, base, sgs, "FeedforwardNN")
+print("Plotting Testing Solution ..")
+PlotTesting(dns, base, sgs, "FeedforwardNN")
+
+# Plot animated solutions
+print("Plotting animated Testing Solution ..")
+TestingAnimation(dns, base, sgs, "FeedforwardNN_Animation")
 
 ## Test a new mu
 #dns2  = Burger_jax(L=L, N=N,  dt=dt,     nu=nu*0.9, tend=tEnd, case=ic, noise=noise, seed=seed)

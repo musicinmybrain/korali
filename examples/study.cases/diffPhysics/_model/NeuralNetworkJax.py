@@ -193,6 +193,46 @@ def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_
     print("Plot has been saved under the name: Solution_and_Prediction_Plot.pdf")
 
 
+# Plotting function for SGS, DNS and tested base solution
+# Note: This function is copied from plotting.py and has been slightly adapted
+def PlotTesting(dns, base, sgs, fileName):
+    # Prepare plot
+    figName = fileName + "_evolution.pdf"
+    colors = ['black','royalblue','seagreen']
+    fig, axs = plt.subplots(4,4, sharex=True, sharey=True, figsize=(15,15))    
+
+    # Get variables
+    tEnd = dns.tend
+    dt = dns.dt
+    sgs_dt = sgs.dt
+
+    for i in range(16):
+        # Prepare index variables
+        t = i * tEnd / 16
+        tidx = int(t/dt)
+        tidx_sgs = int(t/sgs_dt)
+        k = int(i / 4)
+        l = i % 4
+        
+        # Plot figures 
+        axs[k,l].plot(sgs.x,  sgs.uu[tidx_sgs,:],  '-',  color=colors[1], label='SGS solution')
+        axs[k,l].plot(dns.x,  dns.uu[tidx,:],      '-',  color=colors[0], label='DNS solution')
+        axs[k,l].plot(base.x, base.uu[tidx_sgs,:], '--', color=colors[2], label='Base solution')
+
+        # Add labels
+        axs[k,l].set_xlabel('x')
+        axs[k,l].set_ylabel('u(x)')
+
+    # Add legend to first plot
+    axs[0,0].legend() 
+
+    # Fix y range
+    plt.ylim([-1.3, 1.3])
+
+    # Save Figure
+    fig.savefig(figName)
+    print(f"Plot has been saved under the name: {figName} ...")
+
 
 # Plotting function for losses
 def PlotLosses(losses, epochs, batch_dim):
@@ -317,4 +357,58 @@ def SolsAndPredictAnimation(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns
     # Save animation
     anim.save('Solution_and_Prediction_Animation.mp4', writer = 'ffmpeg', fps = 30)
     print("Animation has been saved under the name: Solution_and_Prediction_Animation.mp4")
- 
+
+
+# Plotting animated function for SGS, DNS and tested base solution
+def TestingAnimation(dns, base, sgs, fileName):
+    # Get variables
+    tEnd = dns.tend
+    dt = dns.dt
+    sgs_dt = sgs.dt
+
+    # Compute frames and ratio dt_sgs / dt_dns
+    frames = int(tEnd/sgs_dt)
+    s = int(sgs_dt/dt)
+
+    # Prepare plot
+    figName = fileName + "_evolution.mp4"
+    fig = plt.figure()
+    colors = ['black','royalblue','seagreen']
+    axis = plt.axes(xlim = (0, 6.3), ylim = (-1.3, 1.3))
+
+    line1, = axis.plot([], [], '-',  color=colors[1], label='SGS solution')
+    line2, = axis.plot([], [], '-',  color=colors[0], label='DNS solution')
+    line3, = axis.plot([], [], '--', color=colors[2], label='Base solution')
+
+    # Initializing function
+    def init():
+        line1.set_data([], [])
+        line2.set_data([], [])
+        line3.set_data([], [])
+        return line1, line2, line3,
+
+    # Animation function
+    def animate(i):
+        # Prepare variables to be plotted
+        sgs_sol  = sgs.uu[i]
+        dns_sol  = dns.uu[i*s]
+        base_sol = base.uu[i]
+
+        # Assign values
+        line1.set_data(sgs.x,  sgs_sol)
+        line2.set_data(dns.x,  dns_sol)
+        line3.set_data(base.x, base_sol)
+
+        return line1, line2, line3,
+
+    # Call the animation function    
+    anim = animation.FuncAnimation(fig, animate, init_func = init, frames = frames, interval = 20, blit = True)
+
+    # Add labels
+    axis.set_xlabel('x')
+    axis.set_ylabel('u(x)')
+
+    # Save animation
+    anim.save(figName, writer = 'ffmpeg', fps = 10)
+    print(f"Animation has been saved under the name: {figName} ...")
+
