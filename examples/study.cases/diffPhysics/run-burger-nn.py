@@ -1,3 +1,12 @@
+# Tuning parameters
+step_noise = 0.00 # Standard deviation of gaussian noise in steps (use 0 for no noise)
+noise_seed = 42   # Seed for noise in steps (change it to get slightly different results)
+levels     = 1    # Levels of propagation learning (use 1 for default)
+
+
+
+
+
 # GET REFERENCE SOLUTION AND LOW RESOLUTION SOLUTION TO BE TRAINED
 
 import sys
@@ -24,8 +33,6 @@ ic      = 'sinus' # initial condition
 #ic      = 'forced'
 noise   = 0.    # Standard deviation of IC
 seed    = 42    # Random seed
-step_noise = 0.00 # Standard deviation of gaussian noise in steps
-noise_seed = 42   # Seed for noise in steps
 
 # Compute time step for sgs
 s       = int(N/N2)
@@ -103,6 +110,7 @@ batch_size = feature_dim
 
 # Number of training epochs (per run) in training function
 num_epochs = 300 # 300 gives decent results and does not take too long
+pre_epochs = 0   # Learning before the correction if levels > 0
 
 # Generate Gaussian weights and biases
 params = [random.normal(key, (hidden_dim, feature_dim)),
@@ -116,67 +124,62 @@ opt_state = opt_init(params)
 
 #------------------------------------------------------------------------------
 # Run the training function and get losses and optimal parameters / states
-train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs, step_noise, noise_seed)
+# Note: This is only fully done if there is one level only
+if levels == 1:
+    train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs, step_noise, noise_seed)
+else:
+    train_loss, params_new, opt_state_new = run_training_loop(pre_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs, step_noise, noise_seed)
 
+#------------------------------------------------------------------------------
+# Run one or more testings (and learn testing if levels > 1)
+for level in range(1, levels+1):
+    # Simulate a new base solution with same data than sgs solution
+    print(f"Simulate new solution ({level} / {levels}) ..")
+    base = Burger_jax(L=L, N=N2, dt=dt_sgs, nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed)
+    base.IC( v0 = v0 * N2 / N )
+
+    # Apply corrections / advance in time for nsteps steps
+    try:
+        for n in range(1,base.nsteps+1):
+            correction, _ = get_corrections(opt_state_new, batch_size, base.uu[n])
+            base.step(correction = np.array(correction))
+
+    except FloatingPointError:
+        print("Floating point exception occured", flush=True)
+        # something exploded
+        # cut time series to last saved solution and return
+        base.nout = base.ioutnum
+        base.vv.resize((base.nout+1,base.N)) # nout+1 because the IC is in [0]
+        base.tt.resize(base.nout+1)          # nout+1 because the IC is in [0]
+        #tEnd_new = base.ioutnum * dt_sgs
+
+    # Train on corrections if not already in the final level
+    if level < levels:
+        train_arr = get_train_arr(base.uu, sgs_sol, int(tEnd/dt_sgs)+1)
+        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed)
+
+#------------------------------------------------------------------------------
 # Plot solutions (plot predicted value at the end of training)
 print("Plotting Solutions and Prediction ..")
 PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
 
-# Plot animated solutions
+# Optional: Plot animated solutions
 print("Plotting animated Solutions and Prediction ..")
 SolsAndPredictAnimation(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
 
 # Optional: Plot losses (mean or 16 losses for different times)
+print("Plotting Losses ..")
 losses = np.array(train_loss).reshape(num_epochs, batch_dim)
 PlotMeanLoss(losses, num_epochs, batch_dim)
 PlotLosses(losses, num_epochs, batch_dim)
-
-#------------------------------------------------------------------------------
-# Simulate a new base solution with same data than sgs solution
-print("Simulate new solution ..")
-base = Burger_jax(L=L, N=N2, dt=dt_sgs, nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed)
-base.IC( v0 = v0 * N2 / N )
-
-# Apply corrections
-# advance in time for nsteps steps
-try:
-    for n in range(1,base.nsteps+1):
-        #correction, _ = get_corrections(opt_state_new, batch_size, base.uu, base.ioutnum)
-        correction, _ = get_corrections(opt_state_new, batch_size, base.uu[n])
-        base.step(correction = np.array(correction))
-
-except FloatingPointError:
-    print("Floating point exception occured", flush=True)
-    # something exploded
-    # cut time series to last saved solution and return
-    base.nout = base.ioutnum
-    base.vv.resize((base.nout+1,base.N)) # nout+1 because the IC is in [0]
-    base.tt.resize(base.nout+1)          # nout+1 because the IC is in [0]
 
 # Plot solutions (plot testing values)
 print("Plotting Testing Solution ..")
 PlotTesting(dns, base, sgs, "FeedforwardNN")
 
-# Plot animated solutions
+# Optional: Plot animated solutions
 print("Plotting animated Testing Solution ..")
 TestingAnimation(dns, base, sgs, "FeedforwardNN_Animation")
 
-## Test a new mu
-#dns2  = Burger_jax(L=L, N=N,  dt=dt,     nu=nu*0.9, tend=tEnd, case=ic, noise=noise, seed=seed)
-#base2 = Burger_jax(L=L, N=N2, dt=dt_sgs, nu=nu*0.9, tend=tEnd, case=ic, noise=noise, seed=seed)
-#v0 = np.concatenate((dns2.v0[:((N2+1)//2)], dns2.v0[-(N2-1)//2:]))
-#base2.IC( v0 = v0 * N2 / N )
-#print("Simulate DNS ..")
-### simulate
-#dns2.simulate()
-#dns2.compute_Ek()
-#print("Simulate SGS ..")
-### simulate
-#base2.simulate()
-#base2.compute_Ek()
-#dns2_sol = dns2.uu
-#base2_sol = base2.uu
-#dns2_short_sol = dns2_sol[:, dns_indices]
-#print("Plotting Solutions and Prediction ..")
-#PlotSolsAndPredict(base2_sol, dns2_short_sol, base2.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
+
 
