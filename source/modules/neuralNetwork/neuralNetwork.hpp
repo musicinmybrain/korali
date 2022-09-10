@@ -187,8 +187,9 @@ class NeuralNetwork : public Module
   /**
    * @brief Updates the values of weights, biases configuration to the NN
    * @param hyperparameters The input hyperparameters
+   * @param initial if initial hyperparameters
    */
-  void setHyperparameters(const std::vector<float> &hyperparameters);
+  void setHyperparameters(const std::vector<float> &hyperparameters, const bool initial = false);
 
   /**
    * @brief Gets the values of weights and biases configuration to the NN

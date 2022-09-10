@@ -203,6 +203,17 @@ void Layer::setConfiguration(knlohmann::json& js)
     eraseValue(js, "Weight Scaling");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Weight Scaling'] required by layer.\n"); 
 
+  if (isDefined(js, "Is Layer Trainable"))
+  {
+    try
+    {
+      _isLayerTrainable = js["Is Layer Trainable"].get<int>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ layer ] \n + Key:    ['Is Layer Trainable']\n%s", e.what());
+    }
+    eraseValue(js, "Is Layer Trainable");
+  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Is Layer Trainable'] required by layer.\n"); 
+
  Module::setConfiguration(js);
  _type = "layer";
  if(isDefined(js, "Type")) eraseValue(js, "Type");
@@ -215,13 +226,14 @@ void Layer::getConfiguration(knlohmann::json& js)
   js["Type"] = _type;
    js["Output Channels"] = _outputChannels;
    js["Weight Scaling"] = _weightScaling;
+   js["Is Layer Trainable"] = _isLayerTrainable;
  Module::getConfiguration(js);
 } 
 
 void Layer::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Output Channels\": 0, \"Weight Scaling\": 1.0}";
+ std::string defaultString = "{\"Output Channels\": 0, \"Weight Scaling\": 1.0, \"Is Layer Trainable\": true}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Module::applyModuleDefaults(js);

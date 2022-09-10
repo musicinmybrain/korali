@@ -431,7 +431,7 @@ std::vector<float> __className__::getHyperparameters()
   return hyperparameters;
 }
 
-void __className__::setHyperparameters(const std::vector<float> &hyperparameters)
+void __className__::setHyperparameters(const std::vector<float> &hyperparameters, const bool initial)
 {
   if (hyperparameters.size() != _hyperparameterCount)
     KORALI_LOG_ERROR("Wrong number of hyperparameters passed to the neural network. Expected: %lu, provided: %lu.\n", _hyperparameterCount, hyperparameters.size());
@@ -444,8 +444,11 @@ void __className__::setHyperparameters(const std::vector<float> &hyperparameters
 
   for (size_t i = 0; i < layerCount; i++)
   {
-    auto index = _pipelines[0][0]._layerVector[i]->_hyperparameterIndex;
-    _pipelines[0][0]._layerVector[i]->setHyperparameters(&hyperparameters[index]);
+    size_t index;
+    if(_pipelines[0][0]._layerVector[i]->_isLayerTrainable || initial){
+      index = _pipelines[0][0]._layerVector[i]->_hyperparameterIndex;
+      _pipelines[0][0]._layerVector[i]->setHyperparameters(&hyperparameters[index]);
+    }
   }
 }
 

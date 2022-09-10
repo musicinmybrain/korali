@@ -56,6 +56,10 @@ class Layer : public Module
   * @brief Factor that is mutliplied by the layers' weights.
   */
    float _weightScaling;
+  /**
+  * @brief Indicates whether the layers initial hyperparameters get updated by the optimizer.
+  */
+   int _isLayerTrainable;
   
  
   /**
