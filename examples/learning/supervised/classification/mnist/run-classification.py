@@ -26,7 +26,7 @@ parser = make_parser()
 parser.add_argument(
     '--validationBS',
     help='Batch Size to use for the validation set',
-    default=256,
+    default=64,
     type=int,
     required=False)
 parser.add_argument(
@@ -79,6 +79,8 @@ elif args.model == "lenet1":
     from lenet import LeNet1 as classifier
 elif args.model == "cnn1":
     from cnn_classifier import simple_one_layer_cnn as classifier
+elif args.model == "test":
+    from cnn_classifier import test_cnn_only as classifier
 else:
     sys.exit(f"{args.model} is not a valid model.")
 #  ===========================================================================
@@ -176,7 +178,7 @@ e["Solver"]["Metrics"]["Type"] = "Accuracy"
 e["Solver"]["Neural Network"]["Engine"] = args.engine
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 # MODEL DEFINTION ================================================================================
-classifier(e, img_width, img_height, input_channels)
+classifier(e, img_width, img_height, label_size, input_channels)
 # ================================================================================
 ### Configuring output
 e["Console Output"]["Verbosity"] = args.verbosity

@@ -37,5 +37,14 @@ inline void cudnnErrCheck_(cudnnStatus_t stat, const char *file, int line)
   }
 }
 
+inline std::string cudnnGetErr(cudnnStatus_t stat)
+{
+  if (stat != CUDNN_STATUS_SUCCESS)
+  {
+    return std::string(cudnnGetErrorString(stat));
+  }
+  return "";
+}
+
 #endif // _KORALI_USE_CUDNN
 

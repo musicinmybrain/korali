@@ -23,13 +23,13 @@ def make_parser():
     parser.add_argument(
         '--trainingBS',
         help='Batch size to use for training data',
-        default=256,
+        default=64,
         type=int,
         required=False)
     parser.add_argument(
         '--testingBS',
         help='Batch size to use for test data',
-        default=256,
+        default=64,
         type=int,
         required=False)
     parser.add_argument(
@@ -83,7 +83,7 @@ def make_parser():
         help="Indicates which model to use.",
         required=False,
         type=str,
-        choices=["Logistic Regression", "300-100", "lenet1", "cnn1"],
+        choices=["Logistic Regression", "300-100", "lenet1", "cnn1", "test"],
         default="Logistic Regression"
     )
     parser.add_argument(

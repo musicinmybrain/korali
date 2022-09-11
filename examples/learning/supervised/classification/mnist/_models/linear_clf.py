@@ -1,7 +1,7 @@
 import math
 
 
-def LogisticRegression(e, img_width, img_height, channels):
+def LogisticRegression(e, img_width, img_height, label_size, channels=1):
     """Configure one hidden layer autoencoder.
 
     :param e: korali experiment
@@ -15,7 +15,7 @@ def LogisticRegression(e, img_width, img_height, channels):
     e["Solver"]["Neural Network"]["Output Activation"] = "Softmax"
 
 
-def FFNN_300_100(e, img_width, img_height, channels):
+def FFNN_300_100(e, img_width, img_height, label_size, channels=1):
     """Configure one hidden layer autoencoder.
 
     :param e: korali experiment
