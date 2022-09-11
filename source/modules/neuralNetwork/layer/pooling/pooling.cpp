@@ -170,9 +170,9 @@ void Pooling::createForwardPipeline()
     cudnnErrCheck(cudnnCreateTensorDescriptor(&_inputDescriptor));
     cudnnErrCheck(cudnnSetTensor4dDescriptor(
                     /*Inp. Tensor Descr.=*/ _inputDescriptor,
-                    /*format=*/CUDNN_TENSOR_NHWC,
+                    /*format=*/CUDNN_TENSOR_NCHW,
                     /*dataType=*/CUDNN_DATA_FLOAT,
-                    /*batch_size=*/1,
+                    /*batch_size=*/N,
                     /*channels=*/IC,
                     /*image_height=*/IH,
                     /*image_width=*/IW));
@@ -180,9 +180,9 @@ void Pooling::createForwardPipeline()
     cudnnErrCheck(cudnnCreateTensorDescriptor(&_outputDescriptor));
     cudnnErrCheck(cudnnSetTensor4dDescriptor(
                     /*Output. Tensor Descr.=*/ _outputDescriptor,
-                    /*format=*/CUDNN_TENSOR_NHWC,
+                    /*format=*/CUDNN_TENSOR_NCHW,
                     /*dataType=*/CUDNN_DATA_FLOAT,
-                    /*batch_size=*/1,
+                    /*batch_size=*/N,
                     /*channels=*/OC,
                     /*image_height=*/OH,
                     /*image_width=*/OW));
