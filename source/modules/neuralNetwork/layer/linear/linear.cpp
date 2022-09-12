@@ -172,7 +172,15 @@ void Linear::createForwardPipeline()
     {
       // Creating convolution operator
       cudnnErrCheck(cudnnCreateConvolutionDescriptor(&_convolutionDesc));
-      cudnnErrCheck(cudnnSetConvolution2dDescriptor(_convolutionDesc, 0, 0, 1, 1, 1, 1, CUDNN_CONVOLUTION, CUDNN_DATA_FLOAT));
+      cudnnErrCheck(cudnnSetConvolution2dDescriptor(_convolutionDesc,
+                                                    /*pad_height=PB=PT=*/0,
+                                                    /*pad_width=PL=PR=*/0,
+                                                    /*vertical_stride=SV=*/1,
+                                                    /*horizontal_stride=SH=*/1,
+                                                    /*dilation_height=*/1,
+                                                    /*dilation_width=*/1,
+                                                    /*mode=*/CUDNN_CONVOLUTION,
+                                                    /*computeType=*/CUDNN_DATA_FLOAT));
       cudnnErrCheck(cudnnGetConvolutionForwardWorkspaceSize(_nn->_cuDNNHandle, _prevLayer->_outputTensorDesc, _weightsFilterDesc, _convolutionDesc, _outputTensorDesc, CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM, &_convolutionWorkspaceSize));
 
       _convolutionWorkspace.resize(_nn->_timestepCount);
