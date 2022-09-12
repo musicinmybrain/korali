@@ -124,6 +124,7 @@ void DeepSupervisor::initialize()
     }
   }
   // Erase duplicates
+  std::sort(std::begin(batchSizes), std::end(batchSizes));
   batchSizes.erase(std::unique(batchSizes.begin(), batchSizes.end()), batchSizes.end());
   /*****************************************************************
    * Save learning rate
