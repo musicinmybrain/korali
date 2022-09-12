@@ -433,8 +433,8 @@ void __className__::createBackwardPipeline()
     cudaErrCheck(cudaMalloc((void **)&_convolutionWorkspace, _convolutionWorkspaceSize * sizeof(float)));
 
 
-#endif
   }
+#endif
 }
 
 void __className__::forwardData(const size_t t)
