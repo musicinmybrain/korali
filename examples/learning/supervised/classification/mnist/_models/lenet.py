@@ -17,20 +17,19 @@ def LeNet1(e, img_width, img_height, label_size, channels=1):
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"]       = img_height
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Kernel Size"]       = 5
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Filters"]           = 6
-    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Is Layer Trainable"] = False
     ## Activation =============================================================================
     lidx += 1
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Activation"
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Function"] = "Elementwise/Tanh"
     ## Average Pooling =========================================================================
     ## 4 x 24*24 -> 4 x 12*12
-    # lidx += 1
-    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Pooling"
-    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Function"] = "Average"
-    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Height"]      = 24
-    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"]       = 24
-    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Kernel Size"]       = 2
-    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Stride Size"]       = 2
+    lidx += 1
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Pooling"
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Function"] = "Average"
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Height"]      = 24
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"]       = 24
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Kernel Size"]       = 2
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Stride Size"]       = 2
     ## Convolutional Layer ======================================================================
     ## 4 x 12*12 -> 12 x 8*8
     lidx += 1
@@ -46,12 +45,12 @@ def LeNet1(e, img_width, img_height, label_size, channels=1):
     # ## Average Pooling =========================================================================
     # ## 12 x 8*8 -> 12 x 4*4
     lidx += 1
-    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Pooling"
-    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Function"] = "Average"
-    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Height"]      = 8
-    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"]       = 8
-    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Kernel Size"]       = 2
-    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Stride Size"]       = 2
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Pooling"
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Function"] = "Average"
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Height"]      = 8
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"]       = 8
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Kernel Size"]       = 2
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Stride Size"]       = 2
     # Convolutiona =============================================================================
     e["Solver"]["Neural Network"]["Output Activation"] = "Softmax"
 
