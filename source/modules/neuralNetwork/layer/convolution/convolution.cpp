@@ -162,8 +162,6 @@ void Convolution::createHyperparameterMemory()
                                                /*in_channels=*/IC,
                                                /*kernel_height=*/KH,
                                                /*kernel_width=*/KW));
-      // _weightsFilter.resize(_nn->_timestepCount);
-      // for (size_t i = 0; i < _nn->_timestepCount; i++)
       cudaErrCheck(cudaMalloc((void **)&_weightsFilter, _weightsCount * sizeof(float)));
       // Create Bias Tensors
       cudnnErrCheck(cudnnCreateTensorDescriptor(&_biasTensorDesc));
@@ -291,7 +289,6 @@ void Convolution::createForwardPipeline()
                                                     /*mode=*/CUDNN_CONVOLUTION,
                                                     /*computeType=*/CUDNN_DATA_FLOAT));
 
-      _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
       // Forward Algorithm ===========================================================
       cudnnConvolutionFwdAlgoPerf_t algo_perf{};
       if(_algorithmForward == "GEMM")
@@ -313,7 +310,7 @@ void Convolution::createForwardPipeline()
       else {
         int requestedCount = 1;
         int count;
-        cudnnFindConvolutionForwardAlgorithm(
+        cudnnErrCheck(cudnnFindConvolutionForwardAlgorithm(
           _nn->_cuDNNHandle,
           /*xDesc=*/_inputDescriptor,
           /*wDesc=*/_weightsFilterDesc,
@@ -321,7 +318,7 @@ void Convolution::createForwardPipeline()
           /*yDesc=*/_outputDescriptor,
           /*requestedAlgoCount=*/requestedCount,
           /* *returnedAlgoCount=*/&count,
-          /* *perfResults=*/&algo_perf);
+          /* *perfResults=*/&algo_perf));
           _convolutionFwdAlgorithm = algo_perf.algo;
       }
       cudnnErrCheck(cudnnGetConvolutionForwardWorkspaceSize(_nn->_cuDNNHandle,
@@ -415,7 +412,7 @@ void Convolution::createBackwardPipeline()
     else {
       int requestedCount = 1;
       int count;
-      cudnnFindConvolutionBackwardDataAlgorithm(
+      cudnnErrCheck(cudnnFindConvolutionBackwardDataAlgorithm(
         _nn->_cuDNNHandle,
         /*dwDesc=*/_weightsFilterDesc,
         /*dyDesc=*/_outputDescriptor,
@@ -423,7 +420,7 @@ void Convolution::createBackwardPipeline()
         /*dxDesc=*/_inputDescriptor,
         /*requestedAlgoCount=*/requestedCount,
         /* *returnedAlgoCount=*/&count,
-        /* *perfResults=*/&algoData_perf);
+        /* *perfResults=*/&algoData_perf));
         _convolutionBwdDataAlgorithm = algoData_perf.algo;
     }
     // Backward Filter Algorithm ===================================================
@@ -442,7 +439,7 @@ void Convolution::createBackwardPipeline()
     else {
       int requestedCount = 1;
       int count;
-      cudnnFindConvolutionBackwardFilterAlgorithm(
+      cudnnErrCheck(cudnnFindConvolutionBackwardFilterAlgorithm(
         _nn->_cuDNNHandle,
         /*xDesc=*/_inputDescriptor,
         /*dyDesc=*/_outputDescriptor,
@@ -450,7 +447,7 @@ void Convolution::createBackwardPipeline()
         /*dwDesc=*/_weightsFilterDesc,
         /*requestedAlgoCount=*/requestedCount,
         /* *returnedAlgoCount=*/&count,
-        /* *perfResults=*/&algoFilter_perf);
+        /* *perfResults=*/&algoFilter_perf));
         _convolutionBwdFilterAlgorithm = algoFilter_perf.algo;
     }
     // Allocate Workspace ==========================================================
@@ -503,7 +500,7 @@ void Convolution::forwardData(const size_t t)
     float alpha = 1.0f;
     float beta = 1.0f;
     err = cudnnGetErr(cudnnAddTensor(_nn->_cuDNNHandle, &alpha, _biasTensorDesc, _biasTensor, &beta, _outputDescriptor, _outputTensor[t]));
-    // if(!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Forward Bias: %s \n", _type.c_str(), _index-1, err.c_str());
+    if(!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Forward Bias: %s \n", _type.c_str(), _index-1, err.c_str());
     // cudnnConvolutionBiasActivationForward()
   }
 #endif
