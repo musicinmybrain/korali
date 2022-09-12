@@ -51,15 +51,15 @@ def make_parser():
         type=float,
         required=False)
     parser.add_argument(
-        "-p",
         "--plot",
+        "-p",
         help="Indicates if to plot the losses.",
         required=False,
         action="store_true"
     )
     parser.add_argument(
-        "-s",
         "--save",
+        "-s",
         help="Indicates if to save the results to _results.",
         required=False,
         action="store_true"

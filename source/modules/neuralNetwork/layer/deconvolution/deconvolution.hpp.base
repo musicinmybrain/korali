@@ -216,7 +216,6 @@ class __className__ : public __parentClassName__
    * @brief cuDNN enum of backward filter convolution algorithm to be use.
    */
    cudnnConvolutionBwdFilterAlgo_t _convolutionBwdFilterAlgorithm;
-
 #endif
 
   void copyHyperparameterPointers(Layer *dstLayer) override;

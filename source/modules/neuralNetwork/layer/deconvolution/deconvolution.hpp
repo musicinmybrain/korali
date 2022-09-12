@@ -89,9 +89,21 @@ class Deconvolution : public Layer
   */
    ssize_t _paddingSize;
   /**
-  * @brief If specified 'Ouput Channels is calculated automatically
+  * @brief If specified 'Output Channels is calculated automatically
   */
    ssize_t _filters;
+  /**
+  * @brief Forward Convolution Algorithm to be used.
+  */
+   std::string _algorithmForward;
+  /**
+  * @brief Backward Convolution Data Algorithm to be used.
+  */
+   std::string _algorithmBackwardData;
+  /**
+  * @brief Backward Convolution Filter Algorithm to be used.
+  */
+   std::string _algorithmBackwardFilter;
   
  
   /**
@@ -324,7 +336,6 @@ class Deconvolution : public Layer
    * @brief cuDNN enum of backward filter convolution algorithm to be use.
    */
    cudnnConvolutionBwdFilterAlgo_t _convolutionBwdFilterAlgorithm;
-
 #endif
 
   void copyHyperparameterPointers(Layer *dstLayer) override;

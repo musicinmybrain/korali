@@ -36,6 +36,7 @@ parser.add_argument(
     '--engine',
     help='NN backend to use',
     default='OneDNN',
+    choices=["OneDNN", "CuDNN", "Korali"],
     required=False)
 parser.add_argument(
     '--learningRateType',
@@ -88,7 +89,7 @@ random.shuffle(trainingImages)
 nb_training_samples = len(trainingImages)
 nb_training_samples = int((nb_training_samples*(1-args.validationSplit))/args.trainingBS)*args.trainingBS
 if args.test:
-    nb_training_samples = args.trainingBS*10
+    nb_training_samples = args.trainingBS*20
 nb_validation_samples = int((len(trainingImages)*args.validationSplit)/args.testingBS)*args.testingBS
 if args.test:
     nb_validation_samples = args.validationBS*1
@@ -138,7 +139,7 @@ k["Conduit"]["Type"] = "Sequential"
 e["Problem"]["Type"] = "Supervised Learning"
 e["Solver"]["Type"] = "Learner/DeepSupervisor"
 e["Problem"]["Training Batch Size"] = args.trainingBS
-e["Problem"]["Testing Batch Sizes"] = [1, args.testingBS]
+# e["Problem"]["Testing Batch Sizes"] = [1]
 e["Problem"]["Testing Batch Size"] = args.testingBS
 e["Problem"]["Max Timesteps"] = 1
 e["Problem"]["Input"]["Size"] = img_size
@@ -174,6 +175,7 @@ e["Save Only"] = ["Results", "Solver"]
 
 #  Automatic Training ========================================================
 if args.mode in ["Automatic"]:
+    e["Solver"]["Mode"] = "Automatic Training"
     ### Using a neural network solver (deep learning) for inference
     e["Problem"]["Validation Batch Size"] = args.validationBS
     # e["Solver"]["Data"]["Validation"]["Split"] = args.validationSplit
@@ -181,13 +183,12 @@ if args.mode in ["Automatic"]:
     e["Problem"]["Solution"]["Data"] = trainingImages
     e["Problem"]["Data"]["Validation"]["Input"] = add_time_dimension(validationImages)
     e["Problem"]["Data"]["Validation"]["Solution"] = validationImages
-    e["Solver"]["Mode"] = "Automatic Training"
     k.run(e)
 #  Training ==================================================================
 elif args.mode == "Training":
     ### Converting images to Korali form (requires a time dimension)
     trainingImages = add_time_dimension(trainingImages)
-    validationImages = add_time_dimension(validationImages)
+    # validationImages = add_time_dimension(validationImages)
     def loss_MSE(yhat_batch, y_batch):
         squaredMeanError = 0.0
         for yhat, y in list(zip(yhat_batch, y_batch)):
