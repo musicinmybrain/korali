@@ -99,6 +99,9 @@ from NeuralNetworkJax import *
 #------------------------------------------------------------------------------
 # Initialization
 
+# Initialize an array for all losses
+total_loss = []
+
 # Generate key which is used to generate random numbers
 key = random.PRNGKey(1)
 
@@ -127,8 +130,12 @@ opt_state = opt_init(params)
 # Note: This is only fully done if there is one level only
 if levels == 1:
     train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs, step_noise, noise_seed)
+
 else:
     train_loss, params_new, opt_state_new = run_training_loop(pre_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs, step_noise, noise_seed)
+
+# Store losses
+total_loss = train_loss
 
 #------------------------------------------------------------------------------
 # Run one or more testings (and learn testing if levels > 1)
@@ -156,7 +163,10 @@ for level in range(1, levels+1):
     # Train on corrections if not already in the final level
     if level < levels:
         train_arr = get_train_arr(base.uu, sgs_sol, int(tEnd/dt_sgs)+1)
-        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed)
+        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed)
+
+        # Store losses
+        total_loss = np.concatenate((total_loss, train_loss), axis=0)
 
 #------------------------------------------------------------------------------
 # Plot solutions (plot predicted value at the end of training)
@@ -169,9 +179,13 @@ SolsAndPredictAnimation(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new
 
 # Optional: Plot losses (mean or 16 losses for different times)
 print("Plotting Losses ..")
-losses = np.array(train_loss).reshape(num_epochs, batch_dim)
-PlotMeanLoss(losses, num_epochs, batch_dim)
-PlotLosses(losses, num_epochs, batch_dim)
+if levels == 1:
+    loss_dim = num_epochs
+else:
+    loss_dim = pre_epochs + num_epochs * (levels-1)
+losses = np.array(total_loss).reshape(loss_dim, batch_dim)
+PlotMeanLoss(losses, loss_dim, batch_dim)
+PlotLosses(losses, loss_dim, batch_dim)
 
 # Plot solutions (plot testing values)
 print("Plotting Testing Solution ..")
