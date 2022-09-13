@@ -144,7 +144,7 @@ def get_corrections(opt_state, batch_size, sgs):
 # Function to create a training array when base solution explodes
 def get_train_arr(base, sgs, t_dim):
     # Maximum absolute value that is tolerated
-    max_cap = 1.5
+    max_cap = 2.0
 
     # Initialize values
     abs_max = 0.0
@@ -161,7 +161,7 @@ def get_train_arr(base, sgs, t_dim):
 
     # Training array that is returned (meaningful base solutions + rest is filled with SGS solutions)
     train_arr = jnp.concatenate((base[base_range], sgs[sgs_range]), axis=0)
-    return train_arr
+    return train_arr, i
 
 #------------------------------------------------------------------------------
 import matplotlib as mpl
