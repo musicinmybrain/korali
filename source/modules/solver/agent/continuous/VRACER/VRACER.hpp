@@ -73,7 +73,7 @@ class VRACER : public Continuous
   /**
    * @brief Pointer to actor's experiment problem
    */
-  std::vector<problem::SupervisedLearning *> _criticPolicyProblem;
+  std::vector<problem::learning::SupervisedLearning *> _criticPolicyProblem;
 
   /**
    * @brief Update the V-target or current and previous experiences in the episode

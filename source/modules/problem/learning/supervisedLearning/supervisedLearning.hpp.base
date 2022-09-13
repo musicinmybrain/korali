@@ -1,6 +1,6 @@
 #pragma once
 
-#include "modules/problem/problem.hpp"
+#include "modules/problem/learning/learning.hpp"
 
 __startNamespace__;
 
