@@ -428,7 +428,7 @@ float Continuous::calculateImportanceWeight(const std::vector<float> &action, co
   if (std::isfinite(logImportanceWeight) == false) KORALI_LOG_ERROR("NaN detected in the calculation of importance weight.\n");
 
   // Calculating actual importance weight by exp
-  const float importanceWeight = std::exp(logImportanceWeight); // TODO: reuse importance weight calculation from updateExperienceReplayMetadata
+  const float importanceWeight = std::exp(logImportanceWeight);
 
   return importanceWeight;
 }
