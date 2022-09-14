@@ -680,10 +680,7 @@ void __className__::processEpisode(knlohmann::json &episode)
         {
           // Safety check for overflow
           if (_experienceReplayOffPolicyCount[a] < count)
-          {
             KORALI_LOG_ERROR("Agent %ld: _experienceReplayOffPolicyCount=%ld smaller than decrement %ld.\n", a, _experienceReplayOffPolicyCount[a], count);
-            // count = _experienceReplayOffPolicyCount[d];
-          }
 
           // Update off-policy count
           _experienceReplayOffPolicyCount[a] -= count;
@@ -1071,10 +1068,7 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
   {
     // Safety check for overflow
     if ((int)_experienceReplayOffPolicyCount[a] < -offPolicyCountDelta[a])
-    {
       KORALI_LOG_ERROR("Agent %ld: offPolicyCountDelta=%d bigger than _experienceReplayOffPolicyCount=%ld.\n", a, offPolicyCountDelta[a], _experienceReplayOffPolicyCount[a]);
-      // offPolicyCountDelta[d] = -(int)_experienceReplayOffPolicyCount[d];
-    }
 
     // Update off policy count
     _experienceReplayOffPolicyCount[a] += offPolicyCountDelta[a];
