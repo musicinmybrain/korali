@@ -125,7 +125,7 @@ void VRACER::trainPolicy()
       _stateSequenceBatch = stateSequenceBuffer;
     }
 
-    // Ensure consistency between training and testing
+    // Sample posterior to ensure consistency between training and testing
     if ( _bayesianLearning )
     {
       // Compute posterior sample
