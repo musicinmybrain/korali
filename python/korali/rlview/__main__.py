@@ -46,7 +46,7 @@ def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservat
             exit(-1)
 
         numResults = results[0]["Problem"]["Agents Per Environment"]
-        
+
     ## Unpack and preprocess the results
     for r in results:
         # Load Returns
@@ -180,10 +180,10 @@ def parseResults( dir, numRuns ):
     for p in dir:
         result = [ ]
         # Load result for each run
-        for run in range(numRuns):
+        for run in range(0,numRuns):
             configFile = p + '/latest'
             if numRuns > 1:
-                configFile = p + "/run{}".format(run) + '/latest'
+                configFile = p + "/run{}".format(run+1) + '/latest'
             if (not os.path.isfile(configFile)):
                 print("[Korali] Error: Did not find any results in the {0} folder...".format(configFile))
                 exit(-1)

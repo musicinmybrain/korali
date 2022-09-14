@@ -21,7 +21,7 @@ source settings.sh
 let NUMNODES=0
 
 # Remove existing task file
-# rm tasks.txt
+rm tasks.txt
 
 # Write continuous env tasks
 for env in Multiwalker Waterworld
