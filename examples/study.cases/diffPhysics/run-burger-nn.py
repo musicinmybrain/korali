@@ -1,7 +1,7 @@
 # Tuning parameters
 step_noise = 0.00 # Standard deviation of gaussian noise in steps (use 0 for no noise)
 noise_seed = 42   # Seed for noise in steps (change it to get slightly different results)
-levels     = 100    # Levels of propagation learning (use 1 for default)
+levels     = 2    # Levels of propagation learning (use 1 for default)
 
 
 
@@ -112,7 +112,7 @@ hidden_dim = 256   # Size / width of hidden layer
 batch_size = feature_dim
 
 # Number of training epochs (per run) in training function
-num_epochs = 10 # 300 gives decent results and does not take too long
+num_epochs = 300 # 300 gives decent results and does not take too long
 pre_epochs = 0   # Learning before the correction if levels > 0
 
 # Generate Gaussian weights and biases

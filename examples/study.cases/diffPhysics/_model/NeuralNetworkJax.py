@@ -102,8 +102,9 @@ def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tE
     for epoch in range(num_epochs):
         start_time = time.time()
         for i in range(batch_dim):
-            # Define indices for sgs and dns
+            # Get time
             t = i * tEnd/batch_dim
+            # Define indices for sgs and dns
             dns_idx = int(t/dt_dns)
             sgs_idx = int(t/dt_sgs)
             # Prepare variables
@@ -144,7 +145,7 @@ def get_corrections(opt_state, batch_size, sgs):
 # Function to create a training array when base solution explodes
 def get_train_arr(base, sgs, t_dim):
     # Maximum absolute value that is tolerated
-    max_cap = 2.0
+    max_cap = 1.5
 
     # Initialize values
     abs_max = 0.0
