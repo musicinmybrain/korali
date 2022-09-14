@@ -564,7 +564,7 @@ void Agent::processEpisode(knlohmann::json &episode)
       if (_rewardVectorContiguous.size() >= _experienceReplayMaximumSize*_problem->_agentsPerEnvironment)
       {
         for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
-          _rewardRescalingSumSquaredRewards -= _rewardVectorContiguous[0+a] * _rewardVectorContiguous[0+a];
+          _rewardRescalingSumSquaredRewards -= _rewardVectorContiguous[a] * _rewardVectorContiguous[a];
       }
       for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
       {
@@ -574,7 +574,7 @@ void Agent::processEpisode(knlohmann::json &episode)
 
     // Put reward to replay memory
     for( size_t a = 0; a < _problem->_agentsPerEnvironment; a++ )
-      _rewardVectorContiguous.push_back(reward[0+a]);
+      _rewardVectorContiguous.push_back(reward[a]);
 
     // Keeping statistics
     for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
@@ -607,15 +607,13 @@ void Agent::processEpisode(knlohmann::json &episode)
       for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
       {
         expPolicy[a].stateValue = stateValue[a];
+         _stateValueVectorContiguous.push_back(stateValue[a]);
       }
     }
     else
     {
       KORALI_LOG_ERROR("Policy has not produced state value for the current experience.\n");
     }
-
-    for( size_t a = 0; a < _problem->_agentsPerEnvironment; a++ )
-      _stateValueVectorContiguous.push_back(stateValue[a]);
 
     /* Story policy information for continuous action spaces */
     if (isDefined(episode["Experiences"][expId], "Policy", "Distribution Parameters"))
