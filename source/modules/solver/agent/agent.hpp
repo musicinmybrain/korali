@@ -153,7 +153,7 @@ class Agent : public Solver
   /**
   * @brief Step-size for Stochastic Gradient Hamilton Monte Carlo (https://arxiv.org/abs/1402.4102).
   */
-   size_t _hmcStepSize;
+   float _hmcStepSize;
   /**
   * @brief Gaussian random number generator.
   */

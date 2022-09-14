@@ -1040,7 +1040,8 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
       averageStateValue /= numAgents;
 
       // Overwrite state value with average
-      std::fill(_stateValueVectorContiguous.begin()+expId, _stateValueVectorContiguous.begin()+expId+numAgents, averageStateValue);
+      for( size_t a = 0; a<numAgents; a++ )
+        _stateValueVectorContiguous[expId+a] = averageStateValue;
 
       // Same for truncated state-value
       if (_terminationVector[expId] == e_truncated)
@@ -1071,7 +1072,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
   for (size_t a = 0; a < numAgents; a++)
   {
     // Safety check for overflow
-    if ((int)_experienceReplayOffPolicyCount[a] < -offPolicyCountDelta[a])
+    if ((int)_experienceReplayOffPolicyCount[a] + offPolicyCountDelta[a] < 0)
       KORALI_LOG_ERROR("Agent %ld: offPolicyCountDelta=%d bigger than _experienceReplayOffPolicyCount=%ld.\n", a, offPolicyCountDelta[a], _experienceReplayOffPolicyCount[a]);
 
     // Update off policy count
@@ -1100,7 +1101,6 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     size_t nextEpisode = _episodeIdVector[nextExpId];
     if (curEpisode != nextEpisode) retraceMiniBatch.push_back(currExpId);
   }
-
 
 // Calculating retrace value for the oldest experiences of unique episodes
 #pragma omp parallel for schedule(guided, 1)
@@ -2065,7 +2065,7 @@ void Agent::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "hmc", "Step Size"))
  {
- try { _hmcStepSize = js["hmc"]["Step Size"].get<size_t>();
+ try { _hmcStepSize = js["hmc"]["Step Size"].get<float>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['hmc']['Step Size']\n%s", e.what()); } 
    eraseValue(js, "hmc", "Step Size");
