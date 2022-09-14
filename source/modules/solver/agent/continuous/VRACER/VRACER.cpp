@@ -285,10 +285,10 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       gradientLoss[1 + i + _problem->_actionVectorSize] += klGradMultiplier * klGrad[i + _problem->_actionVectorSize];
 
       if (std::isfinite(gradientLoss[i + 1]) == false)
-        KORALI_LOG_ERROR("Policy Gradient has an invalid value after KL correction: %f\n", gradientLoss[i + 1]);
+        KORALI_LOG_ERROR("KL correction has an invalid value: %f\n", gradientLoss[i + 1]);
 
       if (std::isfinite(gradientLoss[i + 1 + _problem->_actionVectorSize]) == false)
-        KORALI_LOG_ERROR("Gradient has an invalid value after KL correction: %f\n", gradientLoss[i + 1 + _problem->_actionVectorSize]);
+        KORALI_LOG_ERROR("KL correction has an invalid value: %f\n", gradientLoss[i + 1 + _problem->_actionVectorSize]);
     }
 
     // Add noise to mimic Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
