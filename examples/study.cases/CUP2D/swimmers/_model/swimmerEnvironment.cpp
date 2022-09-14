@@ -518,15 +518,15 @@ bool isTerminal(StefanFish *agent, int nAgents, int task)
   }
   else if( nAgents == 4 ){
     // small domain
-    // xMin = 0.1;
-    // xMax = 1.9;
-    // yMin = 0.1;
-    // yMax = 0.9;
-    // large domain
     xMin = 0.1;
-    xMax = 3.9;
+    xMax = 1.9;
     yMin = 0.1;
-    yMax = 1.9;
+    yMax = 0.9;
+    // large domain
+    // xMin = 0.1;
+    // xMax = 3.9;
+    // yMin = 0.1;
+    // yMax = 1.9;
     if( task == 5 )
     {
       xMin = 0.10;
