@@ -168,8 +168,8 @@ for level in range(1, levels+1):
         print(f"Train new solution until t = {tEnd_new}")
 
         # Run the training function and update losses and parameters / optimal state
-        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed)
-        #train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd_new, dt, dt_sgs, step_noise, noise_seed)
+        #train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed)
+        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd_new, dt, dt_sgs, step_noise, noise_seed)
 
         # Store losses
         total_loss = np.concatenate((total_loss, train_loss), axis=0)
@@ -196,6 +196,8 @@ PlotLosses(losses, loss_dim, batch_dim)
 # Plot solutions (plot testing values)
 print("Plotting Testing Solution ..")
 PlotTesting(dns, base, sgs, "FeedforwardNN")
+# Only first 16 time steps
+PlotTesting(dns, base, sgs, "FeedforwardNN_short", False)
 
 # Optional: Plot animated solutions
 print("Plotting animated Testing Solution ..")

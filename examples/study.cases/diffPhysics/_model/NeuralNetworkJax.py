@@ -152,7 +152,7 @@ def get_train_arr(base, sgs, t_dim):
     i = 0
 
     # Find maximum index
-    while abs_max < max_cap:
+    while abs_max < max_cap and i < t_dim:
         abs_max = jnp.max(jnp.absolute(base[i]))
         i += 1
 
@@ -218,16 +218,19 @@ def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_
 
 # Plotting function for SGS, DNS and tested base solution
 # Note: This function is copied from plotting.py and has been slightly adapted
-def PlotTesting(dns, base, sgs, fileName):
+def PlotTesting(dns, base, sgs, fileName, full = True):
     # Prepare plot
     figName = fileName + "_evolution.pdf"
     colors = ['black','royalblue','seagreen']
     fig, axs = plt.subplots(4,4, sharex=True, sharey=True, figsize=(15,15))    
 
     # Get variables
-    tEnd = dns.tend
     dt = dns.dt
     sgs_dt = sgs.dt
+    if full == True:
+        tEnd = dns.tend
+    else:
+        tEnd = sgs_dt * 16
 
     for i in range(16):
         # Prepare index variables
