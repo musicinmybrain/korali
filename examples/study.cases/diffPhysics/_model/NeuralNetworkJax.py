@@ -257,7 +257,7 @@ def PlotTesting(dns, base, sgs, fileName, full = True):
 
     # Save Figure
     fig.savefig(figName)
-    print(f"Plot has been saved under the name: {figName} ...")
+    print(f"Plot has been saved under the name: {figName}")
 
 
 # Plotting function for losses
@@ -436,5 +436,5 @@ def TestingAnimation(dns, base, sgs, fileName):
 
     # Save animation
     anim.save(figName, writer = 'ffmpeg', fps = 10)
-    print(f"Animation has been saved under the name: {figName} ...")
+    print(f"Animation has been saved under the name: {figName}")
 

@@ -1,7 +1,7 @@
 # Tuning parameters
 step_noise = 0.00 # Standard deviation of gaussian noise in steps (use 0 for no noise)
 noise_seed = 42   # Seed for noise in steps (change it to get slightly different results)
-levels     = 2    # Levels of propagation learning (use 1 for default)
+levels     = 1    # Levels of propagation learning (use 1 for default)
 
 
 
@@ -147,9 +147,12 @@ for level in range(1, levels+1):
 
     # Apply corrections / advance in time for nsteps steps
     try:
+        correction_old, _ = get_corrections(opt_state_new, batch_size, base.uu[0])
         for n in range(1,base.nsteps+1):
             correction, _ = get_corrections(opt_state_new, batch_size, base.uu[n])
             base.step(correction = np.array(correction))
+            #base.step(correction = np.array(correction_old))
+            correction_old = correction
 
     except FloatingPointError:
         print("Floating point exception occured", flush=True)
@@ -168,8 +171,8 @@ for level in range(1, levels+1):
         print(f"Train new solution until t = {tEnd_new}")
 
         # Run the training function and update losses and parameters / optimal state
-        #train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed)
-        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd_new, dt, dt_sgs, step_noise, noise_seed)
+        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed)
+        #train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd_new, dt, dt_sgs, step_noise, noise_seed)
 
         # Store losses
         total_loss = np.concatenate((total_loss, train_loss), axis=0)
