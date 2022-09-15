@@ -24,7 +24,7 @@ NU=${NU:-0.000243}
 
 # bBlockAng=1 means we do not compute the pressure forces applied on the fans
 
-OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.0 -nu $NU -poissonTol 1.0e-3 -tend 0 -muteAll 0 -verbose 1 -poissonTolRel 0 -poissonSolver cuda_iterative"
+OPTIONS="-bpdx $BPDX -bpdy $BPDY -levelMax $LEVELS -Rtol $RTOL -Ctol $CTOL -extent $EXTENT -CFL $CFL -tdump 0.0 -nu $NU -poissonTol 1.0e-5 -tend 0 -muteAll 0 -verbose 1 -poissonTolRel 0 -poissonSolver cuda_iterative"
 
 OBJECTS="windmill semiAxisX=$MAAXIS semiAxisY=$MIAXIS xpos=$XPOS ypos=$YPOS1 bForced=1 bFixed=1 xvel=$XVEL tAccel=0 bBlockAng=1
 windmill semiAxisX=$MAAXIS semiAxisY=$MIAXIS xpos=$XPOS ypos=$YPOS2 bForced=1 xvel=$XVEL tAccel=0 bBlockAng=1"

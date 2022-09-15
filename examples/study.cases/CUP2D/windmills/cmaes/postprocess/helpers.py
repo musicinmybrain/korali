@@ -5,12 +5,12 @@ def average_profile(data, start, end):
 
     frequency = 0.5
     period = 1/frequency
-    steps_per_period = 40
+    steps_per_period = int(period/0.05)
     num_periods = int(np.floor((end - start + 1) / steps_per_period))
 
     t = data[:, 0]
 
-    avg_profs = np.zeros((num_periods, 32))
+    avg_profs = np.zeros((num_periods, 16))
 
     for i in range(1, num_periods+1):
         index = start + i * steps_per_period

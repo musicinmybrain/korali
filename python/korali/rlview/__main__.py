@@ -25,7 +25,9 @@ from korali.rlview.utils import get_figure
 ##################### Plotting Reward History
 
 def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservations, showAgents, dir ):
-    
+    # get color
+    color = next(ax._get_lines.prop_cycler)['color']
+
     maxEpisodes = math.inf
 
     returnsHistory = []
@@ -120,21 +122,21 @@ def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservat
         episodes = observationHistory[0]
     if showData:
         for i in range(len(returnsHistory)):
-            ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color="k")
+            ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=color)
     if numResults == 1:
         if showCI > 0.0: # Plot median together with CI
-            ax.plot(episodes, medianReturns[0], '-', linewidth=2.0, zorder=1, label=dir)
+            ax.plot(episodes, medianReturns[0], '-', linewidth=2.0, zorder=1, label=dir, color=color)
             ax.fill_between(episodes, lowerCiReturns[0], upperCiReturns[0][:maxEpisodes], alpha=0.5)
         else: # .. or mean with standard deviation
-            ax.plot(episodes, meanReturns[0], '-', linewidth=2.0, zorder=1, label=dir)
+            ax.plot(episodes, meanReturns[0], '-', linewidth=2.0, zorder=1, label=dir, color=color)
             ax.fill_between(episodes, meanReturns[0]-stdReturns[0], meanReturns[0]+stdReturns[0], alpha=0.2)
     elif showAgents:
         for i in range(numResults):
             if showCI > 0.0:
-                ax.plot(episodes, medianReturns[i], '-', linewidth=2.0, zorder=1, label=dir)
+                ax.plot(episodes, medianReturns[i], '-', linewidth=2.0, zorder=1, label=dir, color=color)
                 ax.fill_between(episodes, lowerCiReturns[i], upperCiReturns[i], alpha=0.5)
             else:
-                ax.plot(episodes, meanReturns[i], '-', linewidth=2.0, zorder=1, label=dir)
+                ax.plot(episodes, meanReturns[i], '-', linewidth=2.0, zorder=1, label=dir, color=color)
                 ax.fill_between(episodes, meanReturns[i]-stdReturns[i], meanReturns[i]+stdReturns[i], alpha=0.5)
     else:
         if showCI > 0.0: # Plot median over runs
@@ -167,7 +169,7 @@ def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservat
             mean = np.array(mean)
             std  = np.array(std)
 
-            ax.plot(episodes, mean, '-', linewidth=2.0, zorder=1, label=dir)
+            ax.plot(episodes, mean, '-', linewidth=2.0, zorder=1, label=dir, color=color)
             ax.fill_between(episodes, mean-std, mean+std, alpha=0.5)
 
 ##################### Results parser

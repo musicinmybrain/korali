@@ -1,10 +1,10 @@
 #!/bin/bash -l
 #
-#SBATCH --time=3:00:00
+#SBATCH --time=12:00:00
 #SBATCH --ntasks=1
 #SBATCH --partition=xfer
 
-command="cp -R"
+command="cp -R "
 echo -e "$SLURM_JOB_NAME started on $(date):\n $command $1 $2\n"
 srun -n $SLURM_NTASKS $command $1 $2
 echo -e "$SLURM_JOB_NAME finished on $(date)\n"
