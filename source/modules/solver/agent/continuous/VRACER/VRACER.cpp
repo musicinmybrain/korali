@@ -291,7 +291,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
         KORALI_LOG_ERROR("KL correction has an invalid value: %f\n", gradientLoss[i + 1 + _problem->_actionVectorSize]);
     }
 
-    // Add noise to mimic Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
+    // Add noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
     if( _langevinDynamicsNoiseLevel > 0.0 )
     for( size_t i = 0; i<2*_problem->_actionVectorSize+1; i++ )
       gradientLoss[i] += std::sqrt(_langevinDynamicsNoiseLevel * _currentLearningRate) * _normalGenerator->getRandomNumber();
