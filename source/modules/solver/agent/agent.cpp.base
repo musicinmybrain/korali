@@ -91,8 +91,8 @@ void __className__::initialize()
 
   //  state time sequence
   _stateTimeSequence.resize(_problem->_agentsPerEnvironment);
-  for (size_t agentId = 0; agentId < _problem->_agentsPerEnvironment; ++agentId)
-    _stateTimeSequence[agentId].set_capacity(_timeSequenceLength);
+  for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
+    _stateTimeSequence[a].set_capacity(_timeSequenceLength);
 
   // hyperparameters from Stochastic Gradient Descent Trajectory
   _hyperparameterVector.set_capacity(_numberOfSamples);
@@ -323,14 +323,14 @@ void __className__::trainingGeneration()
         // Updating the off policy cutoff
         _experienceReplayOffPolicyCurrentCutoff = _experienceReplayOffPolicyCutoffScale / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
 
-        for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
+        for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
         {
           // Updating REFER learning rate and beta parameters
           _currentLearningRate = _learningRate / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
-          if (_experienceReplayOffPolicyRatio[d] > _experienceReplayOffPolicyTarget)
-            _experienceReplayOffPolicyREFERCurrentBeta[d] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[d];
+          if (_experienceReplayOffPolicyRatio[a] > _experienceReplayOffPolicyTarget)
+            _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a];
           else
-            _experienceReplayOffPolicyREFERCurrentBeta[d] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[d] + _currentLearningRate;
+            _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a] + _currentLearningRate;
         }
       }
 
@@ -357,14 +357,14 @@ void __className__::trainingGeneration()
 
   // Updating average cumulative reward statistics
   _trainingAverageReward = std::vector<float>(_problem->_agentsPerEnvironment, 0.0f);
-  for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
+  for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
   {
-    ssize_t startEpisodeId = _trainingRewardHistory[d].size() - _trainingAverageDepth;
-    ssize_t endEpisodeId = _trainingRewardHistory[d].size() - 1;
+    ssize_t startEpisodeId = _trainingRewardHistory[a].size() - _trainingAverageDepth;
+    ssize_t endEpisodeId = _trainingRewardHistory[a].size() - 1;
     if (startEpisodeId < 0) startEpisodeId = 0;
     for (ssize_t e = startEpisodeId; e <= endEpisodeId; e++)
-      _trainingAverageReward[d] += _trainingRewardHistory[d][e];
-    _trainingAverageReward[d] /= (float)(endEpisodeId - startEpisodeId + 1);
+      _trainingAverageReward[a] += _trainingRewardHistory[a][e];
+    _trainingAverageReward[a] /= (float)(endEpisodeId - startEpisodeId + 1);
   }
 
   // Increasing session's generation count
@@ -469,15 +469,16 @@ void __className__::attendAgent(size_t agentId)
       _trainingLastReward = _agents[agentId]["Training Rewards"].get<std::vector<float>>();
 
       // Keeping training statistics. Updating if exceeded best training policy so far.
-      for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
+      for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
       {
-        if (_trainingLastReward[d] > _trainingBestReward[d])
+        if (_trainingLastReward[a] > _trainingBestReward[a])
         {
-          _trainingBestReward[d] = _trainingLastReward[d];
-          _trainingBestEpisodeId[d] = episodeId;
+          _trainingBestReward[a] = _trainingLastReward[a];
+          _trainingBestEpisodeId[a] = episodeId;
         }
-        _trainingRewardHistory[d].push_back(_trainingLastReward[d]);
+        _trainingRewardHistory[a].push_back(_trainingLastReward[a]);
       }
+
       // Storing bookkeeping information
       _trainingExperienceHistory.push_back(message["Episodes"]["Experiences"].size());
 
@@ -496,8 +497,8 @@ void __className__::attendAgent(size_t agentId)
         {
           _testingBestAverageReward = _testingAverageReward;
           _testingBestEpisodeId = episodeId;
-          for (size_t d = 0; d < _problem->_policiesPerEnvironment; ++d)
-            _testingBestPolicies["Policy Hyperparameters"][d] = _agents[agentId]["Policy Hyperparameters"][d];
+          for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+            _testingBestPolicies["Policy Hyperparameters"][p] = _agents[agentId]["Policy Hyperparameters"][p];
         }
       }
 
@@ -558,22 +559,22 @@ void __className__::processEpisode(knlohmann::json &episode)
     {
       if (_rewardVectorContiguous.size() >= _experienceReplayMaximumSize*_problem->_agentsPerEnvironment)
       {
-        for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
-          _rewardRescalingSumSquaredRewards -= _rewardVectorContiguous[0+d] * _rewardVectorContiguous[0+d];
+        for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
+          _rewardRescalingSumSquaredRewards -= _rewardVectorContiguous[a] * _rewardVectorContiguous[a];
       }
-      for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
+      for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
       {
-        _rewardRescalingSumSquaredRewards += reward[d] * reward[d];
+        _rewardRescalingSumSquaredRewards += reward[a] * reward[a];
       }
     }
 
     // Put reward to replay memory
     for( size_t a = 0; a < _problem->_agentsPerEnvironment; a++ )
-      _rewardVectorContiguous.push_back(reward[0+a]);
+      _rewardVectorContiguous.push_back(reward[a]);
 
     // Keeping statistics
-    for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
-      cumulativeReward[d] += reward[d];
+    for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
+      cumulativeReward[a] += reward[a];
 
     // Checking and adding experience termination status and truncated state to replay memory
     termination_t termination;
@@ -599,9 +600,10 @@ void __className__::processEpisode(knlohmann::json &episode)
     if (isDefined(episode["Experiences"][expId], "Policy", "State Value"))
     {
       stateValue = episode["Experiences"][expId]["Policy"]["State Value"].get<std::vector<float>>();
-      for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
+      for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
       {
-        expPolicy[d].stateValue = stateValue[d];
+        expPolicy[a].stateValue = stateValue[a];
+         _stateValueVectorContiguous.push_back(stateValue[a]);
       }
     }
     else
@@ -609,47 +611,44 @@ void __className__::processEpisode(knlohmann::json &episode)
       KORALI_LOG_ERROR("Policy has not produced state value for the current experience.\n");
     }
 
-    for( size_t a = 0; a < _problem->_agentsPerEnvironment; a++ )
-      _stateValueVectorContiguous.push_back(stateValue[a]);
-
     /* Story policy information for continuous action spaces */
     if (isDefined(episode["Experiences"][expId], "Policy", "Distribution Parameters"))
     {
       const auto distParams = episode["Experiences"][expId]["Policy"]["Distribution Parameters"].get<std::vector<std::vector<float>>>();
-      for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
-        expPolicy[d].distributionParameters = distParams[d];
+      for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
+        expPolicy[a].distributionParameters = distParams[a];
     }
 
     if (isDefined(episode["Experiences"][expId], "Policy", "Unbounded Action"))
     {
       const auto unboundedAc = episode["Experiences"][expId]["Policy"]["Unbounded Action"].get<std::vector<std::vector<float>>>();
-      for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
-        expPolicy[d].unboundedAction = unboundedAc[d];
+      for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
+        expPolicy[a].unboundedAction = unboundedAc[a];
     }
 
     /* Story policy information for discrete action spaces */
     if (isDefined(episode["Experiences"][expId], "Policy", "Action Index"))
     {
       const auto actIdx = episode["Experiences"][expId]["Policy"]["Action Index"].get<std::vector<size_t>>();
-      for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
-        expPolicy[d].actionIndex = actIdx[d];
+      for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
+        expPolicy[a].actionIndex = actIdx[a];
     }
 
     if (isDefined(episode["Experiences"][expId], "Policy", "Action Probabilities"))
     {
       const auto actProb = episode["Experiences"][expId]["Policy"]["Action Probabilities"].get<std::vector<std::vector<float>>>();
-      for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
-        expPolicy[d].actionProbabilities = actProb[d];
+      for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
+        expPolicy[a].actionProbabilities = actProb[a];
     }
 
     if (isDefined(episode["Experiences"][expId], "Policy", "Available Actions"))
     {
       const auto availAct = episode["Experiences"][expId]["Policy"]["Available Actions"].get<std::vector<std::vector<size_t>>>();
-      for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
+      for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
       {
-        expPolicy[d].availableActions = availAct[d];
-        if (std::accumulate(expPolicy[d].availableActions.begin(), expPolicy[d].availableActions.end(), 0) == 0)
-          KORALI_LOG_ERROR("State with experience id %zu for agent %zu detected with no available actions.", expId, d);
+        expPolicy[a].availableActions = availAct[a];
+        if (std::accumulate(expPolicy[a].availableActions.begin(), expPolicy[a].availableActions.end(), 0) == 0)
+          KORALI_LOG_ERROR("State with experience id %zu for agent %zu detected with no available actions.", expId, a);
       }
     }
 
@@ -676,18 +675,15 @@ void __className__::processEpisode(knlohmann::json &episode)
         count = std::count(onPolicyVector.begin(), onPolicyVector.end(), false);
 
       // Update offPolicyCount
-      for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
-        if ((onPolicyVector[d] == false) || (_problem->_policiesPerEnvironment == 1))
+      for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
+        if ((onPolicyVector[a] == false) || (_problem->_policiesPerEnvironment == 1))
         {
           // Safety check for overflow
-          if (_experienceReplayOffPolicyCount[d] < count)
-          {
-            KORALI_LOG_ERROR("Agent %ld: _experienceReplayOffPolicyCount=%ld smaller than decrement %ld.\n", d, _experienceReplayOffPolicyCount[d], count);
-            // count = _experienceReplayOffPolicyCount[d];
-          }
+          if (_experienceReplayOffPolicyCount[a] < count)
+            KORALI_LOG_ERROR("Agent %ld: _experienceReplayOffPolicyCount=%ld smaller than decrement %ld.\n", a, _experienceReplayOffPolicyCount[a], count);
 
           // Update off-policy count
-          _experienceReplayOffPolicyCount[d] -= count;
+          _experienceReplayOffPolicyCount[a] -= count;
         }
     }
 
@@ -717,21 +713,21 @@ void __className__::processEpisode(knlohmann::json &episode)
   // If it was a truncated episode, add the value function for the terminal state to retV
   if (_terminationVector[endId] == e_truncated)
   {
-    for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
+    for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
     {
       // Get truncated state
-      auto expTruncatedStateSequence = getTruncatedStateSequence(endId, d);
+      auto expTruncatedStateSequence = getTruncatedStateSequence(endId, a);
 
       // Forward tuncated state. Take policy d if there is multiple policies, otherwise policy 0
       std::vector<policy_t> truncatedPolicy;
       if (_problem->_policiesPerEnvironment == 1)
-        retV[d] = calculateStateValue(expTruncatedStateSequence);
+        retV[a] = calculateStateValue(expTruncatedStateSequence);
       else
-        retV[d] = calculateStateValue(expTruncatedStateSequence, d);
+        retV[a] = calculateStateValue(expTruncatedStateSequence, a);
 
       // Get value of trucated state
-      if (std::isfinite(retV[d]) == false)
-        KORALI_LOG_ERROR("Calculated state value for truncated state returned an invalid value: %f\n", retV[d]);
+      if (std::isfinite(retV[a]) == false)
+        KORALI_LOG_ERROR("Calculated state value for truncated state returned an invalid value: %f\n", retV[a]);
     }
 
     // For cooporative multi-agent model truncated state-values are averaged
@@ -749,11 +745,11 @@ void __className__::processEpisode(knlohmann::json &episode)
   // Now going backwards, setting the retrace value of every experience
   for (ssize_t expId = endId; expId >= startId; expId--)
   {
-    for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
+    for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
     {
       // Calculating retrace value. Importance weight is 1.0f because the policy is current.
-      retV[d] = getScaledReward(_rewardVectorContiguous[expId+d]) + _discountFactor * retV[d];
-      _retraceValueVectorContiguous[expId+d] = retV[d];
+      retV[a] = getScaledReward(_rewardVectorContiguous[expId+a]) + _discountFactor * retV[a];
+      _retraceValueVectorContiguous[expId+a] = retV[a];
     }
   }
 
@@ -983,13 +979,13 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
 
       // Compute product of importance weights
       float logProdImportanceWeight = 0.0f;
-      for (size_t d = 0; d < numAgents; d++)
+      for (size_t a = 0; a < numAgents; a++)
       {
         // Numerical safety [ ln(10)=2.30258509299 ]
-        if (importanceWeight[d] == 0)
+        if (importanceWeight[a] == 0)
           logProdImportanceWeight += 2.30258509299 * std::numeric_limits<float>::min_exponent10;
         else
-          logProdImportanceWeight += std::log(importanceWeight[d]);
+          logProdImportanceWeight += std::log(importanceWeight[a]);
       }
 
       // Compute cut-off in log-space
@@ -1008,15 +1004,15 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
       const float truncatedProdImportanceWeight = std::min(_importanceWeightTruncationLevel, _productImportanceWeightVector[expId]);
 
       // Record change of on-policyness / truncated importance weight
-      for (size_t d = 0; d < numAgents; d++)
+      for (size_t a = 0; a < numAgents; a++)
       {
-        _truncatedImportanceWeightVectorContiguous[expId + d] = truncatedProdImportanceWeight;
+        _truncatedImportanceWeightVectorContiguous[expId + a] = truncatedProdImportanceWeight;
 
-        if (isOnPolicy[d] == true && onPolicy == false)
-          offPolicyCountDelta[d]++;
+        if (isOnPolicy[a] == true && onPolicy == false)
+          offPolicyCountDelta[a]++;
 
-        if (isOnPolicy[d] == false && onPolicy == true)
-          offPolicyCountDelta[d]--;
+        if (isOnPolicy[a] == false && onPolicy == true)
+          offPolicyCountDelta[a]--;
       }
 
       // Overwrite onPolicyVector
@@ -1035,12 +1031,13 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
 
       // Average state-value
       float averageStateValue = 0.0f;
-      for (size_t d = 0; d < numAgents; d++)
-        averageStateValue += _stateValueVectorContiguous[expId + d];
+      for (size_t a = 0; a < numAgents; a++)
+        averageStateValue += _stateValueVectorContiguous[expId + a];
       averageStateValue /= numAgents;
 
       // Overwrite state value with average
-      std::fill(_stateValueVectorContiguous.begin()+expId, _stateValueVectorContiguous.begin()+expId+numAgents, averageStateValue);
+      for( size_t a = 0; a<numAgents; a++ )
+        _stateValueVectorContiguous[expId+a] = averageStateValue;
 
       // Same for truncated state-value
       if (_terminationVector[expId] == e_truncated)
@@ -1068,22 +1065,19 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
   }
 
   // Updating the off policy count and ratio
-  for (size_t d = 0; d < numAgents; d++)
+  for (size_t a = 0; a < numAgents; a++)
   {
     // Safety check for overflow
-    if ((int)_experienceReplayOffPolicyCount[d] < -offPolicyCountDelta[d])
-    {
-      KORALI_LOG_ERROR("Agent %ld: offPolicyCountDelta=%d bigger than _experienceReplayOffPolicyCount=%ld.\n", d, offPolicyCountDelta[d], _experienceReplayOffPolicyCount[d]);
-      // offPolicyCountDelta[d] = -(int)_experienceReplayOffPolicyCount[d];
-    }
+    if ((int)_experienceReplayOffPolicyCount[a] + offPolicyCountDelta[a] < 0)
+      KORALI_LOG_ERROR("Agent %ld: offPolicyCountDelta=%d bigger than _experienceReplayOffPolicyCount=%ld.\n", a, offPolicyCountDelta[a], _experienceReplayOffPolicyCount[a]);
 
     // Update off policy count
-    _experienceReplayOffPolicyCount[d] += offPolicyCountDelta[d];
-    _experienceReplayOffPolicyRatio[d] = (float)_experienceReplayOffPolicyCount[d] / (float)_isOnPolicyVector.size();
+    _experienceReplayOffPolicyCount[a] += offPolicyCountDelta[a];
+    _experienceReplayOffPolicyRatio[a] = (float)_experienceReplayOffPolicyCount[a] / (float)_isOnPolicyVector.size();
 
     // Normalize off policy Ratio
     if (_problem->_policiesPerEnvironment == 1)
-      _experienceReplayOffPolicyRatio[d] /= (float)numAgents;
+      _experienceReplayOffPolicyRatio[a] /= (float)numAgents;
   }
 
   /* Update Retrace value */
@@ -1103,7 +1097,6 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
     size_t nextEpisode = _episodeIdVector[nextExpId];
     if (curEpisode != nextEpisode) retraceMiniBatch.push_back(currExpId);
   }
-
 
 // Calculating retrace value for the oldest experiences of unique episodes
 #pragma omp parallel for schedule(guided, 1)
@@ -1130,22 +1123,22 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
 
     // Now iterating backwards and compute retrace value
     for (ssize_t curId = endId; curId >= startId; curId--)
-    for (size_t d = 0; d < numAgents; d++)
+    for (size_t a = 0; a < numAgents; a++)
     {
       // Getting current reward, action, and state
-      const float curReward = getScaledReward(_rewardVectorContiguous[curId+d]);
+      const float curReward = getScaledReward(_rewardVectorContiguous[curId+a]);
 
       // Getting state value
-      const float stateValue = _stateValueVectorContiguous[curId+d];
+      const float stateValue = _stateValueVectorContiguous[curId+a];
 
       // Getting truncated importance weight
-      const float truncatedImportanceWeight = _truncatedImportanceWeightVectorContiguous[curId + d];
+      const float truncatedImportanceWeight = _truncatedImportanceWeightVectorContiguous[curId + a];
 
       // Apply recursion
-      retV[d] = stateValue + truncatedImportanceWeight * (curReward + _discountFactor * retV[d] - stateValue);
+      retV[a] = stateValue + truncatedImportanceWeight * (curReward + _discountFactor * retV[a] - stateValue);
 
       // Store retrace value
-      _retraceValueVectorContiguous[curId + d] = retV[d];
+      _retraceValueVectorContiguous[curId + a] = retV[a];
     }
   }
 }
@@ -1521,21 +1514,21 @@ void __className__::deserializeExperienceReplay()
 
     std::vector<policy_t> expPolicy(_problem->_agentsPerEnvironment);
     std::vector<policy_t> curPolicy(_problem->_agentsPerEnvironment);
-    for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
+    for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
     {
-      expPolicy[d].stateValue = stateJson["Experience Replay"][i]["Experience Policy"]["State Value"][d].get<float>();
-      expPolicy[d].distributionParameters = stateJson["Experience Replay"][i]["Experience Policy"]["Distribution Parameters"][d].get<std::vector<float>>();
-      expPolicy[d].unboundedAction = stateJson["Experience Replay"][i]["Experience Policy"]["Unbounded Action"][d].get<std::vector<float>>();
-      expPolicy[d].actionIndex = stateJson["Experience Replay"][i]["Experience Policy"]["Action Index"][d].get<size_t>();
-      expPolicy[d].actionProbabilities = stateJson["Experience Replay"][i]["Experience Policy"]["Action Probabilities"][d].get<std::vector<float>>();
-      expPolicy[d].availableActions = stateJson["Experience Replay"][i]["Experience Policy"]["Available Actions"][d].get<std::vector<size_t>>();
+      expPolicy[a].stateValue = stateJson["Experience Replay"][i]["Experience Policy"]["State Value"][a].get<float>();
+      expPolicy[a].distributionParameters = stateJson["Experience Replay"][i]["Experience Policy"]["Distribution Parameters"][a].get<std::vector<float>>();
+      expPolicy[a].unboundedAction = stateJson["Experience Replay"][i]["Experience Policy"]["Unbounded Action"][a].get<std::vector<float>>();
+      expPolicy[a].actionIndex = stateJson["Experience Replay"][i]["Experience Policy"]["Action Index"][a].get<size_t>();
+      expPolicy[a].actionProbabilities = stateJson["Experience Replay"][i]["Experience Policy"]["Action Probabilities"][a].get<std::vector<float>>();
+      expPolicy[a].availableActions = stateJson["Experience Replay"][i]["Experience Policy"]["Available Actions"][a].get<std::vector<size_t>>();
 
-      curPolicy[d].stateValue = stateJson["Experience Replay"][i]["Current Policy"]["State Value"][d].get<float>();
-      curPolicy[d].distributionParameters = stateJson["Experience Replay"][i]["Current Policy"]["Distribution Parameters"][d].get<std::vector<float>>();
-      curPolicy[d].actionIndex = stateJson["Experience Replay"][i]["Current Policy"]["Action Index"][d].get<size_t>();
-      curPolicy[d].unboundedAction = stateJson["Experience Replay"][i]["Current Policy"]["Unbounded Action"][d].get<std::vector<float>>();
-      curPolicy[d].actionProbabilities = stateJson["Experience Replay"][i]["Current Policy"]["Action Probabilities"][d].get<std::vector<float>>();
-      curPolicy[d].availableActions = stateJson["Experience Replay"][i]["Current Policy"]["Available Actions"][d].get<std::vector<size_t>>();
+      curPolicy[a].stateValue = stateJson["Experience Replay"][i]["Current Policy"]["State Value"][a].get<float>();
+      curPolicy[a].distributionParameters = stateJson["Experience Replay"][i]["Current Policy"]["Distribution Parameters"][a].get<std::vector<float>>();
+      curPolicy[a].actionIndex = stateJson["Experience Replay"][i]["Current Policy"]["Action Index"][a].get<size_t>();
+      curPolicy[a].unboundedAction = stateJson["Experience Replay"][i]["Current Policy"]["Unbounded Action"][a].get<std::vector<float>>();
+      curPolicy[a].actionProbabilities = stateJson["Experience Replay"][i]["Current Policy"]["Action Probabilities"][a].get<std::vector<float>>();
+      curPolicy[a].availableActions = stateJson["Experience Replay"][i]["Current Policy"]["Available Actions"][a].get<std::vector<size_t>>();
     }
     _expPolicyVector.push_back(expPolicy);
     _curPolicyVector.push_back(curPolicy);
@@ -1572,15 +1565,15 @@ void __className__::printGenerationAfter()
       _k->_logger->logInfo("Normal",   " + HMC Acceptance Rate:         %f\n", (float)_numberOfAcceptedCandidates/(float)_numberOfCandidates);
 
     size_t numPolicies = _problem->_policiesPerEnvironment;
-    for (size_t d = 0; d < _problem->_agentsPerEnvironment; d++)
+    for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
     {
-      _k->_logger->logInfo("Normal", "Off-Policy Statistics for policy %lu: \n", d);
-      _k->_logger->logInfo("Normal", " + Count (Ratio/Target):        %lu/%lu (%.3f/%.3f)\n", numPolicies > 1 ? _experienceReplayOffPolicyCount[d] : _experienceReplayOffPolicyCount[d] / _problem->_agentsPerEnvironment, _stateVector.size(), _experienceReplayOffPolicyRatio[d], _experienceReplayOffPolicyTarget);
+      _k->_logger->logInfo("Normal", "Off-Policy Statistics for policy %lu: \n", a);
+      _k->_logger->logInfo("Normal", " + Count (Ratio/Target):        %lu/%lu (%.3f/%.3f)\n", numPolicies > 1 ? _experienceReplayOffPolicyCount[a] : _experienceReplayOffPolicyCount[a] / _problem->_agentsPerEnvironment, _stateVector.size(), _experienceReplayOffPolicyRatio[a], _experienceReplayOffPolicyTarget);
       _k->_logger->logInfo("Normal", " + Importance Weight Cutoff:    [%.3f, %.3f]\n", 1.0f / _experienceReplayOffPolicyCurrentCutoff, _experienceReplayOffPolicyCurrentCutoff);
-      _k->_logger->logInfo("Normal", " + REFER Beta Factor:           %f\n", _experienceReplayOffPolicyREFERCurrentBeta[d]);
-      _k->_logger->logInfo("Normal", " + Latest Reward for agent %lu:               %f\n", d, _trainingLastReward[d]);
-      _k->_logger->logInfo("Normal", " + %lu-Episode Average Reward for agent %lu:  %f\n", _trainingAverageDepth, d, _trainingAverageReward[d]);
-      _k->_logger->logInfo("Normal", " + Best Reward for agent %lu:                 %f (%lu)\n", d, _trainingBestReward[d], _trainingBestEpisodeId[d]);
+      _k->_logger->logInfo("Normal", " + REFER Beta Factor:           %f\n", _experienceReplayOffPolicyREFERCurrentBeta[a]);
+      _k->_logger->logInfo("Normal", " + Latest Reward for agent %lu:               %f\n", a, _trainingLastReward[a]);
+      _k->_logger->logInfo("Normal", " + %lu-Episode Average Reward for agent %lu:  %f\n", _trainingAverageDepth, a, _trainingAverageReward[a]);
+      _k->_logger->logInfo("Normal", " + Best Reward for agent %lu:                 %f (%lu)\n", a, _trainingBestReward[a], _trainingBestEpisodeId[a]);
     }
 
     if (_rewardRescalingEnabled)

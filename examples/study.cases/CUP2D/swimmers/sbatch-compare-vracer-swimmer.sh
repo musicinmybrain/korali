@@ -9,10 +9,10 @@ RUNNAME=$1
 TASK=$2
 
 # path to previous run
-RESULTSPATH=/scratch/snx3000/pweber/korali/16swimmers_transfer
+RESULTSPATH=/scratch/snx3000/pweber/korali/4swimmer
 
 # number of agents
-NAGENTS=16
+NAGENTS=20
 
 # number of workers
 NWORKER=64

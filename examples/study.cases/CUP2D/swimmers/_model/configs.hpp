@@ -8,13 +8,13 @@
 /**** Training options ****/
 
 // 2x1 DOMAIN
-// std::string OPTIONS = "-bpdx 4 -bpdy 2 -levelMax 7 -levelStart 4 -Rtol 2 -Ctol 1 -extent 2 -CFL 0.4 -poissonSolver cuda_iterative -poissonTol 1e-5 -poissonTolRel 0  -bMeanConstraint 1 -bAdaptChiGradient 0 -tdump 0 -nu 0.00004 -tend 0 -muteAll 0 -verbose 1";
+std::string OPTIONS = "-bpdx 4 -bpdy 2 -levelMax 7 -levelStart 4 -Rtol 2 -Ctol 1 -extent 2 -CFL 0.4 -poissonSolver cuda_iterative -poissonTol 1e-5 -poissonTolRel 0  -bMeanConstraint 1 -bAdaptChiGradient 0 -tdump 0 -nu 0.00004 -tend 0 -muteAll 0 -verbose 1";
 
 // 2x2 DOMAIN
 // std::string OPTIONS = "-bpdx 4 -bpdy 4 -levelMax 7 -levelStart 4 -Rtol 1 -Ctol 0.01 -extent 2 -CFL 0.4 -poissonSolver cuda_iterative -poissonTol 1e-5 -poissonTolRel 0  -bMeanConstraint 1 -bAdaptChiGradient 0 -tdump 0 -nu 0.00004 -tend 0 -muteAll 0 -verbose 1";
 
 // 4x2 DOMAIN
-std::string OPTIONS = "-bpdx 4 -bpdy 2 -levelMax 7 -levelStart 4 -Rtol 2 -Ctol 1 -extent 4 -CFL 0.4 -poissonSolver cuda_iterative -poissonTol 1e-5 -poissonTolRel 0  -bMeanConstraint 1 -bAdaptChiGradient 0 -tdump 0 -nu 0.00004 -tend 0 -muteAll 0 -verbose 1";
+// std::string OPTIONS = "-bpdx 4 -bpdy 2 -levelMax 7 -levelStart 4 -Rtol 2 -Ctol 1 -extent 4 -CFL 0.4 -poissonSolver cuda_iterative -poissonTol 1e-5 -poissonTolRel 0  -bMeanConstraint 1 -bAdaptChiGradient 0 -tdump 0 -nu 0.00004 -tend 0 -muteAll 0 -verbose 1";
 
 // 4x4 DOMAIN
 // std::string OPTIONS = "-bpdx 4 -bpdy 4 -levelMax 7 -levelStart 4 -Rtol 2 -Ctol 1 -extent 4 -CFL 0.4 -poissonSolver cuda_iterative -poissonTol 1e-5 -poissonTolRel 0  -bMeanConstraint 1 -bAdaptChiGradient 0 -tdump 0 -nu 0.00004 -tend 0 -muteAll 0 -verbose 1";
@@ -90,24 +90,24 @@ std::string OPTIONS_testing = "-bpdx 4 -bpdy 2 -levelMax 7 -levelStart 4 -Rtol 2
 // }};
 
 // 16 SWIMMERS
-std::vector<std::vector<double>> initialPositions{{
-	{0.60, 1.00},
-	{0.90, 0.90},
-	{0.90, 1.10},
-	{1.20, 0.80},
-	{1.20, 1.00},
-	{1.20, 1.20},
-	{1.50, 0.70},
-	{1.50, 0.90},
-	{1.50, 1.10},
-	{1.50, 1.30},
-	{1.80, 0.80},
-	{1.80, 1.00},
-	{1.80, 1.20},
-	{2.10, 0.90},
-	{2.10, 1.10},
-	{2.40, 1.00}
-}};
+// std::vector<std::vector<double>> initialPositions{{
+// 	{0.60, 1.00},
+// 	{0.90, 0.90},
+// 	{0.90, 1.10},
+// 	{1.20, 0.80},
+// 	{1.20, 1.00},
+// 	{1.20, 1.20},
+// 	{1.50, 0.70},
+// 	{1.50, 0.90},
+// 	{1.50, 1.10},
+// 	{1.50, 1.30},
+// 	{1.80, 0.80},
+// 	{1.80, 1.00},
+// 	{1.80, 1.20},
+// 	{2.10, 0.90},
+// 	{2.10, 1.10},
+// 	{2.40, 1.00}
+// }};
 
 // 25 SWIMMERS
 // std::vector<std::vector<double>> initialPositions{{
@@ -139,12 +139,12 @@ std::vector<std::vector<double>> initialPositions{{
 // }};
 
 // COLUMN WITH 4 FISH
-// std::vector<std::vector<double>> initialPositions{{
-// 	{0.60, 0.50},
-// 	{0.90, 0.50},
-// 	{1.20, 0.50},
-// 	{1.50, 0.50}
-// }};
+std::vector<std::vector<double>> initialPositions{{
+	{0.60, 0.50},
+	{0.90, 0.50},
+	{1.20, 0.50},
+	{1.50, 0.50}
+}};
 
 // 5 COLUMNS WITH 4 FISH = 20 FISH
 // std::vector<std::vector<double>> initialPositions{{
