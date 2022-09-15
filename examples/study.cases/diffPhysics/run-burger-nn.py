@@ -99,9 +99,6 @@ from NeuralNetworkJax import *
 #------------------------------------------------------------------------------
 # Initialization
 
-# Initialize an array for all losses
-total_loss = []
-
 # Generate key which is used to generate random numbers
 key = random.PRNGKey(1)
 
@@ -147,12 +144,10 @@ for level in range(1, levels+1):
 
     # Apply corrections / advance in time for nsteps steps
     try:
-        correction_old, _ = get_corrections(opt_state_new, batch_size, base.uu[0])
         for n in range(1,base.nsteps+1):
-            correction, _ = get_corrections(opt_state_new, batch_size, base.uu[n])
+            correction, _ = get_corrections(opt_state_new, batch_size, base.uu[n-1])
             base.step(correction = np.array(correction))
-            #base.step(correction = np.array(correction_old))
-            correction_old = correction
+            #print(correction)
 
     except FloatingPointError:
         print("Floating point exception occured", flush=True)
