@@ -13,6 +13,7 @@ parser.add_argument('--dis', help='Sampling Distribution.', required=True)
 parser.add_argument('--l2', help='L2 Regularization.', required=False, type=float, default = 0.)
 parser.add_argument('--opt', help='Off Policy Target.', required=False, type=float, default = 0.1)
 parser.add_argument('--lr', help='Learning Rate.', required=False, type=float, default = 0.0001)
+parser.add_argument('--run', help='Number of Run.', required=False, type=int, default = 0)
 args = parser.parse_args()
 print(args)
 
@@ -24,9 +25,7 @@ e = korali.Experiment()
 
 ### Defining results folder and loading previous results, if any
 
-dis_dir = args.dis.replace(" ","_")
-resultFolder = '_result_vracer_' + args.env + '_' + dis_dir + '_' + str(args.lr) + '_' + str(args.opt) + '_' + str(args.l2) + '/'
-e.loadState(resultFolder + '/latest');
+resultFolder = "./run{}/".format(args.run)
 
 ### Initializing openAI Gym environment
 
