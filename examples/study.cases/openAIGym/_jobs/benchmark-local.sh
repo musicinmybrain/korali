@@ -1,0 +1,1 @@
+for i in {1..10}; do OMP_NUM_THREADS=12 python run-vracer.py --env Swimmer-v4 --dis "Clipped Normal"; mv _result_vracer_Swimmer-v4_Clipped_Normal_0.0001_0.1_0.0/ ~/BRANCH_$i; done
