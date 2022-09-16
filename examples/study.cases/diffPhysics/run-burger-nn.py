@@ -154,7 +154,6 @@ for level in range(1, levels+1):
         #base.nout = base.ioutnum
         #base.vv.resize((base.nout+1,base.N)) # nout+1 because the IC is in [0]
         #base.tt.resize(base.nout+1)          # nout+1 because the IC is in [0]
-        #tEnd_new = base.ioutnum * dt_sgs
 
     # Train on corrections if not already in the final level
     if level < levels:
@@ -164,8 +163,8 @@ for level in range(1, levels+1):
         print(f"Train new solution until t = {tEnd_new}")
 
         # Run the training function and update losses and parameters / optimal state
-        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed+level)
-        #train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd_new, dt, dt_sgs, step_noise, noise_seed+level)
+        #train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed+level)
+        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd_new, dt, dt_sgs, step_noise, noise_seed+level)
 
         # Store losses
         total_loss = np.concatenate((total_loss, train_loss), axis=0)

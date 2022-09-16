@@ -382,8 +382,13 @@ class Burger_jax:
             self.tt[self.ioutnum]   = self.t
 
         if correction:
+            ## Alternative:
+            #_, predicted = get_corrections(opt_state, self.N, self.u)
+            #self.u = np.array(predicted)
+
             # get correction
             corrected, _ = get_corrections(opt_state, self.N, self.u)
+            #print(corrected)
 
             # apply correction to solution
             self.u = u + np.array(corrected)

@@ -104,9 +104,9 @@ def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tE
         for i in range(batch_dim):
             # Get time
             t = i * tEnd/batch_dim
-            # Define indices for sgs and dns
-            dns_idx = int(t/dt_dns)
-            sgs_idx = int(t/dt_sgs)
+            # Define indices for sgs and dns (they use different time step sizes)
+            dns_idx = int(t/dt_dns) # between 0 and 5000 (with standard settings)
+            sgs_idx = int(t/dt_sgs) # between 0 and 312  (with standard settings)
             # Prepare variables
             dns_arr = dns[dns_idx]
             sgs_arr = sgs[sgs_idx]
@@ -137,9 +137,10 @@ def get_corrections(opt_state, batch_size, sgs):
 
     # Getting corrections
     predict = batch_forward(params, x)
-    correction = predict[-1] - sgs
+    # Note: predict is stored as a (1 x ...) 2D array
+    correction = predict[1] - sgs
 
-    return correction, predict
+    return correction, predict[1]
 
 
 # Function to create a training array when base solution explodes
