@@ -145,9 +145,7 @@ for level in range(1, levels+1):
     # Apply corrections / advance in time for nsteps steps
     try:
         for n in range(1,base.nsteps+1):
-            correction, _ = get_corrections(opt_state_new, batch_size, base.uu[n-1])
-            base.step(correction = np.array(correction))
-            #print(correction)
+            base.step(correction = True, opt_state = opt_state_new)
 
     except FloatingPointError:
         print("Floating point exception occured", flush=True)
@@ -166,8 +164,8 @@ for level in range(1, levels+1):
         print(f"Train new solution until t = {tEnd_new}")
 
         # Run the training function and update losses and parameters / optimal state
-        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed)
-        #train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd_new, dt, dt_sgs, step_noise, noise_seed)
+        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed+level)
+        #train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd_new, dt, dt_sgs, step_noise, noise_seed+level)
 
         # Store losses
         total_loss = np.concatenate((total_loss, train_loss), axis=0)

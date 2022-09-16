@@ -9,6 +9,8 @@ import os
 import jax.numpy as jnp
 from jax import grad, jit, vmap, jacfwd, jacrev, random
 
+from NeuralNetworkJax import *
+
 os.environ["XLA_FLAGS"] = ("--xla_cpu_multi_thread_eigen=false intra_op_parallelism_threads=1")
 
 np.seterr(over='raise', invalid='raise')
@@ -338,7 +340,7 @@ class Burger_jax:
     def grad(self, actions, u, v):
         return jexpl_RK3_grad(actions, u, v, self.dt, self.dx, self.nu, self.basis, self.k1, self.k2)[0]
  
-    def step( self, actions=None, nIntermed=1, correction=None ):
+    def step( self, actions=None, nIntermed=1, correction=False, opt_state = 0 ):
 
         Fforcing = np.zeros(self.N)
         self.gradient = np.zeros((self.N, self.M))
@@ -379,9 +381,12 @@ class Burger_jax:
             self.vv[self.ioutnum,:] = self.v
             self.tt[self.ioutnum]   = self.t
 
-        if (correction is not None):
+        if correction:
+            # get correction
+            corrected, _ = get_corrections(opt_state, self.N, self.u)
+
             # apply correction to solution
-            self.u = u + correction
+            self.u = u + np.array(corrected)
             self.v = fft(self.u)
 
             # store solution in time-series
