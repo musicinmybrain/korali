@@ -381,6 +381,9 @@ class Burger_jax:
             self.vv[self.ioutnum,:] = self.v
             self.tt[self.ioutnum]   = self.t
 
+        # Initialize dummy value to be returned
+        corrected = 0
+
         if correction:
             ## Alternative:
             #_, predicted = get_corrections(opt_state, self.N, self.u)
@@ -397,6 +400,8 @@ class Burger_jax:
             # store solution in time-series
             self.uu[self.ioutnum,:] = self.u
             self.vv[self.ioutnum,:] = self.v
+
+        return corrected
 
     def simulate(self, nsteps=None, restart=False, correction=[]):
         # If not provided explicitly, get internal values

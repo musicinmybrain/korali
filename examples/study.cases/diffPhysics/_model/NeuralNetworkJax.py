@@ -261,6 +261,49 @@ def PlotTesting(dns, base, sgs, fileName, full = True):
     print(f"Plot has been saved under the name: {figName}")
 
 
+# Plotting function for base solution (before / after correction) and corretion terms
+def PlotCorrections(base, corrections, x_arr, tEnd, dt, fileName, full = True):
+    # Prepare plot
+    figName = fileName + "_corrections.pdf"
+    colors = ['black','royalblue','seagreen']
+    fig, axs = plt.subplots(4,4, sharex=True, sharey=True, figsize=(15,15))    
+
+    # Prepare variables
+    initial_correction = np.zeros((1, 32))
+    corrections = np.concatenate((initial_correction, corrections))
+    base_before = base - corrections
+    if full == True:
+        tEnd = tEnd
+    else:
+        tEnd = dt * 16
+
+    for i in range(16):
+        # Prepare index variables
+        t = i * tEnd / 16
+        tidx = int(t/dt)
+        k = int(i / 4)
+        l = i % 4
+        
+        # Plot figures 
+        axs[k,l].plot(x_arr, corrections[tidx,:], '-',  color=colors[1], label='Corrections')
+        axs[k,l].plot(x_arr, base_before[tidx,:], '-',  color=colors[0], label='Base (before correction)')
+        axs[k,l].plot(x_arr, base[tidx,:],        '--', color=colors[2], label='Base (after correction)')
+
+        # Add labels
+        axs[k,l].set_xlabel('x')
+        axs[k,l].set_ylabel('u(x)')
+
+    # Add legend to first plot
+    axs[0,0].legend() 
+
+    # Fix y range
+    plt.ylim([-1.3, 1.3])
+
+    # Save Figure
+    fig.savefig(figName)
+    print(f"Plot has been saved under the name: {figName}")
+
+
 # Plotting function for losses
 def PlotLosses(losses, epochs, batch_dim):
     # Prepare plot

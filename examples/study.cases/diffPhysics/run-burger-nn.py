@@ -134,6 +134,9 @@ else:
 # Store losses
 total_loss = train_loss
 
+# Initialize array for corrections
+corrections = []
+
 #------------------------------------------------------------------------------
 # Run one or more testings (and learn testing if levels > 1)
 for level in range(1, levels+1):
@@ -145,7 +148,13 @@ for level in range(1, levels+1):
     # Apply corrections / advance in time for nsteps steps
     try:
         for n in range(1,base.nsteps+1):
-            base.step(correction = True, opt_state = opt_state_new)
+            # Save corrections for a plot if on final level
+            if level == levels:
+                corrected = base.step(correction = True, opt_state = opt_state_new)
+                corrections.append(corrected)
+            # Proceed as normal if not on final level
+            else:
+                base.step(correction = True, opt_state = opt_state_new)
 
     except FloatingPointError:
         print("Floating point exception occured", flush=True)
@@ -198,5 +207,9 @@ PlotTesting(dns, base, sgs, "FeedforwardNN_short", False)
 print("Plotting animated Testing Solution ..")
 TestingAnimation(dns, base, sgs, "FeedforwardNN_Animation")
 
-
+# Optional: Plot corrections
+print("Plotting corrections ..")
+PlotCorrections(base.uu, corrections, sgs.x, tEnd, dt_sgs, "FeedforwardNN")
+# Only first 16 time steps
+PlotCorrections(base.uu, corrections, sgs.x, tEnd, dt_sgs, "FeedforwardNN_short", full = False)
 
