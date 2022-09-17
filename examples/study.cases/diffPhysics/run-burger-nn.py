@@ -1,8 +1,8 @@
 # Tuning parameters
-step_noise = 0.00 # Standard deviation of gaussian noise in steps (use 0 for no noise)
-noise_seed = 42   # Seed for noise in steps (change it to get slightly different results)
-levels     = 1    # Levels of propagation learning (use 1 for default)
-
+step_noise   = 0.01 # Standard deviation of gaussian noise in steps (use 0 for no noise)
+noise_seed   = 42   # Seed for noise in steps (change it to get slightly different results)
+levels       = 1    # Levels of propagation learning (use 1 for default)
+random_train = True # Chooses the time t at the training randomly or uniformly distributed
 
 
 
@@ -126,10 +126,10 @@ opt_state = opt_init(params)
 # Run the training function and get losses and optimal parameters / states
 # Note: This is only fully done if there is one level only
 if levels == 1:
-    train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs, step_noise, noise_seed)
+    train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs, step_noise, noise_seed, random_train)
 
 else:
-    train_loss, params_new, opt_state_new = run_training_loop(pre_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs, step_noise, noise_seed)
+    train_loss, params_new, opt_state_new = run_training_loop(pre_epochs, opt_state, batch_dim, batch_size, dns_short_sol, sgs_sol, tEnd, dt, dt_sgs, step_noise, noise_seed, random_train)
 
 # Store losses
 total_loss = train_loss
@@ -173,7 +173,7 @@ for level in range(1, levels+1):
 
         # Run the training function and update losses and parameters / optimal state
         #train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed+level)
-        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd_new, dt, dt_sgs, step_noise, noise_seed+level)
+        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd_new, dt, dt_sgs, step_noise, noise_seed+level, random_train)
 
         # Store losses
         total_loss = np.concatenate((total_loss, train_loss), axis=0)

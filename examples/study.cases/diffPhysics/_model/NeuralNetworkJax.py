@@ -87,7 +87,7 @@ def update(params, x, y, opt_state, step_noise, key):
 
 #------------------------------------------------------------------------------
 # Training function
-def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tEnd, dt_dns, dt_sgs, step_noise, noise_seed):
+def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tEnd, dt_dns, dt_sgs, step_noise, noise_seed, random_train):
     """ Implements a learning loop over epochs. """
     # Initialize placeholder for losses
     train_loss = []
@@ -102,12 +102,14 @@ def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tE
     for epoch in range(num_epochs):
         start_time = time.time()
         for i in range(batch_dim):
-            # Get time (non-random, uniform sampling)
-            t = i * tEnd/batch_dim
+            # Get time (random version)
+            if random_train:
+                key, subkey = random.split(key)
+                t = random.uniform(subkey, maxval = tEnd - dt_sgs)
 
-            ## Get time (random version)
-            #key, subkey = random.split(key)
-            #t = random.uniform(subkey, maxval = tEnd - dt_sgs)
+            # Get time (non-random, uniform sampling)
+            else:
+                t = i * tEnd/batch_dim
 
             # Define indices for sgs and dns (they use different time step sizes)
             dns_idx = int(t/dt_dns) # between 0 and 5000 (with standard settings)
