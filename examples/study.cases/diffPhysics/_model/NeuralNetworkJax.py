@@ -93,7 +93,7 @@ def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tE
     train_loss = []
 
     # Generate key
-    key = random.PRNGKey(noise_seed)
+    key = random.PRNGKey(noise_seed) # Key for noise (and choosing time)
 
     # Get the initial set of parameters
     params = get_params(opt_state)
@@ -102,18 +102,26 @@ def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tE
     for epoch in range(num_epochs):
         start_time = time.time()
         for i in range(batch_dim):
-            # Get time
+            # Get time (non-random, uniform sampling)
             t = i * tEnd/batch_dim
+
+            ## Get time (random version)
+            #key, subkey = random.split(key)
+            #t = random.uniform(subkey, maxval = tEnd - dt_sgs)
+
             # Define indices for sgs and dns (they use different time step sizes)
             dns_idx = int(t/dt_dns) # between 0 and 5000 (with standard settings)
             sgs_idx = int(t/dt_sgs) # between 0 and 312  (with standard settings)
+
             # Prepare variables
             dns_arr = dns[dns_idx]
             sgs_arr = sgs[sgs_idx]
             x = jnp.array(sgs_arr).reshape(1, batch_size)
             y = jnp.array(dns_arr).reshape(1, batch_size)
+
             # Create new key
             key, subkey = random.split(key)
+
             # Training step
             params, opt_state, loss = update(params, x, y, opt_state, step_noise, subkey)
             train_loss.append(loss)
@@ -144,17 +152,23 @@ def get_corrections(opt_state, batch_size, sgs):
 
 
 # Function to create a training array when base solution explodes
-def get_train_arr(base, sgs, t_dim):
+def get_train_arr(base, sgs, dns, t_dim, s):
+
     # Maximum absolute value that is tolerated
     max_cap = 1.5
 
+    # Maximum MSE (between base & dns) that is tolerated
+    max_mse = 0.1
+
     # Initialize values
     abs_max = 0.0
+    mse = 0.0
     i = 0
 
     # Find maximum index
-    while abs_max < max_cap and i < t_dim:
+    while abs_max < max_cap and mse < max_mse and i < t_dim:
         abs_max = jnp.max(jnp.absolute(base[i]))
+        mse = jnp.mean((base[i] - dns[i*s])**2)
         i += 1
 
     # Prepare variables

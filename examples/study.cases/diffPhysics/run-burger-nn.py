@@ -150,7 +150,7 @@ for level in range(1, levels+1):
         for n in range(1,base.nsteps+1):
             # Save corrections for a plot if on final level
             if level == levels:
-                corrected = base.step(correction = True, opt_state = opt_state_new)
+                corrected = base.step(correction = 1.0, opt_state = opt_state_new)
                 corrections.append(corrected)
             # Proceed as normal if not on final level
             else:
@@ -167,7 +167,7 @@ for level in range(1, levels+1):
     # Train on corrections if not already in the final level
     if level < levels:
         # Get array to be trained
-        train_arr, tEnd_idx = get_train_arr(base.uu, sgs_sol, int(tEnd/dt_sgs)+1)
+        train_arr, tEnd_idx = get_train_arr(base.uu, sgs_sol, dns_short_sol, int(tEnd/dt_sgs)+1, s)
         tEnd_new = tEnd_idx * dt_sgs
         print(f"Train new solution until t = {tEnd_new}")
 

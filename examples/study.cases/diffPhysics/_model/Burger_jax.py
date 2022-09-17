@@ -340,7 +340,7 @@ class Burger_jax:
     def grad(self, actions, u, v):
         return jexpl_RK3_grad(actions, u, v, self.dt, self.dx, self.nu, self.basis, self.k1, self.k2)[0]
  
-    def step( self, actions=None, nIntermed=1, correction=False, opt_state = 0 ):
+    def step( self, actions=None, nIntermed=1, correction=0, opt_state = 0 ):
 
         Fforcing = np.zeros(self.N)
         self.gradient = np.zeros((self.N, self.M))
@@ -384,14 +384,14 @@ class Burger_jax:
         # Initialize dummy value to be returned
         corrected = 0
 
-        if correction:
+        if correction > 0:
             ## Alternative:
             #_, predicted = get_corrections(opt_state, self.N, self.u)
             #self.u = np.array(predicted)
 
             # get correction
             corrected, _ = get_corrections(opt_state, self.N, self.u)
-            #print(corrected)
+            corrected *= correction
 
             # apply correction to solution
             self.u = u + np.array(corrected)
