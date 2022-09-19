@@ -1,5 +1,5 @@
 # Tuning parameters
-step_noise   = 0.01 # Standard deviation of gaussian noise in steps (use 0 for no noise)
+step_noise   = 0.00 # Standard deviation of gaussian noise in steps (use 0 for no noise)
 noise_seed   = 42   # Seed for noise in steps (change it to get slightly different results)
 levels       = 1    # Levels of propagation learning (use 1 for default)
 random_train = True # Chooses the time t at the training randomly or uniformly distributed
@@ -109,7 +109,7 @@ hidden_dim = 256   # Size / width of hidden layer
 batch_size = feature_dim
 
 # Number of training epochs (per run) in training function
-num_epochs = 300 # 300 gives decent results and does not take too long
+num_epochs = 1000 # 300 gives decent results and does not take too long
 pre_epochs = 0   # Learning before the correction if levels > 0
 
 # Generate Gaussian weights and biases
@@ -144,6 +144,7 @@ for level in range(1, levels+1):
     print(f"Simulate new solution ({level} / {levels}) ..")
     base = Burger_jax(L=L, N=N2, dt=dt_sgs, nu=nu, tend=tEnd, case=ic, noise=noise, seed=seed)
     base.IC( v0 = v0 * N2 / N )
+    #proceed = True
 
     # Apply corrections / advance in time for nsteps steps
     try:
@@ -153,8 +154,16 @@ for level in range(1, levels+1):
                 corrected = base.step(correction = 1.0, opt_state = opt_state_new)
                 corrections.append(corrected)
             # Proceed as normal if not on final level
+            #else:
+            #    if proceed:
+            #        base.step(correction = 1.0, opt_state = opt_state_new)
+            #        t_idx = base.ioutnum
+            #        proceed = check_sol(base.uu[t_idx], dns_short_sol[t_idx * s])
+            #        print("New solution seems to be wrong. Continue without corrections ..")
+            #    else: 
+            #        base.step()
             else:
-                base.step(correction = True, opt_state = opt_state_new)
+                base.step(correction = 1.0, opt_state = opt_state_new)
 
     except FloatingPointError:
         print("Floating point exception occured", flush=True)
@@ -172,8 +181,8 @@ for level in range(1, levels+1):
         print(f"Train new solution until t = {tEnd_new}")
 
         # Run the training function and update losses and parameters / optimal state
-        #train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed+level)
-        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd_new, dt, dt_sgs, step_noise, noise_seed+level, random_train)
+        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed+level, random_train)
+        #train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd_new, dt, dt_sgs, step_noise, noise_seed+level, random_train)
 
         # Store losses
         total_loss = np.concatenate((total_loss, train_loss), axis=0)

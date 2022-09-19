@@ -114,6 +114,7 @@ def run_training_loop(num_epochs, opt_state, batch_dim, batch_size, dns, sgs, tE
             # Define indices for sgs and dns (they use different time step sizes)
             dns_idx = int(t/dt_dns) # between 0 and 5000 (with standard settings)
             sgs_idx = int(t/dt_sgs) # between 0 and 312  (with standard settings)
+            #print("time at index {:0.3f} | dns index: {} | sgs index: {}".format(t, dns_idx, sgs_idx))
 
             # Prepare variables
             dns_arr = dns[dns_idx]
@@ -160,7 +161,7 @@ def get_train_arr(base, sgs, dns, t_dim, s):
     max_cap = 1.5
 
     # Maximum MSE (between base & dns) that is tolerated
-    max_mse = 0.1
+    max_mse = 0.25
 
     # Initialize values
     abs_max = 0.0
@@ -180,6 +181,23 @@ def get_train_arr(base, sgs, dns, t_dim, s):
     # Training array that is returned (meaningful base solutions + rest is filled with SGS solutions)
     train_arr = jnp.concatenate((base[base_range], sgs[sgs_range]), axis=0)
     return train_arr, i
+
+
+# Function to create a training array when base solution explodes
+def check_sol(base, dns):
+
+    # Maximum absolute value that is tolerated
+    max_cap = 1.5
+
+    # Maximum MSE (between base & dns) that is tolerated
+    max_mse = 0.25
+
+    # Compute max absolute value and mse
+    abs_max = jnp.max(jnp.absolute(base))
+    mse = jnp.mean((base - dns)**2)
+
+    return abs_max < max_cap and mse < max_mse
+
 
 #------------------------------------------------------------------------------
 import matplotlib as mpl
