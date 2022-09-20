@@ -332,15 +332,18 @@ class Burger_jax:
         u2 = np.real(ifft(v2))
 
         v3 = 1./3.*self.v + 2./3.*v2 + 2./3. * self.dt * (-0.5*self.k1*fft(u2**2) + self.nu*self.k2*v2 + Fforcing)
-        u3 = np.real(ifft(v3))
+        #u3 = np.real(ifft(v3))
+        u3_complex = ifft(v3)
 
-        return (u3, v3)
+        return (u3_complex, v3)
 
 
     def grad(self, actions, u, v):
         return jexpl_RK3_grad(actions, u, v, self.dt, self.dx, self.nu, self.basis, self.k1, self.k2)[0]
+        #return np.real(jexpl_RK3_grad(actions, u, v, self.dt, self.dx, self.nu, self.basis, self.k1, self.k2)[0])
  
-    def step( self, actions=None, nIntermed=1, correction=0, opt_state = 0 ):
+    #def step( self, actions=None, nIntermed=1, correction=0, opt_state = 0 ):
+    def step( self, actions=None, nIntermed=1, correction=0, opt_state = 0, sgs = 0 ):
 
         Fforcing = np.zeros(self.N)
         self.gradient = np.zeros((self.N, self.M))
@@ -362,7 +365,8 @@ class Burger_jax:
             
         for _ in range(nIntermed):
 
-            u, v = self.expl_RK3( Fforcing, self.u, self.v) 
+            u_complex, v = self.expl_RK3( Fforcing, self.u, self.v) 
+            u = np.real(u_complex)
 
             self.stepnum += 1
             self.t       += self.dt
@@ -389,17 +393,25 @@ class Burger_jax:
             #_, predicted = get_corrections(opt_state, self.N, self.u)
             #self.u = np.array(predicted)
 
+            # Those lines are for testing the code (works as intended)
+            #corrected, predicted = get_corrections(opt_state, self.N, sgs)
+            #self.u = self.u + np.array(corrected)
+
             # get correction
             corrected, _ = get_corrections(opt_state, self.N, self.u)
             corrected *= correction
 
             # apply correction to solution
             self.u = u + np.array(corrected)
-            self.v = fft(self.u)
+            #self.v = fft(self.u)
+            self.v = fft(u_complex + np.array(corrected))
 
             # store solution in time-series
             self.uu[self.ioutnum,:] = self.u
             self.vv[self.ioutnum,:] = self.v
+
+            # All values should be real, e.g. don't have an imaginary part
+            #print(self.u)
 
         return corrected
 

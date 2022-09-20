@@ -1,5 +1,5 @@
 # Tuning parameters
-step_noise   = 0.00 # Standard deviation of gaussian noise in steps (use 0 for no noise)
+step_noise   = 0.10 # Standard deviation of gaussian noise in steps (use 0 for no noise)
 noise_seed   = 42   # Seed for noise in steps (change it to get slightly different results)
 levels       = 1    # Levels of propagation learning (use 1 for default)
 random_train = True # Chooses the time t at the training randomly or uniformly distributed
@@ -109,7 +109,7 @@ hidden_dim = 256   # Size / width of hidden layer
 batch_size = feature_dim
 
 # Number of training epochs (per run) in training function
-num_epochs = 1000 # 300 gives decent results and does not take too long
+num_epochs = 300 # 300 gives decent results and does not take too long
 pre_epochs = 0   # Learning before the correction if levels > 0
 
 # Generate Gaussian weights and biases
@@ -136,6 +136,7 @@ total_loss = train_loss
 
 # Initialize array for corrections
 corrections = []
+plot_corrections = True
 
 #------------------------------------------------------------------------------
 # Run one or more testings (and learn testing if levels > 1)
@@ -151,7 +152,8 @@ for level in range(1, levels+1):
         for n in range(1,base.nsteps+1):
             # Save corrections for a plot if on final level
             if level == levels:
-                corrected = base.step(correction = 1.0, opt_state = opt_state_new)
+                #corrected = base.step(correction = 1.0, opt_state = opt_state_new)
+                corrected = base.step(correction = 1.0, opt_state = opt_state_new, sgs = sgs_sol[n])
                 corrections.append(corrected)
             # Proceed as normal if not on final level
             #else:
@@ -163,10 +165,12 @@ for level in range(1, levels+1):
             #    else: 
             #        base.step()
             else:
-                base.step(correction = 1.0, opt_state = opt_state_new)
+                #base.step(correction = 1.0, opt_state = opt_state_new)
+                base.step(correction = 1.0, opt_state = opt_state_new, sgs = sgs_sol[n])
 
     except FloatingPointError:
         print("Floating point exception occured", flush=True)
+        plot_corrections = False
         # something exploded
         # cut time series to last saved solution and return
         #base.nout = base.ioutnum
@@ -217,8 +221,10 @@ print("Plotting animated Testing Solution ..")
 TestingAnimation(dns, base, sgs, "FeedforwardNN_Animation")
 
 # Optional: Plot corrections
-print("Plotting corrections ..")
-PlotCorrections(base.uu, corrections, sgs.x, tEnd, dt_sgs, "FeedforwardNN")
-# Only first 16 time steps
-PlotCorrections(base.uu, corrections, sgs.x, tEnd, dt_sgs, "FeedforwardNN_short", full = False)
-
+if plot_corrections:
+    print("Plotting corrections ..")
+    PlotCorrections(base.uu, corrections, sgs.x, tEnd, dt_sgs, "FeedforwardNN")
+    # Only first 16 time steps
+    PlotCorrections(base.uu, corrections, sgs.x, tEnd, dt_sgs, "FeedforwardNN_short", full = False)
+else:
+    print("Cannot plot corrections because solution diverged to infinity ..")
