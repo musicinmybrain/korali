@@ -152,8 +152,8 @@ for level in range(1, levels+1):
         for n in range(1,base.nsteps+1):
             # Save corrections for a plot if on final level
             if level == levels:
-                #corrected = base.step(correction = 1.0, opt_state = opt_state_new)
-                corrected = base.step(correction = 1.0, opt_state = opt_state_new, sgs = sgs_sol[n])
+                corrected = base.step(correction = 1.0, opt_state = opt_state_new)
+                #corrected = base.step(correction = 1.0, opt_state = opt_state_new, sgs = sgs_sol[n])
                 corrections.append(corrected)
             # Proceed as normal if not on final level
             #else:
@@ -165,8 +165,8 @@ for level in range(1, levels+1):
             #    else: 
             #        base.step()
             else:
-                #base.step(correction = 1.0, opt_state = opt_state_new)
-                base.step(correction = 1.0, opt_state = opt_state_new, sgs = sgs_sol[n])
+                base.step(correction = 1.0, opt_state = opt_state_new)
+                #base.step(correction = 1.0, opt_state = opt_state_new, sgs = sgs_sol[n])
 
     except FloatingPointError:
         print("Floating point exception occured", flush=True)
@@ -194,11 +194,11 @@ for level in range(1, levels+1):
 #------------------------------------------------------------------------------
 # Plot solutions (plot predicted value at the end of training)
 print("Plotting Solutions and Prediction ..")
-PlotSolsAndPredict(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
+PlotSolsAndPredict(sgs_sol, dns_short_sol, dns_sol, sgs.x, dns.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
 
 # Optional: Plot animated solutions
 print("Plotting animated Solutions and Prediction ..")
-SolsAndPredictAnimation(sgs_sol, dns_short_sol, sgs.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
+SolsAndPredictAnimation(sgs_sol, dns_short_sol, dns_sol, sgs.x, dns.x, batch_size, opt_state_new, tEnd, dt, dt_sgs)
 
 # Optional: Plot losses (mean or 16 losses for different times)
 print("Plotting Losses ..")

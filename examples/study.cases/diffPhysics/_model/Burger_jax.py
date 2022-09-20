@@ -61,9 +61,14 @@ def jexpl_RK3( actions, u, v, dt, dx, nu, basis, k1, k2):
 
     v3 = 1./3.*v + 2./3.*v2 + 2./3. * dt * (-0.5*k1*jnp.fft.fft(u2**2) + nu*k2*v2 + Fforcing)
     v = v3
-    u = jnp.real(jnp.fft.ifft(v))
 
+    # Return a real value
+    u = jnp.real(jnp.fft.ifft(v))
     return (u, v)
+
+    ## Return a complex value
+    #u_complex = jnp.fft.ifft(v)
+    #return (u_complex, v)
 
 jexpl_RK3_grad = jit(jacfwd(jexpl_RK3, has_aux=True, argnums=(0,1)))
 
@@ -332,18 +337,21 @@ class Burger_jax:
         u2 = np.real(ifft(v2))
 
         v3 = 1./3.*self.v + 2./3.*v2 + 2./3. * self.dt * (-0.5*self.k1*fft(u2**2) + self.nu*self.k2*v2 + Fforcing)
-        #u3 = np.real(ifft(v3))
-        u3_complex = ifft(v3)
 
+        # Return a complex value
+        u3_complex = ifft(v3)
         return (u3_complex, v3)
 
+        ## Return a real value
+        #u3 = np.real(ifft(v3))
+        #return (u3, v3)        
 
     def grad(self, actions, u, v):
         return jexpl_RK3_grad(actions, u, v, self.dt, self.dx, self.nu, self.basis, self.k1, self.k2)[0]
         #return np.real(jexpl_RK3_grad(actions, u, v, self.dt, self.dx, self.nu, self.basis, self.k1, self.k2)[0])
  
-    #def step( self, actions=None, nIntermed=1, correction=0, opt_state = 0 ):
-    def step( self, actions=None, nIntermed=1, correction=0, opt_state = 0, sgs = 0 ):
+    def step( self, actions=None, nIntermed=1, correction=0, opt_state = 0 ):
+    #def step( self, actions=None, nIntermed=1, correction=0, opt_state = 0, sgs = 0 ):
 
         Fforcing = np.zeros(self.N)
         self.gradient = np.zeros((self.N, self.M))
@@ -365,8 +373,12 @@ class Burger_jax:
             
         for _ in range(nIntermed):
 
+            # Use this if a complex value for u is returned
             u_complex, v = self.expl_RK3( Fforcing, self.u, self.v) 
             u = np.real(u_complex)
+
+            ## Use this if a real value for u is returned
+            #u, v = self.expl_RK3( Fforcing, self.u, self.v)
 
             self.stepnum += 1
             self.t       += self.dt
@@ -404,7 +416,7 @@ class Burger_jax:
             # apply correction to solution
             self.u = u + np.array(corrected)
             #self.v = fft(self.u)
-            self.v = fft(u_complex + np.array(corrected))
+            #self.v = fft(u_complex + np.array(corrected))
 
             # store solution in time-series
             self.uu[self.ioutnum,:] = self.u
@@ -412,6 +424,7 @@ class Burger_jax:
 
             # All values should be real, e.g. don't have an imaginary part
             #print(self.u)
+            #print(u_complex) # Those values should have an imaginary part
 
         return corrected
 

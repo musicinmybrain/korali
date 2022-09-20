@@ -205,7 +205,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Plotting function for SGS, DNS and predicted solution
-def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_sgs):
+def PlotSolsAndPredict(sgs, dns, full_dns, x_arr, x_arr_dns, batch_size, opt_state, tEnd, dt_dns, dt_sgs):
     # Get optimal parameters
     params = get_params(opt_state)
 
@@ -225,14 +225,15 @@ def PlotSolsAndPredict(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_
         # Prepare variables to be plotted
         sgs_sol = sgs[tidx_sgs]
         dns_sol = dns[tidx_dns]
+        full_dns_sol = full_dns[tidx_dns]
         x = jnp.array(sgs_sol).reshape(1, batch_size)
         y = jnp.array(dns_sol).reshape(1, batch_size)
         predict = batch_forward(params, x)
 
         # Plot figures
-        axs[k,l].plot(x_arr, sgs_sol,     '-',  color=colors[1], label='SGS solution')
-        axs[k,l].plot(x_arr, dns_sol,     '-',  color=colors[0], label='DNS solution')
-        axs[k,l].plot(x_arr, predict[-1], '--', color=colors[2], label='Predicted values')
+        axs[k,l].plot(x_arr,     sgs_sol,      '-',  color=colors[1], label='SGS solution')
+        axs[k,l].plot(x_arr_dns, full_dns_sol, '-',  color=colors[0], label='DNS solution')
+        axs[k,l].plot(x_arr,     predict[-1],  '--', color=colors[2], label='Predicted values')
 
         # Add labels
         #axs[k,l].set_title('Non-Korali version')
@@ -411,7 +412,7 @@ def PlotMeanLoss(losses, epochs, batch_dim):
 import matplotlib.animation as animation
 
 # Plotting animated function for SGS, DNS and predicted solution
-def SolsAndPredictAnimation(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns, dt_sgs):
+def SolsAndPredictAnimation(sgs, dns, full_dns, x_arr, x_arr_dns, batch_size, opt_state, tEnd, dt_dns, dt_sgs):
     # Get optimal parameters
     params = get_params(opt_state)
 
@@ -440,14 +441,15 @@ def SolsAndPredictAnimation(sgs, dns, x_arr, batch_size, opt_state, tEnd, dt_dns
         # Prepare variables to be plotted
         sgs_sol = sgs[i]
         dns_sol = dns[i*s]
+        full_dns_sol = full_dns[i*s]
         x = jnp.array(sgs_sol).reshape(1, batch_size)
         y = jnp.array(dns_sol).reshape(1, batch_size)
         predict = batch_forward(params, x)
 
         # Assign values
-        line1.set_data(x_arr, sgs_sol)
-        line2.set_data(x_arr, dns_sol)
-        line3.set_data(x_arr, predict[-1])
+        line1.set_data(x_arr,     sgs_sol)
+        line2.set_data(x_arr_dns, full_dns_sol)
+        line3.set_data(x_arr,     predict[-1])
 
         return line1, line2, line3,
 
