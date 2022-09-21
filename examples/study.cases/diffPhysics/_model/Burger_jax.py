@@ -411,12 +411,13 @@ class Burger_jax:
 
             # get correction
             corrected, _ = get_corrections(opt_state, self.N, self.u)
-            corrected *= correction
+            #corrected *= correction
 
             # apply correction to solution
             self.u = u + np.array(corrected)
             #self.v = fft(self.u)
             #self.v = fft(u_complex + np.array(corrected))
+            self.v = v + np.real(fft(np.array(corrected)))
 
             # store solution in time-series
             self.uu[self.ioutnum,:] = self.u
