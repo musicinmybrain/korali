@@ -1,5 +1,5 @@
 # Tuning parameters
-step_noise   = 0.10 # Standard deviation of gaussian noise in steps (use 0 for no noise)
+step_noise   = 0.05 # Standard deviation of gaussian noise in steps (use 0 for no noise)
 noise_seed   = 42   # Seed for noise in steps (change it to get slightly different results)
 levels       = 1    # Levels of propagation learning (use 1 for default)
 random_train = True # Chooses the time t at the training randomly or uniformly distributed
@@ -228,3 +228,14 @@ if plot_corrections:
     PlotCorrections(base.uu, corrections, sgs.x, tEnd, dt_sgs, "FeedforwardNN_short", full = False)
 else:
     print("Cannot plot corrections because solution diverged to infinity ..")
+
+# Print MSE errors
+base_sol = base.uu
+sgs_mse = compute_mse(sgs_sol, dns_short_sol, int(tEnd / dt_sgs)+1, s)
+print(f"The MSE between the untrained SGS solution and the DNS solution is: {sgs_mse}")
+base_mse = compute_mse(base_sol, dns_short_sol, int(tEnd / dt_sgs)+1, s)
+print(f"The MSE between the tested base solution and the DNS solution is: {base_mse}")
+pred_mse = compute_mse_predict(sgs_sol, dns_short_sol, opt_state_new, batch_size, int(tEnd / dt_sgs)+1, s)
+print(f"The MSE between the prediction and the DNS solution is: {pred_mse}")
+
+

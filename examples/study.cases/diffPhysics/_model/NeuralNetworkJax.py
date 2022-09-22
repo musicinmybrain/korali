@@ -199,6 +199,35 @@ def check_sol(base, dns):
     return abs_max < max_cap and mse < max_mse
 
 
+# Function to compute MSE between base / sgs and dns (at the same times)
+def compute_mse(base, dns, t_dim, s):
+
+    # Initialize MSE
+    mse = 0
+
+    for i in range(t_dim):
+        mse += jnp.mean((base[i] - dns[i*s])**2)
+
+    return mse / t_dim
+
+# Function to compute MSE between prediction and dns (at the same times)
+def compute_mse_predict(sgs, dns, opt_state, batch_size, t_dim, s):
+
+    # Get optimal parameters
+    params = get_params(opt_state)
+
+    # Initialize MSE
+    mse = 0
+
+    for i in range(t_dim):
+        # Get prediction
+        x = jnp.array(sgs[i]).reshape(1, batch_size)
+        predict = batch_forward(params, x)
+
+        mse += jnp.mean((predict - dns[i*s])**2)
+
+    return mse / t_dim
+
 #------------------------------------------------------------------------------
 import matplotlib as mpl
 import matplotlib.pyplot as plt 
