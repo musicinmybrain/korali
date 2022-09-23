@@ -27,7 +27,7 @@ namespace learner
 void DeepSupervisor::initialize()
 {
   // Getting problem pointer
-  _problem = dynamic_cast<problem::SupervisedLearning *>(_k->_problem);
+  _problem = dynamic_cast<problem::learning::SupervisedLearning *>(_k->_problem);
 
   // Don't reinitialize if experiment was already initialized
   if (_k->_isInitialized == true) return;
@@ -298,8 +298,13 @@ void DeepSupervisor::runEpoch()
     if (_batchConcurrency > _k->_engine->_conduit->getWorkerCount()) KORALI_LOG_ERROR("The batch concurrency requested (%lu) exceeds the number of Korali workers defined in the conduit type/configuration (%lu).", _batchConcurrency, _k->_engine->_conduit->getWorkerCount());
     // Updating solver's learning rate, if changed
     _optimizer->_eta = std::max(_learning_rate->get(this), _learningRateLowerBound);
-    if(_learningRateSave)
-      (*_k)["Results"]["Learning Rate"] = _optimizer->_eta;
+    if(_learningRateSave){
+      _totalLearningRate.push_back(_optimizer->_eta);
+      if(_mode == "Automatic Training")
+        (*_k)["Results"]["Learning Rate"] = _totalLearningRate;
+      else
+        (*_k)["Results"]["Learning Rate"] = _totalLearningRate.back();
+    }
     // Checking that incoming data has a correct format
     _problem->verifyData();
     // Data ========================================================================
@@ -531,6 +536,10 @@ void DeepSupervisor::runPrediction()
       auto y_val = getEvaluation(_problem->_inputData);
       _testingLoss = _loss->loss(_problem->_solutionData, y_val);
       (*_k)["Results"]["Testing Loss"] = _testingLoss;
+      if(_metrics){
+        // TODO: make a loop for different metrics and make metrics a vector to calcualte different metrics
+        _currentMetrics = _metrics->compute(_problem->_solutionData, y_val);
+      }
     }
 }
 
@@ -693,13 +702,15 @@ void DeepSupervisor::printGenerationAfter()
     if(_epochCount>=_epochs){
       _k->_logger->logInfo("Normal", "\n");
     }
-    if (_mode == "Automatic Training"){
-
-    }
   }
-  if (_mode == "Predict")
+  if (_mode == "Testing")
   {
-    // TODO: do if metric like accuracy or somethign like that is set
+    std::ostringstream output{};
+    std::string sep{" | "};
+    output << std::fixed << std::setprecision(4) << "[Korali] " << " Test Loss: " << _testingLoss;
+    if(_metrics)
+      output << sep << _metricsType.c_str() << " " << _currentMetrics;
+    _k->_logger->logInfo("Normal", "%s\n", output.str().c_str());
   }
 }
 
@@ -902,6 +913,16 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
       KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Epoch Count']\n%s", e.what());
     }
     eraseValue(js, "Epoch Count");
+  }
+  if (isDefined(js, "Total Learning Rate"))
+  {
+    try
+    {
+      _totalLearningRate = js["Total Learning Rate"].get<std::vector<float>>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Total Learning Rate']\n%s", e.what());
+    }
+    eraseValue(js, "Total Learning Rate");
   }
   if (isDefined(js, "Mode"))
   {
@@ -1281,13 +1302,14 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
    js["Normalization Means"] = _normalizationMeans;
    js["Normalization Variances"] = _normalizationVariances;
    js["Epoch Count"] = _epochCount;
+   js["Total Learning Rate"] = _totalLearningRate;
  Learner::getConfiguration(js);
 } 
 
 void DeepSupervisor::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Regularizer\": {\"Coefficient\": 0.0001, \"Type\": \"None\"}, \"Loss Function\": \"Direct Gradient\", \"Learning Rate Type\": \"Const\", \"Learning Rate Save\": true, \"Learning Rate Decay Factor\": 100, \"Learning Rate Steps\": 0, \"Learning Rate Lower Bound\": -10000000000, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}, \"Hidden Layers\": {}}, \"Metrics\": {\"Type\": \"\"}, \"Termination Criteria\": {\"Epochs\": 10000000000, \"Is One Epoch Finished\": false, \"Target Loss\": -1.0, \"Max Generations\": 10000000000}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1, \"Epoch Count\": 0, \"Data\": {\"Validation\": {\"Split\": 0.0}, \"Training\": {\"Shuffel\": false}, \"Input\": {\"Shuffel\": false}}}";
+ std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Regularizer\": {\"Coefficient\": 0.0001, \"Type\": \"None\"}, \"Loss Function\": \"Direct Gradient\", \"Learning Rate Type\": \"Const\", \"Learning Rate Save\": true, \"Learning Rate Decay Factor\": 100, \"Learning Rate Steps\": 0, \"Learning Rate Lower Bound\": -10000000000, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}, \"Hidden Layers\": {}}, \"Metrics\": {\"Type\": \"\"}, \"Termination Criteria\": {\"Epochs\": 10000000000, \"Is One Epoch Finished\": false, \"Target Loss\": -1.0, \"Max Generations\": 10000000000}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1, \"Epoch Count\": 0, \"Data\": {\"Validation\": {\"Split\": 0.0}, \"Training\": {\"Shuffel\": true}, \"Input\": {\"Shuffel\": true}}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Learner::applyModuleDefaults(js);

@@ -17,7 +17,7 @@
 #include "auxiliar/libgp/gp.h"
 
 #include "modules/experiment/experiment.hpp"
-#include "modules/problem/supervisedLearning/supervisedLearning.hpp"
+#include "modules/problem/learning/supervisedLearning/supervisedLearning.hpp"
 #include "modules/solver/learner/learner.hpp"
 
 #include <memory>
@@ -100,7 +100,7 @@ class GaussianProcess : public Learner
   /**
    * @brief Korali engine for optimizing NN weights and biases
    */
-  problem::SupervisedLearning *_problem;
+  problem::learning::SupervisedLearning *_problem;
 
   /**
    * @brief Pointer to the gaussian processes library

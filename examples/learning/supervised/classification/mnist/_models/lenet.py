@@ -16,7 +16,7 @@ def LeNet1(e, img_width, img_height, label_size, channels=1):
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Height"]      = img_width
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"]       = img_height
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Kernel Size"]       = 5
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Filters"]           = 6
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Filters"]           = 4
     ## Activation =============================================================================
     lidx += 1
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Activation"

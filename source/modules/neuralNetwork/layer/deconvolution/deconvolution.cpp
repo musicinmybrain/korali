@@ -437,10 +437,8 @@ void Deconvolution::createBackwardPipeline()
       _k->_logger->logInfo("Detailed", "[%s layer %zu] Allocating %f MB for cuDNN %1$s workspace.\n", _type.c_str(), _index-1, (float) _convolutionWorkspaceSize/(1024.0*1024.0));
 #endif
     cudaErrCheck(cudaMalloc((void **)&_convolutionWorkspace, _convolutionWorkspaceSize * sizeof(float)));
-
-
-#endif
   }
+#endif
 }
 
 void Deconvolution::forwardData(const size_t t)

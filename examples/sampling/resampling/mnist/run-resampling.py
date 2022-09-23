@@ -37,7 +37,7 @@ parser.add_argument(
 parser.add_argument(
     "--reduction-factor",
     help="Factor by which the image width/height gets divided.",
-    default=4,
+    default=2,
     required=False,
     type=int
 )
@@ -99,7 +99,15 @@ f_c = palette[0]
 # plt.rcParams['text.usetex'] = True
 
 add_time_dimension = lambda l : [ [y] for y in l]
+# ==================================================================================
+# In case of iPython need to temporaily set sys.args to [''] in order to parse them
+tmp = sys.argv
+if len(sys.argv) != 0:
+    if sys.argv[0] in ["/usr/bin/ipython", "/users/pollakg/.local/bin/ipython"]:
+        sys.argv = ['']
+        IPYTHON = True
 args = parser.parse_args()
+sys.argv = tmp
 k = korali.Engine()
 e = korali.Experiment()
 ### Hyperparameters
@@ -124,15 +132,6 @@ args.img_height = img_height
 args.img_size = img_height*img_width
 ### Normalize, shuffel and split data ========================================================
 testingImages = [[p/MAX_RGB for p in img] for img in testingImages]
-# ==================================================================================
-# In case of iPython need to temporaily set sys.args to [''] in order to parse them
-tmp = sys.argv
-if len(sys.argv) != 0:
-    if sys.argv[0] in ["/usr/bin/ipython", "/users/pollakg/.local/bin/ipython"]:
-        sys.argv = ['']
-        IPYTHON = True
-sys.argv = tmp
-
 ### Print Header
 if args.verbosity in ["Normal", "Detailed"]:
     print_header('Korali', color=bcolors.HEADER, width=140)
@@ -151,22 +150,22 @@ e["Problem"]["Input"]["Size"] = img_size
 e["Problem"]["Solution"]["Size"] = img_size
 e["Solver"]["Loss Function"] = "Mean Squared Error"
 e["Solver"]["Neural Network"]["Engine"] = args.engine
+e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 e["Solver"]["Mode"] = "Predict"
-# MODEL DEFINTION ================================================================================
 input_size = output_size = img_width*img_height
-img_height_red = img_height/args.reduction_factor
-img_width_red = img_width/args.reduction_factor
+img_height_red = int(img_height/args.reduction_factor)
+img_width_red = int(img_width/args.reduction_factor)
 # ===================== Input Layer
 e["Problem"]["Input"]["Size"] = input_size
 # ===================== Down Sampling
 lidx = 0
-e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Resampling Type"] = "Linear"
-e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Resampling"
-e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"] = img_width
-e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Height"] = img_height
-e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Output Width"] = img_width_red
-e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Output Height"] = img_height_red
-e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Output Channels"] = img_height_red*img_width_red
+e["Solver"]["Neural Network"]["Output Layer"]["Resampling Type"] = "Linear"
+e["Solver"]["Neural Network"]["Output Layer"]["Type"] = "Layer/Resampling"
+e["Solver"]["Neural Network"]["Output Layer"]["Image Width"] = img_width
+e["Solver"]["Neural Network"]["Output Layer"]["Image Height"] = img_height
+e["Solver"]["Neural Network"]["Output Layer"]["Output Width"] = img_width_red
+e["Solver"]["Neural Network"]["Output Layer"]["Output Height"] = img_height_red
+e["Solver"]["Neural Network"]["Output Layer"]["Output Channels"] = img_height_red*img_width_red
 # # ===================== Encoder
 # e["Solver"]["Neural Network"]["Hidden Layers"][1]["Type"] = "Layer/Linear"
 # e["Solver"]["Neural Network"]["Hidden Layers"][1]["Output Channels"] = args.latentDim
@@ -177,13 +176,13 @@ e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Output Channels"] = img_he
 # e["Solver"]["Neural Network"]["Hidden Layers"][3]["Type"] = "Layer/Linear"
 # e["Solver"]["Neural Network"]["Hidden Layers"][3]["Output Channels"] = img_height_red*img_width_red
 # ===================== Up Sampling
-e["Solver"]["Neural Network"]["Output Layer"]["Resampling Type"] = "Linear"
-e["Solver"]["Neural Network"]["Output Layer"]["Type"] = "Layer/Resampling"
-e["Solver"]["Neural Network"]["Output Layer"]["Image Width"] = img_width_red
-e["Solver"]["Neural Network"]["Output Layer"]["Image Height"] = img_height_red
-e["Solver"]["Neural Network"]["Output Layer"]["Output Width"] = img_width
-e["Solver"]["Neural Network"]["Output Layer"]["Output Height"] = img_height
-e["Solver"]["Neural Network"]["Output Layer"]["Output Channels"] = img_width*img_height
+# e["Solver"]["Neural Network"]["Output Layer"]["Resampling Type"] = "Linear"
+# e["Solver"]["Neural Network"]["Output Layer"]["Type"] = "Layer/Resampling"
+# e["Solver"]["Neural Network"]["Output Layer"]["Image Width"] = img_width_red
+# e["Solver"]["Neural Network"]["Output Layer"]["Image Height"] = img_height_red
+# e["Solver"]["Neural Network"]["Output Layer"]["Output Width"] = img_width
+# e["Solver"]["Neural Network"]["Output Layer"]["Output Height"] = img_height
+# e["Solver"]["Neural Network"]["Output Layer"]["Output Channels"] = img_width*img_height
 # ================================================================================
 ### Configuring output
 e["Console Output"]["Verbosity"] = args.verbosity
@@ -197,84 +196,22 @@ e["File Output"]["Path"] = results_dir
 e["Save Only"] = ["Results", "Solver"]
 
 # PREDICTING ==================================================================================
-e["Problem"]["Input"]["Data"] = add_time_dimension(testingImages[:args.testingBS])
+y = testingImages[:args.testingBS]
+e["Problem"]["Input"]["Data"] = add_time_dimension(y)
 k.run(e)
-
+yhat= e["Solver"]["Evaluation"]
 # Plotting ====================================================================================
-# if args.plot:
-#     #  Plot Reconstruced Images ==================================================
-#     arr_to_img = lambda img : np.reshape(img, (img_height, img_width))
-#     fig, axes = plt.subplots(nrows=args.testingBS, ncols=2)
-#     random.shuffle(testingImages)
-#     e["Problem"]["Testing Batch Size"] = args.testingBS
-#     e["Solver"]["Mode"] = "Predict"
-#     y = [random.choice(testingImages) for i in range(args.testingBS)]
-#     e["Problem"]["Input"]["Data"] = add_time_dimension(y)
-#     k.run(e)
-#     yhat = e["Solver"]["Evaluation"]
-#     for y, yhat, ax in list(zip(y[:args.testingBS], yhat[:args.testingBS], axes)):
-#         ax[0].imshow(arr_to_img(y), cmap='gist_gray')
-#         ax[1].imshow(arr_to_img(yhat), cmap='gist_gray')
-#     # fig.tight_layout()
-#     if args.save:
-#         plt.savefig(os.path.join(results_dir, "reconstructions.png"))
-#     #  Plot Losses ===============================================================
-#     sns.set()
-#     with open(results_file, 'r') as f:
-#         results = json.load(f)
-#     if "Results" in results:
-#         results = results["Results"]
-#     fig, ax = plt.subplots(figsize=(8, 8))
-#     epochs = range(1, results["Epoch"]+1)
-#     ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.3f"))
-#     ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%d"))
-#     # ax.set_yscale(args.yscale)
-#     ax.semilogy(epochs, results["Training Loss"] ,'-', label="Training Loss", color=train_c)
-#     if 'Validation Loss' in results:
-#         ax.semilogy(epochs, results["Validation Loss"] ,'-', label="Validation Loss", color=val_c)
-#     ax.set_xlabel('Epochs')
-#     ylabel = results['Loss Function']
-#     if "Regularizer" in results:
-#         ylabel+= " + " + results["Regularizer"]["Type"]
-#     ax.set_ylabel(ylabel)
-#     if "Description" in results:
-#         ax.set_title(results["Description"].capitalize())
-#     plt.legend()
-#     if args.save:
-#         plt.savefig(os.path.join(results_dir, "losses.png"))
-#     # if 'Learning Rate' in results:
-#     #     ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
-#     #     ax2.set_ylabel('Learning Rate')  # we already handled the x-label with ax1
-#     #     ax2.plot(epochs, results["Learning Rate"], color=lr_c)
-#     #     fig.tight_layout()  # otherwise the right y-label is slightly clipped
-#     plt.show()
-#     with open(results_file, 'r') as f:
-#         results = json.load(f)
-#     if "Results" in results:
-#         results = results["Results"]
-#     sns.set()
-#     fig, ax = plt.subplots(figsize=(8, 8))
-#     epochs = range(1, results["Epoch"]+1)
-#     ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.3f"))
-#     ax.xaxis.set_major_formatter(ticker.FormatStrFormatter("%d"))
-#     def plot_loss(results):
-#         # ax.set_yscale(args.yscale)
-#         ax.semilogy(epochs, results["Training Loss"] ,results["style"], label="Training Loss", color=train_c)
-#         if 'Validation Loss' in results:
-#             ax.semilogy(epochs, results["Validation Loss"] ,results["style"], label="Validation Loss", color=val_c)
-#             ax.set_xlabel('Epochs')
-#         ylabel = results['Loss Function']
-#         if "Regularizer" in results:
-#             ylabel+= " + " + results["Regularizer"]["Type"]
-#             ax.set_ylabel(ylabel)
-#         if "Description" in results:
-#             ax.set_title(results["Description"].capitalize())
-#         plt.legend()
-#         # if 'Learning Rate' in results:
-#         #     ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
-#         #     ax2.set_ylabel('Learning Rate')  # we already handled the x-label with ax1
-#         #     ax2.plot(epochs, results["Learning Rate"], color=lr_c)
-#         #     fig.tight_layout()  # otherwise the right y-label is slightly clipped
-
-#     if args.verbosity in ["Normal", "Detailed"]:
-#         print_header(width=140)
+args.plot= True
+if args.plot:
+    #  Plot Reconstruced Images ==================================================
+    arr_to_img = lambda img, img_height, img_width : np.reshape(img, (img_height, img_width))
+    fig, axes = plt.subplots(nrows=args.testingBS, ncols=3)
+    for y, yhat, ax in list(zip(y[:args.testingBS], yhat[:args.testingBS], axes)):
+        ax[0].imshow(arr_to_img(y, img_width, img_height), cmap='gist_gray')
+        ax[1].imshow(arr_to_img(yhat, img_width_red, img_height_red), cmap='gist_gray')
+    # fig.tight_layout()
+    if args.save:
+        plt.savefig(os.path.join(results_dir, "reduced.png"))
+    #  Plot Losses ===============================================================
+    sns.set()
+    plt.show()

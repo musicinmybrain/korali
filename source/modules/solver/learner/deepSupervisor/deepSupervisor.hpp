@@ -15,7 +15,7 @@
 #include <random>
 #include "modules/experiment/experiment.hpp"
 #include "modules/neuralNetwork/neuralNetwork.hpp"
-#include "modules/problem/supervisedLearning/supervisedLearning.hpp"
+#include "modules/problem/learning/supervisedLearning/supervisedLearning.hpp"
 #include "modules/solver/learner/learner.hpp"
 #include "modules/solver/learner/deepSupervisor/optimizers/fAdaBelief.hpp"
 #include "modules/solver/learner/deepSupervisor/optimizers/fAdagrad.hpp"
@@ -200,6 +200,10 @@ class DeepSupervisor : public Learner
   */
    size_t _epochCount;
   /**
+  * @brief [Internal Use] Value of the learning rate for all epochs.
+  */
+   std::vector<float> _totalLearningRate;
+  /**
   * @brief [Termination Criteria] Specifies the maximum number of epochs to run when in training mode
   */
    size_t _epochs;
@@ -249,7 +253,7 @@ class DeepSupervisor : public Learner
     /**
      * @brief Korali Problem for optimizing NN weights and biases
      */
-    korali::problem::SupervisedLearning *_problem;
+    korali::problem::learning::SupervisedLearning *_problem;
     /**
      * @brief Korali Experiment for optimizing the NN's weights and biases
      */
