@@ -6,7 +6,7 @@
 #include <cmath>
 #include <cstdio>
 #include <omp.h>
-#include <execution>
+// #include <execution>
 #include <range/v3/view/join.hpp>
 #include <range/v3/range/conversion.hpp>
 #include <sstream>
@@ -257,8 +257,9 @@ void __className__::initialize()
   if (_neuralNetworkOptimizer == "RMSProp") _optimizer = new korali::fRMSProp(_hyperparameters.size());
   if (_neuralNetworkOptimizer == "Adagrad") _optimizer = new korali::fAdagrad(_hyperparameters.size());
 
-  // Setting hyperparameter structures in the neural network and optmizer
-  setHyperparameters(_hyperparameters);
+  // Setting initial hyperparameter structures in the neural network and optmizer
+  _neuralNetwork->setHyperparameters(_hyperparameters, true);
+  _optimizer->_currentValue = _hyperparameters;
 
   // Resetting Optimizer
   _optimizer->reset();
@@ -384,7 +385,8 @@ void DeepSupervisor::runEpoch()
       if(_regularizer){
         _currentTrainingLoss += _regularizer->penality(_neuralNetwork->getHyperparameters());
         auto d_penalty = _regularizer->d_penality(_neuralNetwork->getHyperparameters());
-        std::transform(std::execution::par_unseq, std::begin(nnHyperparameterGradients), std::end(nnHyperparameterGradients), std::begin(d_penalty), std::begin(nnHyperparameterGradients), std::minus<float>());
+        std::transform(// std::execution::par_unseq
+          std::begin(nnHyperparameterGradients), std::end(nnHyperparameterGradients), std::begin(d_penalty), std::begin(nnHyperparameterGradients), std::minus<float>());
       }
       updateWeights(nnHyperparameterGradients);
     }
@@ -557,7 +559,7 @@ std::vector<std::vector<float>> &__className__::getEvaluation(const std::vector<
       KORALI_LOG_ERROR("[Generation %zu / Batch %zu] Non finite output values after forwarding input data.", _k->_currentGeneration, i+1);
   }
 #endif
-  return _neuralNetwork->getOutputValues(N);;
+  return _neuralNetwork->getOutputValues(N);
 }
 
 std::vector<std::vector<float>> &__className__::getEvaluation(std::vector<std::vector<std::vector<float>>> &&input)

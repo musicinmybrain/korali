@@ -3,7 +3,6 @@
 #include <cstdio>
 #include <numeric>
 #include "accuracy.hpp"
-#include <execution>
 
 namespace korali
 {

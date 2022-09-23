@@ -4,7 +4,7 @@
 #include <numeric>
 #include <cmath>
 #include "negative_log_likelihood.hpp"
-#include <execution>
+// #include <execution>
 
 namespace korali
 {

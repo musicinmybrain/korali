@@ -4,7 +4,7 @@
 #include <numeric>
 #include <functional>
 #include "l1.hpp"
-#include <execution>
+// #include <execution>
 
 namespace korali
 {
@@ -21,7 +21,7 @@ namespace korali
     std::vector<float> L1::d_penality(const std::vector<float>& weights) {
       auto d_penality(weights);
       std::transform(
-        std::execution::par_unseq,
+        // std::execution::par_unseq,
         std::begin(d_penality),
         std::end(d_penality),
         std::begin(d_penality),

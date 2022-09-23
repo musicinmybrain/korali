@@ -89,7 +89,7 @@ class __className__ : public __parentClassName__
   /**
    * @brief cuDNN Descriptor for the resampling function
    */
-  cudnnBackendDescriptor_t _cuDNNDesc;
+  cudnnBackendDescriptor_t _cudnnResamplingDesc;
   // cudnnActivationDescriptor_t _activationDesc;
     // cudnnBackendCreateDescriptor(CUDNN_BACKEND_RESAMPLE_DESCRIPTOR, &desc);
 

@@ -4,7 +4,7 @@
 #include <numeric>
 #include <cmath>
 #include "cross_entropy.hpp"
-#include <execution>
+// #include <execution>
 
 namespace korali
 {
@@ -27,7 +27,7 @@ namespace korali
       std::vector<float> dloss;
       dloss.reserve(classes);
       std::transform(
-        std::execution::par_unseq,
+        // std::execution::par_unseq,
         std::begin(y_true),
         std::end(y_true),
         std::begin(y_pred),

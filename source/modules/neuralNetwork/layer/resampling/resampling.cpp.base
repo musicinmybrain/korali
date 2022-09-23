@@ -85,7 +85,11 @@ void __className__::createForwardPipeline()
   if (_nn->_engine == "CuDNN")
   {
     // TODO
-    cudnnBackendCreateDescriptor(CUDNN_BACKEND_RESAMPLE_DESCRIPTOR, &_cuDNNDesc);
+    cudnnBackendCreateDescriptor(CUDNN_BACKEND_RESAMPLE_DESCRIPTOR, &_cudnnResamplingDesc);
+    // cudnnBackendSetAttribute(_cudnnResamplingDesc,
+    //                          CUDNN_ATTR_RESAMPLE_MODE,
+    //                          CUDNN_TYPE_RESAMPLE_MODE, 1, &resample_mode);
+
     // std::get<dnnl::algorithm>(_algorithm_t)
   }
 #endif
@@ -123,7 +127,7 @@ void __className__::createBackwardPipeline()
   if (_nn->_engine == "CuDNN")
   {
     // TODO
-    // cudnnBackendCreateDescriptor(CUDNN_BACKEND_RESAMPLE_DESCRIPTOR, _cuDNNDesc);
+    // cudnnBackendCreateDescriptor(CUDNN_BACKEND_RESAMPLE_DESCRIPTOR, _cudnnResamplingDesc);
   }
 #endif
 }

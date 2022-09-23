@@ -3,7 +3,7 @@
 #include <cstdio>
 #include <numeric>
 #include "mse.hpp"
-#include <execution>
+// #include <execution>
 
 namespace korali
 {
@@ -11,7 +11,7 @@ namespace korali
 
     float MSE::loss(const std::vector<float>& y_true, const std::vector<float>& y_pred){
       float loss =  std::transform_reduce(
-        std::execution::par_unseq,
+        // std::execution::par_unseq,
         std::begin(y_true),
         std::end(y_true),
         std::begin(y_pred),
@@ -29,7 +29,7 @@ namespace korali
       std::vector<float> dloss;
       dloss.reserve(y_true.size());
       std::transform(
-        std::execution::par_unseq,
+        // std::execution::par_unseq,
         std::begin(y_true),
         std::end(y_true),
         std::begin(y_pred),
