@@ -297,8 +297,13 @@ void DeepSupervisor::runEpoch()
     if (_batchConcurrency > _k->_engine->_conduit->getWorkerCount()) KORALI_LOG_ERROR("The batch concurrency requested (%lu) exceeds the number of Korali workers defined in the conduit type/configuration (%lu).", _batchConcurrency, _k->_engine->_conduit->getWorkerCount());
     // Updating solver's learning rate, if changed
     _optimizer->_eta = std::max(_learning_rate->get(this), _learningRateLowerBound);
-    if(_learningRateSave)
-      (*_k)["Results"]["Learning Rate"] = _optimizer->_eta;
+    if(_learningRateSave){
+      _totalLearningRate.push_back(_optimizer->_eta);
+      if(_mode == "Automatic Training")
+        (*_k)["Results"]["Learning Rate"] = _totalLearningRate;
+      else
+        (*_k)["Results"]["Learning Rate"] = _totalLearningRate.back();
+    }
     // Checking that incoming data has a correct format
     _problem->verifyData();
     // Data ========================================================================
@@ -529,6 +534,10 @@ void DeepSupervisor::runPrediction()
       auto y_val = getEvaluation(_problem->_inputData);
       _testingLoss = _loss->loss(_problem->_solutionData, y_val);
       (*_k)["Results"]["Testing Loss"] = _testingLoss;
+      if(_metrics){
+        // TODO: make a loop for different metrics and make metrics a vector to calcualte different metrics
+        _currentMetrics = _metrics->compute(_problem->_solutionData, y_val);
+      }
     }
 }
 
@@ -691,13 +700,15 @@ void DeepSupervisor::printGenerationAfter()
     if(_epochCount>=_epochs){
       _k->_logger->logInfo("Normal", "\n");
     }
-    if (_mode == "Automatic Training"){
-
-    }
   }
-  if (_mode == "Predict")
+  if (_mode == "Testing")
   {
-    // TODO: do if metric like accuracy or somethign like that is set
+    std::ostringstream output{};
+    std::string sep{" | "};
+    output << std::fixed << std::setprecision(4) << "[Korali] " << " Test Loss: " << _testingLoss;
+    if(_metrics)
+      output << sep << _metricsType.c_str() << " " << _currentMetrics;
+    _k->_logger->logInfo("Normal", "%s\n", output.str().c_str());
   }
 }
 
@@ -900,6 +911,16 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
       KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Epoch Count']\n%s", e.what());
     }
     eraseValue(js, "Epoch Count");
+  }
+  if (isDefined(js, "Total Learning Rate"))
+  {
+    try
+    {
+      _totalLearningRate = js["Total Learning Rate"].get<std::vector<float>>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Total Learning Rate']\n%s", e.what());
+    }
+    eraseValue(js, "Total Learning Rate");
   }
   if (isDefined(js, "Mode"))
   {
@@ -1279,6 +1300,7 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
    js["Normalization Means"] = _normalizationMeans;
    js["Normalization Variances"] = _normalizationVariances;
    js["Epoch Count"] = _epochCount;
+   js["Total Learning Rate"] = _totalLearningRate;
  Learner::getConfiguration(js);
 } 
 

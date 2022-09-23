@@ -56,5 +56,6 @@ def plot(gen_dicts, config, others, **kwargs):
   if 'Learning Rate' in config['Results']:
     ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
     ax2.set_ylabel('Learning Rate')  # we already handled the x-label with ax1
-    ax2.plot(gen_dicts.keys(), [gen["Results"]["Learning Rate"] for gen in gen_dicts.values()], color=lr_c)
+    LearningRates = last_gen["Results"]["Learning Rate"]
+    ax2.plot(X, LearningRates, color=lr_c)
     fig.tight_layout()  # otherwise the right y-label is slightly clipped

@@ -200,6 +200,10 @@ class DeepSupervisor : public Learner
   */
    size_t _epochCount;
   /**
+  * @brief [Internal Use] Value of the learning rate for all epochs.
+  */
+   std::vector<float> _totalLearningRate;
+  /**
   * @brief [Termination Criteria] Specifies the maximum number of epochs to run when in training mode
   */
    size_t _epochs;

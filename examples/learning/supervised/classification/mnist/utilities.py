@@ -18,7 +18,7 @@ def make_parser():
         '--validationSplit',
         help='Batch size to use for validation data',
         type=float,
-        default=0.2,
+        default=0.01,
         required=False)
     parser.add_argument(
         '--trainingBS',
@@ -36,13 +36,6 @@ def make_parser():
         '--optimizer',
         help='Optimizer to use for NN parameter updates',
         default='Adam',
-        required=False)
-    parser.add_argument(
-        '-lr',
-        '--learningRate',
-        help='Learning rate for the selected optimizer',
-        default=0.001,
-        type=float,
         required=False)
     parser.add_argument(
         '--regularizerCoefficient',

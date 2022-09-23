@@ -33,7 +33,7 @@ parser.add_argument(
     '--mode',
     help='Mode to use, train, predict or all',
     default='Automatic',
-    choices=["Training", "Automatic", "Predict", "Plot"],
+    choices=["Training", "Automatic", "Predict", "Plot", "Testing"],
     required=False)
 parser.add_argument(
     '--engine',
@@ -43,14 +43,29 @@ parser.add_argument(
 parser.add_argument(
     '--learningRateType',
     help='Learning rate type for the selected optimizer',
+    choices=["Const", "Step Based", "Time Based"],
     default="Const",
     required=False)
+parser.add_argument(
+        '-lr',
+        '--learningRate',
+        help='Learning rate for the selected optimizer',
+        default=0.01,
+        type=float,
+        required=False)
 parser.add_argument(
     "-l",
     "--load-model",
     help="Load previous model",
     required=False,
     action="store_true"
+)
+parser.add_argument(
+    "--other",
+    help="Can be used to add a folder to distinguish the model inside the results file",
+    required=False,
+    default="",
+    type=str,
 )
 palette = sns.color_palette("deep")
 train_c = palette[1]
@@ -126,9 +141,10 @@ if args.verbosity in ("Normal", "Detailed"):
 # Calculate number of samples that is fitting to the BS =====================
 nb_training_samples = len(trainingSet)
 nb_training_samples = int((nb_training_samples*(1-args.validationSplit))/args.trainingBS)*args.trainingBS
+nb_testing_samples = len(testingImages)
 if args.test:
     nb_training_samples = args.trainingBS*10
-nb_validation_samples = int((len(trainingSet)*args.validationSplit)/args.testingBS)*args.testingBS
+nb_validation_samples = int((len(trainingSet)*args.validationSplit)/args.validationBS)*args.validationBS
 if args.test:
     nb_validation_samples = args.validationBS*1
 if args.verbosity in ["Normal", "Detailed"]:
@@ -146,7 +162,7 @@ nb_training_samples = len(trainingImages)
 assert len(validationImages) % args.validationBS == 0
 assert len(trainingImages) % args.trainingBS == 0
 ### Load Previous model if desired
-results_dir = os.path.join("_korali_result", args.mode, args.model)
+results_dir = os.path.join("_korali_result", args.model, args.other)
 results_file = os.path.join(results_dir, "latest")
 isStateFound = False
 if args.load_model:
@@ -162,7 +178,7 @@ e["Problem"]["Type"] = "Supervised Learning"
 e["Solver"]["Type"] = "Learner/DeepSupervisor"
 e["Problem"]["Training Batch Size"] = args.trainingBS
 # e["Problem"]["Testing Batch Sizes"] = [1, args.testingBS]
-e["Problem"]["Testing Batch Size"] = args.testingBS
+e["Problem"]["Testing Batch Size"] = nb_testing_samples
 e["Problem"]["Max Timesteps"] = 1
 e["Problem"]["Input"]["Size"] = img_size
 e["Problem"]["Solution"]["Size"] = label_size
@@ -171,6 +187,13 @@ e["Solver"]["Termination Criteria"]["Epochs"] = args.epochs
 
 e["Solver"]["Learning Rate"] = args.learningRate
 e["Solver"]["Learning Rate Type"] = args.learningRateType
+if args.learningRateType == "Step Based":
+    e["Solver"]["Learning Rate Steps"] = 50
+    e["Solver"]["Learning Rate Lower Bound"] = 0.0001
+    e["Solver"]["Learning Rate Decay Factor"] = 2
+if args.learningRateType == "Time Based":
+    e["Solver"]["Learning Rate Decay Factor"] = 0.001
+    e["Solver"]["Learning Rate Lower Bound"] = 0.0001
 e["Solver"]["Learning Rate Save"] = True
 
 e["Solver"]["Loss Function"] = "Cross Entropy"
@@ -232,13 +255,12 @@ elif args.mode == "Training":
 
 # PREDICTING ==================================================================================
 e["File Output"]["Enabled"] = False
-if args.mode in ["predict"]:
+if args.mode in ["Predict", "Testing"]:
     if not isStateFound:
         sys.exit("Cannot predict without loading or training a model.")
-    testImage = trainingImages[:args.testingBS]
-    e["Problem"]["Input"]["Data"] = add_dimension_to_elements(testImage)
-    e["Problem"]["Solution"]["Data"] = testImage
     e["Solver"]["Mode"] = "Testing"
+    e["Problem"]["Input"]["Data"] = add_dimension_to_elements(testingImages)
+    e["Problem"]["Solution"]["Data"] = testingLabeles
     k.run(e)
 
 # # Plotting Results
