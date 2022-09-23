@@ -22,8 +22,8 @@ def initEnvironment(e, envName, multPolicies):
     numIndividuals = 5
 
  elif (envName == 'Multiwalker'):
-    from pettingzoo.sisl import multiwalker_v7
-    env = multiwalker_v7.env()
+    from pettingzoo.sisl import multiwalker_v9
+    env = multiwalker_v9.env()
     stateVariableCount = 31
     actionVariableCount = 4
     ac_upper = 1 
@@ -102,7 +102,7 @@ def agent(s, env):
  
  states = []
 
- if (env.env.env.metadata['name']== 'waterworld_v3') or (env.env.env.metadata['name']== 'multiwalker_v7'):
+ if (env.env.env.metadata['name']== 'waterworld_v3') or (env.env.env.metadata['name']== 'multiwalker_v9'):
    for ag in env.agents:
       state = env.observe(ag).tolist()
       states.append(state)
@@ -162,10 +162,10 @@ def agent(s, env):
    rewards.append(reward)
    action = actions.pop(0)
    
-   if done and (env.env.env.metadata['name']== 'multiwalker_v7'):
+   if done and (env.env.env.metadata['name']== 'multiwalker_v9'):
     continue
    
-   if (env.env.env.metadata['name']== 'waterworld_v3') or (env.env.env.metadata['name']== 'multiwalker_v7'):
+   if (env.env.env.metadata['name']== 'waterworld_v3') or (env.env.env.metadata['name']== 'multiwalker_v9'):
       env.step(np.array(action,dtype= 'float32'))
    else: # Pursuit or Gather
       if done:
@@ -179,7 +179,7 @@ def agent(s, env):
   # Storing New State
   states = []
  
-  if (env.env.env.metadata['name']== 'waterworld_v3') or (env.env.env.metadata['name']== 'multiwalker_v7'):
+  if (env.env.env.metadata['name']== 'waterworld_v3') or (env.env.env.metadata['name']== 'multiwalker_v9'):
    for ag in env.agents:
       state = env.observe(ag).tolist()
       states.append(state)
