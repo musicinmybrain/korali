@@ -265,10 +265,9 @@ def PlotSolsAndPredict(sgs, dns, full_dns, x_arr, x_arr_dns, batch_size, opt_sta
         axs[k,l].plot(x_arr,     predict[-1],  '--', color=colors[2], label='Predicted values')
 
         # Add labels
-        #axs[k,l].set_title('Non-Korali version')
         axs[k,l].set_xlabel('x')
         axs[k,l].set_ylabel('u(x)')
-        #axs[k,l].legend()
+        axs[k,l].set_title('t = '+str(t))
 
     # Add legend to first plot
     axs[0,0].legend()
@@ -313,6 +312,7 @@ def PlotTesting(dns, base, sgs, fileName, full = True):
         # Add labels
         axs[k,l].set_xlabel('x')
         axs[k,l].set_ylabel('u(x)')
+        axs[k,l].set_title('t = '+str(t))
 
     # Add legend to first plot
     axs[0,0].legend() 
@@ -356,6 +356,7 @@ def PlotCorrections(base, corrections, x_arr, tEnd, dt, fileName, full = True):
         # Add labels
         axs[k,l].set_xlabel('x')
         axs[k,l].set_ylabel('u(x)')
+        axs[k,l].set_title('t = '+str(t))
 
     # Add legend to first plot
     axs[0,0].legend() 

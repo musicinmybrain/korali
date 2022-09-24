@@ -38,6 +38,7 @@ def makePlot(dns, base, sgs, fileName, spectralReward=True):
         # Add labels
         axs2[k,l].set_xlabel('x')
         axs2[k,l].set_ylabel('u(x)')
+        axs2[k,l].set_title('t = '+str(t))
 
     # Add legend to first plot
     axs2[0,0].legend() 
