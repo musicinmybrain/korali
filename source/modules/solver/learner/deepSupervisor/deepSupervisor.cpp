@@ -707,7 +707,7 @@ void DeepSupervisor::printGenerationAfter()
   {
     std::ostringstream output{};
     std::string sep{" | "};
-    output << std::fixed << std::setprecision(4) << "[Korali] " << " Test Loss: " << _testingLoss;
+    output << std::fixed << std::setprecision(4) << " Test Loss: " << _testingLoss;
     if(_metrics)
       output << sep << _metricsType.c_str() << " " << _currentMetrics;
     _k->_logger->logInfo("Normal", "%s\n", output.str().c_str());
