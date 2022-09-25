@@ -10,6 +10,7 @@ import math
 import copy
 import argparse
 import seaborn as sns
+sys.path.append(os.path.abspath('./_models'))
 sns.set()
 palette = sns.color_palette("tab10")
 train_c = palette[2]
@@ -18,50 +19,6 @@ lr_c = palette[5]
 test_c = palette[4]
 f_c = palette[0]
 plt.rcParams['text.usetex'] = True
-
-def set_complex_model(e, input_dims):
-    """Configure one hidden layer autoencoder.
-
-    :param e: korali experiment
-    :param input_dims: encoding dimension
-    """
-    # ===================== Input Layer
-    e["Problem"]["Input"]["Size"] = input_dims
-    e["Problem"]["Solution"]["Size"] = input_dims
-    # ===================== Linear Layer
-    e["Solver"]["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear"
-    e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 32
-    ## Activation ========================
-    e["Solver"]["Neural Network"]["Hidden Layers"][1]["Type"] = "Layer/Activation"
-    e["Solver"]["Neural Network"]["Hidden Layers"][1]["Function"] = "Elementwise/Tanh"
-    # ===================== Linear Layer
-    e["Solver"]["Neural Network"]["Hidden Layers"][2]["Type"] = "Layer/Linear"
-    e["Solver"]["Neural Network"]["Hidden Layers"][2]["Output Channels"] = 128
-    ## Activation ========================
-    e["Solver"]["Neural Network"]["Hidden Layers"][3]["Type"] = "Layer/Activation"
-    e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tanh"
-    # ===================== Linear Layer
-    e["Solver"]["Neural Network"]["Hidden Layers"][4]["Type"] = "Layer/Linear"
-    e["Solver"]["Neural Network"]["Hidden Layers"][4]["Output Channels"] = 32
-
-
-def set_simple_model(e, input_dims):
-    # ===================== Input Layer
-    e["Problem"]["Input"]["Size"] = input_dims
-    e["Problem"]["Solution"]["Size"] = input_dims
-    # ===================== Linear Layer
-    e["Solver"]["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear"
-    e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 32
-    ## Activation ========================
-    e["Solver"]["Neural Network"]["Hidden Layers"][1]["Type"] = "Layer/Activation"
-    e["Solver"]["Neural Network"]["Hidden Layers"][1]["Function"] = "Elementwise/Tanh"
-    # ===================== Linear Layer
-    e["Solver"]["Neural Network"]["Hidden Layers"][2]["Type"] = "Layer/Linear"
-    e["Solver"]["Neural Network"]["Hidden Layers"][2]["Output Channels"] = 32
-    ## Activation ========================
-    e["Solver"]["Neural Network"]["Hidden Layers"][3]["Type"] = "Layer/Activation"
-    e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tanh"
-
 k = korali.Engine()
 
 parser = argparse.ArgumentParser()
@@ -115,7 +72,7 @@ parser.add_argument(
 parser.add_argument(
     '--trainingSetSize',
     help='Batch size to use for training data',
-    default=100,
+    default=50,
     required=False)
 parser.add_argument(
     '--trainingBatchSize',
@@ -170,7 +127,7 @@ parser.add_argument(
     "--std",
     help="Standard Deviation",
     required=False,
-    default=0.9
+    default=0.0
 )
 parser.add_argument(
     "-m",
@@ -191,6 +148,15 @@ if len(sys.argv) != 0:
         IPYTHON = True
 args = parser.parse_args()
 sys.argv = tmp
+#  MODEL SELECTION ===========================================================
+if args.model == "simple":
+    from simple_model import set_simple_model as regressor
+elif args.model == "complex":
+    from complex_model import set_complex_model as regressor
+else:
+    sys.exit(f"{args.model} is not a valid model.")
+#  ===========================================================================
+add_sample_dimension = add_time_dimension = lambda l : [ [y] for y in l]
 # Test functions to use
 f = np.vectorize(lambda x: -(1.4 - 3.0 * x) * math.sin(18.0 * x))
 x_min = 0
@@ -201,15 +167,12 @@ X_test = np.linspace(x_min, x_max, args.testBatchSize)
 eps = np.random.normal(loc=0.0, scale=args.std, size=args.trainingSetSize)
 y_train = f(X_train)+eps
 y_test = f(X_test)
-X_train_k = X_train.flatten().tolist()
-X_test_k = X_test.flatten().tolist()
-y_train_k = y_train.flatten().tolist()
-y_test_k = y_test.flatten().tolist()
-X_train_k = [ [[x]] for x in X_train_k ]
-y_train_k = [ [y] for y in y_train_k ]
-X_test_k = [ [[x]] for x in X_test_k ]
-y_test_k = [ [y] for y in y_test_k ]
 
+y_train = add_sample_dimension(y_train.tolist())
+y_test = add_sample_dimension(y_test.tolist())
+X_train = add_sample_dimension(X_train.tolist())
+X_test = add_sample_dimension(X_test.tolist())
+input_dims = len(X_train[0])
 
 print_header('Korali', color=bcolors.HEADER, width=140)
 print_args(vars(args), sep=' ', header_width=140)
@@ -217,22 +180,21 @@ print_args(vars(args), sep=' ', header_width=140)
 np.random.seed(0xC0FFEE)
 
 eList = []
+# run model with and without regularizer
 for i, path in enumerate(["_korali_result", "_korali_resultL2"]):
     e = korali.Experiment()
+    e["Problem"]["Type"] = "learning/Supervised Learning"
     e["Problem"]["Description"] = "Supervised Learning Problem: $y(x)=\\tanh(\\exp(\\sin(\\texttt{trainingInputSet})))\\cdot\\texttt{scaling}$"
-    e["Problem"]["Type"] = "Supervised Learning"
     e["Problem"]["Max Timesteps"] = 1
     e["Problem"]["Training Batch Size"] = args.trainingBatchSize
     e["Problem"]["Testing Batch Size"] = args.testBatchSize
 
-    e["Problem"]["Input"]["Data"] = X_train_k
-    e["Problem"]["Input"]["Size"] = 1
-    e["Problem"]["Solution"]["Data"] = y_train_k
-    e["Problem"]["Solution"]["Size"] = 1
+    e["Problem"]["Input"]["Data"] = add_time_dimension(X_train)
+    e["Problem"]["Solution"]["Data"] = y_train
     e["Solver"]["Data"]["Validation"]["Split"] = args.validationSplit
 
     e["Solver"]["Type"] = "Learner/DeepSupervisor"
-    e["Solver"]["Mode"] = "Training"
+    e["Solver"]["Mode"] = "Automatic Training"
     e["Solver"]["Loss Function"] = "Mean Squared Error"
 
     e["Solver"]["Learning Rate"] = args.initialLearningRate
@@ -247,25 +209,21 @@ for i, path in enumerate(["_korali_result", "_korali_resultL2"]):
     e["Solver"]["Data"]["Training"]["Shuffel"] = True
     e["Solver"]["Neural Network"]["Engine"] = args.engine
     e["Solver"]["Neural Network"]["Optimizer"] = args.optimizer
-
-    if args.model == "simple":
-        set_simple_model(e, len(X_train_k[0]))
-    elif args.model == "complex":
-        set_complex_model(e, len(X_train_k[0]))
-
+    # MODEL DEFINTION ================================================================================
+    regressor(e, input_dims)
+    # ================================================================================
     e["Console Output"]["Frequency"] = 1
     e["Console Output"]["Verbosity"] = "Normal"
     e["File Output"]["Enabled"] = args.save
-    e["File Output"]["Frequency"] = 1 if args.epochs <= 100 else args.epochs/10
+    e["File Output"]["Frequency"] = 0
     e["File Output"]["Path"] = path
-    e["Save"]["Problem"] = False
-    e["Save"]["Solver"] = False
+    e["Save Only"] = ["Current Generation" ,"Run ID", "Results", "Solver"]
     e["Random Seed"] = 0xC0FFEE
 
     ### Loading previous models
     if(args.load_model):
         args.validationSplit = 0.0
-        isStateFound = e.loadState("_korali_result/latest")
+        isStateFound = e.loadState(os.path.join("_korali_result", path))
         if(isStateFound):
             print("[Script] Evaluating previous run...\n")
 
@@ -278,29 +236,28 @@ for i, path in enumerate(["_korali_result", "_korali_resultL2"]):
 k.run(eList)
 
 # ### Plotting Training Results
-fig, axes = plt.subplots(2)
 if (args.plot):
+    fig, axes = plt.subplots(2)
     for i, type in enumerate(["","$+ \\lambda||w||^2$"]):
         axes[i].plot(np.linspace(x_min, x_max, 400), f(np.linspace(x_min, x_max, 400)), label="$f(x)$", color = f_c)
         axes[i].scatter(eList[i]["Problem"]["Input"]["Data"], eList[i]["Problem"]["Solution"]["Data"], label="$y_{\\textrm{train}}=f(x)+\\epsilon$", color=train_c)
         axes[i].scatter(eList[i]["Problem"]["Data"]["Validation"]["Input"], eList[i]["Problem"]["Data"]["Validation"]["Solution"], label="$y_{\\textrm{val}}=f(x)+\\epsilon$", color=val_c)
 
-for i, _ in enumerate(eList):
-    # # ### Obtaining inferred results from the NN and comparing them to the actual solution
-    eList[i]["Solver"]["Mode"] = "Predict"
-    eList[i]["Problem"]["Input"]["Data"] = X_test_k
-    # ### Running Testing and getting results
-    eList[i]["File Output"]["Enabled"] = False
-k.run(eList)
+    for i, _ in enumerate(eList):
+        # # ### Obtaining inferred results from the NN and comparing them to the actual solution
+        eList[i]["Solver"]["Mode"] = "Predict"
+        eList[i]["Problem"]["Input"]["Data"] = add_time_dimension(X_test)
+        # ### Running Testing and getting results
+        eList[i]["File Output"]["Enabled"] = False
+    k.run(eList)
 
-yhat = []
-weight_sum = []
-for i, _ in enumerate(eList):
-    yhat.append([ y[0] for y in eList[i]["Solver"]["Evaluation"] ])
-    weight_sum.append(sum([ w**2 for w in eList[i]["Solver"]["Hyperparameters"] ]))
+    yhat = []
+    weight_sum = []
+    for i, _ in enumerate(eList):
+        yhat.append([ y[0] for y in eList[i]["Solver"]["Evaluation"] ])
+        weight_sum.append(sum([ w**2 for w in eList[i]["Solver"]["Hyperparameters"] ]))
 
 # ### Plotting Testing Results
-if (args.plot):
     for i, type in enumerate(["","$+ \\lambda||w||^2$"]):
     # for i, type in enumerate([""]):
         l = "" if type == "" else " and $\\lambda = $" + f'{args.regularizerCoefficient:.4f}'

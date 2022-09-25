@@ -26,7 +26,7 @@ parser = make_parser()
 parser.add_argument(
     '--validationBS',
     help='Batch Size to use for the validation set',
-    default=64,
+    default=32,
     type=int,
     required=False)
 parser.add_argument(
@@ -50,7 +50,7 @@ parser.add_argument(
         '-lr',
         '--learningRate',
         help='Learning rate for the selected optimizer',
-        default=0.01,
+        default=0.001,
         type=float,
         required=False)
 parser.add_argument(
@@ -162,7 +162,7 @@ nb_training_samples = len(trainingImages)
 assert len(validationImages) % args.validationBS == 0
 assert len(trainingImages) % args.trainingBS == 0
 ### Load Previous model if desired
-results_dir = os.path.join("_korali_result", args.model, args.other)
+results_dir = os.path.join("_korali_result", args.model, args.other, "OneDNN")
 results_file = os.path.join(results_dir, "latest")
 isStateFound = False
 if args.load_model:
@@ -178,7 +178,7 @@ e["Problem"]["Type"] = "Supervised Learning"
 e["Solver"]["Type"] = "Learner/DeepSupervisor"
 e["Problem"]["Training Batch Size"] = args.trainingBS
 # e["Problem"]["Testing Batch Sizes"] = [1, args.testingBS]
-e["Problem"]["Testing Batch Size"] = nb_testing_samples
+e["Problem"]["Testing Batch Size"] = nb_validation_samples
 e["Problem"]["Max Timesteps"] = 1
 e["Problem"]["Input"]["Size"] = img_size
 e["Problem"]["Solution"]["Size"] = label_size
@@ -259,8 +259,8 @@ if args.mode in ["Predict", "Testing"]:
     if not isStateFound:
         sys.exit("Cannot predict without loading or training a model.")
     e["Solver"]["Mode"] = "Testing"
-    e["Problem"]["Input"]["Data"] = add_dimension_to_elements(testingImages)
-    e["Problem"]["Solution"]["Data"] = testingLabeles
+    e["Problem"]["Input"]["Data"] = add_dimension_to_elements(validationImages)
+    e["Problem"]["Solution"]["Data"] = validationLabels
     k.run(e)
 
 # # Plotting Results

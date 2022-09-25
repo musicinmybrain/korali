@@ -17,6 +17,9 @@ def LeNet1(e, img_width, img_height, label_size, channels=1):
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"]       = img_height
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Kernel Size"]       = 5
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Filters"]           = 4
+    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Algorithm"]["Forward"] = "GEMM"
+    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Algorithm"]["Backward"]["Data"] = "GEMM-SUM"
+    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Algorithm"]["Backward"]["Filter"] = "GEMM-SUM"
     ## Activation =============================================================================
     lidx += 1
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Activation"
@@ -37,7 +40,10 @@ def LeNet1(e, img_width, img_height, label_size, channels=1):
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Height"]      = 12
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Image Width"]       = 12
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Kernel Size"]       = 5
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Filters"]           = 3
+    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Filters"]           = 12
+    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Algorithm"]["Forward"] = "GEMM"
+    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Algorithm"]["Backward"]["Data"] = "GEMM-SUM"
+    # e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Algorithm"]["Backward"]["Filter"] = "GEMM-SUM"
     # ## Activation =============================================================================
     lidx += 1
     e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Activation"
