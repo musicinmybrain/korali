@@ -44,8 +44,7 @@
 #include "problem/reinforcementLearning/continuous/continuous.hpp"
 #include "problem/reinforcementLearning/discrete/discrete.hpp"
 #include "problem/sampling/sampling.hpp"
-#include "problem/learning/supervisedLearning/supervisedLearning.hpp"
-#include "problem/learning/unsupervisedLearning/unsupervisedLearning.hpp"
+#include "problem/supervisedLearning/supervisedLearning.hpp"
 #include "solver/agent/continuous/VRACER/VRACER.hpp"
 #include "solver/agent/continuous/continuous.hpp"
 #include "solver/agent/discrete/dVRACER/dVRACER.hpp"
@@ -143,8 +142,7 @@ Module *Module::getModule(knlohmann::json &js, Experiment *e)
   if (iCompare(moduleType, "Sampling")) module = new korali::problem::Sampling();
   if (iCompare(moduleType, "ReinforcementLearning/Continuous")) module = new korali::problem::reinforcementLearning::Continuous();
   if (iCompare(moduleType, "ReinforcementLearning/Discrete")) module = new korali::problem::reinforcementLearning::Discrete();
-  if (iCompare(moduleType, "SupervisedLearning")) module = new korali::problem::learning::SupervisedLearning();
-  if (iCompare(moduleType, "UnsupervisedLearning")) module = new korali::problem::learning::UnsupervisedLearning();
+  if (iCompare(moduleType, "SupervisedLearning")) module = new korali::problem::SupervisedLearning();
   if (iCompare(moduleType, "Executor")) module = new korali::solver::Executor();
   if (iCompare(moduleType, "Integrator")) module = new korali::solver::Integrator();
   if (iCompare(moduleType, "Learner/GaussianProcess")) module = new korali::solver::learner::GaussianProcess();

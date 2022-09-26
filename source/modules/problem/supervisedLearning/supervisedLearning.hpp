@@ -3,11 +3,11 @@
 */
 
 /** \file
-* @brief Header file for module: Learning.
+* @brief Header file for module: SupervisedLearning.
 */
 
-/** \dir problem/learning
-* @brief Contains code, documentation, and scripts for module: Learning.
+/** \dir problem/supervisedLearning
+* @brief Contains code, documentation, and scripts for module: SupervisedLearning.
 */
 
 #pragma once
@@ -21,15 +21,15 @@ namespace problem
 ;
 
 /**
-* @brief Class declaration for module: Learning.
+* @brief Class declaration for module: SupervisedLearning.
 */
-class Learning : public Problem
+class SupervisedLearning : public Problem
 {
   public: 
   /**
-  * @brief Stores the length of the sequence for recurrent neural networks.
+  * @brief Stores the batch size of the training dataset.
   */
-   size_t _maxTimesteps;
+   size_t _trainingBatchSize;
   /**
   * @brief Stores the allowed Testing Batch Sizes for the testing dataset.
   */
@@ -39,13 +39,37 @@ class Learning : public Problem
   */
    size_t _testingBatchSize;
   /**
+  * @brief Stores the batch size of the validation dataset; -1 indicates _validationBatchSize == validation input size.
+  */
+   ssize_t _validationBatchSize;
+  /**
+  * @brief Stores the length of the sequence for recurrent neural networks.
+  */
+   size_t _maxTimesteps;
+  /**
   * @brief Provides the input data with layout N*T*IC, where N is the sample size, T is the sequence length and IC is the vector size of the input.
   */
    std::vector<std::vector<std::vector<float>>> _inputData;
   /**
+  * @brief Provides the validation set with layout NV*T*IC, where NV is the sample size, T is the sequence length and IC is the vector size of the input.
+  */
+   std::vector<std::vector<std::vector<float>>> _dataValidationInput;
+  /**
+  * @brief Provides the solution for one-step ahead prediction with layout NV*OC, where N is the batch size and OC is the vector size of the output.
+  */
+   std::vector<std::vector<float>> _dataValidationSolution;
+  /**
   * @brief Indicates the vector size of the input (IC).
   */
    size_t _inputSize;
+  /**
+  * @brief Provides the solution for one-step ahead prediction with layout N*OC, where N is the batch size and OC is the vector size of the output.
+  */
+   std::vector<std::vector<float>> _solutionData;
+  /**
+  * @brief Indicates the vector size of the output (OC).
+  */
+   size_t _solutionSize;
   
  
   /**
@@ -69,7 +93,7 @@ class Learning : public Problem
   void applyVariableDefaults() override;
   
 
-    virtual void initialize() override;
+  void initialize() override;
 
   /**
    * @brief Checks whether the input data has the correct shape

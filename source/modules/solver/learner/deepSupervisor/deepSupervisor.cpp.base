@@ -21,7 +21,7 @@ __startNamespace__;
 void __className__::initialize()
 {
   // Getting problem pointer
-  _problem = dynamic_cast<problem::learning::SupervisedLearning *>(_k->_problem);
+  _problem = dynamic_cast<problem::SupervisedLearning *>(_k->_problem);
 
   // Don't reinitialize if experiment was already initialized
   if (_k->_isInitialized == true) return;

@@ -11,7 +11,7 @@
 #include "modules/problem/hierarchical/thetaNew/thetaNew.hpp"
 #include "modules/problem/propagation/propagation.hpp"
 #include "modules/problem/integration/integration.hpp"
-#include "modules/problem/learning/supervisedLearning/supervisedLearning.hpp"
+#include "modules/problem/supervisedLearning/supervisedLearning.hpp"
 #include "modules/problem/reinforcementLearning/reinforcementLearning.hpp"
 #include "modules/problem/reinforcementLearning/discrete/discrete.hpp"
 #include "modules/problem/reinforcementLearning/continuous/continuous.hpp"

@@ -3,7 +3,7 @@
 #include "modules/solver/learner/learner.hpp"
 #include "modules/solver/learner/deepSupervisor/deepSupervisor.hpp"
 #include "modules/solver/learner/gaussianProcess/gaussianProcess.hpp"
-#include "modules/problem/learning/supervisedLearning/supervisedLearning.hpp"
+#include "modules/problem/supervisedLearning/supervisedLearning.hpp"
 
 namespace
 {

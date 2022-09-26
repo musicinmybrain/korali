@@ -27,6 +27,4 @@ subdir('optimization')
 subdir('propagation')
 subdir('reinforcementLearning')
 subdir('sampling')
-# subdir('supervisedLearning')
-# TODO
-subdir('learning')
+subdir('supervisedLearning')

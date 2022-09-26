@@ -43,7 +43,7 @@ void runSample(Sample &sample, libgp::GaussianProcess *gp)
 
 void __className__::initialize()
 {
-  _problem = dynamic_cast<problem::learning::SupervisedLearning *>(_k->_problem);
+  _problem = dynamic_cast<problem::SupervisedLearning *>(_k->_problem);
 
   if (_problem->_maxTimesteps > 1) KORALI_LOG_ERROR("Training data cannot be time-dependent.");
   if (_problem->_trainingBatchSize == 0) KORALI_LOG_ERROR("Training data has not been provided for variable 0.");
