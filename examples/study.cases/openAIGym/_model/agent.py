@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import gym
+from packaging.version import parse as parse_version
+oldEnv = parse_version(gym.__version__) < parse_version('0.26.0')
 #import pyBulletEnvironments
 import math
 from HumanoidWrapper import HumanoidWrapper
@@ -63,7 +65,10 @@ def agent(s, env):
  else:
   printStep = False
 
- observation, _ = env.reset()
+ if oldEnv:
+  observation = env.reset()
+ else:
+  observation, _ = env.reset()
  s["State"] = observation.tolist()
 
  step = 0
@@ -83,7 +88,11 @@ def agent(s, env):
 
   # Performing the action
   action = s["Action"]
-  state, reward, done, _, _ = env.step(action)
+  if oldEnv:
+   state, reward, done, _ = env.step(action)
+  else:
+   state, reward, done, _, _ = env.step(action)
+  
 
   # Getting Reward
   s["Reward"] = reward
