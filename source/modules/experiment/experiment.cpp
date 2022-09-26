@@ -217,6 +217,7 @@ void Experiment::finalize()
   if (_isInitialized == true) co_delete(_thread);
   delete _logger;
   delete _problem;
+  delete _solver;
 }
 
 knlohmann::json &Experiment::operator[](const std::string &key) { return _js[key]; }

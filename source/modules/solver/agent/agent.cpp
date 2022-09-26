@@ -173,7 +173,7 @@ void Agent::initialize()
   // If this continues a previous training run, deserialize previous input experience replay. Only for the root (engine) rank
   if ( _k->_currentGeneration > 0 )
     if (_mode == "Training")
-      if (_k->_engine->_conduit != NULL)
+      if ( (_k->_engine->_conduit != NULL) && (_k->_engine->_conduit->isRoot()) )
         deserializeExperienceReplay();
 
   // Initializing session-wise profiling timers
