@@ -10,7 +10,7 @@ def initEnvironment(e, envName, moviePath = ''):
 
  # Creating environment
 
- env = gym.make(envName)
+ env = gym.make(envName, new_step_api=True)
 
  # Handling special cases
 
