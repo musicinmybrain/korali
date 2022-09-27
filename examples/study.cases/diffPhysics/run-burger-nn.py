@@ -185,8 +185,8 @@ for level in range(1, levels+1):
         print(f"Train new solution until t = {tEnd_new}")
 
         # Run the training function and update losses and parameters / optimal state
-        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed+level, random_train)
-        #train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd_new, dt, dt_sgs, step_noise, noise_seed+level, random_train)
+        #train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd, dt, dt_sgs, step_noise, noise_seed+level, random_train)
+        train_loss, params_new, opt_state_new = run_training_loop(num_epochs, opt_state_new, batch_dim, batch_size, dns_short_sol, train_arr, tEnd_new, dt, dt_sgs, step_noise, noise_seed+level, random_train)
 
         # Store losses
         total_loss = np.concatenate((total_loss, train_loss), axis=0)
@@ -208,7 +208,9 @@ else:
     loss_dim = pre_epochs + num_epochs * (levels-1)
 losses = np.array(total_loss).reshape(loss_dim, batch_dim)
 PlotMeanLoss(losses, loss_dim, batch_dim)
-PlotLosses(losses, loss_dim, batch_dim)
+# The 4x4 plots only makes sense when not sampling randomly
+if not random_train:
+    PlotLosses(losses, loss_dim, batch_dim)
 
 # Plot solutions (plot testing values)
 print("Plotting Testing Solution ..")

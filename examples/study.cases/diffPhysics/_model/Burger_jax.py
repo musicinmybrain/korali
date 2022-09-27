@@ -415,7 +415,7 @@ class Burger_jax:
 
             # apply correction to solution
             self.u = u + np.array(corrected)
-            #self.v = fft(u_complex + np.array(corrected))
+            self.v = fft(u_complex + np.array(corrected))
             #self.v = v + np.real(fft(np.array(corrected)))
 
             #print(fft(self.u) - self.v)
