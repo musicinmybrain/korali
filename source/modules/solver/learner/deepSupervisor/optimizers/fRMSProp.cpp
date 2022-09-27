@@ -49,7 +49,7 @@ void fRMSProp::reset()
   _bestEvaluation = +std::numeric_limits<float>::infinity();
 }
 
-void fRMSProp::processResult(float evaluation, std::vector<float> &gradient)
+void fRMSProp::processResult(std::vector<float> &gradient)
 {
   if (gradient.size() != _nVars)
   {
@@ -66,13 +66,6 @@ void fRMSProp::processResult(float evaluation, std::vector<float> &gradient)
   }
 
   _modelEvaluationCount++;
-}
-
-bool fRMSProp::checkTermination()
-{
-  if (_currentGeneration >= _maxGenerations) return true;
-
-  return false;
 }
 
 void fRMSProp::printInfo()

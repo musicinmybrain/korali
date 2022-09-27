@@ -285,7 +285,7 @@ void DeepSupervisor::runGeneration()
 }
 
 void DeepSupervisor::updateWeights(std::vector<float> &nnHyperparameterGradients){
-  _optimizer->processResult(0.0f, nnHyperparameterGradients);
+  _optimizer->processResult(nnHyperparameterGradients);
   // // Getting new set of hyperparameters from the gradient descent algorithm
   auto &new_hyperparameters = _optimizer->_currentValue;
   _hyperparameters = new_hyperparameters;

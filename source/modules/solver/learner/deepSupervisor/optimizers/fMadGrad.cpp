@@ -51,7 +51,7 @@ void fMadGrad::reset()
   _bestEvaluation = +std::numeric_limits<float>::infinity();
 }
 
-void fMadGrad::processResult(float evaluation, std::vector<float> &gradient)
+void fMadGrad::processResult(std::vector<float> &gradient)
 {
   if (gradient.size() != _nVars)
   {
@@ -71,13 +71,6 @@ void fMadGrad::processResult(float evaluation, std::vector<float> &gradient)
   }
 
   _modelEvaluationCount++;
-}
-
-bool fMadGrad::checkTermination()
-{
-  if (_currentGeneration >= _maxGenerations) return true;
-
-  return false;
 }
 
 void fMadGrad::printInfo()

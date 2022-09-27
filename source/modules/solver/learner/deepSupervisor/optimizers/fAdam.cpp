@@ -28,11 +28,6 @@ fAdam::fAdam(size_t nVars)
   _eta = 0.001f;
   _epsilon = 1e-08f;
 
-  // Termination Criteria
-  _maxGenerations = 10000000;
-  _minGradientNorm = 1e-16f;
-  _maxGradientNorm = 1e+16f;
-
   reset();
 }
 
@@ -61,7 +56,7 @@ void fAdam::reset()
   _bestEvaluation = +std::numeric_limits<float>::infinity();
 }
 
-void fAdam::processResult(float evaluation, std::vector<float> &gradient)
+void fAdam::processResult(std::vector<float> &gradient)
 {
   _modelEvaluationCount++;
 
@@ -90,12 +85,6 @@ void fAdam::processResult(float evaluation, std::vector<float> &gradient)
   }
 }
 
-bool fAdam::checkTermination()
-{
-  if (_currentGeneration >= _maxGenerations) return true;
-
-  return false;
-}
 
 void fAdam::printInfo()
 {

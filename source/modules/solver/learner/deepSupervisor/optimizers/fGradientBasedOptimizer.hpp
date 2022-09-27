@@ -75,17 +75,11 @@ class fGradientBasedOptimizer
   std::vector<float> _gradient;
 
   /**
-   * @brief Determines whether the module can trigger termination of an experiment run.
-   * @return True, if it should trigger termination; false, otherwise.
-   */
-  virtual bool checkTermination() = 0;
-
-  /**
   * @brief Takes a sample evaluation and its gradient and calculates the next set of parameters
   * @param evaluation The value of the objective function at the current set of parameters
   * @param gradient The gradient of the objective function at the current set of parameters
   */
-  virtual void processResult(float evaluation, std::vector<float> &gradient) = 0;
+  virtual void processResult(std::vector<float> &gradient) = 0;
 
   /**
   * @brief Restores the optimizer to the initial state
