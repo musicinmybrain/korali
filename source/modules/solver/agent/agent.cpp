@@ -4,6 +4,10 @@
 #include "sample/sample.hpp"
 #include <chrono>
 
+#ifdef _OPENMP
+  #include <omp.h>
+#endif
+
 namespace korali
 {
 namespace solver
@@ -17,6 +21,20 @@ namespace solver
 void Agent::initialize()
 {
   _variableCount = _k->_variables.size();
+
+  // Get number of CPUs
+#ifdef _OPENMP
+  _numberOfCPUs = omp_get_num_procs();
+#else
+  _numberOfCPUs = 1;
+#endif
+
+  // Set number of threads using which NN are forwarded in parallel
+#ifdef _OPENMP
+  _numberOfPolicyThreads = omp_get_num_procs() / omp_get_max_threads();
+#else
+  _numberOfPolicyThreads = 1;
+#endif
 
   // Getting problem pointer
   _problem = dynamic_cast<problem::ReinforcementLearning *>(_k->_problem);
@@ -829,7 +847,7 @@ std::vector<std::vector<std::vector<float>>> Agent::getMiniBatchStateSequence(co
   // Allocating state sequence vector
   std::vector<std::vector<std::vector<float>>> stateSequence(numExperiences);
 
-#pragma omp parallel for
+#pragma omp parallel for num_threads(_numberOfCPUs)
   for (size_t b = 0; b < numExperiences; b++)
   {
     // Getting current expId and agentId
@@ -900,8 +918,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
   // Container to compute offpolicy count difference in minibatch
   std::vector<int> offPolicyCountDelta(numAgents, 0);
 
-#pragma omp parallel for reduction(vec_int_plus \
-                                   : offPolicyCountDelta) schedule(dynamic, numAgents)
+#pragma omp parallel for schedule(guided, numAgents) num_threads(_numberOfCPUs) reduction(vec_int_plus : offPolicyCountDelta)
   for (size_t i = 0; i < updateMinibatch.size(); i++)
   {
     // Get current expId and agentId
@@ -974,8 +991,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
 
   if (_multiAgentCorrelation)
   {
-#pragma omp parallel for reduction(vec_int_plus \
-                                   : offPolicyCountDelta)
+#pragma omp parallel for num_threads(_numberOfCPUs) reduction(vec_int_plus : offPolicyCountDelta)
     for (size_t i = 0; i < updateBatch.size(); i++)
     {
       const size_t batchId = updateBatch[i];
@@ -1030,7 +1046,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
   // Average state values for cooperative MA
   if (_multiAgentRelationship == "Cooperation")
   {
-#pragma omp parallel for
+#pragma omp parallel num_threads(_numberOfCPUs)
     for (size_t i = 0; i < updateBatch.size(); i++)
     {
       const size_t batchId = updateBatch[i];
@@ -1106,7 +1122,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
   }
 
 // Calculating retrace value for the oldest experiences of unique episodes
-#pragma omp parallel for schedule(guided, 1)
+#pragma omp parallel for schedule(guided, 1) num_threads(_numberOfCPUs)
   for (size_t i = 0; i < retraceMiniBatch.size(); i++)
   {
     // Determine start of the episode
@@ -1217,7 +1233,7 @@ std::vector<float> Agent::samplePosterior( const size_t policyIdx )
       // Compute constant prefactor
       const float fac = 1.0 / (float)(s+1);
 
-      #pragma omp parallel for simd
+#pragma omp parallel for simd num_threads(_numberOfCPUs)
       for( size_t n = 0; n < nHyperparameters; n++ )
       {
         const float oldMean = mean[n];
@@ -1232,7 +1248,7 @@ std::vector<float> Agent::samplePosterior( const size_t policyIdx )
     hyperparameterSample = mean;
 
     // Sample Hyperparameter
-    #pragma omp parallel for simd
+#pragma omp parallel for num_threads(_numberOfCPUs)
     for( size_t n = 0; n<hyperparameterSample.size(); n++ )
     {
       // Retreive variance
@@ -1253,7 +1269,7 @@ std::vector<float> Agent::samplePosterior( const size_t policyIdx )
     // Get current hyperparameters
     hyperparameterSample = _criticPolicyLearner[policyIdx]->getHyperparameters();
 
-    #pragma omp parallel for simd
+#pragma omp parallel for num_threads(_numberOfCPUs)
     for( size_t n = 0; n<hyperparameterSample.size(); n++ )
     {
       const float p = _uniformGenerator->getRandomNumber();
@@ -1284,13 +1300,13 @@ void Agent::runGenerationHMC( )
 
   // Sample momentum
   std::vector<float> momentum(nHyperparameters);
-  #pragma omp parallel for simd
+#pragma omp parallel for num_threads(_numberOfCPUs)
   for( size_t n = 0; n<nHyperparameters; n++ )
     momentum[n] = std::sqrt(_hmcMass)  * _normalGenerator->getRandomNumber();
 
   // Compute current kinetic energy
   float oldK = 0.0;
-  #pragma omp parallel for simd
+#pragma omp parallel for simd num_threads(_numberOfCPUs) reduction(+:oldK)
   for (size_t n = 0; n < momentum.size(); ++n)
     oldK += ( 0.5 / _hmcMass ) * momentum[n] * momentum[n];
 
@@ -1301,12 +1317,12 @@ void Agent::runGenerationHMC( )
   for( size_t t = 0; t < _hmcNumberOfSteps; t++ )
   {
     // Perform first half-step integration of momentum
-    #pragma omp parallel for simd
+#pragma omp parallel for simd num_threads(_numberOfCPUs)
     for (size_t n = 0; n < momentum.size(); ++n)
       momentum[n] += 0.5 * _hmcStepSize * hyperparameterGradient[n];
 
     // Perform integration of location
-    #pragma omp parallel for simd
+#pragma omp parallel for simd num_threads(_numberOfCPUs)
     for (size_t n = 0; n < hyperparameters.size(); ++n)
       hyperparameters[n] += ( _hmcStepSize / _hmcMass ) * momentum[n];
 
@@ -1320,14 +1336,14 @@ void Agent::runGenerationHMC( )
     hyperparameterGradient = _criticPolicyLearner[0]->_hyperparameterGradients;
 
     // Perform second half-step integration of momentum
-    #pragma omp parallel for simd
+#pragma omp parallel for simd num_threads(_numberOfCPUs)
     for (size_t n = 0; n < momentum.size(); ++n)
       momentum[n] += 0.5 * _hmcStepSize * hyperparameterGradient[n];
   }
 
   // Compute kinetic energy
   float newK = 0.0;
-  #pragma omp parallel for simd
+#pragma omp parallel for simd num_threads(_numberOfCPUs) reduction(+:newK)
   for (size_t n = 0; n < momentum.size(); ++n)
     newK += _hmcMass * momentum[n] * momentum[n];
 
@@ -1635,6 +1651,22 @@ void Agent::printGenerationAfter()
 void Agent::setConfiguration(knlohmann::json& js) 
 {
  if (isDefined(js, "Results"))  eraseValue(js, "Results");
+
+ if (isDefined(js, "Number Of CPUs"))
+ {
+ try { _numberOfCPUs = js["Number Of CPUs"].get<size_t>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Number Of CPUs']\n%s", e.what()); } 
+   eraseValue(js, "Number Of CPUs");
+ }
+
+ if (isDefined(js, "Number Of Policy Threads"))
+ {
+ try { _numberOfPolicyThreads = js["Number Of Policy Threads"].get<size_t>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Number Of Policy Threads']\n%s", e.what()); } 
+   eraseValue(js, "Number Of Policy Threads");
+ }
 
  if (isDefined(js, "Policy", "Parameter Count"))
  {
@@ -2388,6 +2420,8 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Termination Criteria"]["Max Episodes"] = _maxEpisodes;
    js["Termination Criteria"]["Max Experiences"] = _maxExperiences;
    js["Termination Criteria"]["Max Policy Updates"] = _maxPolicyUpdates;
+   js["Number Of CPUs"] = _numberOfCPUs;
+   js["Number Of Policy Threads"] = _numberOfPolicyThreads;
    js["Policy"]["Parameter Count"] = _policyParameterCount;
    js["Action Lower Bounds"] = _actionLowerBounds;
    js["Action Upper Bounds"] = _actionUpperBounds;

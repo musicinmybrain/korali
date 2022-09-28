@@ -2,7 +2,6 @@
 #include "modules/solver/agent/continuous/VRACER/VRACER.hpp"
 #include "omp.h"
 #include "sample/sample.hpp"
-
 #include <gsl/gsl_sf_psi.h>
 
 namespace korali
@@ -37,8 +36,8 @@ void VRACER::initializeAgent()
   if( (_multiAgentRelationship == "Competition") || _problem->_ensembleLearning )
     _effectiveMinibatchSize = _miniBatchSize;
 
-  // Parallel initialization of learned (first touch!)
-  #pragma omp parallel for schedule(static)
+  // Parallel initialization of neural networks (first touch!)
+  #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
@@ -111,7 +110,7 @@ void VRACER::trainPolicy()
   const size_t numPolicies = _problem->_policiesPerEnvironment;
 
   // Run training generation for all policies
-  #pragma omp parallel for schedule(static)
+  #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
   for (size_t p = 0; p < numPolicies; p++)
   {
     // Disable experience sharing competing agents or Bayesian reinforcement learning
@@ -192,7 +191,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
   const size_t miniBatchSize = miniBatch.size();
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
-#pragma omp parallel for schedule(guided, numAgents) reduction(vec_float_plus \
+#pragma omp parallel for schedule(guided, numAgents) num_threads(_numberOfCPUs) reduction(vec_float_plus \
                                                                : _miniBatchPolicyMean, _miniBatchPolicyStdDev) \
                                                                 reduction(+: _valueLoss, _policyLoss )
   for (size_t b = 0; b < miniBatchSize; b++)
@@ -340,7 +339,7 @@ void VRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &state
   const auto evaluation = _criticPolicyLearner[policyIdx]->getEvaluation(stateSequenceBatch);
 
 // Write results to policyInfo
-#pragma omp parallel for
+#pragma omp parallel for num_threads(_numberOfCPUs)
   for (size_t b = 0; b < batchSize; b++)
   {
     policyInfo[b].stateValue = evaluation[b][0];

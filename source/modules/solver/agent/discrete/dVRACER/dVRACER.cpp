@@ -37,6 +37,8 @@ void dVRACER::initializeAgent()
   if( _bayesianLearning )
     KORALI_LOG_ERROR("Bayesian learning is not supported for discrete reinforcement learning problems.\n");
 
+  // Parallel initialization of neural networks (first touch!)
+  #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
@@ -142,7 +144,7 @@ void dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_
   const size_t miniBatchSize = miniBatch.size();
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
-#pragma omp parallel for schedule(guided, numAgents) reduction(+ \
+#pragma omp parallel for schedule(guided, numAgents) num_threads(_numberOfCPUs) reduction(+ \
                                                                : _statisticsAverageInverseTemperature, _statisticsAverageActionUnlikeability)
   for (size_t b = 0; b < miniBatchSize; b++)
   {
@@ -257,7 +259,7 @@ void dVRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &stat
   const auto evaluation = _criticPolicyLearner[policyIdx]->getEvaluation(stateSequenceBatch);
 
 // Update policy info
-#pragma omp parallel for
+#pragma omp parallel for num_threads(_numberOfCPUs)
   for (size_t b = 0; b < batchSize; b++)
   {
     // Getting state value
@@ -323,7 +325,7 @@ std::vector<policy_t> dVRACER::getPolicyInfo(const std::vector<std::pair<size_t,
   // Allocating policy sequence vector
   std::vector<policy_t> policyInfo(miniBatchSize);
 
-#pragma omp parallel for schedule(guided, _problem->_agentsPerEnvironment)
+#pragma omp parallel for num_threads(_numberOfCPUs) schedule(guided, _problem->_agentsPerEnvironment)
   for (size_t b = 0; b < miniBatchSize; b++)
   {
     // Getting current expId
