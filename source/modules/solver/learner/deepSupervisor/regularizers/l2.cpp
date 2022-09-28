@@ -10,24 +10,24 @@ namespace korali
 {
   namespace regularizer {
 
-    float L2::penality(const std::vector<float>& weights) {
-      float penality = 0;
-      #pragma omp parallel for simd reduction(+:penality)
+    float L2::penalty(const std::vector<float>& weights) {
+      float penalty = 0;
+      #pragma omp parallel for simd reduction(+:penalty)
       for (size_t i = 0; i < weights.size(); i++)
-        penality += weights[i]*weights[i];
-      return 0.5f*_lambda*penality;
+        penalty += weights[i]*weights[i];
+      return 0.5f*_lambda*penalty;
     }
 
-    std::vector<float> L2::d_penality(const std::vector<float>& weights) {
-      std:: vector<float> d_penality(weights.size(), _lambda);
+    std::vector<float> L2::d_penalty(const std::vector<float>& weights) {
+      std:: vector<float> d_penalty(weights.size(), _lambda);
       std::transform(
         // std::execution::par_unseq,
         std::begin(weights),
         std::end(weights),
-        std::begin(d_penality),
-        std::begin(d_penality),
+        std::begin(d_penalty),
+        std::begin(d_penalty),
         std::multiplies<float>());
-      return d_penality;
+      return d_penalty;
     }
   } // namespace regularizer
 } // namespace korali

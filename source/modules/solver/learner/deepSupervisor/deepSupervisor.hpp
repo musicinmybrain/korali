@@ -20,13 +20,14 @@
 #include "modules/solver/learner/deepSupervisor/optimizers/fAdaBelief.hpp"
 #include "modules/solver/learner/deepSupervisor/optimizers/fAdagrad.hpp"
 #include "modules/solver/learner/deepSupervisor/optimizers/fAdam.hpp"
+#include "modules/solver/learner/deepSupervisor/optimizers/fSGD.hpp"
 #include "modules/solver/learner/deepSupervisor/optimizers/fGradientBasedOptimizer.hpp"
 #include "modules/solver/learner/deepSupervisor/optimizers/fMadGrad.hpp"
 #include "modules/solver/learner/deepSupervisor/optimizers/fRMSProp.hpp"
-#include "modules/solver/learner/deepSupervisor/loss_functions/loss.hpp"
-#include "modules/solver/learner/deepSupervisor/loss_functions/mse.hpp"
-#include "modules/solver/learner/deepSupervisor/loss_functions/cross_entropy.hpp"
-#include "modules/solver/learner/deepSupervisor/loss_functions/negative_log_likelihood.hpp"
+#include "modules/solver/learner/deepSupervisor/reward_functions/reward.hpp"
+#include "modules/solver/learner/deepSupervisor/reward_functions/mse.hpp"
+#include "modules/solver/learner/deepSupervisor/reward_functions/cross_entropy.hpp"
+#include "modules/solver/learner/deepSupervisor/reward_functions/negative_log_likelihood.hpp"
 #include "modules/solver/learner/deepSupervisor/regularizers/regularizer.hpp"
 #include "modules/solver/learner/deepSupervisor/regularizers/l2.hpp"
 #include "modules/solver/learner/deepSupervisor/regularizers/l1.hpp"
@@ -263,9 +264,9 @@ class DeepSupervisor : public Learner
      */
     korali::fGradientBasedOptimizer *_optimizer;
     /**
-     * @brief loss function object.
+     * @brief reward function object [Korali maximizes].
      */
-    korali::loss::Loss *_loss{};
+    korali::reward::Reward *_reward{};
     /**
      * @brief regularizer function object.
      */
@@ -275,7 +276,7 @@ class DeepSupervisor : public Learner
      */
     korali::learning_rate::LearningRate *_learning_rate{};
     /**
-     * @brief loss function object.
+     * @brief reward function object.
      */
     korali::metrics::Metrics *_metrics{};
     /**
@@ -366,15 +367,14 @@ class DeepSupervisor : public Learner
     */
     void runTestingGeneration();
     /**
-    * @brief backpropagates the jaccobian of the loss function
+    * @brief backpropagates the jaccobian of the reward function
     * @param input 2D vector of size [BS, OC]
-    * @return gradients of the neural network weights for all layers (size = nn hyperparameter count).
     */
-    void updateWeights(std::vector<float> &nnHyperparameterGradients);
+    void updateWeights(std::vector<float> &negativeGradientWeights);
     /**
     * @brief run optimization setp and update the weights.
     */
-    std::vector<float> backwardGradients(const std::vector<std::vector<float>> &dloss);
+    std::vector<float> backwardGradients(const std::vector<std::vector<float>> &dreward);
     /**
     * @brief flattens 2d solution vector
     * @param 2d vector

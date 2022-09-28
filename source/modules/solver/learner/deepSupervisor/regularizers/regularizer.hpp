@@ -23,17 +23,17 @@ namespace korali
       */
       virtual ~Regularizer() = default;
       /**
-      * @brief Takes the nn weights and calculates a penality term to be added to the loss function.
+      * @brief Takes the nn weights and calculates a penalty term to be added to the loss function.
       * @param neural network weights of size weights(nn).
-      * @return penality term.
+      * @return penalty term.
       */
-      virtual float penality(const std::vector<float>& weights) = 0;
+      virtual float penalty(const std::vector<float>& weights) = 0;
       /**
-      * @brief Takes the gradients of the nn weights and calculates the gradient of the penality term.
+      * @brief Takes the gradients of the nn weights and calculates the gradient of the penalty term.
       * @param neural network weights of size weights(nn).
-      * @return gradient of the penality term to be added to the jaccobian of the loss function.
+      * @return gradient of the penalty term to be added to the jaccobian of the loss function.
       */
-      virtual std::vector<float> d_penality(const std::vector<float>& d_weights) = 0;
+      virtual std::vector<float> d_penalty(const std::vector<float>& d_weights) = 0;
     };
 
   } // namespace regularizer

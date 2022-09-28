@@ -196,16 +196,16 @@ void DeepSupervisor::initialize()
    * Setting up the LOSS FUNCTION
    *****************************************************************************/
   if (_lossFunction == "Direct Gradient" || _lossFunction == "DG" || _lossFunction.empty())
-    _loss = NULL;
+    _reward = NULL;
   else if (_lossFunction == "Mean Squared Error" || _lossFunction == "MSE")
-    _loss = new korali::loss::MSE();
+    _reward = new korali::reward::MSE();
   else if (_lossFunction == "Cross Entropy" || _lossFunction == "CE")
-    _loss = new korali::loss::CrossEntropy();
+    _reward = new korali::reward::CrossEntropy();
   else if (_lossFunction == "Negative Log Likelihood" || _lossFunction == "NLL")
-    _loss = new korali::loss::NLL();
+    _reward = new korali::reward::NLL();
   else
     KORALI_LOG_ERROR("Unkown Loss Function %s", _lossFunction.c_str());
-  if(_loss)
+  if(_reward)
     (*_k)["Results"]["Loss Function"] = _lossFunction;
   /*****************************************************************************
    * Setting up possible REGULARIZERS
@@ -257,6 +257,7 @@ void DeepSupervisor::initialize()
    * Setting up weight and bias optimization experiment
    *****************************************************************/
 
+  if (_neuralNetworkOptimizer == "SGD") _optimizer = new korali::fSGD(_hyperparameters.size());
   if (_neuralNetworkOptimizer == "Adam") _optimizer = new korali::fAdam(_hyperparameters.size());
   if (_neuralNetworkOptimizer == "AdaBelief") _optimizer = new korali::fAdaBelief(_hyperparameters.size());
   if (_neuralNetworkOptimizer == "MADGRAD") _optimizer = new korali::fMadGrad(_hyperparameters.size());
@@ -284,8 +285,8 @@ void DeepSupervisor::runGeneration()
     _isOneEpochFinished = true;
 }
 
-void DeepSupervisor::updateWeights(std::vector<float> &nnHyperparameterGradients){
-  _optimizer->processResult(nnHyperparameterGradients);
+void DeepSupervisor::updateWeights(std::vector<float> &negativeGradientWeights){
+  _optimizer->processResult(negativeGradientWeights);
   // // Getting new set of hyperparameters from the gradient descent algorithm
   auto &new_hyperparameters = _optimizer->_currentValue;
   _hyperparameters = new_hyperparameters;
@@ -338,7 +339,8 @@ void DeepSupervisor::runEpoch()
     size_t bId; // batch id
     size_t wId; // worker id
     std::vector<Sample> samples(_batchConcurrency);
-    auto nnHyperparameterGradients = std::vector<float>(_neuralNetwork->_hyperparameterCount, 0.0f);
+    // Optimizer performs maximization in KORALI -> need negative gradients!
+    auto negGradientWeights = std::vector<float>(_neuralNetwork->_hyperparameterCount, 0.0f);
     _currentTrainingLoss = 0.0f;
     size_t input_size_per_BS = T*IC;
     size_t solution_size_per_BS = T*OC;
@@ -346,7 +348,7 @@ void DeepSupervisor::runEpoch()
     {
       if(_mode == "Automatic Training"){
         nnHyperparameters = _neuralNetwork->getHyperparameters();
-        nnHyperparameterGradients = std::vector<float>(_neuralNetwork->_hyperparameterCount, 0.0f);
+        negGradientWeights = std::vector<float>(_neuralNetwork->_hyperparameterCount, 0.0f);
       }
       for (wId = 0; wId < _batchConcurrency; wId++)
       {
@@ -383,23 +385,27 @@ void DeepSupervisor::runEpoch()
         runTrainingOnWorker(samples[0]);
       }
       for (wId = 0; wId < _batchConcurrency; wId++){
-        if(_loss){
+        if(_reward)
           _currentTrainingLoss += KORALI_GET(float, samples[wId], "Training Loss");
-        }
-        const auto dloss = KORALI_GET(std::vector<float>, samples[wId], "Hyperparameter Gradients");
-        assert(dloss.size() ==  nnHyperparameterGradients.size());
+        const auto neg_dreward_dW = KORALI_GET(std::vector<float>, samples[wId], "Negative Hyperparameter Gradients");
+        assert(neg_dreward_dW.size() ==  negGradientWeights.size());
         // Calculate the sum of the gradient batches/mean would only change the learning rate.
-        std::transform(nnHyperparameterGradients.begin(), nnHyperparameterGradients.end(), dloss.begin(), nnHyperparameterGradients.begin(), std::minus<float>());
+        #pragma omp parallel for simd
+        for(size_t i = 0; i < neg_dreward_dW.size(); i++){
+          negGradientWeights[i] += neg_dreward_dW[i];
+        }
       }
-      // Need to update the weiths after each mini batch =======================================================================
       // Add the Regularizer to the derivative of the loss if given ============================================================
       if(_regularizer){
-        _currentTrainingLoss += _regularizer->penality(_neuralNetwork->getHyperparameters());
-        auto d_penalty = _regularizer->d_penality(_neuralNetwork->getHyperparameters());
-        std::transform(// std::execution::par_unseq
-          std::begin(nnHyperparameterGradients), std::end(nnHyperparameterGradients), std::begin(d_penalty), std::begin(nnHyperparameterGradients), std::minus<float>());
+        _currentTrainingLoss += _regularizer->penalty(_neuralNetwork->getHyperparameters());
+        auto d_penalty = _regularizer->d_penalty(_neuralNetwork->getHyperparameters());
+        #pragma omp parallel for simd
+        for(size_t i = 0; i < _neuralNetwork->_hyperparameterCount; i++){
+          negGradientWeights[i] -= d_penalty[i];
+        }
       }
-      updateWeights(nnHyperparameterGradients);
+      // Need to update the weiths after each mini batch =======================================================================
+      updateWeights(negGradientWeights);
     }
     // TODO: take care of remainder ==========================================================================================
     // =======================================================================================================================
@@ -415,7 +421,7 @@ void DeepSupervisor::runEpoch()
         //   _currentValidationLoss += _loss->loss(y_val, _problem->_dataValidationSolution);
         // }
     // Calculate the training loss if a loss function is given (Direct grad otherwise) =======================================
-    if(_loss){
+    if(_reward){
       _currentTrainingLoss = _currentTrainingLoss/ (float)(_batchConcurrency*IforE);
       _trainingLoss.push_back(_currentTrainingLoss);
       if(_hasValidationSet){
@@ -430,7 +436,7 @@ void DeepSupervisor::runEpoch()
           auto &&input = std::vector<std::vector<std::vector<float>>>{_problem->_dataValidationInput.begin()+bId*BS, _problem->_dataValidationInput.begin()+(bId+1)*BS};
           const auto y = std::vector<std::vector<float>>{_problem->_dataValidationSolution.begin()+bId*BS, _problem->_dataValidationSolution.begin()+(bId+1)*BS};
           auto y_val = getEvaluation(std::move(input));
-          _currentValidationLoss += _loss->loss(y, y_val);
+          _currentValidationLoss -= _reward->reward(y, y_val);
           if(_metrics){
             // TODO: make a loop for different metrics and make metrics a vector to calcualte different metrics
             /* for(auto metric : metrics )..
@@ -531,10 +537,10 @@ void DeepSupervisor::runPrediction()
       const auto ypred = KORALI_GET(std::vector<std::vector<float>>, samples[wId], "Evaluation");
       _evaluation.insert(_evaluation.end(), ypred.begin(), ypred.end());
     }
-    if(_mode == "Testing" && _loss){
+    if(_mode == "Testing" && _reward){
       _testingLoss = 0.0f;
       auto y_val = getEvaluation(_problem->_inputData);
-      _testingLoss = _loss->loss(_problem->_solutionData, y_val);
+      _testingLoss = -_reward->reward(_problem->_solutionData, y_val);
       (*_k)["Results"]["Testing Loss"] = _testingLoss;
       if(_metrics){
         // TODO: make a loop for different metrics and make metrics a vector to calcualte different metrics
@@ -589,17 +595,17 @@ std::vector<std::vector<float>> &DeepSupervisor::getEvaluation(std::vector<std::
   return _neuralNetwork->getOutputValues(N);
 }
 
-std::vector<float> DeepSupervisor::backwardGradients(const std::vector<std::vector<float>> &dloss)
+std::vector<float> DeepSupervisor::backwardGradients(const std::vector<std::vector<float>> &dreward)
 {
   // Grabbing constants
-  const size_t N = dloss.size();
+  const size_t N = dreward.size();
 
   // Running the input values through the neural network
-  _neuralNetwork->backward(dloss);
+  _neuralNetwork->backward(dreward);
   // Getting NN hyperparameter gradients
-  auto hyperparameterGradients = _neuralNetwork->getHyperparameterGradients(N);
+  auto negGradientWeights = _neuralNetwork->getHyperparameterGradients(N);
 
-  return hyperparameterGradients;
+  return negGradientWeights;
 }
 
 
@@ -631,17 +637,17 @@ void DeepSupervisor::runTrainingOnWorker(korali::Sample &sample)
   const auto yhat = getEvaluation(input);
   // TODO maybe add loss rather to problem than as part of learner ?
   // Making a copy of the solution data where we will store the derivative of the output data
-  auto& dloss = y;
+  auto& dreward = y;
   float loss = 0.0;
-  if(_loss){
+  if(_reward){
     // TODO: maybe calculate the currentTrainingLoss after we updated the model inside main worker like in pytorch.
-    loss = _loss->loss(y, yhat);
-    dloss = _loss->dloss(y, yhat);
+    loss = -_reward->reward(y, yhat);
+    dreward = _reward->dreward(y, yhat);
   }
   // BACKPROPAGATE the derivative of the output loss
-  auto hyperparameterGradients = backwardGradients(dloss);
-  sample["Hyperparameter Gradients"] = hyperparameterGradients;
-  if(_loss)
+  auto negGradientWeights = backwardGradients(dreward);
+  sample["Negative Hyperparameter Gradients"] = negGradientWeights;
+  if(_reward)
     sample["Training Loss"] = loss;
 }
 
@@ -985,12 +991,13 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
     }
       {
         bool validOption = false; 
+        if (_neuralNetworkOptimizer == "SGD") validOption = true; 
         if (_neuralNetworkOptimizer == "Adam") validOption = true; 
         if (_neuralNetworkOptimizer == "AdaBelief") validOption = true; 
         if (_neuralNetworkOptimizer == "MADGRAD") validOption = true; 
         if (_neuralNetworkOptimizer == "RMSProp") validOption = true; 
         if (_neuralNetworkOptimizer == "Adagrad") validOption = true; 
-        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Neural Network']['Optimizer'] required by deepSupervisor.\n Valid Options are:\n  - Adam\n  - AdaBelief\n  - MADGRAD\n  - RMSProp\n  - Adagrad\n",_neuralNetworkOptimizer.c_str()); 
+        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Neural Network']['Optimizer'] required by deepSupervisor.\n Valid Options are:\n  - SGD\n  - Adam\n  - AdaBelief\n  - MADGRAD\n  - RMSProp\n  - Adagrad\n",_neuralNetworkOptimizer.c_str()); 
       }
     eraseValue(js, "Neural Network", "Optimizer");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Neural Network']['Optimizer'] required by deepSupervisor.\n"); 

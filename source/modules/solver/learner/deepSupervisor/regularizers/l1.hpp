@@ -17,8 +17,8 @@ namespace korali
             * @brief importance weight
             */
             float _lambda{};
-            virtual float penality(const std::vector<float>& weights) override;
-            virtual std::vector<float> d_penality(const std::vector<float>& weights) override;
+            virtual float penalty(const std::vector<float>& weights) override;
+            virtual std::vector<float> d_penalty(const std::vector<float>& weights) override;
         };
     } // namespace loss
 } // namespace korali
