@@ -54,6 +54,9 @@ void NeuralNetwork::initialize()
     if (_batchSizes[i] == 0)
       KORALI_LOG_ERROR("Batch size %lu is zero.\n", i, _batchSizes[i]);
 
+  if ( std::all_of(_batchSizes.begin(), _batchSizes.end(), [](size_t i){ return i  == 1; }) )
+    KORALI_LOG_ERROR("All minibatch-sizes are 1. Please make trainingBatchSize>1 to allow distinguishing calls for training from testing.\n");
+
   // Creating layer pipelines of format ThreadCount x Batch Sizes x Layer Count
   size_t layerCount = _layers.size();
   _pipelines.resize(_numberOfPolicyThreads);
@@ -143,7 +146,8 @@ void NeuralNetwork::initialize()
       for (size_t i = 0; i < layerCount; i++)
         p->_layerVector[i]->createForwardPipeline();
 
-      if (_mode == "Training")
+      // Only create backward pipeline for thread 0
+      if ( (_mode == "Training") && (curThread == 0) )
         for (size_t i = 0; i < layerCount; i++)
           p->_layerVector[i]->createBackwardPipeline();
 
@@ -211,6 +215,10 @@ void NeuralNetwork::forward(const std::vector<std::vector<std::vector<float>>> &
   size_t N = inputValues.size();
   size_t batchSizeIdx = getBatchSizeIdx(N);
 
+  // Thread-safetly is only needed during inference, for training always use pipeline 0
+  if( N != 1 )
+    curThread = 0;
+
   // Getting corresponding layer pipeline pointer
   layerPipeline_t *p = &_pipelines[curThread][batchSizeIdx];
 
@@ -258,25 +266,12 @@ void NeuralNetwork::forward(const std::vector<std::vector<std::vector<float>>> &
 
 void NeuralNetwork::backward(const std::vector<std::vector<float>> &outputGradients)
 {
-  // Finding out current thread
-#ifdef _OPENMP
-  int curThread = omp_get_thread_num();
-  if( _numberOfPolicyThreads == 1)
-    curThread = 0;
-#else
-  int curThread = 0;
-#endif
-
-  // Safety
-  if( (curThread >= _numberOfPolicyThreads) || (curThread < 0) )
-    KORALI_LOG_ERROR("Called backward with thread %d/%d.\n", curThread, _numberOfPolicyThreads);
-
   // Finding out pipeline corresponding to the input batch size id
   size_t N = outputGradients.size();
   size_t batchSizeIdx = getBatchSizeIdx(N);
 
   // Getting corresponding layer pipeline pointer
-  layerPipeline_t *p = &_pipelines[curThread][batchSizeIdx];
+  layerPipeline_t *p = &_pipelines[0][batchSizeIdx];
 
   // Getting batch dimensions
   size_t T = _timestepCount;
