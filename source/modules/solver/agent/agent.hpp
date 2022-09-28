@@ -253,11 +253,11 @@ class Agent : public Solver
   /**
   * @brief [Internal Use] Stores the number of CPUs available (result of omp_get_num_procs()).
   */
-   size_t _numberOfCPUs;
+   int _numberOfCPUs;
   /**
   * @brief [Internal Use] Stores the number of threads using which multiple neural networks are forwarded ([Number Of CPUs] / [OMP_NUM_THREADS]), where OMP_NUM_THREADS should be optimized for fast processing of the neural network (8 seems ideal for 128x128 network).
   */
-   size_t _numberOfPolicyThreads;
+   int _numberOfPolicyThreads;
   /**
   * @brief [Internal Use] Stores the number of parameters that determine the probability distribution for the current state sequence.
   */

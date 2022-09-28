@@ -27,7 +27,7 @@ void __className__::initialize()
 
   // Set number of threads using which NN are forwarded in parallel
 #ifdef _OPENMP
-  _numberOfPolicyThreads = omp_get_num_procs() / omp_get_max_threads();
+  _numberOfPolicyThreads = (int)std::floor(omp_get_num_procs() / omp_get_max_threads());
 #else
   _numberOfPolicyThreads = 1;
 #endif

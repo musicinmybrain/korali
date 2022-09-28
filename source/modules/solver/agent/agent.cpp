@@ -31,7 +31,7 @@ void Agent::initialize()
 
   // Set number of threads using which NN are forwarded in parallel
 #ifdef _OPENMP
-  _numberOfPolicyThreads = omp_get_num_procs() / omp_get_max_threads();
+  _numberOfPolicyThreads = (int)std::floor(omp_get_num_procs() / omp_get_max_threads());
 #else
   _numberOfPolicyThreads = 1;
 #endif
@@ -1654,7 +1654,7 @@ void Agent::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Number Of CPUs"))
  {
- try { _numberOfCPUs = js["Number Of CPUs"].get<size_t>();
+ try { _numberOfCPUs = js["Number Of CPUs"].get<int>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Number Of CPUs']\n%s", e.what()); } 
    eraseValue(js, "Number Of CPUs");
@@ -1662,7 +1662,7 @@ void Agent::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Number Of Policy Threads"))
  {
- try { _numberOfPolicyThreads = js["Number Of Policy Threads"].get<size_t>();
+ try { _numberOfPolicyThreads = js["Number Of Policy Threads"].get<int>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Number Of Policy Threads']\n%s", e.what()); } 
    eraseValue(js, "Number Of Policy Threads");
