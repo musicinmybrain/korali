@@ -32,6 +32,9 @@ void DeepSupervisor::initialize()
   // Determining batch sizes
   std::vector<size_t> batchSizes = {_problem->_trainingBatchSize, _problem->_testingBatchSize};
 
+  if( _problem->_trainingBatchSize = 1 )
+    KORALI_LOG_ERROR("Using a _trainingBatchSize=1 does not allow to distinguish training from testing.");
+
   // If parallelizing training, we need to support the split batch size
   if (_batchConcurrency > 1) batchSizes.push_back(_problem->_trainingBatchSize / _batchConcurrency);
   if (_batchConcurrency > 1) batchSizes.push_back(_problem->_testingBatchSize / _batchConcurrency);
