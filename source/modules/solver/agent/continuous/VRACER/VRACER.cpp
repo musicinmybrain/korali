@@ -72,10 +72,13 @@ void VRACER::initializeAgent()
     }
 
     // Running initialization to verify that the configuration is correct
+#pragma omp critical
+{
     _criticPolicyExperiment[p].setEngine(_k->_engine);
     _criticPolicyExperiment[p].initialize();
     _criticPolicyProblem[p] = dynamic_cast<problem::SupervisedLearning *>(_criticPolicyExperiment[p]._problem);
     _criticPolicyLearner[p] = dynamic_cast<solver::learner::DeepSupervisor *>(_criticPolicyExperiment[p]._solver);
+}
 
     // Preallocating space in the underlying supervised problem's input and solution data structures (for performance, we don't reinitialize it every time)
     _criticPolicyProblem[p]->_inputData.resize(_effectiveMinibatchSize);
