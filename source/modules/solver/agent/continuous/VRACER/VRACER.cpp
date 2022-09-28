@@ -37,6 +37,8 @@ void VRACER::initializeAgent()
   if( (_multiAgentRelationship == "Competition") || _problem->_ensembleLearning )
     _effectiveMinibatchSize = _miniBatchSize;
 
+  // Parallel initialization of learned (first touch!)
+  #pragma omp parallel for schedule(static)
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
@@ -109,6 +111,7 @@ void VRACER::trainPolicy()
   const size_t numPolicies = _problem->_policiesPerEnvironment;
 
   // Run training generation for all policies
+  #pragma omp parallel for schedule(static)
   for (size_t p = 0; p < numPolicies; p++)
   {
     // Disable experience sharing competing agents or Bayesian reinforcement learning

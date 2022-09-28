@@ -98,6 +98,7 @@ void __className__::getAction(korali::Sample &sample)
   const size_t numPolicies = _problem->_policiesPerEnvironment;
 
   // Get action for all the agents in the environment
+  #pragma omp parallel for schedule(static) num_threads(_problem->_policiesPerEnvironment)
   for (size_t i = 0; i < _problem->_agentsPerEnvironment; i++)
   {
     // Getting current state
