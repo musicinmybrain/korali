@@ -8,8 +8,8 @@ from agent import *
 ####### Parsing arguments
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--env', help='Specifies which environment to run.', required=True)
-parser.add_argument('--dis', help='Sampling Distribution.', required=True)
+parser.add_argument('--env', help='Specifies which environment to run.', required=False, type=str, default="Swimmer-v4")
+parser.add_argument('--dis', help='Sampling Distribution.', required=False, type=str, default="Clipped Normal")
 parser.add_argument('--l2', help='L2 Regularization.', required=False, type=float, default = 0.)
 parser.add_argument('--opt', help='Off Policy Target.', required=False, type=float, default = 0.1)
 parser.add_argument('--lr', help='Learning Rate.', required=False, type=float, default = 0.0001)
@@ -20,16 +20,26 @@ print(args)
 ####### Defining Korali Problem
 
 import korali
+from mpi4py import MPI
 k = korali.Engine()
 e = korali.Experiment()
+
+# k["Conduit"]["Type"] = "Distributed"
+# k.setMPIComm(MPI.COMM_WORLD)
 
 ### Defining results folder and loading previous results, if any
 
 resultFolder = "./run{}/".format(args.run)
+if e.loadState(resultFolder + "latest"):
+	print("[Korali] Continuing run from previous execution.")
 
 ### Initializing openAI Gym environment
 
 initEnvironment(e, args.env)
+
+### Flush stdout
+
+sys.stdout.flush()
 
 ### Defining Agent Configuration 
 
@@ -40,6 +50,7 @@ e["Solver"]["Experiences Between Policy Updates"] = 1
 e["Solver"]["Learning Rate"] = args.lr
 e["Solver"]["Discount Factor"] = 0.995
 e["Solver"]["Mini Batch"]["Size"] = 256
+e["Solver"]["Concurrent Environments"] = 1
 
 ### Setting Experience Replay and REFER settings
 
@@ -80,7 +91,7 @@ e["Solver"]["Termination Criteria"]["Max Generations"] = 100
 e["Solver"]["Experience Replay"]["Serialize"] = True
 e["Console Output"]["Verbosity"] = "Detailed"
 e["File Output"]["Enabled"] = True
-e["File Output"]["Frequency"] = 200
+e["File Output"]["Frequency"] = 10
 e["File Output"]["Path"] = resultFolder
 
 ### Running Experiment
