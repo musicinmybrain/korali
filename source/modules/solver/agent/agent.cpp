@@ -36,6 +36,9 @@ void Agent::initialize()
   _numberOfPolicyThreads = 1;
 #endif
 
+  // Print Info
+  _k->_logger->logInfo("Normal", "There are %d threads available. Parallel forwarding up to %d policies with %d threads each.\n", omp_get_num_procs(), _numberOfPolicyThreads, omp_get_max_threads());
+
   // Getting problem pointer
   _problem = dynamic_cast<problem::ReinforcementLearning *>(_k->_problem);
 
