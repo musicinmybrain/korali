@@ -43,6 +43,7 @@ void __className__::initialize()
   neuralNetworkConfig["Type"] = "Neural Network";
   neuralNetworkConfig["Engine"] = _neuralNetworkEngine;
   neuralNetworkConfig["Timestep Count"] = _problem->_maxTimesteps;
+  neuralNetworkConfig["Number Of Policy Threads"] = _numberOfPolicyThreads;
 
   // Iterator for the current layer id
   size_t curLayer = 0;

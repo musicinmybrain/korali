@@ -49,6 +49,7 @@ void DeepSupervisor::initialize()
   neuralNetworkConfig["Type"] = "Neural Network";
   neuralNetworkConfig["Engine"] = _neuralNetworkEngine;
   neuralNetworkConfig["Timestep Count"] = _problem->_maxTimesteps;
+  neuralNetworkConfig["Number Of Policy Threads"] = _numberOfPolicyThreads;
 
   // Iterator for the current layer id
   size_t curLayer = 0;
@@ -616,6 +617,15 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Batch Concurrency'] required by deepSupervisor.\n"); 
 
+ if (isDefined(js, "Number Of Policy Threads"))
+ {
+ try { _numberOfPolicyThreads = js["Number Of Policy Threads"].get<int>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Number Of Policy Threads']\n%s", e.what()); } 
+   eraseValue(js, "Number Of Policy Threads");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Number Of Policy Threads'] required by deepSupervisor.\n"); 
+
  if (isDefined(js, "Termination Criteria", "Target Loss"))
  {
  try { _targetLoss = js["Termination Criteria"]["Target Loss"].get<float>();
@@ -651,6 +661,7 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
    js["L2 Regularization"]["Importance"] = _l2RegularizationImportance;
    js["Output Weights Scaling"] = _outputWeightsScaling;
    js["Batch Concurrency"] = _batchConcurrency;
+   js["Number Of Policy Threads"] = _numberOfPolicyThreads;
    js["Termination Criteria"]["Target Loss"] = _targetLoss;
    js["Evaluation"] = _evaluation;
    js["Current Loss"] = _currentLoss;
@@ -663,7 +674,7 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
 void DeepSupervisor::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}}, \"Termination Criteria\": {\"Target Loss\": -1.0}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1}";
+ std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}}, \"Termination Criteria\": {\"Target Loss\": -1.0}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1, \"Number Of Policy Threads\": 1}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Learner::applyModuleDefaults(js);

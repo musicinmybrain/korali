@@ -90,6 +90,10 @@ class DeepSupervisor : public Learner
   */
    size_t _batchConcurrency;
   /**
+  * @brief Specifies the batch sizes.
+  */
+   int _numberOfPolicyThreads;
+  /**
   * @brief [Internal Use] The output of the neural network if running on testing mode.
   */
    std::vector<std::vector<float>> _evaluation;

@@ -54,13 +54,8 @@ void __className__::initialize()
 
   // Creating layer pipelines of format ThreadCount x Batch Sizes x Layer Count
   size_t layerCount = _layers.size();
-#ifdef _OPENMP
-  int maxThreads = omp_get_max_threads();
-#else
-  int maxThreads = 1;
-#endif
-  _pipelines.resize(maxThreads);
-  for (int curThread = 0; curThread < maxThreads; curThread++)
+  _pipelines.resize(_numberOfPolicyThreads);
+  for (int curThread = 0; curThread < _numberOfPolicyThreads; curThread++)
   {
     _pipelines[curThread].resize(_batchSizes.size());
     for (size_t batchSizeIdx = 0; batchSizeIdx < _batchSizes.size(); batchSizeIdx++)
@@ -68,7 +63,7 @@ void __className__::initialize()
   }
 
   // Creating layer objects
-  for (int curThread = 0; curThread < maxThreads; curThread++)
+  for (int curThread = 0; curThread < _numberOfPolicyThreads; curThread++)
     for (size_t batchSizeIdx = 0; batchSizeIdx < _batchSizes.size(); batchSizeIdx++)
       for (size_t i = 0; i < layerCount; i++)
       {
@@ -80,7 +75,7 @@ void __className__::initialize()
       }
 
   // Assigning relevant metadata to all the layers
-  for (int curThread = 0; curThread < maxThreads; curThread++)
+  for (int curThread = 0; curThread < _numberOfPolicyThreads; curThread++)
     for (size_t batchSizeIdx = 0; batchSizeIdx < _batchSizes.size(); batchSizeIdx++)
       for (size_t i = 0; i < layerCount; i++)
       {
@@ -94,7 +89,7 @@ void __className__::initialize()
       }
 
   // Initialize layers
-  for (int curThread = 0; curThread < maxThreads; curThread++)
+  for (int curThread = 0; curThread < _numberOfPolicyThreads; curThread++)
     for (size_t batchSizeIdx = 0; batchSizeIdx < _batchSizes.size(); batchSizeIdx++)
       for (size_t i = 0; i < layerCount; i++)
       {
@@ -107,7 +102,7 @@ void __className__::initialize()
     _pipelines[0][0]._layerVector[i]->createHyperparameterMemory();
 
   // Propagating hyperparamter memory to all other instances
-  for (int curThread = 0; curThread < maxThreads; curThread++)
+  for (int curThread = 0; curThread < _numberOfPolicyThreads; curThread++)
     for (size_t batchSizeIdx = 0; batchSizeIdx < _batchSizes.size(); batchSizeIdx++)
       for (size_t i = 0; i < layerCount; i++)
       {
@@ -119,7 +114,7 @@ void __className__::initialize()
   _hyperparameterCount = 0;
   for (size_t i = 0; i < layerCount; i++)
   {
-    for (int curThread = 0; curThread < maxThreads; curThread++)
+    for (int curThread = 0; curThread < _numberOfPolicyThreads; curThread++)
       for (size_t batchSizeIdx = 0; batchSizeIdx < _batchSizes.size(); batchSizeIdx++)
       {
         layerPipeline_t *p = &_pipelines[curThread][batchSizeIdx];
@@ -130,7 +125,7 @@ void __className__::initialize()
   }
 
   // Create forward and backward (only for training) pipelines
-  for (int curThread = 0; curThread < maxThreads; curThread++)
+  for (int curThread = 0; curThread < _numberOfPolicyThreads; curThread++)
     for (size_t batchSizeIdx = 0; batchSizeIdx < _batchSizes.size(); batchSizeIdx++)
     {
       // Getting corresponding layer pipeline pointer
