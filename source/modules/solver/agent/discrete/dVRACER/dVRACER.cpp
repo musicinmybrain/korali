@@ -50,7 +50,7 @@ void dVRACER::initializeAgent()
 
     _criticPolicyExperiment[p]["Solver"]["Type"] = "Learner/DeepSupervisor";
     _criticPolicyExperiment[p]["Solver"]["Mode"] = "Training";
-    _criticPolicyExperiment[p]["Solver"]["Number Of Policy Threads"] = _numberOfPolicyThreads;
+    _criticPolicyExperiment[p]["Solver"]["Number Of Policy Threads"] = 1;
     _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Enabled"] = _l2RegularizationEnabled;
     _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Importance"] = _l2RegularizationImportance;
     _criticPolicyExperiment[p]["Solver"]["Learning Rate"] = _currentLearningRate;

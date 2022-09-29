@@ -49,7 +49,7 @@ void VRACER::initializeAgent()
 
     _criticPolicyExperiment[p]["Solver"]["Type"] = "Learner/DeepSupervisor";
     _criticPolicyExperiment[p]["Solver"]["Mode"] = "Training";
-    _criticPolicyExperiment[p]["Solver"]["Number Of Policy Threads"] = _numberOfPolicyThreads;
+    _criticPolicyExperiment[p]["Solver"]["Number Of Policy Threads"] = 1;
     _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Enabled"] = _l2RegularizationEnabled;
     _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Importance"] = _l2RegularizationImportance;
     _criticPolicyExperiment[p]["Solver"]["Learning Rate"] = _currentLearningRate;
@@ -113,7 +113,7 @@ void VRACER::trainPolicy()
     auto _miniBatch          = miniBatch;
     auto _stateSequenceBatch = stateSequenceBatch;
 
-    // Disable experience sharing competing agents or Bayesian reinforcement learning
+    // Disable experience sharing for competing agents or Bayesian reinforcement learning
     if( (_multiAgentRelationship == "Competition") || _problem->_ensembleLearning )
     {
       std::vector<std::pair<size_t, size_t>> miniBatchBuffer(_miniBatchSize);
@@ -307,14 +307,14 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
   _policyLoss /= (float)miniBatchSize;
 }
 
-float VRACER::calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx)
+float VRACER::calculateStateValue(const std::vector<std::vector<float>> &stateSequence, const size_t policyIdx)
 {
   // Forward the neural network for this state to get the state value
   const auto evaluation = _criticPolicyLearner[policyIdx]->getEvaluation({stateSequence});
   return evaluation[0][0];
 }
 
-void VRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policyInfo, size_t policyIdx)
+void VRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policyInfo, const size_t policyIdx)
 {
   // Getting batch size
   size_t batchSize = stateSequenceBatch.size();

@@ -143,8 +143,7 @@ void NeuralNetwork::initialize()
       for (size_t i = 0; i < layerCount; i++)
         p->_layerVector[i]->createForwardPipeline();
 
-      // Only create backward pipeline for thread 0
-      if ( (_mode == "Training") && (curThread == 0) )
+      if (_mode == "Training")
         for (size_t i = 0; i < layerCount; i++)
           p->_layerVector[i]->createBackwardPipeline();
 
@@ -197,18 +196,20 @@ void NeuralNetwork::forward(const std::vector<std::vector<std::vector<float>>> &
 {
   // Finding out current thread
 #ifdef _OPENMP
-  size_t curThread = omp_get_thread_num();
+  int curThread = omp_get_thread_num();
+  if( _numberOfPolicyThreads == 1)
+    curThread = 0;
 #else
-  size_t curThread = 0;
+  int curThread = 0;
 #endif
+
+  // Safety
+  if( (curThread >= _numberOfPolicyThreads) || (curThread < 0) )
+    KORALI_LOG_ERROR("Called forward with thread %d/%d.\n", curThread, _numberOfPolicyThreads);
 
   // Finding out pipeline corresponding to the input batch size id
   size_t N = inputValues.size();
   size_t batchSizeIdx = getBatchSizeIdx(N);
-
-  // Thread-safetly is only needed during inference, for training always use pipeline 0
-  if( N != 1 )
-    curThread = 0;
 
   // Getting corresponding layer pipeline pointer
   layerPipeline_t *p = &_pipelines[curThread][batchSizeIdx];
@@ -257,12 +258,25 @@ void NeuralNetwork::forward(const std::vector<std::vector<std::vector<float>>> &
 
 void NeuralNetwork::backward(const std::vector<std::vector<float>> &outputGradients)
 {
+  // Finding out current thread
+#ifdef _OPENMP
+  int curThread = omp_get_thread_num();
+  if( _numberOfPolicyThreads == 1)
+    curThread = 0;
+#else
+  int curThread = 0;
+#endif
+
+  // Safety
+  if( (curThread >= _numberOfPolicyThreads) || (curThread < 0) )
+    KORALI_LOG_ERROR("Called backward with thread %d/%d.\n", curThread, _numberOfPolicyThreads);
+
   // Finding out pipeline corresponding to the input batch size id
   size_t N = outputGradients.size();
   size_t batchSizeIdx = getBatchSizeIdx(N);
 
   // Getting corresponding layer pipeline pointer
-  layerPipeline_t *p = &_pipelines[0][batchSizeIdx];
+  layerPipeline_t *p = &_pipelines[curThread][batchSizeIdx];
 
   // Getting batch dimensions
   size_t T = _timestepCount;
@@ -357,11 +371,18 @@ size_t NeuralNetwork::getBatchSizeIdx(const size_t batchSize)
 
 std::vector<std::vector<float>> &NeuralNetwork::getOutputValues(const size_t batchSize)
 {
+  // Finding out current thread
 #ifdef _OPENMP
-  size_t curThread = omp_get_thread_num();
+  int curThread = omp_get_thread_num();
+  if( _numberOfPolicyThreads == 1)
+    curThread = 0;
 #else
-  size_t curThread = 0;
+  int curThread = 0;
 #endif
+
+  // Safety
+  if( (curThread >= _numberOfPolicyThreads) || (curThread < 0) )
+    KORALI_LOG_ERROR("Called getOutputValues with thread %d/%d.\n", curThread, _numberOfPolicyThreads);
   size_t batchSizeIdx = getBatchSizeIdx(batchSize);
   layerPipeline_t *p = &_pipelines[curThread][batchSizeIdx];
   return p->_outputValues;
@@ -369,11 +390,18 @@ std::vector<std::vector<float>> &NeuralNetwork::getOutputValues(const size_t bat
 
 std::vector<std::vector<float>> &NeuralNetwork::getInputGradients(const size_t batchSize)
 {
+  // Finding out current thread
 #ifdef _OPENMP
-  size_t curThread = omp_get_thread_num();
+  int curThread = omp_get_thread_num();
+  if( _numberOfPolicyThreads == 1)
+    curThread = 0;
 #else
-  size_t curThread = 0;
+  int curThread = 0;
 #endif
+
+  // Safety
+  if( (curThread >= _numberOfPolicyThreads) || (curThread < 0) )
+    KORALI_LOG_ERROR("Called getInputGradients with thread %d/%d.\n", curThread, _numberOfPolicyThreads);
   size_t batchSizeIdx = getBatchSizeIdx(batchSize);
   layerPipeline_t *p = &_pipelines[curThread][batchSizeIdx];
   return p->_inputGradients;
@@ -381,11 +409,18 @@ std::vector<std::vector<float>> &NeuralNetwork::getInputGradients(const size_t b
 
 std::vector<float> &NeuralNetwork::getHyperparameterGradients(const size_t batchSize)
 {
+  // Finding out current thread
 #ifdef _OPENMP
-  size_t curThread = omp_get_thread_num();
+  int curThread = omp_get_thread_num();
+  if( _numberOfPolicyThreads == 1)
+    curThread = 0;
 #else
-  size_t curThread = 0;
+  int curThread = 0;
 #endif
+
+  // Safety
+  if( (curThread >= _numberOfPolicyThreads) || (curThread < 0) )
+    KORALI_LOG_ERROR("Called getHyperparameterGradients with thread %d/%d.\n", curThread, _numberOfPolicyThreads);
   size_t batchSizeIdx = getBatchSizeIdx(batchSize);
   layerPipeline_t *p = &_pipelines[curThread][batchSizeIdx];
   return p->_hyperparameterGradients;
