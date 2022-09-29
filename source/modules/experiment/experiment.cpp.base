@@ -137,7 +137,7 @@ void __className__::saveState()
     auto js_reduced = knlohmann::json();
     for(std::string key : _js.getJson()["Save Only"]){
       if(!_js.getJson().contains(key))
-        KORALI_LOG_ERROR("Error trying to 'Save Only' js field with non-exists key: %s.\n", key);
+        KORALI_LOG_ERROR("Error trying to 'Save Only' js field with non-exists key: %s.\n", key.c_str());
       else
         js_reduced[key] = _js.getJson()[key];
       if (saveJsonToFile(filePath.c_str(), js_reduced) != 0) KORALI_LOG_ERROR("Error trying to save result file: %s.\n", filePath.c_str());
