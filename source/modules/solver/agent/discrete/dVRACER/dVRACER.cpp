@@ -50,6 +50,7 @@ void dVRACER::initializeAgent()
 
     _criticPolicyExperiment[p]["Solver"]["Type"] = "Learner/DeepSupervisor";
     _criticPolicyExperiment[p]["Solver"]["Mode"] = "Training";
+    _criticPolicyExperiment[p]["Solver"]["Number Of Policy Threads"] = _numberOfPolicyThreads;
     _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Enabled"] = _l2RegularizationEnabled;
     _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Importance"] = _l2RegularizationImportance;
     _criticPolicyExperiment[p]["Solver"]["Learning Rate"] = _currentLearningRate;
@@ -107,6 +108,7 @@ void dVRACER::trainPolicy()
   const size_t numPolicies = _problem->_policiesPerEnvironment;
 
   // Update all policies using all experiences
+#pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
   for (size_t p = 0; p < numPolicies; p++)
   {
     // Fill policyInfo with behavioral policy (access to availableActions)
@@ -115,11 +117,14 @@ void dVRACER::trainPolicy()
     // Forward NN
     runPolicy(stateSequenceBatch, policyInfo, p);
 
+#pragma omp critical
+{
     // Using policy information to update experience's metadata
     updateExperienceMetadata(miniBatch, policyInfo);
 
     // Now calculating policy gradients
     calculatePolicyGradients(miniBatch, p);
+}
 
     // Updating learning rate for critic/policy learner guided by REFER
     _criticPolicyLearner[p]->_learningRate = _currentLearningRate;
@@ -262,7 +267,7 @@ void dVRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &stat
   const auto evaluation = _criticPolicyLearner[policyIdx]->getEvaluation(stateSequenceBatch);
 
 // Update policy info
-#pragma omp parallel for num_threads(_numberOfCPUs)
+#pragma omp parallel for
   for (size_t b = 0; b < batchSize; b++)
   {
     // Getting state value

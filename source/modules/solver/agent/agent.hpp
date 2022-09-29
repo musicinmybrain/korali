@@ -650,31 +650,6 @@ class Agent : public Solver
   double _sessionPolicyUpdateTime;
 
   /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _sessionCreateMinibatchTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _sessionRunPolicyTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _sessionUpdateMetadataTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _sessionPolicyGradientTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _sessionRunGenerationTime;
-
-  /**
    * @brief [Profiling] Measures the time taken to update the attend the agent's state
    */
   double _sessionAgentAttendingTime;
@@ -712,31 +687,6 @@ class Agent : public Solver
    * @brief [Profiling] Measures the time taken to update the policy in the current generation
    */
   double _generationPolicyUpdateTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _generationCreateMinibatchTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _generationRunPolicyTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _generationUpdateMetadataTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _generationPolicyGradientTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _generationRunGenerationTime;
 
   /**
    * @brief [Profiling] Measures the time taken to update the attend the agent's state

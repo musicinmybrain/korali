@@ -37,7 +37,7 @@ void Agent::initialize()
 #endif
 
   // Print Info
-  _k->_logger->logInfo("Normal", "There are %d threads available. Parallel forwarding up to %d policies with %d threads each.\n", omp_get_num_procs(), _numberOfPolicyThreads, omp_get_max_threads());
+  _k->_logger->logInfo("Normal", "There are %d threads available. Enabling parallel forwarding of up to %d policies with %d threads each.\n", omp_get_num_procs(), _numberOfPolicyThreads, omp_get_max_threads());
 
   // Getting problem pointer
   _problem = dynamic_cast<problem::ReinforcementLearning *>(_k->_problem);
@@ -204,11 +204,6 @@ void Agent::initialize()
   _sessionAgentCommunicationTime = 0.0;
   _sessionAgentPolicyEvaluationTime = 0.0;
   _sessionPolicyUpdateTime = 0.0;
-  _sessionCreateMinibatchTime = 0.0;
-  _sessionRunPolicyTime = 0.0;
-  _sessionUpdateMetadataTime = 0.0;
-  _sessionPolicyGradientTime = 0.0;
-  _sessionRunGenerationTime = 0.0;
   _sessionAgentAttendingTime = 0.0;
 
   // Initializing session-specific counters
@@ -277,11 +272,6 @@ void Agent::trainingGeneration()
   _generationAgentCommunicationTime = 0.0;
   _generationAgentPolicyEvaluationTime = 0.0;
   _generationPolicyUpdateTime = 0.0;
-  _generationCreateMinibatchTime = 0.0;
-  _generationRunPolicyTime = 0.0;
-  _generationUpdateMetadataTime = 0.0;
-  _generationPolicyGradientTime = 0.0;
-  _generationRunGenerationTime = 0.0;
   _generationAgentAttendingTime = 0.0;
 
   // Running until all _agents have finished
@@ -1631,11 +1621,6 @@ void Agent::printGenerationAfter()
     _k->_logger->logInfo("Detailed", " + Avg Agent Communication/Wait Time:   [%5.3fs]     - [%3.3fs]\n", _generationAgentCommunicationTime / 1.0e+9, _sessionAgentCommunicationTime / 1.0e+9);
     _k->_logger->logInfo("Detailed", " + Avg Agent Policy Evaluation Time:    [%5.3fs]     - [%3.3fs]\n", _generationAgentPolicyEvaluationTime / 1.0e+9, _sessionAgentPolicyEvaluationTime / 1.0e+9);
     _k->_logger->logInfo("Detailed", " + Policy Update Time:                  [%5.3fs]     - [%3.3fs]\n", _generationPolicyUpdateTime / 1.0e+9, _sessionPolicyUpdateTime / 1.0e+9);
-    _k->_logger->logInfo("Detailed", "   - Create Minibatch:                  [%5.3fs]     - [%3.3fs]\n", _generationCreateMinibatchTime / 1.0e+9, _sessionCreateMinibatchTime / 1.0e+9);
-    _k->_logger->logInfo("Detailed", "   - Run Policy:                        [%5.3fs]     - [%3.3fs]\n", _generationRunPolicyTime / 1.0e+9, _sessionRunPolicyTime / 1.0e+9);
-    _k->_logger->logInfo("Detailed", "   - Update Experience Metadata:        [%5.3fs]     - [%3.3fs]\n", _generationUpdateMetadataTime / 1.0e+9, _sessionUpdateMetadataTime / 1.0e+9);
-    _k->_logger->logInfo("Detailed", "   - Calculate Policy Gradient:         [%5.3fs]     - [%3.3fs]\n", _generationPolicyGradientTime / 1.0e+9, _sessionPolicyGradientTime / 1.0e+9);
-    _k->_logger->logInfo("Detailed", "   - Run Generation:                    [%5.3fs]     - [%3.3fs]\n", _generationRunGenerationTime / 1.0e+9, _sessionRunGenerationTime / 1.0e+9);
     _k->_logger->logInfo("Detailed", " + Running Time:                        [%5.3fs]     - [%3.3fs]\n", _generationRunningTime / 1.0e+9, _sessionRunningTime / 1.0e+9);
     _k->_logger->logInfo("Detailed", " + [I/O] Result File Saving Time:        %5.3fs\n", _k->_resultSavingTime / 1.0e+9);
   }

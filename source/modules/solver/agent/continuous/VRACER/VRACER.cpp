@@ -49,6 +49,7 @@ void VRACER::initializeAgent()
 
     _criticPolicyExperiment[p]["Solver"]["Type"] = "Learner/DeepSupervisor";
     _criticPolicyExperiment[p]["Solver"]["Mode"] = "Training";
+    _criticPolicyExperiment[p]["Solver"]["Number Of Policy Threads"] = _numberOfPolicyThreads;
     _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Enabled"] = _l2RegularizationEnabled;
     _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Importance"] = _l2RegularizationImportance;
     _criticPolicyExperiment[p]["Solver"]["Learning Rate"] = _currentLearningRate;
@@ -92,19 +93,11 @@ void VRACER::initializeAgent()
 
 void VRACER::trainPolicy()
 {
-  auto beginTime = std::chrono::steady_clock::now();
   // Obtaining Minibatch experience ids
   const auto miniBatch = generateMiniBatch();
 
   // Gathering state sequences for selected minibatch
   const auto stateSequenceBatch = getMiniBatchStateSequence(miniBatch);
-  auto endTime = std::chrono::steady_clock::now(); 
-  _sessionCreateMinibatchTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
-  _generationCreateMinibatchTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
-
-  // Prepare stateSequenceBatch and miniBatch
-  auto _miniBatch          = miniBatch;
-  auto _stateSequenceBatch = stateSequenceBatch;
 
   // Buffer for policy info to update experience metadata
   std::vector<policy_t> policyInfoUpdateMetadata(miniBatch.size());
@@ -115,7 +108,11 @@ void VRACER::trainPolicy()
   // Run training generation for all policies
   #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
   for (size_t p = 0; p < numPolicies; p++)
-  {
+  { 
+    // Prepare stateSequenceBatch and miniBatch
+    auto _miniBatch          = miniBatch;
+    auto _stateSequenceBatch = stateSequenceBatch;
+
     // Disable experience sharing competing agents or Bayesian reinforcement learning
     if( (_multiAgentRelationship == "Competition") || _problem->_ensembleLearning )
     {
@@ -142,35 +139,22 @@ void VRACER::trainPolicy()
 
     // Forward NN
     std::vector<policy_t> policyInfo;
-    beginTime = std::chrono::steady_clock::now(); 
     runPolicy(_stateSequenceBatch, policyInfo, p);
-    endTime = std::chrono::steady_clock::now(); 
-    _sessionRunPolicyTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
-    _generationRunPolicyTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
 
+#pragma omp critical
+{
     // Using policy information to update experience's metadata
-    beginTime = std::chrono::steady_clock::now();
     updateExperienceMetadata(_miniBatch, policyInfo);
-    endTime = std::chrono::steady_clock::now();
-    _sessionUpdateMetadataTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
-    _generationUpdateMetadataTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
 
     // Now calculating policy gradients
-    beginTime = std::chrono::steady_clock::now();
     calculatePolicyGradients(_miniBatch, p);
-    endTime = std::chrono::steady_clock::now();
-    _sessionPolicyGradientTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
-    _generationPolicyGradientTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
+}
 
     // Updating learning rate for critic/policy learner guided by REFER
     _criticPolicyLearner[p]->_learningRate = _currentLearningRate;
 
     // Now applying gradients to update policy NN
-    beginTime = std::chrono::steady_clock::now();
     _criticPolicyLearner[p]->runGeneration();
-    endTime = std::chrono::steady_clock::now();
-    _sessionRunGenerationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
-    _generationRunGenerationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
 
     // Store policyData for agent p for later update of metadata
     if ( (numPolicies > 1) && (_multiAgentRelationship != "Competition") && !_problem->_ensembleLearning )
@@ -180,7 +164,7 @@ void VRACER::trainPolicy()
 
   // Correct experience metadata
   if ( (numPolicies > 1) && (_multiAgentRelationship != "Competition") && !_problem->_ensembleLearning )
-    updateExperienceMetadata(_miniBatch, policyInfoUpdateMetadata);
+    updateExperienceMetadata(miniBatch, policyInfoUpdateMetadata);
 }
 
 void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx)
@@ -342,7 +326,7 @@ void VRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &state
   const auto evaluation = _criticPolicyLearner[policyIdx]->getEvaluation(stateSequenceBatch);
 
 // Write results to policyInfo
-#pragma omp parallel for num_threads(_numberOfCPUs)
+#pragma omp parallel for
   for (size_t b = 0; b < batchSize; b++)
   {
     policyInfo[b].stateValue = evaluation[b][0];
