@@ -158,7 +158,10 @@ void Experiment::saveState()
 
 bool Experiment::loadState(const std::string &path)
 {
-  return loadJsonFromFile(_js.getJson(), path.c_str());
+  auto loadSuccess =  loadJsonFromFile(_js.getJson(), path.c_str());
+  if(!loadSuccess)
+    KORALI_LOG_ERROR("Error could not find or load file %s.\n", path.c_str());
+  return loadSuccess;
 }
 
 Experiment::Experiment()

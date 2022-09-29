@@ -6,9 +6,23 @@
 #include "auxiliar/logger.hpp"
 #include <string>
 #include <iostream>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace korali
 {
+
+/**
+* @brief check if file is a file (and not a directory).
+*/
+int is_regular_file(const char *path)
+{
+    struct stat path_stat;
+    stat(path, &path_stat);
+    return S_ISREG(path_stat.st_mode);
+}
+
 bool isEmpty(const knlohmann::json &js)
 {
   bool empty = true;
@@ -81,25 +95,23 @@ void mergeJson(knlohmann::json &dest, const knlohmann::json &defaults)
 
 bool loadJsonFromFile(knlohmann::json &dst, const char *fileName)
 {
+  if(!is_regular_file(fileName))
+    return false;
   FILE *fid = fopen(fileName, "r");
-  if (fid != NULL)
-  {
-    fseek(fid, 0, SEEK_END);
-    long fsize = ftell(fid);
-    fseek(fid, 0, SEEK_SET); /* same as rewind(f); */
+  fseek(fid, 0, SEEK_END);
+  long fsize = ftell(fid);
+  fseek(fid, 0, SEEK_SET); /* same as rewind(f); */
 
-    char *string = (char *)malloc(fsize + 1);
-    fread(string, 1, fsize, fid);
-    fclose(fid);
+  char *string = (char *)malloc(fsize + 1);
+  fread(string, 1, fsize, fid);
+  fclose(fid);
 
-    string[fsize] = '\0';
+  string[fsize] = '\0';
 
-    dst = knlohmann::json::parse(string);
+  dst = knlohmann::json::parse(string);
 
-    free(string);
-    return true;
-  }
-  return false;
+  free(string);
+  return true;
 }
 
 int saveJsonToFile(const char *fileName, const knlohmann::json &js)
