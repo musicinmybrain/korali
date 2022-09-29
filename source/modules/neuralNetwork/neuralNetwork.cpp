@@ -54,8 +54,6 @@ void NeuralNetwork::initialize()
     if (_batchSizes[i] == 0)
       KORALI_LOG_ERROR("Batch size %lu is zero.\n", i, _batchSizes[i]);
 
-  printf("_numberOfPolicyThreads=%d",_numberOfPolicyThreads);
-
   // Creating layer pipelines of format ThreadCount x Batch Sizes x Layer Count
   size_t layerCount = _layers.size();
   _pipelines.resize(_numberOfPolicyThreads);
