@@ -252,24 +252,15 @@ void DeepSupervisor::initialize()
 
   // If the hyperparameters have not been specified, produce new initial ones
   if (_hyperparameters.size() == 0) _hyperparameters = _neuralNetwork->generateInitialHyperparameters();
-
-  /*****************************************************************
-   * Setting up weight and bias optimization experiment
-   *****************************************************************/
-
-  if (_neuralNetworkOptimizer == "SGD") _optimizer = new korali::fSGD(_hyperparameters.size());
-  if (_neuralNetworkOptimizer == "Adam") _optimizer = new korali::fAdam(_hyperparameters.size());
-  if (_neuralNetworkOptimizer == "AdaBelief") _optimizer = new korali::fAdaBelief(_hyperparameters.size());
-  if (_neuralNetworkOptimizer == "MADGRAD") _optimizer = new korali::fMadGrad(_hyperparameters.size());
-  if (_neuralNetworkOptimizer == "RMSProp") _optimizer = new korali::fRMSProp(_hyperparameters.size());
-  if (_neuralNetworkOptimizer == "Adagrad") _optimizer = new korali::fAdagrad(_hyperparameters.size());
-
-  // Setting initial hyperparameter structures in the neural network and optmizer
   _neuralNetwork->setHyperparameters(_hyperparameters, true);
+  /*****************************************************************
+   * Setting Up the Optimizer
+   *****************************************************************/
+  _optimizer->_nVars = _hyperparameters.size();
+  _optimizer->initialize();
   _optimizer->_currentValue = _hyperparameters;
-
-  // Resetting Optimizer
-  _optimizer->reset();
+  // _optimizer->reset();
+  //****************************************************************
 
   // Setting current loss
   _currentTrainingLoss = 0.0f;
@@ -399,6 +390,7 @@ void DeepSupervisor::runEpoch()
       if(_regularizer){
         _currentTrainingLoss += _regularizer->penalty(_neuralNetwork->getHyperparameters());
         auto d_penalty = _regularizer->d_penalty(_neuralNetwork->getHyperparameters());
+        // TODO move into optimizer
         #pragma omp parallel for simd
         for(size_t i = 0; i < _neuralNetwork->_hyperparameterCount; i++){
           negGradientWeights[i] -= d_penalty[i];
@@ -408,19 +400,8 @@ void DeepSupervisor::runEpoch()
       updateWeights(negGradientWeights);
     }
     // TODO: take care of remainder ==========================================================================================
+    // ...
     // =======================================================================================================================
-        // if(_hasValidationSet && _loss){
-        //   _currentValidationLoss = 0.0f;
-        //   auto y_val = getEvaluation(_problem->_dataValidationInput);
-        //   _currentValidationLoss += _loss->loss(y_val, _problem->_dataValidationSolution);
-        // }
-    // Calculate the training loss if a loss function is given (Direct grad otherwise) =======================================
-        // if(_hasValidationSet && _loss){
-        //   _currentValidationLoss = 0.0f;
-        //   auto y_val = getEvaluation(_problem->_dataValidationInput);
-        //   _currentValidationLoss += _loss->loss(y_val, _problem->_dataValidationSolution);
-        // }
-    // Calculate the training loss if a loss function is given (Direct grad otherwise) =======================================
     if(_reward){
       _currentTrainingLoss = _currentTrainingLoss/ (float)(_batchConcurrency*IforE);
       _trainingLoss.push_back(_currentTrainingLoss);
@@ -920,6 +901,14 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
     }
     eraseValue(js, "Epoch Count");
   }
+  if (isDefined(js, "Optimizer"))
+  {
+ _optimizer = dynamic_cast<korali::solver::learner::optimizer::FastGradientBasedOptimizer*>(korali::Module::getModule(js["Optimizer"], _k));
+ _optimizer->applyVariableDefaults();
+ _optimizer->applyModuleDefaults(js["Optimizer"]);
+ _optimizer->setConfiguration(js["Optimizer"]);
+    eraseValue(js, "Optimizer");
+  }
   if (isDefined(js, "Total Learning Rate"))
   {
     try
@@ -980,27 +969,6 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
     }
     eraseValue(js, "Neural Network", "Engine");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Neural Network']['Engine'] required by deepSupervisor.\n"); 
-
-  if (isDefined(js, "Neural Network", "Optimizer"))
-  {
-    try
-    {
-      _neuralNetworkOptimizer = js["Neural Network"]["Optimizer"].get<std::string>();
-    } catch (const std::exception& e) {
-      KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Neural Network']['Optimizer']\n%s", e.what());
-    }
-      {
-        bool validOption = false; 
-        if (_neuralNetworkOptimizer == "SGD") validOption = true; 
-        if (_neuralNetworkOptimizer == "Adam") validOption = true; 
-        if (_neuralNetworkOptimizer == "AdaBelief") validOption = true; 
-        if (_neuralNetworkOptimizer == "MADGRAD") validOption = true; 
-        if (_neuralNetworkOptimizer == "RMSProp") validOption = true; 
-        if (_neuralNetworkOptimizer == "Adagrad") validOption = true; 
-        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Neural Network']['Optimizer'] required by deepSupervisor.\n Valid Options are:\n  - SGD\n  - Adam\n  - AdaBelief\n  - MADGRAD\n  - RMSProp\n  - Adagrad\n",_neuralNetworkOptimizer.c_str()); 
-      }
-    eraseValue(js, "Neural Network", "Optimizer");
-  }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Neural Network']['Optimizer'] required by deepSupervisor.\n"); 
 
   if (isDefined(js, "Hyperparameters"))
   {
@@ -1274,7 +1242,6 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
    js["Neural Network"]["Output Activation"] = _neuralNetworkOutputActivation;
    js["Neural Network"]["Output Layer"] = _neuralNetworkOutputLayer;
    js["Neural Network"]["Engine"] = _neuralNetworkEngine;
-   js["Neural Network"]["Optimizer"] = _neuralNetworkOptimizer;
    js["Hyperparameters"] = _hyperparameters;
    js["Loss Function"] = _lossFunction;
    js["Regularizer"]["Type"] = _regularizerType;
@@ -1309,6 +1276,7 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
    js["Normalization Means"] = _normalizationMeans;
    js["Normalization Variances"] = _normalizationVariances;
    js["Epoch Count"] = _epochCount;
+ if(_optimizer != NULL) _optimizer->getConfiguration(js["Optimizer"]);
    js["Total Learning Rate"] = _totalLearningRate;
  Learner::getConfiguration(js);
 } 
@@ -1316,7 +1284,7 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
 void DeepSupervisor::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Regularizer\": {\"Coefficient\": 0.0001, \"Type\": \"None\"}, \"Loss Function\": \"Direct Gradient\", \"Learning Rate Type\": \"Const\", \"Learning Rate Save\": true, \"Learning Rate Decay Factor\": 100, \"Learning Rate Steps\": 0, \"Learning Rate Lower Bound\": -10000000000, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}, \"Hidden Layers\": {}}, \"Metrics\": {\"Type\": \"\"}, \"Termination Criteria\": {\"Epochs\": 10000000000, \"Is One Epoch Finished\": false, \"Target Loss\": -1.0, \"Max Generations\": 10000000000}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1, \"Epoch Count\": 0, \"Data\": {\"Validation\": {\"Split\": 0.0}, \"Training\": {\"Shuffel\": false}, \"Input\": {\"Shuffel\": false}}}";
+ std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Regularizer\": {\"Coefficient\": 0.0001, \"Type\": \"None\"}, \"Loss Function\": \"Direct Gradient\", \"Learning Rate Type\": \"Const\", \"Learning Rate Save\": true, \"Learning Rate Decay Factor\": 100, \"Learning Rate Steps\": 0, \"Learning Rate Lower Bound\": -10000000000, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}, \"Hidden Layers\": {}}, \"Metrics\": {\"Type\": \"\"}, \"Termination Criteria\": {\"Epochs\": 10000000000, \"Is One Epoch Finished\": false, \"Target Loss\": -1.0, \"Max Generations\": 10000000000}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1, \"Epoch Count\": 0, \"Data\": {\"Validation\": {\"Split\": 0.0}, \"Training\": {\"Shuffel\": true}, \"Input\": {\"Shuffel\": false}}, \"Optimizer\": {\"Type\": \"learner/deepSupervisor/optimizers/fSGD\"}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Learner::applyModuleDefaults(js);

@@ -1,0 +1,48 @@
+#pragma once
+
+#include <cstddef>
+#include <vector>
+#include <cstdlib>
+#include <stdexcept>
+#include <cmath>
+#include "auxiliar/logger.hpp"
+#include "modules/module.hpp"
+
+__startNamespace__;
+
+class __className__ : public __parentClassName__
+{
+  public:
+    // VARIABLES =================================================
+    /**
+    * @brief [Internal Use] Current value of parameters.
+    */
+    std::vector<float> _currentValue;
+    // FUNCTIONS =================================================
+    __className__() = default;
+    ~__className__() = default;
+    /**
+    * @brief Takes a sample evaluation and its gradient and calculates the next set of parameters
+    * @param gradient The gradient of the objective function at the current set of parameters
+    */
+    virtual void processResult(std::vector<float> &gradient) = 0;
+    /**
+    * @brief size checks
+    * @param gradient input gradients to be checked
+    */
+    virtual void preProcessResult(std::vector<float> &gradient);
+    /**
+    * @brief checks for infinity values and increments modelEvaluationCount
+    * @param parameters calculated by our optimizer
+    */
+    virtual void postProcessResult(std::vector<float> &parameters);
+    /**
+    * @brief Restores the optimizer to the initial state
+    */
+    virtual void reset() = 0;
+    // Overriden FUNCTIONS =======================================
+    virtual void initialize() override;
+};
+
+__endNamespace__;
+

@@ -1,0 +1,41 @@
+#include "modules/solver/learner/deepSupervisor/optimizers/fMomentum/fMomentum.hpp"
+#include <vector>
+
+__startNamespace__;
+
+void __className__::initialize() {
+  __parentClassName__::initialize();
+  _gsmoothed.resize(_nVars);
+  reset();
+}
+
+void __className__::reset()
+{
+  _modelEvaluationCount = 0;
+  #pragma omp parallel for simd
+  for (size_t i = 0; i < _nVars; i++){
+    _currentValue[i] = 0.0f;
+    _gsmoothed[i] = 0.0f;
+  }
+}
+
+void __className__::processResult(std::vector<float> &gradient)
+{
+  __parentClassName__::preProcessResult(gradient);
+
+  float not_smoothing = 1.0f-_smoothing;
+  #pragma omp parallel for simd
+  for (size_t i = 0; i < _nVars; i++)
+  {
+    _gsmoothed[i] = not_smoothing*gradient[i] + _smoothing*_gsmoothed[i];
+    _currentValue[i] += _eta*_gsmoothed[i];
+    // std::fma(_eta, _gsmoothed[i], _currentValue[i]);
+
+  }
+
+  __parentClassName__::postProcessResult(_currentValue);
+}
+
+__moduleAutoCode__;
+
+__endNamespace__;

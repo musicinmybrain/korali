@@ -17,24 +17,23 @@
 #include "modules/neuralNetwork/neuralNetwork.hpp"
 #include "modules/problem/supervisedLearning/supervisedLearning.hpp"
 #include "modules/solver/learner/learner.hpp"
-#include "modules/solver/learner/deepSupervisor/optimizers/fAdaBelief.hpp"
-#include "modules/solver/learner/deepSupervisor/optimizers/fAdagrad.hpp"
-#include "modules/solver/learner/deepSupervisor/optimizers/fAdam.hpp"
-#include "modules/solver/learner/deepSupervisor/optimizers/fSGD.hpp"
-#include "modules/solver/learner/deepSupervisor/optimizers/fGradientBasedOptimizer.hpp"
-#include "modules/solver/learner/deepSupervisor/optimizers/fMadGrad.hpp"
-#include "modules/solver/learner/deepSupervisor/optimizers/fRMSProp.hpp"
+// Optimizer ===================================================================
+#include "modules/solver/learner/deepSupervisor/optimizers/fGradientBasedOptimizers.hpp"
+// Reward Functions ============================================================
 #include "modules/solver/learner/deepSupervisor/reward_functions/reward.hpp"
 #include "modules/solver/learner/deepSupervisor/reward_functions/mse.hpp"
 #include "modules/solver/learner/deepSupervisor/reward_functions/cross_entropy.hpp"
 #include "modules/solver/learner/deepSupervisor/reward_functions/negative_log_likelihood.hpp"
 #include "modules/solver/learner/deepSupervisor/regularizers/regularizer.hpp"
+// Regularizer =================================================================
 #include "modules/solver/learner/deepSupervisor/regularizers/l2.hpp"
 #include "modules/solver/learner/deepSupervisor/regularizers/l1.hpp"
+// Learning Rates ==============================================================
 #include "modules/solver/learner/deepSupervisor/learning_rate/learning_rate.hpp"
 #include "modules/solver/learner/deepSupervisor/learning_rate/decay.hpp"
 #include "modules/solver/learner/deepSupervisor/learning_rate/step_based_decay.hpp"
 #include "modules/solver/learner/deepSupervisor/learning_rate/time_based_decay.hpp"
+// Metrics =====================================================================
 #include "modules/solver/learner/deepSupervisor/metrics/metrics.hpp"
 #include "modules/solver/learner/deepSupervisor/metrics/accuracy.hpp"
 
@@ -72,10 +71,6 @@ class DeepSupervisor : public Learner
   * @brief Specifies which Neural Network backend engine to use.
   */
    std::string _neuralNetworkEngine;
-  /**
-  * @brief Determines which optimizer algorithm to use to apply the gradients on the neural network's hyperparameters.
-  */
-   std::string _neuralNetworkOptimizer;
   /**
   * @brief Stores the training neural network hyperparameters (weights and biases).
   */
@@ -201,6 +196,10 @@ class DeepSupervisor : public Learner
   */
    size_t _epochCount;
   /**
+  * @brief [Internal Use] Gradient-based solver pointer to access directly (for performance)
+  */
+   korali::solver::learner::optimizer::FastGradientBasedOptimizer* _optimizer;
+  /**
   * @brief [Internal Use] Value of the learning rate for all epochs.
   */
    std::vector<float> _totalLearningRate;
@@ -262,7 +261,6 @@ class DeepSupervisor : public Learner
     /**
      * @brief Gradient-based solver pointer to access directly (for performance)
      */
-    korali::fGradientBasedOptimizer *_optimizer;
     /**
      * @brief reward function object [Korali maximizes].
      */

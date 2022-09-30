@@ -52,6 +52,13 @@
 #include "solver/executor/executor.hpp"
 #include "solver/integrator/integrator.hpp"
 #include "solver/learner/deepSupervisor/deepSupervisor.hpp"
+#include "modules/solver/learner/deepSupervisor/optimizers/fSGD/fSGD.hpp"
+#include "modules/solver/learner/deepSupervisor/optimizers/fAdam/fAdam.hpp"
+#include "modules/solver/learner/deepSupervisor/optimizers/fMomentum/fMomentum.hpp"
+#include "modules/solver/learner/deepSupervisor/optimizers/fAdaGrad/fAdaGrad.hpp"
+#include "modules/solver/learner/deepSupervisor/optimizers/fAdaBelief/fAdaBelief.hpp"
+#include "modules/solver/learner/deepSupervisor/optimizers/fMadGrad/fMadGrad.hpp"
+#include "modules/solver/learner/deepSupervisor/optimizers/fRMSProp/fRMSProp.hpp"
 #include "solver/learner/gaussianProcess/gaussianProcess.hpp"
 #include "solver/optimizer/AdaBelief/AdaBelief.hpp"
 #include "solver/optimizer/Adam/Adam.hpp"
@@ -147,6 +154,13 @@ Module *Module::getModule(knlohmann::json &js, Experiment *e)
   if (iCompare(moduleType, "Integrator")) module = new korali::solver::Integrator();
   if (iCompare(moduleType, "Learner/GaussianProcess")) module = new korali::solver::learner::GaussianProcess();
   if (iCompare(moduleType, "Learner/DeepSupervisor")) module = new korali::solver::learner::DeepSupervisor();
+  if (iCompare(moduleType, "learner/deepSupervisor/optimizers/fSGD")) module = new korali::solver::learner::optimizer::fSGD();
+  if (iCompare(moduleType, "learner/deepSupervisor/optimizers/fAdam")) module = new korali::solver::learner::optimizer::fAdam();
+  if (iCompare(moduleType, "learner/deepSupervisor/optimizers/fMomentum")) module = new korali::solver::learner::optimizer::fMomentum();
+  if (iCompare(moduleType, "learner/deepSupervisor/optimizers/fAdaBelief")) module = new korali::solver::learner::optimizer::fAdaBelief();
+  if (iCompare(moduleType, "learner/deepSupervisor/optimizers/fAdaGrad")) module = new korali::solver::learner::optimizer::fAdaGrad();
+  if (iCompare(moduleType, "learner/deepSupervisor/optimizers/fMadGrad")) module = new korali::solver::learner::optimizer::fMadGrad();
+  if (iCompare(moduleType, "learner/deepSupervisor/optimizers/fRMSProp")) module = new korali::solver::learner::optimizer::fRMSProp();
   if (iCompare(moduleType, "Agent/Continuous/VRACER")) module = new korali::solver::agent::continuous::VRACER();
   if (iCompare(moduleType, "Agent/Discrete/dVRACER")) module = new korali::solver::agent::discrete::dVRACER();
   if (iCompare(moduleType, "Optimizer/CMAES")) module = new korali::solver::optimizer::CMAES();
