@@ -1,2 +1,2 @@
-e = find_program('run-ffn.py', required: true)
+e = find_program('run-regularization-example.py', required: true)
 subdir('_models')

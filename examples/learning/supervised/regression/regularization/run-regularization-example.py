@@ -10,6 +10,9 @@ import math
 import copy
 import argparse
 import seaborn as sns
+sys.path.append(os.path.abspath('./_models'))
+from simple_model import set_simple_model as regressor
+
 sns.set()
 palette = sns.color_palette("tab10")
 train_c = palette[2]
@@ -19,27 +22,6 @@ test_c = palette[4]
 model_c = palette[1]
 f_c = palette[0]
 plt.rcParams['text.usetex'] = True
-
-def set_simple_model(e, input_dims):
-    # ===================== Input Layer
-    e["Problem"]["Input"]["Size"] = input_dims
-    e["Problem"]["Solution"]["Size"] = input_dims
-    # ===================== Linear Layer
-    lidx = 0
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Linear"
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Output Channels"] = 32
-    ## Activation ========================
-    lidx += 1
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Activation"
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Function"] = "Elementwise/Tanh"
-    # ===================== Linear Layer
-    lidx += 1
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Linear"
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Output Channels"] = 32
-    ## Activation ========================
-    lidx += 1
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Type"] = "Layer/Activation"
-    e["Solver"]["Neural Network"]["Hidden Layers"][lidx]["Function"] = "Elementwise/Tanh"
 
 k = korali.Engine()
 
@@ -180,6 +162,13 @@ parser.add_argument(
     choices=["x2", "complex"],
     required=False
 )
+parser.add_argument(
+    "--other",
+    help="Can be used to add a folder to distinguish the model inside the results file",
+    required=False,
+    default="",
+    type=str,
+)
 
 np.random.seed(0xC0FFEE)
 # In case of iPython need to temporaily set sys.args to [''] in order to parse them
@@ -238,8 +227,8 @@ print_args(vars(args), sep=' ', header_width=140)
 
 eList = []
 keys = ["no", "regularization"]
-paths = {keys[0]: os.path.join("_korali_result","_korali_result_no_regularization"),
-        keys[1]:  os.path.join("_korali_result","_korali_result_L2")}
+paths = {keys[0]: os.path.join("_korali_result", args.other, "_korali_result_no_regularization"),
+        keys[1]:  os.path.join("_korali_result", args.other, "_korali_result_L2")}
 current_keys = ["regularization"]
 if args.type == "all":
     current_keys = ["no", "regularization"]
@@ -250,6 +239,12 @@ elif args.type == "no":
 
 for i, key in enumerate(current_keys):
     e = korali.Experiment()
+    e["Random Seed"] = 0xC0FFEE
+    ### Loading previous models
+    if args.load_model:
+        args.validationSplit = 0.0
+        e.loadState(os.path.join(paths[key], "latest"))
+
     e["Problem"]["Description"] = key
     e["Problem"]["Type"] = "Supervised Learning"
     e["Problem"]["Max Timesteps"] = 1
@@ -279,28 +274,21 @@ for i, key in enumerate(current_keys):
     e["Solver"]["Data"]["Input"]["Shuffel"] = False
     e["Solver"]["Data"]["Training"]["Shuffel"] = False
     e["Solver"]["Neural Network"]["Engine"] = args.engine
-    e["Solver"]["Neural Network"]["Optimizer"] = args.optimizer
+    e["Solver"]["Optimizer"]["Type"] = "learner/deepSupervisor/optimizers/f"+args.optimizer
 
-    set_simple_model(e, len(X_train_k[0]))
-
+# Set Model ================================================================================
+    regressor(e, len(X_train_k[0]))
+# ==========================================================================================
     e["Console Output"]["Frequency"] = 1
     e["Console Output"]["Verbosity"] = "Normal"
     e["File Output"]["Enabled"] = args.save
     e["File Output"]["Frequency"] = 0
     e["File Output"]["Path"] = paths[key]
-    e["Save Only"] = ["Current Generation" ,"Run ID", "Results", "Solver"]
-    e["Random Seed"] = 0xC0FFEE
-
-    ### Loading previous models
-    if(args.load_model):
-        args.validationSplit = 0.0
-        isStateFound = e.loadState(paths[key])
-        if(isStateFound):
-            print("[Script] Evaluating previous run...\n")
-
+    # e["Save Only"] = ["Current Generation" ,"Run ID", "Solver"]
     e["Solver"]["Termination Criteria"]["Epochs"] = args.epochs
     k["Conduit"]["Type"] = "Sequential"
-    if key == key[1]:
+    if key == keys[1]:
+        e["Solver"]["Regularizer"]["Save"] = True
         e["Solver"]["Regularizer"]["Type"] = args.regularizerType
         e["Solver"]["Regularizer"]["Coefficient"] = args.regularizerCoefficient
     eList.append(e)
