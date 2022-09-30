@@ -24,23 +24,23 @@ void Agent::initialize()
 
   // Get number of CPUs
 #ifdef _OPENMP
-  _numberOfCPUs = omp_get_num_procs();
+  _numberOfCPUs = _numberOfPolicyThreads * omp_get_max_threads();
 #else
   _numberOfCPUs = 1;
 #endif
 
   // Set number of threads using which NN are forwarded in parallel
-#ifdef _OPENMP
-  _numberOfPolicyThreads = (int)std::floor(omp_get_num_procs() / omp_get_max_threads());
-#else
+#ifndef _OPENMP
   _numberOfPolicyThreads = 1;
 #endif
 
-  // Print Info
-  _k->_logger->logInfo("Normal", "There are %d threads available. Enabling parallel forwarding of up to %d policies with %d threads each.\n", omp_get_num_procs(), _numberOfPolicyThreads, omp_get_max_threads());
-
   // Getting problem pointer
   _problem = dynamic_cast<problem::ReinforcementLearning *>(_k->_problem);
+
+  // Print Info
+#ifdef _OPENMP
+  _k->_logger->logInfo("Normal", "There are %d threads available. Enabling parallel forwarding of up to %d/%ld policies with %d threads each.\n", _numberOfCPUs, _numberOfPolicyThreads, _problem->_policiesPerEnvironment, omp_get_max_threads());
+#endif
 
   // Formatting reward history for each agent
   _trainingRewardHistory.resize(_problem->_agentsPerEnvironment);
@@ -1648,14 +1648,6 @@ void Agent::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Number Of CPUs");
  }
 
- if (isDefined(js, "Number Of Policy Threads"))
- {
- try { _numberOfPolicyThreads = js["Number Of Policy Threads"].get<int>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Number Of Policy Threads']\n%s", e.what()); } 
-   eraseValue(js, "Number Of Policy Threads");
- }
-
  if (isDefined(js, "Policy", "Parameter Count"))
  {
  try { _policyParameterCount = js["Policy"]["Parameter Count"].get<size_t>();
@@ -2326,6 +2318,15 @@ void Agent::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Multi Agent Correlation'] required by agent.\n"); 
 
+ if (isDefined(js, "Number Of Policy Threads"))
+ {
+ try { _numberOfPolicyThreads = js["Number Of Policy Threads"].get<int>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Number Of Policy Threads']\n%s", e.what()); } 
+   eraseValue(js, "Number Of Policy Threads");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Number Of Policy Threads'] required by agent.\n"); 
+
  if (isDefined(js, "Termination Criteria", "Max Episodes"))
  {
  try { _maxEpisodes = js["Termination Criteria"]["Max Episodes"].get<size_t>();
@@ -2405,11 +2406,11 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Reward"]["Rescaling"]["Enabled"] = _rewardRescalingEnabled;
    js["Multi Agent Relationship"] = _multiAgentRelationship;
    js["Multi Agent Correlation"] = _multiAgentCorrelation;
+   js["Number Of Policy Threads"] = _numberOfPolicyThreads;
    js["Termination Criteria"]["Max Episodes"] = _maxEpisodes;
    js["Termination Criteria"]["Max Experiences"] = _maxExperiences;
    js["Termination Criteria"]["Max Policy Updates"] = _maxPolicyUpdates;
    js["Number Of CPUs"] = _numberOfCPUs;
-   js["Number Of Policy Threads"] = _numberOfPolicyThreads;
    js["Policy"]["Parameter Count"] = _policyParameterCount;
    js["Action Lower Bounds"] = _actionLowerBounds;
    js["Action Upper Bounds"] = _actionUpperBounds;
@@ -2456,7 +2457,7 @@ void Agent::getConfiguration(knlohmann::json& js)
 void Agent::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Environments\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Bayesian Learning\": false, \"Number Of Samples\": 1, \"swag\": false, \"Langevin Dynamics Noise Level\": 0.0, \"Dropout Probability\": 0.0, \"hmc\": {\"Enabled\": false, \"Mass\": 0.0, \"Number Of Steps\": 0, \"Step Size\": 0.0}, \"Normal Generator\": {\"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Strategy\": \"Uniform\", \"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
+ std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Environments\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Number Of Policy Threads\": 1, \"Bayesian Learning\": false, \"Number Of Samples\": 1, \"swag\": false, \"Langevin Dynamics Noise Level\": 0.0, \"Dropout Probability\": 0.0, \"hmc\": {\"Enabled\": false, \"Mass\": 0.0, \"Number Of Steps\": 0, \"Step Size\": 0.0}, \"Normal Generator\": {\"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Strategy\": \"Uniform\", \"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Solver::applyModuleDefaults(js);

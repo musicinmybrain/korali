@@ -20,23 +20,23 @@ void __className__::initialize()
 
   // Get number of CPUs
 #ifdef _OPENMP
-  _numberOfCPUs = omp_get_num_procs();
+  _numberOfCPUs = _numberOfPolicyThreads * omp_get_max_threads();
 #else
   _numberOfCPUs = 1;
 #endif
 
   // Set number of threads using which NN are forwarded in parallel
-#ifdef _OPENMP
-  _numberOfPolicyThreads = (int)std::floor(omp_get_num_procs() / omp_get_max_threads());
-#else
+#ifndef _OPENMP
   _numberOfPolicyThreads = 1;
 #endif
 
-  // Print Info
-  _k->_logger->logInfo("Normal", "There are %d threads available. Enabling parallel forwarding of up to %d policies with %d threads each.\n", omp_get_num_procs(), _numberOfPolicyThreads, omp_get_max_threads());
-
   // Getting problem pointer
   _problem = dynamic_cast<problem::ReinforcementLearning *>(_k->_problem);
+
+  // Print Info
+#ifdef _OPENMP
+  _k->_logger->logInfo("Normal", "There are %d threads available. Enabling parallel forwarding of up to %d/%ld policies with %d threads each.\n", _numberOfCPUs, _numberOfPolicyThreads, _problem->_policiesPerEnvironment, omp_get_max_threads());
+#endif
 
   // Formatting reward history for each agent
   _trainingRewardHistory.resize(_problem->_agentsPerEnvironment);

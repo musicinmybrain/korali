@@ -251,13 +251,13 @@ class Agent : public Solver
   */
    int _multiAgentCorrelation;
   /**
-  * @brief [Internal Use] Stores the number of CPUs available (result of omp_get_num_procs()).
-  */
-   int _numberOfCPUs;
-  /**
-  * @brief [Internal Use] Stores the number of threads using which multiple neural networks are forwarded ([Number Of CPUs] / [OMP_NUM_THREADS]), where OMP_NUM_THREADS should be optimized for fast processing of the neural network (8 seems ideal for 128x128 network).
+  * @brief Stores the number of threads using which multiple neural networks are forwarded ([Number Of CPUs] / [OMP_NUM_THREADS]), where OMP_NUM_THREADS should be optimized for fast processing of the neural network (8 seems ideal for 128x128 network).
   */
    int _numberOfPolicyThreads;
+  /**
+  * @brief [Internal Use] Stores the total number of threads, computed as omp_get_max_threads()*[Number Of Policy Threads].
+  */
+   int _numberOfCPUs;
   /**
   * @brief [Internal Use] Stores the number of parameters that determine the probability distribution for the current state sequence.
   */
