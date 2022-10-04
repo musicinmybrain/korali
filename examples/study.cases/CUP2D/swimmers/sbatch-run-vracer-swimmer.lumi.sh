@@ -45,7 +45,7 @@ cat <<EOF >daint_sbatch
 #SBATCH --output=${RUNNAME}_engine_out_%j.txt
 #SBATCH --error=${RUNNAME}_engine_err_%j.txt
 #SBATCH --partition=standard
-#SBATCH --nodes=1 --ntasks-per-node=1 --cpus-per-task=${NUMCORES} --hint=nomultithread
+#SBATCH --nodes=1 --ntasks-per-node=1 --cpus-per-task=8
 
 srun  --het-group=0,1 ./run-vracer-swimmer -task $TASK -nAgents $NAGENTS -nRanks $(( $NRANKS * $NUMCORES ))
 EOF
