@@ -251,8 +251,12 @@ void __className__::initialize()
    * Setting Up the Optimizer
    *****************************************************************/
   _optimizer->_nVars = _hyperparameters.size();
+  // TODO: make _optimizer a variabel and add configs for defaults i.e. [optimizer][...]
+  // _optimizer->applyModuleDefaults(js);
   _optimizer->initialize();
   _optimizer->_currentValue = _hyperparameters;
+  // Check virtual function if optimizer implements weight decay
+  if(_regularizer) _optimizer->_addWeightDecay = _optimizer->_implementsWeightDecay();
   // _optimizer->reset();
   //****************************************************************
 
@@ -380,15 +384,9 @@ void DeepSupervisor::runEpoch()
           negGradientWeights[i] += neg_dreward_dW[i];
         }
       }
-      // Add the Regularizer to the derivative of the loss if given ============================================================
+      // Add the weight decay to the derivative of the loss if given ============================================================
       if(_regularizer){
-        _currentTrainingLoss += _regularizer->penalty(_neuralNetwork->getHyperparameters());
-        auto d_penalty = _regularizer->d_penalty(_neuralNetwork->getHyperparameters());
-        // TODO move into optimizer
-        #pragma omp parallel for simd
-        for(size_t i = 0; i < _neuralNetwork->_hyperparameterCount; i++){
-          negGradientWeights[i] -= d_penalty[i];
-        }
+        performWeightDecay(negGradientWeights);
       }
       // Need to update the weiths after each mini batch =======================================================================
       updateWeights(negGradientWeights);
@@ -651,6 +649,22 @@ void __className__::finalize() {
     _isOneEpochFinished = false;
   }
 }
+
+void __className__::performWeightDecay(std::vector<float> &negGradientWeights){
+  if(_regularizerSave)
+    _currentPenalty += _regularizer->penalty(_neuralNetwork->getHyperparameters());
+  auto d_penalty = _regularizer->d_penalty(_neuralNetwork->getHyperparameters());
+  // If the optimizer implements weight decay give the responsibility of adding it to the optimizer
+  if(_optimizer->_addWeightDecay)
+    _optimizer->_weightDecay = d_penalty;
+  else
+    // otherwise just subtract the weights from the gradients (we do maximization)
+    #pragma omp parallel for simd
+    for(size_t i = 0; i < _neuralNetwork->_hyperparameterCount; i++){
+      negGradientWeights[i] -= d_penalty[i];
+    }
+}
+
 
 
 void __className__::printGenerationBefore(){

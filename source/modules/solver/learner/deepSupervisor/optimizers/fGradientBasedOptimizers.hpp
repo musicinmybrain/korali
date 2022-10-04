@@ -76,6 +76,14 @@ class FastGradientBasedOptimizer : public Module
     * @brief [Internal Use] Current value of parameters.
     */
     std::vector<float> _currentValue;
+    /**
+    * @brief Wether to add weight decay.
+    */
+    bool _addWeightDecay{false};
+    /**
+    * @brief Weight Decay To add
+    */
+    std::vector<float> _weightDecay;
     // FUNCTIONS =================================================
     FastGradientBasedOptimizer() = default;
     ~FastGradientBasedOptimizer() = default;
@@ -98,6 +106,10 @@ class FastGradientBasedOptimizer : public Module
     * @brief Restores the optimizer to the initial state
     */
     virtual void reset() = 0;
+    /**
+    * @brief Wether the Optimizer Implements Weight Decay set in initialize.
+    */
+    virtual bool _implementsWeightDecay(){ return 0; };
     // Overriden FUNCTIONS =======================================
     virtual void initialize() override;
 };

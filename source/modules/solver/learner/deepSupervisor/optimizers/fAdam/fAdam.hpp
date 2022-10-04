@@ -84,11 +84,15 @@ class fAdam : public FastGradientBasedOptimizer
   * @brief Beta for gradient update
   */
   float _beta2{0.999f};
+  /**
+  * @brief Weight Decay To add
+  */
   // FUNCTIONS =================================================
   // OVERRIDEN FUNCTIONS =======================================
   virtual void initialize() override;
   virtual void processResult(std::vector<float> &gradient) override;
   virtual void reset() override;
+  virtual bool _implementsWeightDecay() override { return 1; };
 };
 
 } //optimizer

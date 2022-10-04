@@ -372,6 +372,13 @@ class DeepSupervisor : public Learner
     /**
     * @brief run optimization setp and update the weights.
     */
+    /**
+    * @brief performs weight decay if a regularizer is given.
+    */
+    void performWeightDecay(std::vector<float> &negativeGradientWeights);
+    /**
+    * @brief run optimization setp and update the weights.
+    */
     std::vector<float> backwardGradients(const std::vector<std::vector<float>> &dreward);
     /**
     * @brief flattens 2d solution vector

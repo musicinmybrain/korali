@@ -15,6 +15,7 @@ void fAdam::initialize() {
   FastGradientBasedOptimizer::initialize();
   _firstMoment.resize(_nVars, 0.0f);
   _secondMoment.resize(_nVars, 0.0f);
+  _weightDecay.resize(_nVars, 0.0f);
   reset();
 }
 
@@ -28,6 +29,7 @@ void fAdam::reset()
     _currentValue[i] = 0.0f;
     _firstMoment[i] = 0.0f;
     _secondMoment[i] = 0.0f;
+    _weightDecay[i] = 0.0f;
   }
 }
 
@@ -50,6 +52,8 @@ void fAdam::processResult(std::vector<float> &gradient)
     _firstMoment[i] = _beta1 * _firstMoment[i] - notBeta1 * gradient[i];
     _secondMoment[i] = _beta2 * _secondMoment[i] + notBeta2 * gradient[i] * gradient[i];
     _currentValue[i] -= _eta / (std::sqrt(_secondMoment[i] * secondCentralMomentFactor) + _epsilon) * _firstMoment[i] * firstCentralMomentFactor;
+    if(_addWeightDecay)
+      _currentValue[i] -= _eta*_weightDecay[i];
   }
 
   FastGradientBasedOptimizer::postProcessResult(_currentValue);
