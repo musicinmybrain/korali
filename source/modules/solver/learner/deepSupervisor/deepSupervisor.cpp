@@ -278,7 +278,9 @@ void DeepSupervisor::initialize()
 
 void DeepSupervisor::runGeneration()
 {
+  KORALI_START_PROFILE("runEpoch()", _k);
   if (_mode == "Training" || _mode == "Automatic Training") runEpoch();
+  KORALI_STOP_PROFILE("runEpoch()", _k);
   if (_mode == "Predict") runPrediction();
   if (_mode == "Testing") runPrediction();
   if(_mode == "Predict" or _mode == "Testing" or _mode == "Training")
@@ -286,7 +288,9 @@ void DeepSupervisor::runGeneration()
 }
 
 void DeepSupervisor::updateWeights(std::vector<float> &negativeGradientWeights){
+  KORALI_START_PROFILE("NeuralNetwork::updateWeights::_optimizer->processResult", _k);
   _optimizer->processResult(negativeGradientWeights);
+  KORALI_STOP_PROFILE("NeuralNetwork::updateWeights::_optimizer->processResult", _k);
   // // Getting new set of hyperparameters from the gradient descent algorithm
   auto &new_hyperparameters = _optimizer->_currentValue;
   _hyperparameters = new_hyperparameters;
@@ -383,7 +387,9 @@ void DeepSupervisor::runEpoch()
         KORALI_WAITALL(samples);
       } else{
         // Do not run on other workers
+        KORALI_START_PROFILE("runTrainingOnWorker(samples[0]);", _k);
         runTrainingOnWorker(samples[0]);
+        KORALI_STOP_PROFILE("runTrainingOnWorker(samples[0]);", _k);
       }
       for (wId = 0; wId < _batchConcurrency; wId++){
         if(_reward)
@@ -429,7 +435,13 @@ void DeepSupervisor::runEpoch()
           // TODO: make this more efficient: loss expects a const vector maybe we can pass an rvalue reference instead somehow
           auto &&input = std::vector<std::vector<std::vector<float>>>{_problem->_dataValidationInput.begin()+bId*BS, _problem->_dataValidationInput.begin()+(bId+1)*BS};
           const auto y = std::vector<std::vector<float>>{_problem->_dataValidationSolution.begin()+bId*BS, _problem->_dataValidationSolution.begin()+(bId+1)*BS};
-          auto y_val = getEvaluation(std::move(input));
+
+          KORALI_START_PROFILE("NeuralNetwork::forward [Validation Set]", _k);
+          _neuralNetwork->forward(input);
+          KORALI_STOP_PROFILE("NeuralNetwork::forward [Validation Set]", _k);
+          auto y_val = _neuralNetwork->getOutputValues(input.size());
+          // auto y_val = getEvaluation(std::move(input));
+
           _currentValidationLoss -= _reward->reward(y, y_val);
           if(_metrics){
             // TODO: make a loop for different metrics and make metrics a vector to calcualte different metrics
@@ -535,7 +547,13 @@ void DeepSupervisor::runPrediction()
     }
     if(_mode == "Testing" && _reward){
       _dSResultsTestingLoss = 0.0f;
-      auto y_val = getEvaluation(_problem->_inputData);
+
+      // auto y_val = getEvaluation(_problem->_inputData);
+      KORALI_START_PROFILE("NeuralNetwork::forward [Predict]", _k);
+      _neuralNetwork->forward(_problem->_inputData);
+      KORALI_STOP_PROFILE("NeuralNetwork::forward [Predict]", _k);
+      auto y_val = _neuralNetwork->getOutputValues(_problem->_inputData.size());
+
       _dSResultsTestingLoss = -_reward->reward(_problem->_solutionData, y_val);
       // (*_k)["Results"]["Testing Loss"] = _resultsTestingLoss;
       if(_metrics){
@@ -561,22 +579,19 @@ void DeepSupervisor::setHyperparameters(const std::vector<float> &hyperparameter
 
 std::vector<std::vector<float>> &DeepSupervisor::getEvaluation(const std::vector<std::vector<std::vector<float>>> &input)
 {
-  // Grabbing constants
-  const size_t N = input.size();
-
   // Running the input values through the neural network
   _neuralNetwork->forward(input);
 
   // Returning the output values for the last given timestep
 #ifdef DEBUG
-  auto &y_pred_batch = _neuralNetwork->getOutputValues(N);
+  auto &y_pred_batch = _neuralNetwork->getOutputValues(input.size());
   for(size_t i = 0; i < y_pred_batch.size(); i++){
     auto y_pred = y_pred_batch[i];
     if(std::any_of(y_pred.begin(), y_pred.end(), [](const float v) { return !std::isfinite(v);}))
       KORALI_LOG_ERROR("[Generation %zu / Batch %zu] Non finite output values after forwarding input data.", _k->_currentGeneration, i+1);
   }
 #endif
-  return _neuralNetwork->getOutputValues(N);
+  return _neuralNetwork->getOutputValues(input.size());
 }
 
 std::vector<std::vector<float>> &DeepSupervisor::getEvaluation(std::vector<std::vector<std::vector<float>>> &&input)
@@ -597,7 +612,9 @@ std::vector<float> DeepSupervisor::backwardGradients(const std::vector<std::vect
   const size_t N = dreward.size();
 
   // Running the input values through the neural network
+  KORALI_START_PROFILE("NeuralNetwork::backward", _k);
   _neuralNetwork->backward(dreward);
+  KORALI_STOP_PROFILE("NeuralNetwork::backward", _k);
   // Getting NN hyperparameter gradients
   auto negGradientWeights = _neuralNetwork->getHyperparameterGradients(N);
 
@@ -630,7 +647,13 @@ void DeepSupervisor::runTrainingOnWorker(korali::Sample &sample)
   auto input = deflatten(inputDataFlat, BS, T, IC);
   auto y = deflatten(solutionDataFlat, BS, OC);
   // FORWARD neural network on input data
-  const auto yhat = getEvaluation(input);
+
+  // const auto yhat = getEvaluation(input);
+  KORALI_START_PROFILE("NeuralNetwork::forward [runTrainingOnWorker]", _k);
+  _neuralNetwork->forward(input);
+  KORALI_STOP_PROFILE("NeuralNetwork::forward [runTrainingOnWorker]", _k);
+  auto yhat = _neuralNetwork->getOutputValues(input.size());
+
   // TODO maybe add loss rather to problem than as part of learner ?
   // Making a copy of the solution data where we will store the derivative of the output data
   auto& dreward = y;
@@ -663,7 +686,14 @@ void DeepSupervisor::runForwardData(korali::Sample &sample)
   size_t IC = inputDims[2];
   // De-flattening input
   auto input = deflatten(inputDataFlat, BS, T, IC);
-  sample["Evaluation"] = getEvaluation(input);
+
+
+  // sample["Evaluation"] = getEvaluation(input);
+  KORALI_START_PROFILE("NeuralNetwork::forward [runForwardData]", _k);
+  _neuralNetwork->forward(input);
+  KORALI_STOP_PROFILE("NeuralNetwork::forward [runForwardData]", _k);
+  auto y_val = _neuralNetwork->getOutputValues(input.size());
+  sample["Evaluation"] = y_val;
 }
 
 void DeepSupervisor::finalize() {
@@ -712,7 +742,7 @@ void DeepSupervisor::printGenerationAfter()
       if(_metrics)
         output << sep << _metricsType.c_str() << " " << _currentMetrics;
     }
-    output << sep << "Time " << _k->_genTime.back();
+    output << sep << "Time " << _k->_genTime;
     if (!(_learningRateType == "Const" || _learningRateType.empty()))
       output << sep << "Learning Rate: " << _optimizer->_eta;
     _k->_logger->logInfo("Normal", "%s\r", output.str().c_str());

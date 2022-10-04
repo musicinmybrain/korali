@@ -15,6 +15,7 @@
 #include <stdlib.h>
 
 __startNamespace__;
+
 /**
  * @brief Pointer to the current experiment in execution
  */
@@ -38,12 +39,22 @@ void threadWrapper()
   KORALI_LOG_ERROR("Trying to continue finished Experiment thread.\n");
 }
 
+void __className__::_startProfile(std::string name, korali::Experiment *_k)
+{
+  _k->_generationTimeStamp[name].emplace_back(std::chrono::duration<double>(std::chrono::system_clock::now() - korali::_startTime).count(), -1);
+}
+
+void __className__::_stopProfile(std::string name, korali::Experiment *_k)
+{
+
+  double t_fromPrgoramStart = std::chrono::duration<double>(std::chrono::system_clock::now() - korali::_startTime).count();
+  double duration = t_fromPrgoramStart-_k->_generationTimeStamp[name].back().first;
+  _k->_generationTimeStamp[name].back().second = std::chrono::duration<double>(duration).count();
+}
+
 void __className__::run()
 {
   co_switch(__returnThread);
-
-  auto t0 = std::chrono::system_clock::now();
-
   // Saving initial configuration
   if (_currentGeneration == 0)
     if (_fileOutputEnabled)
@@ -68,12 +79,16 @@ void __className__::run()
     _js["Samples"] = knlohmann::json();
 
     // Timing and Profiling Start
-    auto t0 = std::chrono::system_clock::now();
+    _startProfile("_solver->runGeneration", this);
     _solver->runGeneration();
     // Timing and Profiling End
-    auto t1 = std::chrono::system_clock::now();
-    _genTime.push_back(std::chrono::duration<double>(t1 - t0).count());
-    _js["Results"]["Time per Epoch"] = _genTime;
+    _stopProfile("_solver->runGeneration", this);
+// #ifdef PROFILE
+    _genTime = _generationTimeStamp["_solver->runGeneration"].back().second;
+    _timeStamps.emplace_back(_generationTimeStamp);
+    _generationTimeStamp.clear();
+// #endif
+    // #endif
 
     // Printing results to console
     if (_consoleOutputFrequency > 0)
@@ -98,8 +113,6 @@ void __className__::run()
     if (isPythonActive && PyErr_CheckSignals() != 0) KORALI_LOG_ERROR("User requested break.\n");
   }
 
-  auto t1 = std::chrono::system_clock::now();
-
   // Finalizing experiment
   _currentGeneration--;
   _isFinished = true;
@@ -109,7 +122,7 @@ void __className__::run()
   _timestamp = getTimestamp();
   getConfiguration(_js.getJson());
   if (_fileOutputEnabled) saveState();
-  _genTime.push_back(std::chrono::duration<double>(t1 - t0).count());
+
   _solver->printRunAfter();
   _solver->_terminationCriteria.clear();
 }
@@ -159,6 +172,7 @@ bool __className__::loadState(const std::string &path)
   auto loadSuccess =  loadJsonFromFile(_js.getJson(), path.c_str());
   if(!loadSuccess)
     KORALI_LOG_ERROR("Error could not find or load file %s.\n", path.c_str());
+  _isExperimentLoadedFromPrevious = true;
   return loadSuccess;
 }
 

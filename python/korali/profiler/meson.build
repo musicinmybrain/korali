@@ -2,6 +2,7 @@
 python_sources = files([
   '__init__.py',
   '__main__.py',
+  'helpers.py',
 ])
 
 # Install pure Python

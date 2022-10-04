@@ -10,6 +10,7 @@ project('korali', ['c', 'cpp'],
 )
 summary({
   'buildtype': get_option('buildtype'),
+  'profile': get_option('profile'),
   'default_library': get_option('default_library'),
   }, section: 'Build')
 
@@ -53,6 +54,10 @@ if get_option('b_coverage')
     ]
   endif
   add_project_arguments(gcov_args, language: ['cpp'])
+endif
+
+if get_option('profile')
+  add_project_arguments('-DPROFILE', language : 'cpp')
 endif
 
 # list of Korali dependencies

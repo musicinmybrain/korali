@@ -33,7 +33,6 @@ void fRMSProp::processResult(std::vector<float> &gradient)
 {
   FastGradientBasedOptimizer::preProcessResult(gradient);
 
-  // float lambda = _eta; // * std::sqrt((float)_modelEvaluationCount + 1.0f);
   #pragma omp parallel for simd
   for (size_t i = 0; i < _nVars; i++)
   {

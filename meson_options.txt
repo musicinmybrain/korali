@@ -5,6 +5,13 @@ option('test',
   yield: true
 )
 
+option('profile',
+  type : 'boolean',
+  value : false,
+  description : 'Whether to define profiler functions.',
+  yield: true
+)
+
 option('mpi',
   type : 'boolean',
   value : false,

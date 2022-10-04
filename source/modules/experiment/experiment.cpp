@@ -17,6 +17,7 @@
 namespace korali
 {
 ;
+
 /**
  * @brief Pointer to the current experiment in execution
  */
@@ -40,12 +41,22 @@ void threadWrapper()
   KORALI_LOG_ERROR("Trying to continue finished Experiment thread.\n");
 }
 
+void Experiment::_startProfile(std::string name, korali::Experiment *_k)
+{
+  _k->_generationTimeStamp[name].emplace_back(std::chrono::duration<double>(std::chrono::system_clock::now() - korali::_startTime).count(), -1);
+}
+
+void Experiment::_stopProfile(std::string name, korali::Experiment *_k)
+{
+
+  double t_fromPrgoramStart = std::chrono::duration<double>(std::chrono::system_clock::now() - korali::_startTime).count();
+  double duration = t_fromPrgoramStart-_k->_generationTimeStamp[name].back().first;
+  _k->_generationTimeStamp[name].back().second = std::chrono::duration<double>(duration).count();
+}
+
 void Experiment::run()
 {
   co_switch(__returnThread);
-
-  auto t0 = std::chrono::system_clock::now();
-
   // Saving initial configuration
   if (_currentGeneration == 0)
     if (_fileOutputEnabled)
@@ -70,12 +81,16 @@ void Experiment::run()
     _js["Samples"] = knlohmann::json();
 
     // Timing and Profiling Start
-    auto t0 = std::chrono::system_clock::now();
+    _startProfile("_solver->runGeneration", this);
     _solver->runGeneration();
     // Timing and Profiling End
-    auto t1 = std::chrono::system_clock::now();
-    _genTime.push_back(std::chrono::duration<double>(t1 - t0).count());
-    _js["Results"]["Time per Epoch"] = _genTime;
+    _stopProfile("_solver->runGeneration", this);
+// #ifdef PROFILE
+    _genTime = _generationTimeStamp["_solver->runGeneration"].back().second;
+    _timeStamps.emplace_back(_generationTimeStamp);
+    _generationTimeStamp.clear();
+// #endif
+    // #endif
 
     // Printing results to console
     if (_consoleOutputFrequency > 0)
@@ -100,8 +115,6 @@ void Experiment::run()
     if (isPythonActive && PyErr_CheckSignals() != 0) KORALI_LOG_ERROR("User requested break.\n");
   }
 
-  auto t1 = std::chrono::system_clock::now();
-
   // Finalizing experiment
   _currentGeneration--;
   _isFinished = true;
@@ -111,7 +124,7 @@ void Experiment::run()
   _timestamp = getTimestamp();
   getConfiguration(_js.getJson());
   if (_fileOutputEnabled) saveState();
-  _genTime.push_back(std::chrono::duration<double>(t1 - t0).count());
+
   _solver->printRunAfter();
   _solver->_terminationCriteria.clear();
 }
@@ -161,6 +174,7 @@ bool Experiment::loadState(const std::string &path)
   auto loadSuccess =  loadJsonFromFile(_js.getJson(), path.c_str());
   if(!loadSuccess)
     KORALI_LOG_ERROR("Error could not find or load file %s.\n", path.c_str());
+  _isExperimentLoadedFromPrevious = true;
   return loadSuccess;
 }
 
@@ -268,15 +282,15 @@ void Experiment::setConfiguration(knlohmann::json& js)
     }
     eraseValue(js, "Current Generation");
   }
-  if (isDefined(js, "Gen Time"))
+  if (isDefined(js, "Time Stamps"))
   {
     try
     {
-      _genTime = js["Gen Time"].get<std::vector<float>>();
+      _timeStamps = js["Time Stamps"].get<std::vector<std::unordered_map<std::string, std::vector<std::pair <double, double>>>>>();
     } catch (const std::exception& e) {
-      KORALI_LOG_ERROR(" + Object: [ experiment ] \n + Key:    ['Gen Time']\n%s", e.what());
+      KORALI_LOG_ERROR(" + Object: [ experiment ] \n + Key:    ['Time Stamps']\n%s", e.what());
     }
-    eraseValue(js, "Gen Time");
+    eraseValue(js, "Time Stamps");
   }
   if (isDefined(js, "Is Finished"))
   {
@@ -307,6 +321,16 @@ void Experiment::setConfiguration(knlohmann::json& js)
       KORALI_LOG_ERROR(" + Object: [ experiment ] \n + Key:    ['Timestamp']\n%s", e.what());
     }
     eraseValue(js, "Timestamp");
+  }
+  if (isDefined(js, "Is Experiment Loaded From Previous"))
+  {
+    try
+    {
+      _isExperimentLoadedFromPrevious = js["Is Experiment Loaded From Previous"].get<int>();
+    } catch (const std::exception& e) {
+      KORALI_LOG_ERROR(" + Object: [ experiment ] \n + Key:    ['Is Experiment Loaded From Previous']\n%s", e.what());
+    }
+    eraseValue(js, "Is Experiment Loaded From Previous");
   }
   if (isDefined(js, "Random Seed"))
   {
@@ -480,17 +504,18 @@ void Experiment::getConfiguration(knlohmann::json& js)
    js["Console Output"]["Verbosity"] = _consoleOutputVerbosity;
    js["Console Output"]["Frequency"] = _consoleOutputFrequency;
    js["Current Generation"] = _currentGeneration;
-   js["Gen Time"] = _genTime;
+   js["Time Stamps"] = _timeStamps;
    js["Is Finished"] = _isFinished;
    js["Run ID"] = _runID;
    js["Timestamp"] = _timestamp;
+   js["Is Experiment Loaded From Previous"] = _isExperimentLoadedFromPrevious;
  Module::getConfiguration(js);
 } 
 
 void Experiment::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Random Seed\": 0, \"Preserve Random Number Generator States\": false, \"Distributions\": [], \"Current Generation\": 0, \"File Output\": {\"Enabled\": true, \"Path\": \"_korali_result\", \"Frequency\": 1, \"Use Multiple Files\": true}, \"Console Output\": {\"Verbosity\": \"Normal\", \"Frequency\": 1}, \"Save Only\": [], \"Store Sample Information\": false, \"Is Finished\": false}";
+ std::string defaultString = "{\"Random Seed\": 0, \"Preserve Random Number Generator States\": false, \"Distributions\": [], \"Current Generation\": 0, \"File Output\": {\"Enabled\": true, \"Path\": \"_korali_result\", \"Frequency\": 1, \"Use Multiple Files\": true}, \"Console Output\": {\"Verbosity\": \"Normal\", \"Frequency\": 1}, \"Save Only\": [], \"Store Sample Information\": false, \"Is Finished\": false, \"Is Experiment Loaded From Previous\": false}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Module::applyModuleDefaults(js);

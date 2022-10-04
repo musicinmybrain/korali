@@ -20,6 +20,8 @@
 #include <chrono>
 #include <functional>
 #include <vector>
+#include <unordered_map>
+#include <utility>
 
 namespace korali
 {
@@ -37,6 +39,19 @@ class Problem;
 * @brief Class declaration for module: Experiment.
 */
 class Engine;
+
+
+#ifdef PROFILE
+  #define KORALI_START_PROFILE(NAME, EXPERIMENT) EXPERIMENT->_startProfile(NAME, EXPERIMENT);
+#else
+  #define KORALI_START_PROFILE(NAME, EXPERIMENT){};
+#endif
+
+#ifdef PROFILE
+  #define KORALI_STOP_PROFILE(NAME, EXPERIMENT) EXPERIMENT->_stopProfile(NAME, EXPERIMENT);
+#else
+  #define KORALI_STOP_PROFILE(NAME, EXPERIMENT){};
+#endif
 
 /**
 * @brief Class declaration for module: Experiment.
@@ -105,9 +120,9 @@ class Experiment : public Module
   */
    size_t _currentGeneration;
   /**
-  * @brief [Internal Use] Indicates the times it takes for the generations to run.
+  * @brief [Internal Use] Vector of string->vector<pair> maps stores timepoint pairs for profiling for each generation.
   */
-   std::vector<float> _genTime;
+   std::vector<std::unordered_map<std::string, std::vector<std::pair <double, double>>>> _timeStamps;
   /**
   * @brief [Internal Use] Indicates whether execution has reached a termination criterion.
   */
@@ -120,6 +135,10 @@ class Experiment : public Module
   * @brief [Internal Use] Indicates the current time when saving a result file.
   */
    std::string _timestamp;
+  /**
+  * @brief [Internal Use] Whether the experiment is loaded from previous.
+  */
+   int _isExperimentLoadedFromPrevious;
   
  
   /**
@@ -192,7 +211,22 @@ class Experiment : public Module
    * @brief For testing purposes, this field establishes whether the engine is the one to run samples (default = false) or a custom function (true)
    */
   bool _overrideEngine = false;
-
+  /**
+   * @brief Vector of string->vector<pair> maps stores start time of "name" from program start and durtion of "name".
+   */
+  std::unordered_map<std::string, std::vector<std::pair <double, double>>> _generationTimeStamp;
+  /**
+   * @brief Indicates the times it takes for the generations to run..
+   */
+  double _genTime;
+  /**
+   * @brief Start to profile "name can be used from everthing that runs under the experiment".
+   */
+  void _startProfile(std::string name, korali::Experiment *_k);
+  /**
+   * @brief Stop to profile "name" can be used from everthing that runs under the experiment.
+   */
+  void _stopProfile(std::string name, korali::Experiment *_k);
   /**
    * @brief For testing purposes, this field establishes which custom function to use to override the engine on sample execution for testing.
    */
