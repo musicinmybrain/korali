@@ -27,35 +27,52 @@ dl_parser.add_argument(
 def plot(gen_dicts, config, others, **kwargs):
   args = dl_parser.parse_args(others)
   gens = []
-  for gen, gen_dict in gen_dicts.items():
-    if "Mode" not in gen_dict["Results"]:
-      sys.exit(f'The file of generation {gen} does not contain the the field ["Results"]["Mode"]')
-    if gen_dict["Results"]["Mode"] != 'Predict':
-      gens.append(gen_dict)
+  # for gen, gen_dict in gen_dicts.items():
+  #   if "Mode" not in gen_dict["Results"]:
+  #     sys.exit(f'The file of generation {gen} does not contain the the field ["Results"]["Mode"]')
+  #   if gen_dict["Results"]["Mode"] != 'Predict':
+  #     gens.append(gen_dict)
 
-  last_gen = gens[-1]
-  EPOCHS = last_gen["Results"]["Epoch"]
+  last = sorted(gen_dicts.keys())[-1]
+  last_gen = gen_dicts[last]["Solver"]["dSResults"]
+  EPOCHS = last_gen["Epoch"]
   X = range(1, EPOCHS+1)
   # config = gen_dicts[list(gen_dicts)[-1]]
   fig, ax = plt.subplots(figsize=(8, 8))
   ax.yaxis.set_major_formatter(ticker.FormatStrFormatter("%.3f"))
-  TrainingLoss = last_gen["Results"]["Training Loss"]
+  TrainingLoss = last_gen["Training Loss"]
   ax.plot(X, TrainingLoss ,'-', label="Training Loss", color=train_c)
   ax.set_yscale(args.yscale)
-  if 'Validation Loss' in config['Results']:
-    ValidationLoss = last_gen["Results"]["Validation Loss"]
-    ax.plot(X, ValidationLoss ,'-', label="Validation Loss", color=val_c)
+  try:
+    validationLoss = last_gen["Validation Loss"]
+    if len(validationLoss) != 0:
+      ax.plot(X, validationLoss ,'-', label="Validation Loss", color=val_c)
+  except KeyError:
+    pass
   ax.set_xlabel('Epochs')
-  ylabel = config['Results']['Loss Function']
-  if "Regularizer" in config["Results"]:
-    ylabel+= " + " + config["Results"]["Regularizer"]["Type"]
+  ylabel = last_gen['Loss Function']
+  try:
+    ylabel+= " + " + last_gen["Regularizer"]["Type"]
+  except KeyError:
+    pass
   ax.set_ylabel(ylabel)
-  if "Description" in config["Results"]:
-    ax.set_title(config["Results"]["Description"].capitalize())
+  try:
+    ax.set_title(last_gen["Description"].capitalize())
+  except KeyError:
+    pass
   plt.legend()
-  if 'Learning Rate' in config['Results']:
-    ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
-    ax2.set_ylabel('Learning Rate')  # we already handled the x-label with ax1
-    LearningRates = last_gen["Results"]["Learning Rate"]
-    ax2.plot(X, LearningRates, color=lr_c)
-    fig.tight_layout()  # otherwise the right y-label is slightly clipped
+  # if 'Learning Rate' in config['Results']:
+  #   ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
+  #   ax2.set_ylabel('Learning Rate')  # we already handled the x-label with ax1
+  #   LearningRates = last_gen["Results"]["Learning Rate"]
+  #   ax2.plot(X, LearningRates, color=lr_c)
+  #   fig.tight_layout()  # otherwise the right y-label is slightly clipped
+  try:
+    penalty = last_gen["Total Penalty"]
+    if len(penalty) != 0:
+      ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
+      ax2.set_ylabel('Penalty')  # we already handled the x-label with ax1
+      ax2.plot(X, penalty, color=lr_c)
+      fig.tight_layout()  # otherwise the right y-label is slightly clipped
+  except KeyError:
+    pass

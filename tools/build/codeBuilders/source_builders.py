@@ -115,6 +115,8 @@ def saveValue(base, path, varName, varType):
 def createSetConfiguration(module):
   codeString = 'void ' + module["Class Name"] + '::setConfiguration(knlohmann::json& js) \n{\n'
 
+  # TODO: breaks everything if someone write into Results and trys to load.
+  # Why do we need this?
   codeString += SEP + 'if (isDefined(js, "Results"))  eraseValue(js, "Results");\n\n'
 
   # Consume Internal Settings

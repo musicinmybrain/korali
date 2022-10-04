@@ -88,6 +88,10 @@ class DeepSupervisor : public Learner
   */
    float _regularizerCoefficient;
   /**
+  * @brief Whether to save the regularizer loss sizes lambda*penalty.
+  */
+   int _regularizerSave;
+  /**
   * @brief Learning rate for the underlying gradient based optimizers.
   */
    float _learningRate;
@@ -156,34 +160,6 @@ class DeepSupervisor : public Learner
   */
    size_t _validationSetSize;
   /**
-  * @brief [Internal Use] Current value of the training loss.
-  */
-   float _currentTrainingLoss;
-  /**
-  * @brief [Internal Use] Current value of the loss on the validation set.
-  */
-   float _currentValidationLoss;
-  /**
-  * @brief [Internal Use] Current value of calculated Metrics
-  */
-   float _currentMetrics;
-  /**
-  * @brief [Internal Use] Current value of the traing loss for all epochs.
-  */
-   std::vector<float> _trainingLoss;
-  /**
-  * @brief [Internal Use] Current value of the validation loss for all epochs.
-  */
-   std::vector<float> _validationLoss;
-  /**
-  * @brief [Internal Use] Value of the metrics for all epochs.
-  */
-   std::vector<float> _totalMetrics;
-  /**
-  * @brief [Internal Use] Value of the testing loss.
-  */
-   float _testingLoss;
-  /**
   * @brief [Internal Use] Stores the current neural network normalization mean parameters.
   */
    std::vector<float> _normalizationMeans;
@@ -200,9 +176,49 @@ class DeepSupervisor : public Learner
   */
    korali::solver::learner::optimizer::FastGradientBasedOptimizer* _optimizer;
   /**
-  * @brief [Internal Use] Value of the learning rate for all epochs.
+  * @brief [Internal Use] Training loss of the current all epochs.
   */
-   std::vector<float> _totalLearningRate;
+   std::vector<float> _dSResultsTrainingLoss;
+  /**
+  * @brief [Internal Use] Validation loss of the current all epochs.
+  */
+   std::vector<float> _dSResultsValidationLoss;
+  /**
+  * @brief [Internal Use] Resting loss of the current iterration.
+  */
+   float _dSResultsTestingLoss;
+  /**
+  * @brief [Internal Use] Vector that stores the metrics for all generations.
+  */
+   std::vector<float> _dSResultsTotalLearningRate;
+  /**
+  * @brief [Internal Use] Vector that stores the metrics for all generations.
+  */
+   std::vector<float> _dSResultsTotalMetrics;
+  /**
+  * @brief [Internal Use] Vector that stores the metrics for all generations.
+  */
+   std::vector<float> _dSResultsTotalPenalty;
+  /**
+  * @brief [Internal Use] Describes experiment.
+  */
+   std::string _dSResultsDescription;
+  /**
+  * @brief [Internal Use] Number of current epochs.
+  */
+   size_t _dSResultsEpoch;
+  /**
+  * @brief [Internal Use] Mode in which the solver is run.
+  */
+   std::string _dSResultsMode;
+  /**
+  * @brief [Internal Use] Type of loss function.
+  */
+   std::string _dSResultsLossFunction;
+  /**
+  * @brief [Internal Use] Type of regularizer.
+  */
+   std::string _dSResultsRegularizerType;
   /**
   * @brief [Termination Criteria] Specifies the maximum number of epochs to run when in training mode
   */
@@ -281,10 +297,51 @@ class DeepSupervisor : public Learner
      * @brief A neural network to be trained based on inputs and solutions
      */
     korali::NeuralNetwork *_neuralNetwork;
+    // INTERNAL USE VARIABLES ===================================================================
     /**
      * @brief [Internal Use] if validation set is given.
      */
     bool _hasValidationSet{false};
+    /**
+     * @brief [Internal Use] training loss of the current iterration.
+     */
+    float _currentTrainingLoss{0};
+    /**
+     * @brief [Internal Use] validation loss of the current iterration.
+     */
+    float _currentValidationLoss{0};
+    /**
+     * @brief [Internal Use] current metrics.
+     */
+    float _currentMetrics{0};
+    /**
+     * @brief [Internal Use] current regularizer penalty
+     */
+    float _currentPenalty{0};
+    // /**
+    //  * @brief [Internal Use] training loss of the current all epochs.
+    //  */
+    // std::vector<float> _trainingLoss;
+    // /**
+    //  * @brief [Internal Use] validation loss of the current all epochs.
+    //  */
+    // std::vector<float> _validationLoss;
+    // /**
+    //  * @brief [Internal Use] testing loss of the current iterration.
+    //  */
+    // float _testingLoss{0};
+    // /**
+    //  * @brief [Internal Use] vector that stores the total learning rate if desired.
+    //  */
+    // std::vector<float> _totalLearningRate;
+    // /**
+    //  * @brief [Internal Use] vector that stores the metrics for all generations.
+    //  */
+    // std::vector<float> _totalMetrics;
+    // /**
+    //  * @brief [Internal Use] vector that stores the metrics for all generations.
+    //  */
+    // std::vector<float> _totalPenalty;
     /**
      * @brief [Internal Use] number of total training/testing samples.
      */

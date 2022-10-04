@@ -79,10 +79,11 @@ void __className__::initialize()
         KORALI_LOG_ERROR("The batch concurrency requested (%lu) does not divide the validation set size (%lu) perfectly.", _batchConcurrency, NV);
       batchSizes.push_back(_problem->_validationBatchSize / _batchConcurrency);
     }
-    (*_k)["Results"]["Validation Loss"] = true;
+    // TODO
+    // (*_k)["Results"]["Validation Loss"] = true;
   }
-  _trainingLoss.reserve(_epochs);
-  _validationLoss.reserve(_epochs);
+  _dSResultsTrainingLoss.reserve(_epochs);
+  _dSResultsValidationLoss.reserve(_epochs);
   // TRAINING ====================================================================
   if (_mode == "Training" || _mode == "Automatic Training"){
     if(!_problem->_trainingBatchSize)
@@ -123,8 +124,9 @@ void __className__::initialize()
   /*****************************************************************
    * Save learning rate
    *****************************************************************/
-  if(_learningRateSave)
-    (*_k)["Results"]["Learning Rate"] = true;
+  // if(_learningRateSave)
+    // TODO
+    // (*_k)["Results"]["Learning Rate"] = true;
   // ================================================================================================
 
   /*****************************************************************
@@ -185,7 +187,8 @@ void __className__::initialize()
   _neuralNetwork->applyModuleDefaults(trainingNeuralNetworkConfig);
   _neuralNetwork->setConfiguration(trainingNeuralNetworkConfig);
   _neuralNetwork->initialize();
-  (*_k)["Results"]["Description"] = _problem->_description;
+  // (*_k)["Results"]["Description"] = _problem->_description;
+  _dSResultsDescription = _problem->_description;
   /*****************************************************************************
    * Setting up the LOSS FUNCTION
    *****************************************************************************/
@@ -200,7 +203,8 @@ void __className__::initialize()
   else
     KORALI_LOG_ERROR("Unkown Loss Function %s", _lossFunction.c_str());
   if(_reward)
-    (*_k)["Results"]["Loss Function"] = _lossFunction;
+    // (*_k)["Results"]["Loss Function"] = _lossFunction;
+    _dSResultsLossFunction = _lossFunction;
   /*****************************************************************************
    * Setting up possible REGULARIZERS
    *****************************************************************************/
@@ -213,7 +217,8 @@ void __className__::initialize()
   else
     KORALI_LOG_ERROR("Unkown Regularizer Type %s", _regularizerType.c_str());
   if(_regularizer)
-    (*_k)["Results"]["Regularizer"]["Type"] = _regularizerType;
+    // (*_k)["Results"]["Regularizer"]["Type"] = _regularizerType;
+    _dSResultsRegularizerType = _regularizerType;
   /*****************************************************************************
    * Setting up the LEARNING RATE (function)
    *****************************************************************************/
@@ -289,11 +294,11 @@ void DeepSupervisor::runEpoch()
     // Updating solver's learning rate, if changed
     _optimizer->_eta = std::max(_learning_rate->get(this), _learningRateLowerBound);
     if(_learningRateSave){
-      _totalLearningRate.push_back(_optimizer->_eta);
-      if(_mode == "Automatic Training")
-        (*_k)["Results"]["Learning Rate"] = _totalLearningRate;
-      else
-        (*_k)["Results"]["Learning Rate"] = _totalLearningRate.back();
+      _dSResultsTotalLearningRate.push_back(_optimizer->_eta);
+      // if(_mode == "Automatic Training")
+      //   (*_k)["Results"]["Learning Rate"] = _resultsTotalLearningRate;
+      // else
+      //   (*_k)["Results"]["Learning Rate"] = _resultsTotalLearningRate.back();
     }
     // Checking that incoming data has a correct format
     _problem->verifyData();
@@ -331,6 +336,7 @@ void DeepSupervisor::runEpoch()
     // Optimizer performs maximization in KORALI -> need negative gradients!
     auto negGradientWeights = std::vector<float>(_neuralNetwork->_hyperparameterCount, 0.0f);
     _currentTrainingLoss = 0.0f;
+    _currentPenalty = 0.0f;
     size_t input_size_per_BS = T*IC;
     size_t solution_size_per_BS = T*OC;
     for (bId = 0; bId < IforE; bId++)
@@ -393,10 +399,19 @@ void DeepSupervisor::runEpoch()
     }
     // TODO: take care of remainder ==========================================================================================
     // ...
+    // Save penalties if desired =============================================================================================
+    if(_regularizerSave){
+      _currentPenalty = _currentPenalty / (float)(_batchConcurrency*IforE);
+      _dSResultsTotalPenalty.push_back(_currentPenalty);
+      // if(_mode == "Automatic Training")
+      //   (*_k)["Results"]["Regularizer"]["Penalty"] = _resultsTotalPenalty;
+      // else
+      //   (*_k)["Results"]["Regularizer"]["Penalty"] = _resultsTotalPenalty.back();
+    }
     // =======================================================================================================================
     if(_reward){
       _currentTrainingLoss = _currentTrainingLoss/ (float)(_batchConcurrency*IforE);
-      _trainingLoss.push_back(_currentTrainingLoss);
+      _dSResultsTrainingLoss.push_back(_currentTrainingLoss);
       if(_hasValidationSet){
         BS = _problem->_validationBatchSize;
         IforE = NV / BS;
@@ -418,28 +433,30 @@ void DeepSupervisor::runEpoch()
           }
         }
         _currentValidationLoss = _currentValidationLoss / (float)(_batchConcurrency*IforE);
-        _validationLoss.push_back(_currentValidationLoss);
-        if(_mode == "Automatic Training")
-          (*_k)["Results"]["Validation Loss"] = _validationLoss;
-        else
-          (*_k)["Results"]["Validation Loss"] = _validationLoss.back();
+        _dSResultsValidationLoss.push_back(_currentValidationLoss);
+        // if(_mode == "Automatic Training")
+        //   (*_k)["Results"]["Validation Loss"] = _resultsValidationLoss;
+        // else
+        //   (*_k)["Results"]["Validation Loss"] = _resultsValidationLoss.back();
         if(_metrics){
           _currentMetrics = _currentMetrics / (float)(_batchConcurrency*IforE);
-          _totalMetrics.push_back(_currentMetrics);
-          if(_mode == "Automatic Training")
-            (*_k)["Results"]["Metrics"] = _totalMetrics;
-          else
-            (*_k)["Results"]["Metrics"] = _totalMetrics.back();
+          _dSResultsTotalMetrics.push_back(_currentMetrics);
+          // if(_mode == "Automatic Training")
+          //   (*_k)["Results"]["Metrics"] = _resultsTotalMetrics;
+          // else
+          //   (*_k)["Results"]["Metrics"] = _resultsTotalMetrics.back();
         }
       }
-      if(_mode == "Automatic Training")
-        (*_k)["Results"]["Training Loss"] = _trainingLoss;
-      else
-        (*_k)["Results"]["Training Loss"] = _trainingLoss.back();
+      // if(_mode == "Automatic Training")
+      //   (*_k)["Results"]["Training Loss"] = _resultsTrainingLoss;
+      // else
+      //   (*_k)["Results"]["Training Loss"] = _resultsTrainingLoss.back();
     }
     ++_epochCount;
-    (*_k)["Results"]["Epoch"] = _epochCount;
-    (*_k)["Results"]["Mode"] = _mode;
+    // (*_k)["Results"]["Epoch"] = _epochCount;
+    // (*_k)["Results"]["Mode"] = _mode;
+    _dSResultsEpoch = _epochCount;
+    _dSResultsMode = _mode;
 }
 
 void DeepSupervisor::runPrediction()
@@ -511,10 +528,10 @@ void DeepSupervisor::runPrediction()
       _evaluation.insert(_evaluation.end(), ypred.begin(), ypred.end());
     }
     if(_mode == "Testing" && _reward){
-      _testingLoss = 0.0f;
+      _dSResultsTestingLoss = 0.0f;
       auto y_val = getEvaluation(_problem->_inputData);
-      _testingLoss = -_reward->reward(_problem->_solutionData, y_val);
-      (*_k)["Results"]["Testing Loss"] = _testingLoss;
+      _dSResultsTestingLoss = -_reward->reward(_problem->_solutionData, y_val);
+      // (*_k)["Results"]["Testing Loss"] = _resultsTestingLoss;
       if(_metrics){
         // TODO: make a loop for different metrics and make metrics a vector to calcualte different metrics
         _currentMetrics = _metrics->compute(_problem->_solutionData, y_val);
@@ -702,7 +719,7 @@ void __className__::printGenerationAfter()
   {
     std::ostringstream output{};
     std::string sep{" | "};
-    output << std::fixed << std::setprecision(4) << " Test Loss: " << _testingLoss;
+    output << std::fixed << std::setprecision(4) << " Test Loss: " << _dSResultsTestingLoss;
     if(_metrics)
       output << sep << _metricsType.c_str() << " " << _currentMetrics;
     _k->_logger->logInfo("Normal", "%s\n", output.str().c_str());
