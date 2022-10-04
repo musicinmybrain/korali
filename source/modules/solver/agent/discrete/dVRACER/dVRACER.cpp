@@ -38,7 +38,7 @@ void dVRACER::initializeAgent()
     KORALI_LOG_ERROR("Bayesian learning is not supported for discrete reinforcement learning problems.\n");
 
   // Parallel initialization of neural networks (first touch!)
-  #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
+  // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads) if( (_numberOfPolicyThreads > 1) && (_neuralNetworkEngine == "Korali") )
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
@@ -79,7 +79,7 @@ void dVRACER::initializeAgent()
     _criticPolicyExperiment[p]["Solver"]["Neural Network"]["Output Layer"]["Shift"][1 + _problem->_actionCount] = _initialInverseTemperature - 0.5;
 
     // Running initialization to verify that the configuration is correct
-#pragma omp critical
+// #pragma omp critical
 {
     _criticPolicyExperiment[p].setEngine(_k->_engine);
     _criticPolicyExperiment[p].initialize();
@@ -108,7 +108,7 @@ void dVRACER::trainPolicy()
   const size_t numPolicies = _problem->_policiesPerEnvironment;
 
   // Update all policies using all experiences
-#pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
+// #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads) if( (_numberOfPolicyThreads > 1) && (_neuralNetworkEngine == "Korali") )
   for (size_t p = 0; p < numPolicies; p++)
   {
     // Fill policyInfo with behavioral policy (access to availableActions)
@@ -117,7 +117,7 @@ void dVRACER::trainPolicy()
     // Forward NN
     runPolicy(stateSequenceBatch, policyInfo, p);
 
-#pragma omp critical
+// #pragma omp critical
 {
     // Using policy information to update experience's metadata
     updateExperienceMetadata(miniBatch, policyInfo);

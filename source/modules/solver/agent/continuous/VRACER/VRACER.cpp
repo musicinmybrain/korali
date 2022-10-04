@@ -37,7 +37,7 @@ void VRACER::initializeAgent()
     _effectiveMinibatchSize = _miniBatchSize;
 
   // Parallel initialization of neural networks (first touch!)
-  #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
+  // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads) if( (_numberOfPolicyThreads > 1) && (_neuralNetworkEngine == "Korali") )
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
@@ -73,7 +73,7 @@ void VRACER::initializeAgent()
     }
 
     // Running initialization to verify that the configuration is correct
-#pragma omp critical
+// #pragma omp critical
 {
     _criticPolicyExperiment[p].setEngine(_k->_engine);
     _criticPolicyExperiment[p].initialize();
@@ -106,7 +106,7 @@ void VRACER::trainPolicy()
   const size_t numPolicies = _problem->_policiesPerEnvironment;
 
   // Run training generation for all policies
-  #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
+  // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads) if( (_numberOfPolicyThreads > 1) && (_neuralNetworkEngine == "Korali") )
   for (size_t p = 0; p < numPolicies; p++)
   { 
     // Prepare stateSequenceBatch and miniBatch
@@ -141,7 +141,7 @@ void VRACER::trainPolicy()
     std::vector<policy_t> policyInfo;
     runPolicy(_stateSequenceBatch, policyInfo, p);
 
-#pragma omp critical
+// #pragma omp critical
 {
     // Using policy information to update experience's metadata
     updateExperienceMetadata(_miniBatch, policyInfo);
