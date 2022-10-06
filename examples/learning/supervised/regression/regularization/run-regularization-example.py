@@ -121,6 +121,12 @@ parser.add_argument(
     action="store_true"
 )
 parser.add_argument(
+    "--load-path",
+    help="Load-from different path than save path.",
+    default="",
+    required=False
+)
+parser.add_argument(
     "-l",
     "--load-model",
     help="Load previous model",
@@ -229,6 +235,12 @@ eList = []
 keys = ["no", "regularization"]
 paths = {keys[0]: os.path.join("_korali_result", args.other, "_korali_result_no_regularization"),
         keys[1]:  os.path.join("_korali_result", args.other, "_korali_result_L2")}
+if args.load_path:
+    load_paths = {keys[0]: os.path.join("_korali_result", args.load_path, "_korali_result_no_regularization"),
+            keys[1]:  os.path.join("_korali_result", args.load_path, "_korali_result_L2")}
+else:
+    load_paths = paths
+
 current_keys = ["regularization"]
 if args.type == "all":
     current_keys = ["no", "regularization"]
@@ -243,7 +255,7 @@ for i, key in enumerate(current_keys):
     ### Loading previous models
     if args.load_model:
         args.validationSplit = 0.0
-        e.loadState(os.path.join(paths[key], "latest"))
+        e.loadState(os.path.join(load_paths[key], "latest"))
 
     e["Problem"]["Description"] = key
     e["Problem"]["Type"] = "Supervised Learning"
@@ -303,13 +315,14 @@ for i, key in enumerate(current_keys):
         "y_val": eList[i]["Problem"]["Data"]["Validation"]["Solution"]
     }
 # Predict on the unseen test set =======================================================================
-for i, _ in enumerate(eList):
+for i, key in enumerate(current_keys):
     # # ### Obtaining inferred results from the NN and comparing them to the actual solution
     eList[i]["Solver"]["Mode"] = "Testing"
     eList[i]["Problem"]["Testing Batch Size"] = args.testingSetSize
     eList[i]["Problem"]["Input"]["Data"] = X_test_k
     eList[i]["Problem"]["Solution"]["Data"] = y_test_k
-    eList[i]["File Output"]["Enabled"] = False
+    eList[i]["File Output"]["Enabled"] = args.save
+    eList[i]["File Output"]["Path"] = os.path.join(paths[key], "predict")
 k.run(eList)
 # Plotting Training Results
 if (args.plot):
@@ -325,12 +338,14 @@ if (args.plot):
         axes[i].scatter(eList[i]["Problem"]["Input"]["Data"], eList[i]["Problem"]["Solution"]["Data"], label="$y_{\\textrm{test}}=f(x)+\\epsilon$", color=test_c)
 
     # Obtain predctions of the nn model to plot its function ===============================================
-    for i, _ in enumerate(eList):
+    for i, key in enumerate(current_keys):
         # # ### Obtaining inferred results from the NN and comparing them to the actual solution
         eList[i]["Solver"]["Mode"] = "Predict"
         eList[i]["Problem"]["Testing Batch Size"] = nb_x_values
         eList[i]["Problem"]["Input"]["Data"] = X_space_k
         eList[i]["File Output"]["Enabled"] = False
+        eList[i]["File Output"]["Enabled"] = args.save
+        eList[i]["File Output"]["Path"] = os.path.join(paths[key], "predict_func")
     k.run(eList)
     # Calculate the size of the weights ====================================================================
     yhat = []
