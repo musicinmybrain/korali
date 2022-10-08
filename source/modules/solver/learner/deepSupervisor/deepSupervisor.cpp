@@ -278,9 +278,9 @@ void DeepSupervisor::initialize()
 
 void DeepSupervisor::runGeneration()
 {
-  KORALI_START_PROFILE("runEpoch()", _k);
+  KORALI_START_PROFILE("Epoch", _k);
   if (_mode == "Training" || _mode == "Automatic Training") runEpoch();
-  KORALI_STOP_PROFILE("runEpoch()", _k);
+  KORALI_STOP_PROFILE("Epoch", _k);
   if (_mode == "Predict") runPrediction();
   if (_mode == "Testing") runPrediction();
   if(_mode == "Predict" or _mode == "Testing" or _mode == "Training")
@@ -288,9 +288,9 @@ void DeepSupervisor::runGeneration()
 }
 
 void DeepSupervisor::updateWeights(std::vector<float> &negativeGradientWeights){
-  KORALI_START_PROFILE("NeuralNetwork::updateWeights::_optimizer->processResult", _k);
+  KORALI_START_PROFILE("Optimizer->processResult", _k);
   _optimizer->processResult(negativeGradientWeights);
-  KORALI_STOP_PROFILE("NeuralNetwork::updateWeights::_optimizer->processResult", _k);
+  KORALI_STOP_PROFILE("Optimizer->processResult", _k);
   // // Getting new set of hyperparameters from the gradient descent algorithm
   auto &new_hyperparameters = _optimizer->_currentValue;
   _hyperparameters = new_hyperparameters;
@@ -351,6 +351,7 @@ void DeepSupervisor::runEpoch()
     size_t solution_size_per_BS = T*OC;
     for (bId = 0; bId < IforE; bId++)
     {
+      KORALI_START_PROFILE("Batch Iterration", _k);
       if(_mode == "Automatic Training"){
         nnHyperparameters = _neuralNetwork->getHyperparameters();
         negGradientWeights = std::vector<float>(_neuralNetwork->_hyperparameterCount, 0.0f);
@@ -387,14 +388,16 @@ void DeepSupervisor::runEpoch()
         KORALI_WAITALL(samples);
       } else{
         // Do not run on other workers
-        KORALI_START_PROFILE("runTrainingOnWorker(samples[0]);", _k);
+        KORALI_START_PROFILE("runTrainingOnWorker", _k);
         runTrainingOnWorker(samples[0]);
-        KORALI_STOP_PROFILE("runTrainingOnWorker(samples[0]);", _k);
+        KORALI_STOP_PROFILE("runTrainingOnWorker", _k);
       }
       for (wId = 0; wId < _batchConcurrency; wId++){
+        KORALI_START_PROFILE("KORALI_GET loss/neg_dreward", _k);
         if(_reward)
           _currentTrainingLoss += KORALI_GET(float, samples[wId], "Training Loss");
         const auto neg_dreward_dW = KORALI_GET(std::vector<float>, samples[wId], "Negative Hyperparameter Gradients");
+        KORALI_STOP_PROFILE("KORALI_GET loss/neg_dreward", _k);
         assert(neg_dreward_dW.size() ==  negGradientWeights.size());
         // Calculate the sum of the gradient batches/mean would only change the learning rate.
         #pragma omp parallel for simd
@@ -408,6 +411,7 @@ void DeepSupervisor::runEpoch()
       }
       // Need to update the weiths after each mini batch =======================================================================
       updateWeights(negGradientWeights);
+      KORALI_STOP_PROFILE("Batch Iterration", _k);
     }
     // TODO: take care of remainder ==========================================================================================
     // ...
@@ -624,6 +628,7 @@ std::vector<float> DeepSupervisor::backwardGradients(const std::vector<std::vect
 
 void DeepSupervisor::runTrainingOnWorker(korali::Sample &sample)
 {
+  KORALI_START_PROFILE("runTrainingOnWorker -> forward", _k);
   // Copy hyperparameters to workers neural network
   auto nnHyperparameters = KORALI_GET(std::vector<float>, sample, "Hyperparameters");
   _neuralNetwork->setHyperparameters(nnHyperparameters);
@@ -647,11 +652,11 @@ void DeepSupervisor::runTrainingOnWorker(korali::Sample &sample)
   auto input = deflatten(inputDataFlat, BS, T, IC);
   auto y = deflatten(solutionDataFlat, BS, OC);
   // FORWARD neural network on input data
-
+  KORALI_STOP_PROFILE("runTrainingOnWorker -> forward", _k);
   // const auto yhat = getEvaluation(input);
-  KORALI_START_PROFILE("NeuralNetwork::forward [runTrainingOnWorker]", _k);
+  KORALI_START_PROFILE("NeuralNetwork::forward", _k);
   _neuralNetwork->forward(input);
-  KORALI_STOP_PROFILE("NeuralNetwork::forward [runTrainingOnWorker]", _k);
+  KORALI_STOP_PROFILE("NeuralNetwork::forward", _k);
   auto yhat = _neuralNetwork->getOutputValues(input.size());
 
   // TODO maybe add loss rather to problem than as part of learner ?
@@ -660,8 +665,12 @@ void DeepSupervisor::runTrainingOnWorker(korali::Sample &sample)
   float loss = 0.0;
   if(_reward){
     // TODO: maybe calculate the currentTrainingLoss after we updated the model inside main worker like in pytorch.
+    KORALI_START_PROFILE("loss", _k);
     loss = -_reward->reward(y, yhat);
+    KORALI_STOP_PROFILE("loss", _k);
+    KORALI_START_PROFILE("dloss", _k);
     dreward = _reward->dreward(y, yhat);
+    KORALI_STOP_PROFILE("dloss", _k);
   }
   // BACKPROPAGATE the derivative of the output loss
   auto negGradientWeights = backwardGradients(dreward);
