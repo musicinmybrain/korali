@@ -11,7 +11,8 @@ import matplotlib.colors as colors
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
-from .helpers import get_profiling_stats
+from .helpers import get_total_stats, get_cumulative_results, minimum_duration_to_display, plot_cum, plot_runtimes, plot_all
+plt.rcParams['figure.figsize'] = 40, 12
 
 signal.signal(signal.SIGINT, lambda x, y: exit(0))
 
@@ -56,6 +57,28 @@ parser.add_argument(
     required=False,
     action="store_true"
     )
+parser.add_argument(
+    '--show-plot',
+    help='Whether to show the plot.',
+    required=False,
+    action="store_true"
+    )
+parser.add_argument(
+    "-a",
+    "--additional",
+    help="Adds additional information to each row of the resulting pandas data frame format is json i.e. {node: 'node'}",
+    default="{}",
+    type=json.loads,
+    required=False
+)
+parser.add_argument(
+    "--title",
+    help="Title to add.",
+    default="",
+    required=False
+)
+
+
 
 args = parser.parse_args()
 
@@ -194,24 +217,13 @@ else:
   if (not path.exists(args.input)):
     print('[Korali] Error: Could not find profiling information file: ' + args.input + ' ...')
     exit(-1)
-  results = get_profiling_stats(args.input)
-  print(results)
+  results = get_total_stats(args.input, args.additional)
+  cum = get_cumulative_results(results)
+  print(cum)
   if args.plot:
-    #fig, axs = plt.subplots(1, 2, figsize=(9, 3))
-    _, ax = plt.subplots()
-    rownames = list(results.index)
-    colnames = list(results.columns)
-    to_plot = "% of Gen Time"
-    percentage = results[to_plot].tolist()
-    # TODO: add groups for cummlative times
-    # rownames.append("forward+backward+optimzation")
-    # percentage.append(results.loc["NeuralNetwork::backward", to_plot]
-    #                   +results.loc["NeuralNetwork::forward [runTrainingOnWorker]", to_plot]
-    #                   +results.loc["NeuralNetwork::updateWeights::_optimizer->processResult", to_plot]
-    #                 )
-    ax.barh(rownames, percentage)
-    ax.tick_params(rotation=0)
-    ax.set_title("Runtime as % of _solver->runGeneration()")
-    for i, v in enumerate(percentage):
-        ax.text(v + 3, i, str(v), color = 'blue', fontweight = 'bold')
-    plt.show()
+    plot_all(results, cum, title = args.title)
+    if (args.output is None):
+      args.output = "profiling.png"
+    plt.savefig(os.path.join(os.path.dirname(args.input), args.output), dpi = 200)
+    if args.show_plot:
+      plt.show()

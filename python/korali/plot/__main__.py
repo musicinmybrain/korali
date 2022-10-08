@@ -52,7 +52,7 @@ def main(exec_path, test, output, plotAll=False, others = None):
 
   configFile = exec_path + '/gen00000000.json'
   if (not os.path.isfile(configFile)):
-    print("[Korali] Error: Did not find any results in the {0} folder...".format(exec_path))
+    print("[Korali Plotting] Error: Did not find any results in the {0} folder...".format(exec_path))
     exit(-1)
 
   with open(configFile) as f:
