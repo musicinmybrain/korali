@@ -197,9 +197,9 @@ if args.learningRateType == "Time Based":
 e["Solver"]["Learning Rate Save"] = True
 
 e["Solver"]["Loss Function"] = "Cross Entropy"
-e["Solver"]["Metrics"]["Type"] = "Accuracy"
+e["Solver"]["Metrics"]["Type"] = ["Accuracy"]
 e["Solver"]["Neural Network"]["Engine"] = args.engine
-e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
+e["Solver"]["Optimizer"]["Type"] = "learner/deepSupervisor/optimizers/fAdam"
 # MODEL DEFINTION ================================================================================
 classifier(e, img_width, img_height, label_size, input_channels)
 # ================================================================================

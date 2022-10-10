@@ -247,10 +247,13 @@ void DeepSupervisor::initialize()
   /*****************************************************************************
    * Setting up the Metrics (function) if given
    *****************************************************************************/
-  if (_metricsType == "Accuracy")
-    _metrics = new korali::metrics::Accuracy();
-  else if (_metricsType != "")
-    KORALI_LOG_ERROR("Unkown Accuracy Function %s", _metricsType.c_str());
+  if (_metricsType.find("Accuracy") != _metricsType.end()){
+    _metricsType.erase("Accuracy");
+    _metrics["Accuracy"] = std::make_unique<korali::metrics::Accuracy>();
+  }
+  if (!_metricsType.empty()){
+    KORALI_LOG_ERROR("Unkown Metrics Function");
+  }
   /*****************************************************************
    * Initializing NN hyperparameters
    *****************************************************************/
@@ -476,7 +479,6 @@ void DeepSupervisor::runEpoch()
         BS = _problem->_validationBatchSize;
         IforE = NV / BS;
         _currentValidationLoss = 0.0f;
-        _currentMetrics = 0.0f;
         // # TODO: reduction leads to segmentation fault
         // pragma omp parallel for reduction(+:_currentValidationLoss, _currentMetrics)
         for (bId = 0; bId < IforE; bId++) {
@@ -491,11 +493,8 @@ void DeepSupervisor::runEpoch()
           // auto y_val = getEvaluation(std::move(input));
 
           _currentValidationLoss -= _reward->reward(y, y_val);
-          if(_metrics){
-            // TODO: make a loop for different metrics and make metrics a vector to calcualte different metrics
-            /* for(auto metric : metrics )..
-            */
-            _currentMetrics += _metrics->compute(y, y_val);
+          for(auto const& [name, mFunc] : _metrics){
+            _currentMetrics[name] += mFunc->compute(y, y_val);
           }
         }
         _currentValidationLoss = _currentValidationLoss / (float)(_batchConcurrency*IforE);
@@ -504,9 +503,9 @@ void DeepSupervisor::runEpoch()
         //   (*_k)["Results"]["Validation Loss"] = _resultsValidationLoss;
         // else
         //   (*_k)["Results"]["Validation Loss"] = _resultsValidationLoss.back();
-        if(_metrics){
-          _currentMetrics = _currentMetrics / (float)(_batchConcurrency*IforE);
-          _dSResultsTotalMetrics.push_back(_currentMetrics);
+        for(auto const& [name, mFunc] : _metrics){
+          _dSResultsTotalMetrics[name].push_back(_currentMetrics[name] / (float)(_batchConcurrency*IforE));
+          _currentMetrics[name] = 0.0f;
           // if(_mode == "Automatic Training")
           //   (*_k)["Results"]["Metrics"] = _resultsTotalMetrics;
           // else
@@ -604,10 +603,10 @@ void DeepSupervisor::runPrediction()
 
       _dSResultsTestingLoss = -_reward->reward(_problem->_solutionData, y_val);
       // (*_k)["Results"]["Testing Loss"] = _resultsTestingLoss;
-      if(_metrics){
-        // TODO: make a loop for different metrics and make metrics a vector to calcualte different metrics
-        _currentMetrics = _metrics->compute(_problem->_solutionData, y_val);
+      for(auto const& [name, mFunc] : _metrics){
+        _currentMetrics[name] += mFunc->compute(_problem->_solutionData, y_val);
       }
+      // TODO needs to be added to total metrics
     }
 }
 
@@ -792,8 +791,9 @@ void DeepSupervisor::printGenerationAfter()
     output << std::fixed << std::setprecision(4) << "\r[Korali] Epoch " << _epochCount << " / " << _epochs << " " << bar << " Train Loss: " << _currentTrainingLoss;
     if(_hasValidationSet){
       output << sep << "Val. Loss: " << _currentValidationLoss;
-      if(_metrics)
-        output << sep << _metricsType.c_str() << " " << _currentMetrics;
+      for(auto const& [name, vec] : _dSResultsTotalMetrics){
+        output << sep << name.c_str() << " " << vec.back();
+      }
     }
     output << sep << "Time " << _k->_genTime;
     if (!(_learningRateType == "Const" || _learningRateType.empty()))
@@ -809,8 +809,9 @@ void DeepSupervisor::printGenerationAfter()
     std::ostringstream output{};
     std::string sep{" | "};
     output << std::fixed << std::setprecision(4) << " Test Loss: " << _dSResultsTestingLoss;
-    if(_metrics)
-      output << sep << _metricsType.c_str() << " " << _currentMetrics;
+    for(auto const& [name, vec] : _dSResultsTotalMetrics){
+      output << sep << name.c_str() << " " << vec.back();
+    }
     _k->_logger->logInfo("Normal", "%s\n", output.str().c_str());
   }
 }
@@ -997,7 +998,7 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
   {
     try
     {
-      _dSResultsTotalMetrics = js["dSResults"]["Total Metrics"].get<std::vector<float>>();
+      _dSResultsTotalMetrics = js["dSResults"]["Total Metrics"].get<std::unordered_map<std::string, std::vector<float>>>();
     } catch (const std::exception& e) {
       KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['dSResults']['Total Metrics']\n%s", e.what());
     }
@@ -1223,16 +1224,10 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
   {
     try
     {
-      _metricsType = js["Metrics"]["Type"].get<std::string>();
+      _metricsType = js["Metrics"]["Type"].get<std::set<std::string>>();
     } catch (const std::exception& e) {
       KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Metrics']['Type']\n%s", e.what());
     }
-      {
-        bool validOption = false; 
-        if (_metricsType == "") validOption = true; 
-        if (_metricsType == "Accuracy") validOption = true; 
-        if (validOption == false) KORALI_LOG_ERROR("Unrecognized value (%s) provided for mandatory setting: ['Metrics']['Type'] required by deepSupervisor.\n Valid Options are:\n  - \n  - Accuracy\n",_metricsType.c_str()); 
-      }
     eraseValue(js, "Metrics", "Type");
   }  else  KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Metrics']['Type'] required by deepSupervisor.\n"); 
 
@@ -1443,7 +1438,7 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
 void DeepSupervisor::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Regularizer\": {\"Coefficient\": 0.0001, \"Save\": false, \"Type\": \"None\"}, \"Loss Function\": \"Direct Gradient\", \"Learning Rate Type\": \"Const\", \"Learning Rate Save\": false, \"Learning Rate Decay Factor\": 100, \"Learning Rate Steps\": 0, \"Learning Rate Lower Bound\": -10000000000, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}, \"Hidden Layers\": {}}, \"Metrics\": {\"Type\": \"\"}, \"Termination Criteria\": {\"Epochs\": 10000000000, \"Is One Epoch Finished\": false, \"Target Loss\": -1.0, \"Max Generations\": 10000000000}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1, \"Epoch Count\": 0, \"Data\": {\"Validation\": {\"Split\": 0.0}, \"Training\": {\"Shuffel\": true}, \"Input\": {\"Shuffel\": false}}, \"Optimizer\": {\"Type\": \"learner/deepSupervisor/optimizers/fSGD\"}}";
+ std::string defaultString = "{\"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Regularizer\": {\"Coefficient\": 0.0001, \"Save\": false, \"Type\": \"None\"}, \"Loss Function\": \"Direct Gradient\", \"Learning Rate Type\": \"Const\", \"Learning Rate Save\": false, \"Learning Rate Decay Factor\": 100, \"Learning Rate Steps\": 0, \"Learning Rate Lower Bound\": -10000000000, \"Neural Network\": {\"Output Activation\": \"Identity\", \"Output Layer\": {}, \"Hidden Layers\": {}}, \"Metrics\": {\"Type\": \"std::set<std::string>{}\"}, \"Termination Criteria\": {\"Epochs\": 10000000000, \"Is One Epoch Finished\": false, \"Target Loss\": -1.0, \"Max Generations\": 10000000000}, \"Hyperparameters\": [], \"Output Weights Scaling\": 1.0, \"Batch Concurrency\": 1, \"Epoch Count\": 0, \"Data\": {\"Validation\": {\"Split\": 0.0}, \"Training\": {\"Shuffel\": true}, \"Input\": {\"Shuffel\": false}}, \"Optimizer\": {\"Type\": \"learner/deepSupervisor/optimizers/fSGD\"}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Learner::applyModuleDefaults(js);

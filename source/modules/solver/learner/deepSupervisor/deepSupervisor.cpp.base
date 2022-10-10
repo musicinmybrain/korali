@@ -241,10 +241,13 @@ void __className__::initialize()
   /*****************************************************************************
    * Setting up the Metrics (function) if given
    *****************************************************************************/
-  if (_metricsType == "Accuracy")
-    _metrics = new korali::metrics::Accuracy();
-  else if (_metricsType != "")
-    KORALI_LOG_ERROR("Unkown Accuracy Function %s", _metricsType.c_str());
+  if (_metricsType.find("Accuracy") != _metricsType.end()){
+    _metricsType.erase("Accuracy");
+    _metrics["Accuracy"] = std::make_unique<korali::metrics::Accuracy>();
+  }
+  if (!_metricsType.empty()){
+    KORALI_LOG_ERROR("Unkown Metrics Function");
+  }
   /*****************************************************************
    * Initializing NN hyperparameters
    *****************************************************************/
@@ -470,7 +473,6 @@ void DeepSupervisor::runEpoch()
         BS = _problem->_validationBatchSize;
         IforE = NV / BS;
         _currentValidationLoss = 0.0f;
-        _currentMetrics = 0.0f;
         // # TODO: reduction leads to segmentation fault
         // pragma omp parallel for reduction(+:_currentValidationLoss, _currentMetrics)
         for (bId = 0; bId < IforE; bId++) {
@@ -485,11 +487,8 @@ void DeepSupervisor::runEpoch()
           // auto y_val = getEvaluation(std::move(input));
 
           _currentValidationLoss -= _reward->reward(y, y_val);
-          if(_metrics){
-            // TODO: make a loop for different metrics and make metrics a vector to calcualte different metrics
-            /* for(auto metric : metrics )..
-            */
-            _currentMetrics += _metrics->compute(y, y_val);
+          for(auto const& [name, mFunc] : _metrics){
+            _currentMetrics[name] += mFunc->compute(y, y_val);
           }
         }
         _currentValidationLoss = _currentValidationLoss / (float)(_batchConcurrency*IforE);
@@ -498,9 +497,9 @@ void DeepSupervisor::runEpoch()
         //   (*_k)["Results"]["Validation Loss"] = _resultsValidationLoss;
         // else
         //   (*_k)["Results"]["Validation Loss"] = _resultsValidationLoss.back();
-        if(_metrics){
-          _currentMetrics = _currentMetrics / (float)(_batchConcurrency*IforE);
-          _dSResultsTotalMetrics.push_back(_currentMetrics);
+        for(auto const& [name, mFunc] : _metrics){
+          _dSResultsTotalMetrics[name].push_back(_currentMetrics[name] / (float)(_batchConcurrency*IforE));
+          _currentMetrics[name] = 0.0f;
           // if(_mode == "Automatic Training")
           //   (*_k)["Results"]["Metrics"] = _resultsTotalMetrics;
           // else
@@ -598,10 +597,10 @@ void DeepSupervisor::runPrediction()
 
       _dSResultsTestingLoss = -_reward->reward(_problem->_solutionData, y_val);
       // (*_k)["Results"]["Testing Loss"] = _resultsTestingLoss;
-      if(_metrics){
-        // TODO: make a loop for different metrics and make metrics a vector to calcualte different metrics
-        _currentMetrics = _metrics->compute(_problem->_solutionData, y_val);
+      for(auto const& [name, mFunc] : _metrics){
+        _currentMetrics[name] += mFunc->compute(_problem->_solutionData, y_val);
       }
+      // TODO needs to be added to total metrics
     }
 }
 
@@ -786,8 +785,9 @@ void __className__::printGenerationAfter()
     output << std::fixed << std::setprecision(4) << "\r[Korali] Epoch " << _epochCount << " / " << _epochs << " " << bar << " Train Loss: " << _currentTrainingLoss;
     if(_hasValidationSet){
       output << sep << "Val. Loss: " << _currentValidationLoss;
-      if(_metrics)
-        output << sep << _metricsType.c_str() << " " << _currentMetrics;
+      for(auto const& [name, vec] : _dSResultsTotalMetrics){
+        output << sep << name.c_str() << " " << vec.back();
+      }
     }
     output << sep << "Time " << _k->_genTime;
     if (!(_learningRateType == "Const" || _learningRateType.empty()))
@@ -803,8 +803,9 @@ void __className__::printGenerationAfter()
     std::ostringstream output{};
     std::string sep{" | "};
     output << std::fixed << std::setprecision(4) << " Test Loss: " << _dSResultsTestingLoss;
-    if(_metrics)
-      output << sep << _metricsType.c_str() << " " << _currentMetrics;
+    for(auto const& [name, vec] : _dSResultsTotalMetrics){
+      output << sep << name.c_str() << " " << vec.back();
+    }
     _k->_logger->logInfo("Normal", "%s\n", output.str().c_str());
   }
 }

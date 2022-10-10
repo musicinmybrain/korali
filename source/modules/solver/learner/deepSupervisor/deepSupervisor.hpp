@@ -102,7 +102,7 @@ class DeepSupervisor : public Learner
   /**
   * @brief Function to calculate different metrics on the validation set.
   */
-   std::string _metricsType;
+   std::set<std::string> _metricsType;
   /**
   * @brief Factor how fast the learning rate decays.
   */
@@ -188,13 +188,13 @@ class DeepSupervisor : public Learner
   */
    float _dSResultsTestingLoss;
   /**
-  * @brief [Internal Use] Vector that stores the metrics for all generations.
+  * @brief [Internal Use] Vector that stores the learning for all generations.
   */
    std::vector<float> _dSResultsTotalLearningRate;
   /**
   * @brief [Internal Use] Vector that stores the metrics for all generations.
   */
-   std::vector<float> _dSResultsTotalMetrics;
+   std::unordered_map<std::string, std::vector<float>> _dSResultsTotalMetrics;
   /**
   * @brief [Internal Use] Vector that stores the metrics for all generations.
   */
@@ -292,7 +292,7 @@ class DeepSupervisor : public Learner
     /**
      * @brief reward function object.
      */
-    korali::metrics::Metrics *_metrics{};
+    std::unordered_map<std::string, std::unique_ptr<korali::metrics::Metrics> > _metrics;
     /**
      * @brief A neural network to be trained based on inputs and solutions
      */
@@ -313,7 +313,7 @@ class DeepSupervisor : public Learner
     /**
      * @brief [Internal Use] current metrics.
      */
-    float _currentMetrics{0};
+    std::unordered_map<std::string, float> _currentMetrics;
     /**
      * @brief [Internal Use] current regularizer penalty
      */

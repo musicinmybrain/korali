@@ -132,6 +132,9 @@ class Layer : public Module
 
   /**
    * @brief Contains the gradients of the outputs of the layer
+   * @details
+   * - for activation phi'(z^(l))
+   * - for linear layer with activation phi'(z^(l))\delta^(l+1)
    */
   float *_outputGradient;
 
@@ -246,12 +249,15 @@ class Layer : public Module
 
   /**
    * @brief Performs the backward propagation of the data
+   * @detailed Calculates i.e. for a linear layer with activation:
    * @param t Indicates the current timestep
+   * delta^(l) = \phi'(z^(l))*(W^T)^(l+1)\delta^(l+1)
+   *           = outputGradients*(W^T)^(l+1)
    */
   virtual void backwardData(const size_t t) = 0;
 
   /**
-   * @brief Calculates the gradients of layer hyperparameters
+   * @brief Calculates the gradients of layer hyperparameters dl_dW^(l)=delta^(l)*output^(l-1)
    * @param t Indicates the current timestep
    */
   virtual void backwardHyperparameters(const size_t t);
