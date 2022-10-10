@@ -101,12 +101,6 @@ void Agent::initialize()
   // hyperparameters from Stochastic Gradient Descent Trajectory
   _hyperparameterVector.set_capacity(_numberOfSamples);
 
-  // Store initial hyperparameters
-  std::vector<std::vector<float>> hyperparameterVectorEntry;
-  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-    hyperparameterVectorEntry.push_back(_criticPolicyLearner[p]->getHyperparameters());
-  _hyperparameterVector.push_back(hyperparameterVectorEntry);
-
   // Check configuration of Bayesian RL
   if( _bayesianLearning )
   {
@@ -169,6 +163,12 @@ void Agent::initialize()
 
   // Setting current agent's training state
   setAgentPolicy(_trainingCurrentPolicies["Policy Hyperparameters"]);
+
+  // Store initial hyperparameters
+  std::vector<std::vector<float>> hyperparameterVectorEntry;
+  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+    hyperparameterVectorEntry.push_back(_criticPolicyLearner[p]->getHyperparameters());
+  _hyperparameterVector.push_back(hyperparameterVectorEntry);
 
   // If this continues a previous training run, deserialize previous input experience replay. Only for the root (engine) rank
   if ( _k->_currentGeneration > 0 )
@@ -1451,6 +1451,10 @@ void Agent::serializeExperienceReplay()
     stateJson["Experience Replay"][i]["Current Policy"]["Available Actions"] = curAvailAct;
   }
 
+  // Save the hyperparameter vector
+  for( size_t i = 0; i<_numberOfSamples; i++ )
+    stateJson["Hyperparameter Vector"][i] = _hyperparameterVector[i];
+
   // If results directory doesn't exist, create it
   if (!dirExists(_k->_fileOutputPath)) mkdir(_k->_fileOutputPath);
 
@@ -1500,6 +1504,7 @@ void Agent::deserializeExperienceReplay()
   _isOnPolicyVector.clear();
   _episodePosVector.clear();
   _episodeIdVector.clear();
+  _hyperparameterVector.clear();
 
   // Deserializing database from JSON to the agent's state
   for (size_t i = 0; i < stateJson["Experience Replay"].size(); i++)
@@ -1543,6 +1548,11 @@ void Agent::deserializeExperienceReplay()
     _expPolicyVector.push_back(expPolicy);
     _curPolicyVector.push_back(curPolicy);
   }
+
+  // Deserialize the hyperparameter vector
+  const size_t numSamples = std::min(_policyUpdateCount, _numberOfSamples);
+  for( size_t i = 0; i<numSamples; i++ )
+    _hyperparameterVector.push_back(stateJson["Hyperparameter Vector"][i].get<std::vector<std::vector<float>>>());
 
   auto endTime = std::chrono::steady_clock::now();                                                                         // Profiling
   double deserializationTime = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count() / 1.0e+9; // Profiling
