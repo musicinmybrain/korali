@@ -10,6 +10,11 @@ import matplotlib.pyplot as plt
 from korali.profiler.helpers import get_total_stats, get_cumulative_results, minimum_duration_to_display, plot_cum, plot_runtimes, plot_all
 import seaborn as sns
 sys.path.append(os.path.abspath('./_models'))
+def mkdir_p(dir):
+    """Make a directory if it doesn't exist and create intermediates as well."""
+    if not os.path.exists(dir):
+        os.makedirs(dir, exist_ok=True)
+
 k = korali.Engine()
 sns.set()
 
@@ -48,7 +53,7 @@ parser.add_argument(
     help='Batch size to use for training data',
     type=int,
     default=32,
-    choices=[32, 1024, 8192],
+    choices=[32, 1024, 8192, 16384, 32768],
     required=False)
 parser.add_argument(
     "-s",
@@ -217,7 +222,7 @@ if args.submit:
     e["File Output"]["Enabled"] = args.save
     e["File Output"]["Frequency"] = 0
     e["File Output"]["Path"] = path
-    # e["Save Only"] = ["Current Generation" ,"Run ID", "Solver"]
+    e["Save Only"] = ["Current Generation" ,"Run ID", "Time Stamps"]
     e["Solver"]["Termination Criteria"]["Epochs"] = args.epochs
     k["Conduit"]["Type"] = "Sequential"
     k.run(e)
@@ -235,6 +240,5 @@ cum = get_cumulative_results(results)
 if args.plot:
     plt.rcParams['figure.figsize'] = 18, 12
     plot_all(results, cum, title = f"{cpu} with {threads} threads, Batch Size {args.trainingBS}, Weights 2^{args.weight_dim} and {layers} layers")
-    print(os.path.join(os.path.dirname(path), "profiling.png"))
     plt.savefig(os.path.join(path, "profiling.pdf"), dpi = 200)
     plt.show()
