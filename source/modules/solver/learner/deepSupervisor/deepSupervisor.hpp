@@ -36,6 +36,7 @@
 // Metrics =====================================================================
 #include "modules/solver/learner/deepSupervisor/metrics/metrics.hpp"
 #include "modules/solver/learner/deepSupervisor/metrics/accuracy.hpp"
+#include "modules/solver/learner/deepSupervisor/metrics/tp.hpp"
 
 namespace korali
 {
@@ -318,30 +319,6 @@ class DeepSupervisor : public Learner
      * @brief [Internal Use] current regularizer penalty
      */
     float _currentPenalty{0};
-    // /**
-    //  * @brief [Internal Use] training loss of the current all epochs.
-    //  */
-    // std::vector<float> _trainingLoss;
-    // /**
-    //  * @brief [Internal Use] validation loss of the current all epochs.
-    //  */
-    // std::vector<float> _validationLoss;
-    // /**
-    //  * @brief [Internal Use] testing loss of the current iterration.
-    //  */
-    // float _testingLoss{0};
-    // /**
-    //  * @brief [Internal Use] vector that stores the total learning rate if desired.
-    //  */
-    // std::vector<float> _totalLearningRate;
-    // /**
-    //  * @brief [Internal Use] vector that stores the metrics for all generations.
-    //  */
-    // std::vector<float> _totalMetrics;
-    // /**
-    //  * @brief [Internal Use] vector that stores the metrics for all generations.
-    //  */
-    // std::vector<float> _totalPenalty;
     /**
      * @brief [Internal Use] number of total training/testing samples.
      */

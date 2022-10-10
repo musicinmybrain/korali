@@ -1,4 +1,5 @@
 deep_learner_metrics_header = files([
+  'tp.hpp',
   'accuracy.hpp',
   'metrics.hpp',
 ])
@@ -7,6 +8,7 @@ install_headers(deep_learner_metrics_header,
 )
 
 deep_learner_metrics_source = files([
+  'tp.cpp',
   'accuracy.cpp',
   'metrics.cpp',
 ])

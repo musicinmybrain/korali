@@ -251,6 +251,10 @@ void DeepSupervisor::initialize()
     _metricsType.erase("Accuracy");
     _metrics["Accuracy"] = std::make_unique<korali::metrics::Accuracy>();
   }
+  if (_metricsType.find("True Positive") != _metricsType.end()){
+    _metricsType.erase("True Positive");
+    _metrics["True Positive"] = std::make_unique<korali::metrics::TruePositive>();
+  }
   if (!_metricsType.empty()){
     KORALI_LOG_ERROR("Unkown Metrics Function");
   }
