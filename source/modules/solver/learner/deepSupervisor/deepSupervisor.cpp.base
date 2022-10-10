@@ -343,6 +343,10 @@ void DeepSupervisor::runEpoch()
     _currentPenalty = 0.0f;
     size_t input_size_per_BS = T*IC;
     size_t solution_size_per_BS = T*OC;
+    std::vector<std::vector<std::vector<float>>> input;
+    std::vector<std::vector<float>> y;
+    input.reserve(BS);
+    y.reserve(BS);
     for (bId = 0; bId < IforE; bId++)
     {
       KORALI_START_PROFILE("Batch Iterration", _k);
@@ -350,30 +354,32 @@ void DeepSupervisor::runEpoch()
         nnHyperparameters = _neuralNetwork->getHyperparameters();
         negGradientWeights = std::vector<float>(_neuralNetwork->_hyperparameterCount, 0.0f);
       }
-      for (wId = 0; wId < _batchConcurrency; wId++)
-      {
-        // TODO: verify for distributed training
-        // ==========================================================================================================
-        samples[wId]["Sample Id"] = wId;
-        samples[wId]["Module"] = "Solver";
-        samples[wId]["Operation"] = "Run Training On Worker";
-        // Problem: wrong sizes here!!!
-        // wId*NW*input_size_per_BS, (wId+1)*NW*input_size_per_BS
-        // samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+bId*BS*input_size_per_BS+wId*NW*input_size_per_BS, inputDataFlat.begin()+bId*BS*input_size_per_BS+(wId+1)*NW*input_size_per_BS);
-        // samples[wId]["Solution Data"] = std::vector<float>(solutionDataFlat.begin()+bId*BS*solution_size_per_BS+wId*NW*solution_size_per_BS, solutionDataFlat.begin()+bId*BS*solution_size_per_BS+(wId+1)*NW*solution_size_per_BS);
-        samples[wId]["Hyperparameters"] = nnHyperparameters;
-        if(_batchConcurrency==1){
-          // Procsses whole batch on one worker
-          samples[wId]["Input Dims"] = std::vector<size_t> {BS, T, IC};
-          samples[wId]["Solution Dims"] = std::vector<size_t> {BS, OC};
-          samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+bId*BS*input_size_per_BS, inputDataFlat.begin()+(bId+1)*BS*input_size_per_BS);
-          samples[wId]["Solution Data"] = std::vector<float>(solutionDataFlat.begin()+bId*BS*solution_size_per_BS, solutionDataFlat.begin()+(bId+1)*BS*solution_size_per_BS);
-        } else{
-          // Split batch among workers
-          samples[wId]["Input Dims"] = std::vector<size_t> {NW, T, IC};
-          samples[wId]["Solution Dims"] = std::vector<size_t> {NW, OC};
-          samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+(bId*BS+wId*NW)*input_size_per_BS, inputDataFlat.begin()+(bId*BS+(wId+1)*NW)*input_size_per_BS);
-          samples[wId]["Solution Data"] = std::vector<float>(solutionDataFlat.begin()+(bId*BS + wId*NW)*solution_size_per_BS, solutionDataFlat.begin()+(bId*BS + (wId+1)*NW)*solution_size_per_BS);
+      if(_batchConcurrency>1){
+        for (wId = 0; wId < _batchConcurrency; wId++)
+        {
+          // TODO: verify for distributed training
+          // ==========================================================================================================
+          samples[wId]["Sample Id"] = wId;
+          samples[wId]["Module"] = "Solver";
+          samples[wId]["Operation"] = "Run Training On Worker";
+          // Problem: wrong sizes here!!!
+          // wId*NW*input_size_per_BS, (wId+1)*NW*input_size_per_BS
+          // samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+bId*BS*input_size_per_BS+wId*NW*input_size_per_BS, inputDataFlat.begin()+bId*BS*input_size_per_BS+(wId+1)*NW*input_size_per_BS);
+          // samples[wId]["Solution Data"] = std::vector<float>(solutionDataFlat.begin()+bId*BS*solution_size_per_BS+wId*NW*solution_size_per_BS, solutionDataFlat.begin()+bId*BS*solution_size_per_BS+(wId+1)*NW*solution_size_per_BS);
+          samples[wId]["Hyperparameters"] = nnHyperparameters;
+          if(_batchConcurrency==1){
+            // Procsses whole batch on one worker
+            samples[wId]["Input Dims"] = std::vector<size_t> {BS, T, IC};
+            samples[wId]["Solution Dims"] = std::vector<size_t> {BS, OC};
+            samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+bId*BS*input_size_per_BS, inputDataFlat.begin()+(bId+1)*BS*input_size_per_BS);
+            samples[wId]["Solution Data"] = std::vector<float>(solutionDataFlat.begin()+bId*BS*solution_size_per_BS, solutionDataFlat.begin()+(bId+1)*BS*solution_size_per_BS);
+          } else{
+            // Split batch among workers
+            samples[wId]["Input Dims"] = std::vector<size_t> {NW, T, IC};
+            samples[wId]["Solution Dims"] = std::vector<size_t> {NW, OC};
+            samples[wId]["Input Data"] = std::vector<float>(inputDataFlat.begin()+(bId*BS+wId*NW)*input_size_per_BS, inputDataFlat.begin()+(bId*BS+(wId+1)*NW)*input_size_per_BS);
+            samples[wId]["Solution Data"] = std::vector<float>(solutionDataFlat.begin()+(bId*BS + wId*NW)*solution_size_per_BS, solutionDataFlat.begin()+(bId*BS + (wId+1)*NW)*solution_size_per_BS);
+          }
         }
       }
       if(_batchConcurrency > 1){
@@ -381,24 +387,60 @@ void DeepSupervisor::runEpoch()
         // Waiting for samples to finish
         KORALI_WAITALL(samples);
       } else{
+// =======================================================================================================================
+// run training on single worker =========================================================================================
+// =======================================================================================================================
+        // runTrainingOnWorker(samples[0]);
         // Do not run on other workers
         KORALI_START_PROFILE("runTrainingOnWorker", _k);
-        runTrainingOnWorker(samples[0]);
-        KORALI_STOP_PROFILE("runTrainingOnWorker", _k);
-      }
-      for (wId = 0; wId < _batchConcurrency; wId++){
-        KORALI_START_PROFILE("KORALI_GET loss/neg_dreward", _k);
-        if(_reward)
-          _currentTrainingLoss += KORALI_GET(float, samples[wId], "Training Loss");
-        const auto neg_dreward_dW = KORALI_GET(std::vector<float>, samples[wId], "Negative Hyperparameter Gradients");
-        KORALI_STOP_PROFILE("KORALI_GET loss/neg_dreward", _k);
-        assert(neg_dreward_dW.size() ==  negGradientWeights.size());
-        // Calculate the sum of the gradient batches/mean would only change the learning rate.
-        #pragma omp parallel for simd
-        for(size_t i = 0; i < neg_dreward_dW.size(); i++){
-          negGradientWeights[i] += neg_dreward_dW[i];
+        KORALI_START_PROFILE("runTrainingOnWorker -> forward", _k);
+        _neuralNetwork->setHyperparameters(nnHyperparameters);
+        // Getting input batch from sample
+        #pragma omp for simd
+        for(size_t b = 0; b < BS; b++){
+          auto glbIdx = bId*BS+b;
+          input.push_back(_problem->_inputData[glbIdx]);
+          y.push_back(_problem->_solutionData[glbIdx]);
         }
+        // De-flattening input and solution vectors
+        KORALI_STOP_PROFILE("runTrainingOnWorker -> forward", _k);
+        KORALI_START_PROFILE("NeuralNetwork::forward", _k);
+        _neuralNetwork->forward(input);
+        KORALI_STOP_PROFILE("NeuralNetwork::forward", _k);
+        auto yhat = _neuralNetwork->getOutputValues(input.size());
+        auto& dreward = y;
+        if(_reward){
+          KORALI_START_PROFILE("loss", _k);
+          _currentTrainingLoss = -_reward->reward(y, yhat);
+          KORALI_STOP_PROFILE("loss", _k);
+          KORALI_START_PROFILE("dloss", _k);
+          dreward = _reward->dreward(y, yhat);
+          KORALI_STOP_PROFILE("dloss", _k);
+        }
+        // BACKPROPAGATE the derivative of the output loss
+        auto negGradientWeightsLocal = backwardGradients(dreward);
+        #pragma omp parallel for simd
+        for(size_t i = 0; i < negGradientWeightsLocal.size(); i++){
+          negGradientWeights[i] += negGradientWeightsLocal[i];
+        }
+        KORALI_STOP_PROFILE("runTrainingOnWorker", _k);
+// =======================================================================================================================
+//
+// =======================================================================================================================
       }
+      // for (wId = 0; wId < _batchConcurrency; wId++){
+        // KORALI_START_PROFILE("KORALI_GET loss/neg_dreward", _k);
+        // // if(_reward)
+        // //   _currentTrainingLoss += KORALI_GET(float, samples[wId], "Training Loss");
+        // const auto neg_dreward_dW = KORALI_GET(std::vector<float>, samples[wId], "Negative Hyperparameter Gradients");
+        // KORALI_STOP_PROFILE("KORALI_GET loss/neg_dreward", _k);
+        // assert(neg_dreward_dW.size() ==  negGradientWeights.size());
+        // // Calculate the sum of the gradient batches/mean would only change the learning rate.
+        // #pragma omp parallel for simd
+        // for(size_t i = 0; i < neg_dreward_dW.size(); i++){
+        //   negGradientWeights[i] += neg_dreward_dW[i];
+        // }
+      // }
       // Add the weight decay to the derivative of the loss if given ============================================================
       if(_regularizer){
         performWeightDecay(negGradientWeights);
@@ -406,6 +448,8 @@ void DeepSupervisor::runEpoch()
       // Need to update the weiths after each mini batch =======================================================================
       updateWeights(negGradientWeights);
       KORALI_STOP_PROFILE("Batch Iterration", _k);
+      input.clear();
+      y.clear();
     }
     // TODO: take care of remainder ==========================================================================================
     // ...
