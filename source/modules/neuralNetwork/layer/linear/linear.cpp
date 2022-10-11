@@ -100,11 +100,11 @@ void Linear::createHyperparameterMemory()
     eptr = std::current_exception();
   }
   try{
-    Layer::exceptionHandler(eptr);
+    exceptionHandler(eptr);
   } catch(...){
     eptr = std::current_exception();
   }
-  exceptionHandler(eptr);
+  Layer::exceptionHandler(eptr);
 }
 
 void Linear::copyHyperparameterPointers(Layer *dstLayer)

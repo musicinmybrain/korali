@@ -94,11 +94,11 @@ void __className__::createHyperparameterMemory()
     eptr = std::current_exception();
   }
   try{
-    Layer::exceptionHandler(eptr);
+    exceptionHandler(eptr);
   } catch(...){
     eptr = std::current_exception();
   }
-  exceptionHandler(eptr);
+  Layer::exceptionHandler(eptr);
 }
 
 void __className__::copyHyperparameterPointers(Layer *dstLayer)

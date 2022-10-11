@@ -197,6 +197,7 @@ if args.submit:
         print(f"FLOPS: {get_flops(args.trainingSetSize, args.trainingBS, dim, layers)}")
     e["Problem"]["Description"] = f"FLOPS_{get_flops(args.trainingSetSize, args.trainingBS, dim, dim)}_THREADS_{threads}"
     e["Solver"]["Batch Concurrency"] = 1
+    e["Solver"]["Metrics"]["Type"] = []
     e["Problem"]["Type"] = "Supervised Learning"
     e["Problem"]["Max Timesteps"] = 1
     e["Problem"]["Training Batch Size"] = args.trainingBS
