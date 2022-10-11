@@ -37,7 +37,7 @@ void VRACER::initializeAgent()
     _effectiveMinibatchSize = _miniBatchSize;
 
   // Parallel initialization of neural networks (first touch!)
-  // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads) if( (_numberOfPolicyThreads > 1) && (_neuralNetworkEngine == "Korali") )
+  // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
@@ -106,8 +106,8 @@ void VRACER::trainPolicy()
   const size_t numPolicies = _problem->_policiesPerEnvironment;
 
   // Run training generation for all policies
-  // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads) if( (_numberOfPolicyThreads > 1) && (_neuralNetworkEngine == "Korali") )
-  for (size_t p = 0; p < numPolicies; p++)
+  // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
+  for ( size_t p = 0; p < numPolicies; p++ )
   { 
     // Prepare stateSequenceBatch and miniBatch
     auto _miniBatch          = miniBatch;
