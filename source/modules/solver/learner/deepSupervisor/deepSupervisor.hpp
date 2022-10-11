@@ -36,6 +36,7 @@
 // Metrics =====================================================================
 #include "modules/solver/learner/deepSupervisor/metrics/metrics.hpp"
 #include "modules/solver/learner/deepSupervisor/metrics/accuracy.hpp"
+#include "modules/solver/learner/deepSupervisor/metrics/tp.hpp"
 
 namespace korali
 {
@@ -102,7 +103,7 @@ class DeepSupervisor : public Learner
   /**
   * @brief Function to calculate different metrics on the validation set.
   */
-   std::string _metricsType;
+   std::set<std::string> _metricsType;
   /**
   * @brief Factor how fast the learning rate decays.
   */
@@ -188,13 +189,13 @@ class DeepSupervisor : public Learner
   */
    float _dSResultsTestingLoss;
   /**
-  * @brief [Internal Use] Vector that stores the metrics for all generations.
+  * @brief [Internal Use] Vector that stores the learning for all generations.
   */
    std::vector<float> _dSResultsTotalLearningRate;
   /**
   * @brief [Internal Use] Vector that stores the metrics for all generations.
   */
-   std::vector<float> _dSResultsTotalMetrics;
+   std::unordered_map<std::string, std::vector<float>> _dSResultsTotalMetrics;
   /**
   * @brief [Internal Use] Vector that stores the metrics for all generations.
   */
@@ -292,7 +293,7 @@ class DeepSupervisor : public Learner
     /**
      * @brief reward function object.
      */
-    korali::metrics::Metrics *_metrics{};
+    std::unordered_map<std::string, std::unique_ptr<korali::metrics::Metrics> > _metrics;
     /**
      * @brief A neural network to be trained based on inputs and solutions
      */
@@ -313,35 +314,11 @@ class DeepSupervisor : public Learner
     /**
      * @brief [Internal Use] current metrics.
      */
-    float _currentMetrics{0};
+    std::unordered_map<std::string, float> _currentMetrics;
     /**
      * @brief [Internal Use] current regularizer penalty
      */
     float _currentPenalty{0};
-    // /**
-    //  * @brief [Internal Use] training loss of the current all epochs.
-    //  */
-    // std::vector<float> _trainingLoss;
-    // /**
-    //  * @brief [Internal Use] validation loss of the current all epochs.
-    //  */
-    // std::vector<float> _validationLoss;
-    // /**
-    //  * @brief [Internal Use] testing loss of the current iterration.
-    //  */
-    // float _testingLoss{0};
-    // /**
-    //  * @brief [Internal Use] vector that stores the total learning rate if desired.
-    //  */
-    // std::vector<float> _totalLearningRate;
-    // /**
-    //  * @brief [Internal Use] vector that stores the metrics for all generations.
-    //  */
-    // std::vector<float> _totalMetrics;
-    // /**
-    //  * @brief [Internal Use] vector that stores the metrics for all generations.
-    //  */
-    // std::vector<float> _totalPenalty;
     /**
      * @brief [Internal Use] number of total training/testing samples.
      */

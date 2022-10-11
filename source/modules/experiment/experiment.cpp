@@ -81,12 +81,12 @@ void Experiment::run()
     _js["Samples"] = knlohmann::json();
 
     // Timing and Profiling Start
-    _startProfile("_solver->runGeneration", this);
+    _startProfile("Generation", this);
     _solver->runGeneration();
     // Timing and Profiling End
-    _stopProfile("_solver->runGeneration", this);
+    _stopProfile("Generation", this);
 // #ifdef PROFILE
-    _genTime = _generationTimeStamp["_solver->runGeneration"].back().second;
+    _genTime = _generationTimeStamp["Generation"].back().second;
     _timeStamps.emplace_back(_generationTimeStamp);
     _generationTimeStamp.clear();
 // #endif

@@ -304,7 +304,7 @@ for i, optimizer in enumerate(current_optimizers):
     e["Solver"]["Mode"] = "Automatic Training"
     e["Solver"]["Termination Criteria"]["Epochs"] = args.epochs
     e["Solver"]["Loss Function"] = "Cross Entropy"
-    e["Solver"]["Metrics"]["Type"] = "Accuracy"
+    e["Solver"]["Metrics"]["Type"] = ["Accuracy"]
     e["Solver"]["Learning Rate"] = args.learningRate
     e["Solver"]["Neural Network"]["Engine"] = args.engine
     e["Solver"]["Optimizer"]["Type"] = "learner/deepSupervisor/optimizers/f"+optimizer

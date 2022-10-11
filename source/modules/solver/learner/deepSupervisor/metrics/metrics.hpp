@@ -27,7 +27,7 @@ namespace korali
       * @param y_pred prediction of our model of size size [BS, OC].
       * @return metrics over the whole batch of size float.
       */
-      float compute(const std::vector<std::vector<float>>& y_true, const std::vector<std::vector<float>>& y_pred);
+      virtual float compute(const std::vector<std::vector<float>>& y_true, const std::vector<std::vector<float>>& y_pred);
       /**
       * @brief calculates the metrics for a sample.
       * @param y_true true prediction of size OC.
