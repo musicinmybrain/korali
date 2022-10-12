@@ -586,7 +586,7 @@ class Agent : public Solver
   boost::circular_buffer<float> _stateValueVectorContiguous;
 
   /**
-   * @brief Contains the state value evaluation for every experience
+   * @brief Contains the wished number of samples from the hyperparameter posterior
    */
   boost::circular_buffer<std::vector<std::vector<float>>> _hyperparameterVector;
 
