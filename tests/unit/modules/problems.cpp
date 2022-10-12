@@ -1531,9 +1531,9 @@ namespace
   v._precomputedValues = std::vector<double>({0.0});
   e._variables.push_back(&v);
   e["Solver"]["Type"] = "Sampler/TMCMC";
-  e["Solver"]["Sample Database"] = std::vector<std::vector<double>>({{0.0}});
-  e["Solver"]["Sample LogPrior Database"] = std::vector<double>({0.0});
-  e["Solver"]["Sample LogLikelihood Database"] = std::vector<double>({0.0});
+  e["Results"]["Posterior Sample Database"] = std::vector<std::vector<double>>({{0.0}});
+  e["Results"]["Posterior Sample LogPrior Database"] = std::vector<double>({0.0});
+  e["Results"]["Posterior Sample LogLikelihood Database"] = std::vector<double>({0.0});
   e["Variables"][0]["Name"] = "Var X";
   e["Variables"][0]["Prior Distribution"] = "Uniform";
 
@@ -1592,13 +1592,13 @@ namespace
 
   pObj->_subExperiments[0]["Variables"][0]["Name"] = "Var X";
   pObj->_subExperiments[0]["Variables"][0]["Prior Distribution"] = "Uniform";
-  pObj->_subExperiments[0]["Solver"]["Sample LogPrior Database"] = std::vector<double>({std::numeric_limits<double>::infinity()});
+  pObj->_subExperiments[0]["Results"]["Posterior Sample LogPrior Database"] = std::vector<double>({std::numeric_limits<double>::infinity()});
   ASSERT_ANY_THROW(pObj->initialize());
-  pObj->_subExperiments[0]["Solver"]["Sample LogPrior Database"] = std::vector<double>({0.0});
+  pObj->_subExperiments[0]["Results"]["Posterior Sample LogPrior Database"] = std::vector<double>({0.0});
 
-  pObj->_subExperiments[0]["Solver"].erase("Sample LogPrior Database");
+  pObj->_subExperiments[0]["Results"].erase("Posterior Sample LogPrior Database");
   ASSERT_ANY_THROW(pObj->initialize());
-  pObj->_subExperiments[0]["Solver"]["Sample LogPrior Database"] = std::vector<double>({0.0});
+  pObj->_subExperiments[0]["Results"]["Posterior Sample LogPrior Database"] = std::vector<double>({0.0});
 
   pObj->_subExperiments[0]["Is Finished"] = false;
   ASSERT_ANY_THROW(pObj->initialize());
@@ -1686,9 +1686,9 @@ namespace
   v._precomputedValues = std::vector<double>({0.0});
   e._variables.push_back(&v);
   e["Solver"]["Type"] = "Sampler/TMCMC";
-  e["Solver"]["Sample Database"] = std::vector<std::vector<double>>({{0.0}});
-  e["Solver"]["Sample LogPrior Database"] = std::vector<double>({0.0});
-  e["Solver"]["Sample LogLikelihood Database"] = std::vector<double>({0.0});
+  e["Results"]["Posterior Sample Database"] = std::vector<std::vector<double>>({{0.0}});
+  e["Results"]["Posterior Sample LogPrior Database"] = std::vector<double>({0.0});
+  e["Results"]["Posterior Sample LogLikelihood Database"] = std::vector<double>({0.0});
   e["Variables"][0]["Name"] = "Var X";
   e["Variables"][0]["Prior Distribution"] = "Uniform";
 
@@ -1708,9 +1708,9 @@ namespace
   psiExp["Solver"]["Burn In"] = 3;
   psiExp["Solver"]["Target Coefficient Of Variation"] = 0.6;
   psiExp["Solver"]["Covariance Scaling"] = 0.01;
-  psiExp["Solver"]["Sample Database"] = std::vector<std::vector<double>>({{0.1}});
-  psiExp["Solver"]["Sample LogPrior Database"] = std::vector<double>({0.1});
-  psiExp["Solver"]["Sample LogLikelihood Database"] = std::vector<double>({0.1});
+  psiExp["Results"]["Posterior Sample Database"] = std::vector<std::vector<double>>({{0.1}});
+  psiExp["Results"]["Posterior Sample LogPrior Database"] = std::vector<double>({0.1});
+  psiExp["Results"]["Posterior Sample LogLikelihood Database"] = std::vector<double>({0.1});
   psiExp["Solver"]["Chain Leaders LogLikelihoods"] = std::vector<double>({0.1});
 
   knlohmann::json subExp;
@@ -1730,9 +1730,9 @@ namespace
   subExp["Solver"]["Burn In"] = 3;
   subExp["Solver"]["Target Coefficient Of Variation"] = 0.6;
   subExp["Solver"]["Covariance Scaling"] = 0.01;
-  subExp["Solver"]["Sample Database"] = std::vector<std::vector<double>>({{0.1}});
-  subExp["Solver"]["Sample LogPrior Database"] = std::vector<double>({0.1});
-  subExp["Solver"]["Sample LogLikelihood Database"] = std::vector<double>({0.1});
+  subExp["Results"]["Posterior Sample Database"] = std::vector<std::vector<double>>({{0.1}});
+  subExp["Results"]["Posterior Sample LogPrior Database"] = std::vector<double>({0.1});
+  subExp["Results"]["Posterior Sample LogLikelihood Database"] = std::vector<double>({0.1});
   subExp["Solver"]["Chain Leaders LogLikelihoods"] = std::vector<double>({0.1});
 
   // Configuring Problem
@@ -1818,12 +1818,12 @@ namespace
 
   pObj->_psiExperiment = psiExp;
   pObj->_subExperiment = subExp;
-  pObj->_psiExperiment["Solver"]["Sample LogPrior Database"] = std::vector<double>({std::numeric_limits<double>::infinity()});
+  pObj->_psiExperiment["Results"]["Posterior Sample LogPrior Database"] = std::vector<double>({std::numeric_limits<double>::infinity()});
   ASSERT_ANY_THROW(pObj->initialize());
 
   pObj->_psiExperiment = psiExp;
   pObj->_subExperiment = subExp;
-  pObj->_subExperiment["Solver"]["Sample LogPrior Database"] = std::vector<double>({std::numeric_limits<double>::infinity()});
+  pObj->_subExperiment["Results"]["Posterior Sample LogPrior Database"] = std::vector<double>({std::numeric_limits<double>::infinity()});
   ASSERT_ANY_THROW(pObj->initialize());
 
   problemJs = baseProbJs;
@@ -1869,9 +1869,9 @@ namespace
   v._precomputedValues = std::vector<double>({0.0});
   e._variables.push_back(&v);
   e["Solver"]["Type"] = "Sampler/TMCMC";
-  e["Solver"]["Sample Database"] = std::vector<std::vector<double>>({{0.0}});
-  e["Solver"]["Sample LogPrior Database"] = std::vector<double>({0.0});
-  e["Solver"]["Sample LogLikelihood Database"] = std::vector<double>({0.0});
+  e["Results"]["Posterior Sample Database"] = std::vector<std::vector<double>>({{0.0}});
+  e["Results"]["Posterior Sample LogPrior Database"] = std::vector<double>({0.0});
+  e["Results"]["Posterior Sample LogLikelihood Database"] = std::vector<double>({0.0});
   e["Variables"][0]["Name"] = "Var X";
   e["Variables"][0]["Prior Distribution"] = "Uniform";
 
@@ -1891,9 +1891,9 @@ namespace
   psiExp["Solver"]["Burn In"] = 3;
   psiExp["Solver"]["Target Coefficient Of Variation"] = 0.6;
   psiExp["Solver"]["Covariance Scaling"] = 0.01;
-  psiExp["Solver"]["Sample Database"] = std::vector<std::vector<double>>({{0.1}});
-  psiExp["Solver"]["Sample LogPrior Database"] = std::vector<double>({0.1});
-  psiExp["Solver"]["Sample LogLikelihood Database"] = std::vector<double>({0.1});
+  psiExp["Results"]["Posterior Sample Database"] = std::vector<std::vector<double>>({{0.1}});
+  psiExp["Results"]["Posterior Sample LogPrior Database"] = std::vector<double>({0.1});
+  psiExp["Results"]["Posterior Sample LogLikelihood Database"] = std::vector<double>({0.1});
   psiExp["Solver"]["Chain Leaders LogLikelihoods"] = std::vector<double>({0.1});
 
   // Configuring Problem
@@ -1955,7 +1955,7 @@ namespace
   ASSERT_ANY_THROW(pObj->initialize());
 
   pObj->_psiExperiment = psiExp;
-  pObj->_psiExperiment["Solver"]["Sample LogPrior Database"] = std::vector<double>({std::numeric_limits<double>::infinity()});
+  pObj->_psiExperiment["Results"]["Posterior Sample LogPrior Database"] = std::vector<double>({std::numeric_limits<double>::infinity()});
   ASSERT_ANY_THROW(pObj->initialize());
 
   pObj->_psiExperiment = psiExp;

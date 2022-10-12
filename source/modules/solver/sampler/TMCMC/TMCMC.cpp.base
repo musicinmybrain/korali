@@ -67,8 +67,8 @@ void __className__::setInitialConfiguration()
     for (size_t i = 0; i < _populationSize; i++) _chainCandidatesCovariance[i].resize(_variableCount * _variableCount);
     _chainLeadersCovariance.resize(_populationSize);
     for (size_t i = 0; i < _populationSize; i++) _chainLeadersCovariance[i].resize(_variableCount * _variableCount);
-    _sampleCovariancesDatabase.resize(_populationSize);
-    for (size_t i = 0; i < _populationSize; i++) _sampleCovariancesDatabase[i].resize(_variableCount);
+    _sampleCovarianceDatabase.resize(_populationSize);
+    for (size_t i = 0; i < _populationSize; i++) _sampleCovarianceDatabase[i].resize(_variableCount);
 
     _upperExtendedBoundaries.resize(_variableCount);
     _lowerExtendedBoundaries.resize(_variableCount);
@@ -84,7 +84,7 @@ void __className__::setInitialConfiguration()
 
   // Init
   _annealingExponent = 0.0;
-  _logEvidence = 0.0;
+  _currentAccumulatedLogEvidence = 0.0;
   _coefficientOfVariation = 0.0;
   _maxLoglikelihood = -Inf;
   _chainCount = _populationSize;
@@ -182,7 +182,7 @@ void __className__::prepareGeneration()
 
     _sampleErrorDatabase.clear();
     _sampleGradientDatabase.clear();
-    _sampleCovariancesDatabase.clear();
+    _sampleCovarianceDatabase.clear();
     if (_k->_currentGeneration > 1)
       std::fill(_chainCandidatesErrors.begin(), _chainCandidatesErrors.end(), 0);
     else
@@ -288,7 +288,7 @@ void __className__::processGeneration()
   double sum_weight = std::accumulate(weight.begin(), weight.end(), 0.0);
   for (size_t i = 0; i < _populationSize; i++) weight[i] = weight[i] / sum_weight;
 
-  _logEvidence += log(sum_weight) + loglikemax - log(_populationSize);
+  _currentAccumulatedLogEvidence += log(sum_weight) + loglikemax - log(_populationSize);
 
   /* Sample candidate selections based on database entries */
   std::vector<unsigned int> numselections(_populationSize);
@@ -340,7 +340,7 @@ void __className__::processGeneration()
       {
         _chainLeadersErrors[leaderId] = _sampleErrorDatabase[i];
         _chainLeadersGradients[leaderId] = _sampleGradientDatabase[i];
-        _chainLeadersCovariance[leaderId] = _sampleCovariancesDatabase[i];
+        _chainLeadersCovariance[leaderId] = _sampleCovarianceDatabase[i];
       }
 
       if (numselections[i] > _maxChainLength)
@@ -618,7 +618,7 @@ void __className__::updateDatabase(const size_t sampleId)
   {
     _sampleErrorDatabase.push_back(_chainLeadersErrors[sampleId]);
     _sampleGradientDatabase.push_back(_chainLeadersGradients[sampleId]);
-    _sampleCovariancesDatabase.push_back(_chainLeadersCovariance[sampleId]);
+    _sampleCovarianceDatabase.push_back(_chainLeadersCovariance[sampleId]);
   }
 }
 
@@ -791,7 +791,10 @@ void __className__::setBurnIn()
 void __className__::finalize()
 {
   // Setting results
-  (*_k)["Results"]["Sample Database"] = _sampleDatabase;
+  (*_k)["Results"]["Posterior Sample Database"] = _sampleDatabase;
+  (*_k)["Results"]["Posterior Sample LogPrior Database"] = _sampleLogPriorDatabase;
+  (*_k)["Results"]["Posterior Sample LogLikelihood Database"] = _sampleLogLikelihoodDatabase;
+  (*_k)["Results"]["Log Evidence"] = _currentAccumulatedLogEvidence;
 }
 
 void __className__::printGenerationBefore()
@@ -803,7 +806,7 @@ void __className__::printGenerationAfter()
 {
   _k->_logger->logInfo("Minimal", "Acceptance Rate (proposals / selections): (%.2f%% / %.2f%%)\n", 100 * _proposalsAcceptanceRate, 100 * _selectionAcceptanceRate);
   _k->_logger->logInfo("Normal", "Coefficient of Variation: %.2f%%\n", 100.0 * _coefficientOfVariation);
-  _k->_logger->logInfo("Normal", "log of accumulated Plausibility Weights: %.3f\n", _logEvidence);
+  _k->_logger->logInfo("Normal", "log of accumulated evidence: %.3f\n", _currentAccumulatedLogEvidence);
   _k->_logger->logInfo("Detailed", "max logLikelihood: %.3f\n", _maxLoglikelihood);
   _k->_logger->logInfo("Detailed", "Number of finite Evaluations (prior / likelihood): (%zu / %zu)\n", _numFinitePriorEvaluations, _numFiniteLikelihoodEvaluations);
 

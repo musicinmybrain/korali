@@ -106,16 +106,16 @@ def plotGen(genList, idx):
       lastGen = genList[i]['Current Generation']
 
   numdim = len(genList[lastGen]['Variables'])
-  samples = np.array(genList[lastGen]['Results']['Posterior Samples Database'])
+  samples = np.array(genList[lastGen]['Results']['Posterior Sample Database'])
 
   isFinite = [~np.isnan(s - s).any() for s in samples]  # Filter trick
   samples = samples[isFinite]
 
   lpr = np.array(
-      genList[lastGen]['Results']['Posterior Samples LogPrior Database'])
+      genList[lastGen]['Results']['Posterior Sample LogPrior Database'])
   lpr = lpr[isFinite]
   llk = np.array(
-      genList[lastGen]['Results']['Posterior Samples LogLikelihood Database'])
+      genList[lastGen]['Results']['Posterior Sample LogLikelihood Database'])
   llk = llk[isFinite]
   lpo = (llk + lpr).tolist()
 

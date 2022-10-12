@@ -31,8 +31,9 @@ void Recurrent::initialize()
   if (_index == _nn->_layers.size() - 1) KORALI_LOG_ERROR("Recurrent layers cannot be the last layer of the NN\n");
 
   // If using depth > 1, the input layer channels must be consistent
-  if (_depth != 1)
-    if (_prevLayer->_outputChannels != _outputChannels) KORALI_LOG_ERROR("Node count for layer %lu should be the same as that of the previous layer, when depth > 1.\n", _index);
+  const size_t IC = _prevLayer->_outputChannels;
+  const size_t OC = _outputChannels;
+  if (IC != OC) KORALI_LOG_ERROR("Channel count (%lu) for LSTM layer %lu should be the same as that of the previous layer (%lu).\n", OC, _index, IC);
 
   if (_nn->_engine == "Korali")
     KORALI_LOG_ERROR("Recurrent layers are not yet supported by the Korali NN backend, use OneDNN or CuDNN.\n");
@@ -189,16 +190,16 @@ std::vector<float> Recurrent::generateInitialHyperparameters()
 
   // Calculate hyperparameters for weight and bias of all linear layers
   // Setting value for this layer's xavier constant
-  // float xavierConstant = (_weightScaling * sqrtf(6.0f)) / sqrt(_outputChannels + _prevLayer->_outputChannels);
+  const float xavierConstant = (_weightScaling * sqrtf(6.0f)) / sqrt(_outputChannels + _prevLayer->_outputChannels);
 
   // Weights applied to the input layer(s)
   for (size_t i = 0; i < _weightsInputCount; i++)
-    hyperparameters.push_back(1.0f);
-    // hyperparameters.push_back(xavierConstant * _nn->_uniformGenerator->getRandomNumber());
+    hyperparameters.push_back(xavierConstant * _nn->_uniformGenerator->getRandomNumber());
+
   // Weights applied to the recurrent layer
   for (size_t i = 0; i < _weightsRecurrentCount; i++)
-    hyperparameters.push_back(1.0f);
-    // hyperparameters.push_back(xavierConstant * _nn->_uniformGenerator->getRandomNumber());
+    hyperparameters.push_back(xavierConstant * _nn->_uniformGenerator->getRandomNumber());
+  
   // Bias for the recurrent layer
   for (size_t i = 0; i < _biasCount; i++)
     hyperparameters.push_back(0.0f);
@@ -281,10 +282,11 @@ void Recurrent::setHyperparameters(const float *hyperparameters)
     const size_t G = _gateCount;
     const size_t IC = _prevLayer->_outputChannels;
     const size_t OC = _outputChannels;
+    const size_t D = 1; // directions
 
     write_to_dnnl_memory(&hyperparameters[0], _weightsLayerMem);
-    write_to_dnnl_memory(&hyperparameters[L * G * OC * IC], _weightsRecurrentMem);
-    write_to_dnnl_memory(&hyperparameters[L * G * OC * OC + L * G * OC * IC], _biasMem);
+    write_to_dnnl_memory(&hyperparameters[L * D * G * IC * OC], _weightsRecurrentMem);
+    write_to_dnnl_memory(&hyperparameters[L * D * G * OC * OC + L * D * G * IC * OC], _biasMem);
   }
 #endif
 
@@ -303,10 +305,11 @@ void Recurrent::getHyperparameters(float *hyperparameters)
     const size_t G = _gateCount;
     const size_t IC = _prevLayer->_outputChannels;
     const size_t OC = _outputChannels;
+    const size_t D = 1; // directions
 
     read_from_dnnl_memory(&hyperparameters[0], _weightsLayerMem);
-    read_from_dnnl_memory(&hyperparameters[L * G * OC * IC], _weightsRecurrentMem);
-    read_from_dnnl_memory(&hyperparameters[L * G * OC * OC + L * G * OC * IC], _biasMem);
+    read_from_dnnl_memory(&hyperparameters[L * D * G * IC * OC], _weightsRecurrentMem);
+    read_from_dnnl_memory(&hyperparameters[L * D * G * OC * OC + L * D * G * IC * OC], _biasMem);
   }
 #endif
 
@@ -325,10 +328,11 @@ void Recurrent::getHyperparameterGradients(float *gradient)
     const size_t G = _gateCount;
     const size_t IC = _prevLayer->_outputChannels;
     const size_t OC = _outputChannels;
+    const size_t D = 1; // directions
 
     read_from_dnnl_memory(&gradient[0], _weightsLayerGradientMem);
-    read_from_dnnl_memory(&gradient[L * G * OC * IC], _weightsRecurrentGradientMem);
-    read_from_dnnl_memory(&gradient[L * G * OC * OC + L * G * OC * IC], _biasGradientMem);
+    read_from_dnnl_memory(&gradient[L * D * G * IC * OC], _weightsRecurrentGradientMem);
+    read_from_dnnl_memory(&gradient[L * D * G * OC * OC + L * D * G * IC * OC], _biasGradientMem);
   }
 #endif
 

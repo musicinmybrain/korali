@@ -64,7 +64,8 @@ void GaussianProcess::initialize()
   _gpParameterDimension = _gp->covf().get_param_dim();
 
   // Creating evaluation lambda function for optimization
-  auto evaluateProposal = [gp = _gp.get()](Sample &sample) {
+  auto evaluateProposal = [gp = _gp.get()](Sample &sample)
+  {
     runSample(sample, gp);
   };
 

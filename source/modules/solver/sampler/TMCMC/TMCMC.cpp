@@ -73,8 +73,8 @@ void TMCMC::setInitialConfiguration()
     for (size_t i = 0; i < _populationSize; i++) _chainCandidatesCovariance[i].resize(_variableCount * _variableCount);
     _chainLeadersCovariance.resize(_populationSize);
     for (size_t i = 0; i < _populationSize; i++) _chainLeadersCovariance[i].resize(_variableCount * _variableCount);
-    _sampleCovariancesDatabase.resize(_populationSize);
-    for (size_t i = 0; i < _populationSize; i++) _sampleCovariancesDatabase[i].resize(_variableCount);
+    _sampleCovarianceDatabase.resize(_populationSize);
+    for (size_t i = 0; i < _populationSize; i++) _sampleCovarianceDatabase[i].resize(_variableCount);
 
     _upperExtendedBoundaries.resize(_variableCount);
     _lowerExtendedBoundaries.resize(_variableCount);
@@ -90,7 +90,7 @@ void TMCMC::setInitialConfiguration()
 
   // Init
   _annealingExponent = 0.0;
-  _logEvidence = 0.0;
+  _currentAccumulatedLogEvidence = 0.0;
   _coefficientOfVariation = 0.0;
   _maxLoglikelihood = -Inf;
   _chainCount = _populationSize;
@@ -188,7 +188,7 @@ void TMCMC::prepareGeneration()
 
     _sampleErrorDatabase.clear();
     _sampleGradientDatabase.clear();
-    _sampleCovariancesDatabase.clear();
+    _sampleCovarianceDatabase.clear();
     if (_k->_currentGeneration > 1)
       std::fill(_chainCandidatesErrors.begin(), _chainCandidatesErrors.end(), 0);
     else
@@ -294,7 +294,7 @@ void TMCMC::processGeneration()
   double sum_weight = std::accumulate(weight.begin(), weight.end(), 0.0);
   for (size_t i = 0; i < _populationSize; i++) weight[i] = weight[i] / sum_weight;
 
-  _logEvidence += log(sum_weight) + loglikemax - log(_populationSize);
+  _currentAccumulatedLogEvidence += log(sum_weight) + loglikemax - log(_populationSize);
 
   /* Sample candidate selections based on database entries */
   std::vector<unsigned int> numselections(_populationSize);
@@ -346,7 +346,7 @@ void TMCMC::processGeneration()
       {
         _chainLeadersErrors[leaderId] = _sampleErrorDatabase[i];
         _chainLeadersGradients[leaderId] = _sampleGradientDatabase[i];
-        _chainLeadersCovariance[leaderId] = _sampleCovariancesDatabase[i];
+        _chainLeadersCovariance[leaderId] = _sampleCovarianceDatabase[i];
       }
 
       if (numselections[i] > _maxChainLength)
@@ -624,7 +624,7 @@ void TMCMC::updateDatabase(const size_t sampleId)
   {
     _sampleErrorDatabase.push_back(_chainLeadersErrors[sampleId]);
     _sampleGradientDatabase.push_back(_chainLeadersGradients[sampleId]);
-    _sampleCovariancesDatabase.push_back(_chainLeadersCovariance[sampleId]);
+    _sampleCovarianceDatabase.push_back(_chainLeadersCovariance[sampleId]);
   }
 }
 
@@ -797,7 +797,10 @@ void TMCMC::setBurnIn()
 void TMCMC::finalize()
 {
   // Setting results
-  (*_k)["Results"]["Sample Database"] = _sampleDatabase;
+  (*_k)["Results"]["Posterior Sample Database"] = _sampleDatabase;
+  (*_k)["Results"]["Posterior Sample LogPrior Database"] = _sampleLogPriorDatabase;
+  (*_k)["Results"]["Posterior Sample LogLikelihood Database"] = _sampleLogLikelihoodDatabase;
+  (*_k)["Results"]["Log Evidence"] = _currentAccumulatedLogEvidence;
 }
 
 void TMCMC::printGenerationBefore()
@@ -809,7 +812,7 @@ void TMCMC::printGenerationAfter()
 {
   _k->_logger->logInfo("Minimal", "Acceptance Rate (proposals / selections): (%.2f%% / %.2f%%)\n", 100 * _proposalsAcceptanceRate, 100 * _selectionAcceptanceRate);
   _k->_logger->logInfo("Normal", "Coefficient of Variation: %.2f%%\n", 100.0 * _coefficientOfVariation);
-  _k->_logger->logInfo("Normal", "log of accumulated Plausibility Weights: %.3f\n", _logEvidence);
+  _k->_logger->logInfo("Normal", "log of accumulated evidence: %.3f\n", _currentAccumulatedLogEvidence);
   _k->_logger->logInfo("Detailed", "max logLikelihood: %.3f\n", _maxLoglikelihood);
   _k->_logger->logInfo("Detailed", "Number of finite Evaluations (prior / likelihood): (%zu / %zu)\n", _numFinitePriorEvaluations, _numFiniteLikelihoodEvaluations);
 
@@ -1117,15 +1120,15 @@ void TMCMC::setConfiguration(knlohmann::json& js)
     }
     eraseValue(js, "Accepted Samples Count");
   }
-  if (isDefined(js, "LogEvidence"))
+  if (isDefined(js, "Current Accumulated LogEvidence"))
   {
     try
     {
-      _logEvidence = js["LogEvidence"].get<double>();
+      _currentAccumulatedLogEvidence = js["Current Accumulated LogEvidence"].get<double>();
     } catch (const std::exception& e) {
-      KORALI_LOG_ERROR(" + Object: [ TMCMC ] \n + Key:    ['LogEvidence']\n%s", e.what());
+      KORALI_LOG_ERROR(" + Object: [ TMCMC ] \n + Key:    ['Current Accumulated LogEvidence']\n%s", e.what());
     }
-    eraseValue(js, "LogEvidence");
+    eraseValue(js, "Current Accumulated LogEvidence");
   }
   if (isDefined(js, "Proposals Acceptance Rate"))
   {
@@ -1227,15 +1230,15 @@ void TMCMC::setConfiguration(knlohmann::json& js)
     }
     eraseValue(js, "Sample Error Database");
   }
-  if (isDefined(js, "Sample Covariances Database"))
+  if (isDefined(js, "Sample Covariance Database"))
   {
     try
     {
-      _sampleCovariancesDatabase = js["Sample Covariances Database"].get<std::vector<std::vector<double>>>();
+      _sampleCovarianceDatabase = js["Sample Covariance Database"].get<std::vector<std::vector<double>>>();
     } catch (const std::exception& e) {
-      KORALI_LOG_ERROR(" + Object: [ TMCMC ] \n + Key:    ['Sample Covariances Database']\n%s", e.what());
+      KORALI_LOG_ERROR(" + Object: [ TMCMC ] \n + Key:    ['Sample Covariance Database']\n%s", e.what());
     }
-    eraseValue(js, "Sample Covariances Database");
+    eraseValue(js, "Sample Covariance Database");
   }
   if (isDefined(js, "Upper Extended Boundaries"))
   {
@@ -1505,7 +1508,7 @@ void TMCMC::getConfiguration(knlohmann::json& js)
    js["Num Finite Prior Evaluations"] = _numFinitePriorEvaluations;
    js["Num Finite Likelihood Evaluations"] = _numFiniteLikelihoodEvaluations;
    js["Accepted Samples Count"] = _acceptedSamplesCount;
-   js["LogEvidence"] = _logEvidence;
+   js["Current Accumulated LogEvidence"] = _currentAccumulatedLogEvidence;
    js["Proposals Acceptance Rate"] = _proposalsAcceptanceRate;
    js["Selection Acceptance Rate"] = _selectionAcceptanceRate;
    js["Covariance Matrix"] = _covarianceMatrix;
@@ -1516,7 +1519,7 @@ void TMCMC::getConfiguration(knlohmann::json& js)
    js["Sample LogPrior Database"] = _sampleLogPriorDatabase;
    js["Sample Gradient Database"] = _sampleGradientDatabase;
    js["Sample Error Database"] = _sampleErrorDatabase;
-   js["Sample Covariances Database"] = _sampleCovariancesDatabase;
+   js["Sample Covariance Database"] = _sampleCovarianceDatabase;
    js["Upper Extended Boundaries"] = _upperExtendedBoundaries;
    js["Lower Extended Boundaries"] = _lowerExtendedBoundaries;
    js["Num LU Decomposition Failures Proposal"] = _numLUDecompositionFailuresProposal;

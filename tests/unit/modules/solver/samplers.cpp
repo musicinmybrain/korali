@@ -836,12 +836,12 @@ namespace
 
    samplerJs = baseOptJs;
    experimentJs = baseExpJs;
-   samplerJs["LogEvidence"] = "Not a Number";
+   samplerJs["Current Accumulated LogEvidence"] = "Not a Number";
    ASSERT_ANY_THROW(sampler->setConfiguration(samplerJs));
 
    samplerJs = baseOptJs;
    experimentJs = baseExpJs;
-   samplerJs["LogEvidence"] = 1.0;
+   samplerJs["Current Accumulated LogEvidence"] = 1.0;
    ASSERT_NO_THROW(sampler->setConfiguration(samplerJs));
 
    samplerJs = baseOptJs;
@@ -946,12 +946,12 @@ namespace
 
    samplerJs = baseOptJs;
    experimentJs = baseExpJs;
-   samplerJs["Sample Covariances Database"] = "Not a Number";
+   samplerJs["Sample Covariance Database"] = "Not a Number";
    ASSERT_ANY_THROW(sampler->setConfiguration(samplerJs));
 
    samplerJs = baseOptJs;
    experimentJs = baseExpJs;
-   samplerJs["Sample Covariances Database"] = std::vector<std::vector<double>>({{0.0}});
+   samplerJs["Sample Covariance Database"] = std::vector<std::vector<double>>({{0.0}});
    ASSERT_NO_THROW(sampler->setConfiguration(samplerJs));
 
    samplerJs = baseOptJs;

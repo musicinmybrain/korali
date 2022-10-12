@@ -14,8 +14,6 @@ using namespace dnnl;
 #include <Eigen/Dense>
 using namespace Eigen;
 
-#define LSTM_LINEAR_LAYERS 8
-
 namespace korali
 {
 namespace neuralNetwork

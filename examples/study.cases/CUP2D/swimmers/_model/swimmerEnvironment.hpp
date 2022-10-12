@@ -8,9 +8,21 @@
 #include "Simulation.h"
 #include "Utils/BufferedLogger.h"
 
+// #define STEFANS_SENSORS_STATE
+
 // command line arguments are read in Korali application
 extern int _argc;
 extern char **_argv;
 
 void runEnvironment(korali::Sample &s);
-bool isTerminal(StefanFish *agent, int nAgents);
+
+bool isTerminal(StefanFish *agent, 
+                const int nAgents, 
+                const int task);
+
+std::vector<double> getState(StefanFish *agent, 
+                             const std::vector<double>& origin,
+                             const SimulationData & sim,
+                             const int nAgents,
+                             const int agentID,
+                             const int task);

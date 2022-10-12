@@ -54,7 +54,7 @@
  },
  "Random Seed": 1621436249288981844,
  "Results": {
-  "Sample Database": [
+  "Posterior Sample Database": [
    [
     0.9469371758135517,
     1.9849058009705627,
@@ -2964,7 +2964,7 @@
   "Population Size": 50,
   "Previous Annealing Exponent": 1.0,
   "Proposals Acceptance Rate": 0.86,
-  "Sample Covariances Database": [],
+  "Sample Covariance Database": [],
   "Sample Database": [
    [
     0.9469371758135517,
@@ -3219,7 +3219,7 @@
   ],
   "Sample Error Database": [],
   "Sample Gradient Database": [],
-  "Sample LogLikelihood Database": [
+  "Posterior Sample LogLikelihood Database": [
    0.1579301723488875,
    -0.13282123175733318,
    -0.3071657041842357,
@@ -3271,7 +3271,7 @@
    -4.124004289629606,
    -4.225621269395305
   ],
-  "Sample LogPrior Database": [
+  "Posterior Sample LogPrior Database": [
    0.0,
    0.0,
    0.0,

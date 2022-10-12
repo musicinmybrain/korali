@@ -42,5 +42,5 @@ e["Random Seed"] = 1234
 # Running Korali
 k.run(e)
 
-verifyMean(e["Solver"]["Sample Database"], [0.0, 0.0, 0.0, 0.0, 0.0], 0.1)
-verifyStd(e["Solver"]["Sample Database"], [1.0, 1.0, 1.0, 1.0, 1.0], 0.1)
+verifyMean(e["Results"]["Posterior Sample Database"], [0.0, 0.0, 0.0, 0.0, 0.0], 0.1)
+verifyStd(e["Results"]["Posterior Sample Database"], [1.0, 1.0, 1.0, 1.0, 1.0], 0.1)

@@ -64,7 +64,7 @@ void Continuous::initializeAgent()
       _policyParameterShifting[i] = _actionShifts[i];
 
       // Softplus mask for Sigmas
-      _policyParameterTransformationMasks[_problem->_actionVectorSize + i] = "Softplus"; // x = 0.5 * (x + std::sqrt(1. + x * x));
+      _policyParameterTransformationMasks[_problem->_actionVectorSize + i] = "Softplus"; // f(x) = 0.5 * (x + std::sqrt(1. + x * x));
       _policyParameterScaling[_problem->_actionVectorSize + i] = 2.0f * sigma;
       _policyParameterShifting[_problem->_actionVectorSize + i] = 0.0f;
     }
@@ -116,7 +116,7 @@ void Continuous::getAction(korali::Sample &sample)
 
     // Forward state sequence to get the Gaussian means and sigmas from policy
     // in case of multiple polices it runs the i-th policy otherwise standard
-    std::vector<policy_t> policy(_problem->_policiesPerEnvironment);
+    std::vector<policy_t> policy;
     if (_problem->_policiesPerEnvironment == 1)
       runPolicy({_stateTimeSequence[i].getVector()}, policy);
     else
@@ -140,6 +140,11 @@ void Continuous::getAction(korali::Sample &sample)
      * Storing the action and its policy
      ****************************************************************************/
 
+    // Check action
+    for (size_t j = 0; j < _problem->_actionVectorSize; j++)
+      if (std::isfinite(action[j]) == false) KORALI_LOG_ERROR("Agent %lu action %lu returned an invalid value: %f\n", i, j, action[j]);
+
+    // Write action to sample
     sample["Action"][i] = action;
     sample["Policy"]["State Value"][i] = policy[0].stateValue;
     sample["Policy"]["Unbounded Action"][i] = policy[0].unboundedAction;

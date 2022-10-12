@@ -2,9 +2,11 @@
 #include "_model/swimmerEnvironment.hpp"
 #include "korali.hpp"
 
+// #define TESTING
+
 int main(int argc, char *argv[])
 {
-  // Gathering actual arguments from MPI
+  /// Initialize MPI
   int provided;
   MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
   if (provided != MPI_THREAD_FUNNELED)
@@ -13,14 +15,14 @@ int main(int argc, char *argv[])
     exit(-1);
   }
 
-  // Storing parameters
-  _argc = argc;
-  _argv = argv;
-
-  // retreiving number of agents, ranks, and path to previous results
+  // retreiving path to trained policy, number of task, agents, and ranks
+  std::string resultsPath = argv[argc-7];
   int nAgents = atoi(argv[argc-3]);
   int nRanks  = atoi(argv[argc-1]);
-  std::string resultsPath = argv[argc-7];
+
+  // Storing parameters for environment
+  _argc = argc;
+  _argv = argv;
 
   // Getting number of workers
   int N = 1;
@@ -40,23 +42,23 @@ int main(int argc, char *argv[])
   // e["Problem"]["Policies Per Environment"] = nAgents;
 
   // Dump setting for environment
+  #if defined(TESTING)
   e["Problem"]["Custom Settings"]["Dump Frequency"] = 0.1;
   e["Problem"]["Custom Settings"]["Dump Path"] = testingResultsPath;
 
   // Random seeds to evaluate task
   for (int i = 0; i < N; i++) e["Solver"]["Testing"]["Sample Ids"][i] = 1+i;
+  #else
+  e["Problem"]["Custom Settings"]["Dump Frequency"] = 0;
+  e["Problem"]["Custom Settings"]["Dump Path"] = trainingResultsPath;
+  #endif
 
   // Setting up the state variables
-  #ifndef STEFANS_SENSORS_STATE
   size_t numStates = 10;
-  #else
-  size_t numStates = 16;
+  #if defined(STEFANS_SENSORS_STATE)
+  numStates = 16;
   #endif
 
-  #ifdef ID
-  if( nAgents > 1 )
-    numStates += 3;
-  #endif
   size_t curVariable = 0;
   for (; curVariable < numStates; curVariable++)
   {
@@ -79,7 +81,8 @@ int main(int argc, char *argv[])
 
   /// Defining Agent Configuration
   e["Solver"]["Type"] = "Agent / Continuous / VRACER";
-  e["Solver"]["Mode"] = "Testing";
+  // e["Solver"]["Mode"] = "Testing";
+  e["Solver"]["Mode"] = "Training";
   e["Solver"]["Episodes Per Generation"] = 1;
   e["Solver"]["Concurrent Environments"] = N;
   e["Solver"]["Experiences Between Policy Updates"] = 1;
@@ -97,7 +100,7 @@ int main(int argc, char *argv[])
 
   //// Defining Policy distribution and scaling parameters
   e["Solver"]["Policy"]["Distribution"] = "Clipped Normal";
-  e["Solver"]["State Rescaling"]["Enabled"] = true;
+  // e["Solver"]["State Rescaling"]["Enabled"] = true;
   e["Solver"]["Reward"]["Rescaling"]["Enabled"] = true;
 
   //// Defining Neural Network
@@ -120,7 +123,7 @@ int main(int argc, char *argv[])
   e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tanh";
 
   ////// Defining Termination Criteria
-  e["Solver"]["Termination Criteria"]["Max Experiences"] = nAgents*5e5;
+  e["Solver"]["Termination Criteria"]["Max Experiences"] = 5e5;
 
   ////// Setting Korali output configuration
   e["Console Output"]["Verbosity"] = "Normal";
@@ -132,13 +135,12 @@ int main(int argc, char *argv[])
   // Korali experiments for previous results
   auto eOld = korali::Experiment();
 
-  // Loading existing results and transplant best training policy
+  // Loading existing results and transplant training policy
   auto found = eOld.loadState(resultsPath + std::string("/latest"));
   
   if( found )
   {
     printf("[Korali] Continuing execution with policy learned in previous run...\n");
-    // Hack to enable execution after Testing.
     e["Solver"]["Training"]["Current Policies"]["Policy Hyperparameters"] = eOld["Solver"]["Training"]["Current Policies"]["Policy Hyperparameters"];
   }
   else
