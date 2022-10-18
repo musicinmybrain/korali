@@ -107,15 +107,15 @@ class Resampling : public Layer
   /**
    * @brief Defines the resampling method to use either of type oneDNN or cuDNN.
    */
-    std::variant<dnnl::algorithm, cudnnResampleMode_t> _algorithm_t;
+  std::variant<dnnl::algorithm, cudnnResampleMode_t> _algorithm_t;
 #endif
 
 #ifdef _KORALI_USE_ONEDNN
   #ifndef _KORALI_USE_CUDNN
-      /**
-      * @brief Defines the resampling method to be used for oneDNN.
-      */
-      std::variant<dnnl::algorithm> _algorithm_t;
+  /**
+   * @brief Defines the resampling method to be used for oneDNN.
+   */
+  std::variant<dnnl::algorithm> _algorithm_t;
   #endif
   /**
    * @brief Memory descriptor for the 2D mapping of the scalar input channels
@@ -145,17 +145,17 @@ class Resampling : public Layer
 
 #ifdef _KORALI_USE_CUDNN
   #ifndef _KORALI_USE_ONEDNN
-      /**
-      * @brief Defines the resampling method to be used with cuDNN.
-      */
-      std::variant<cudnnResampleMode_t> _algorithm_t;
+  /**
+   * @brief Defines the resampling method to be used with cuDNN.
+   */
+  std::variant<cudnnResampleMode_t> _algorithm_t;
   #endif
   /**
    * @brief cuDNN Descriptor for the resampling function
    */
   cudnnBackendDescriptor_t _cudnnResamplingDesc;
   // cudnnActivationDescriptor_t _activationDesc;
-    // cudnnBackendCreateDescriptor(CUDNN_BACKEND_RESAMPLE_DESCRIPTOR, &desc);
+  // cudnnBackendCreateDescriptor(CUDNN_BACKEND_RESAMPLE_DESCRIPTOR, &desc);
 
 #endif
 

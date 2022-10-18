@@ -12,9 +12,9 @@
 
 #pragma once
 
+#include "modules/solver/learner/deepSupervisor/optimizers/fGradientBasedOptimizers.hpp"
 #include <string>
 #include <vector>
-#include "modules/solver/learner/deepSupervisor/optimizers/fGradientBasedOptimizers.hpp"
 
 namespace korali
 {
@@ -77,16 +77,16 @@ class fAdam : public FastGradientBasedOptimizer
 
   // VARIABLES =================================================
   /**
-  * @brief Beta for momentum update
-  */
+   * @brief Beta for momentum update
+   */
   float _beta1{0.9f};
   /**
-  * @brief Beta for gradient update
-  */
+   * @brief Beta for gradient update
+   */
   float _beta2{0.999f};
   /**
-  * @brief Weight Decay To add
-  */
+   * @brief Weight Decay To add
+   */
   // FUNCTIONS =================================================
   // OVERRIDEN FUNCTIONS =======================================
   virtual void initialize() override;

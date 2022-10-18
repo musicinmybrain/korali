@@ -48,9 +48,8 @@ void Experiment::_startProfile(std::string name, korali::Experiment *_k)
 
 void Experiment::_stopProfile(std::string name, korali::Experiment *_k)
 {
-
   double t_fromPrgoramStart = std::chrono::duration<double>(std::chrono::system_clock::now() - korali::_startTime).count();
-  double duration = t_fromPrgoramStart-_k->_generationTimeStamp[name].back().first;
+  double duration = t_fromPrgoramStart - _k->_generationTimeStamp[name].back().first;
   _k->_generationTimeStamp[name].back().second = std::chrono::duration<double>(duration).count();
 }
 
@@ -85,11 +84,11 @@ void Experiment::run()
     _solver->runGeneration();
     // Timing and Profiling End
     _stopProfile("Generation", this);
-// #ifdef PROFILE
+    // #ifdef PROFILE
     _genTime = _generationTimeStamp["Generation"].back().second;
     _timeStamps.emplace_back(_generationTimeStamp);
     _generationTimeStamp.clear();
-// #endif
+    // #endif
     // #endif
 
     // Printing results to console
@@ -148,17 +147,20 @@ void Experiment::saveState()
 
   std::string filePath = "./" + _fileOutputPath + "/" + genFileName;
 
-  if(!_js.getJson()["Save Only"].empty()){
+  if (!_js.getJson()["Save Only"].empty())
+  {
     auto js_reduced = knlohmann::json();
-    for(std::string key : _js.getJson()["Save Only"]){
-      if(!_js.getJson().contains(key))
+    for (std::string key : _js.getJson()["Save Only"])
+    {
+      if (!_js.getJson().contains(key))
         KORALI_LOG_ERROR("Error trying to 'Save Only' js field with non-exists key: %s.\n", key.c_str());
       else
         js_reduced[key] = _js.getJson()[key];
       if (saveJsonToFile(filePath.c_str(), js_reduced) != 0) KORALI_LOG_ERROR("Error trying to save result file: %s.\n", filePath.c_str());
     }
-  } else
-    if (saveJsonToFile(filePath.c_str(), _js.getJson()) != 0) KORALI_LOG_ERROR("Error trying to save result file: %s.\n", filePath.c_str());
+  }
+  else if (saveJsonToFile(filePath.c_str(), _js.getJson()) != 0)
+    KORALI_LOG_ERROR("Error trying to save result file: %s.\n", filePath.c_str());
 
   // If using multiple files, create a hard link to the latest result
   std::string linkPath = "./" + _fileOutputPath + "/latest";
@@ -171,8 +173,8 @@ void Experiment::saveState()
 
 bool Experiment::loadState(const std::string &path)
 {
-  auto loadSuccess =  loadJsonFromFile(_js.getJson(), path.c_str());
-  if(!loadSuccess)
+  auto loadSuccess = loadJsonFromFile(_js.getJson(), path.c_str());
+  if (!loadSuccess)
     KORALI_LOG_ERROR("Error could not find or load file %s.\n", path.c_str());
   _isExperimentLoadedFromPrevious = true;
   return loadSuccess;

@@ -11,7 +11,8 @@ namespace optimizer
 {
 ;
 
-void fRMSProp::initialize() {
+void fRMSProp::initialize()
+{
   FastGradientBasedOptimizer::initialize();
   _r.resize(_nVars);
   _v.resize(_nVars);
@@ -21,8 +22,9 @@ void fRMSProp::initialize() {
 void fRMSProp::reset()
 {
   _modelEvaluationCount = 0;
-  #pragma omp parallel for simd
-  for (size_t i = 0; i < _nVars; i++){
+#pragma omp parallel for simd
+  for (size_t i = 0; i < _nVars; i++)
+  {
     _currentValue[i] = 0.0f;
     _r[i] = 0.0f;
     _v[i] = 0.0f;
@@ -33,10 +35,10 @@ void fRMSProp::processResult(std::vector<float> &gradient)
 {
   FastGradientBasedOptimizer::preProcessResult(gradient);
 
-  #pragma omp parallel for simd
+#pragma omp parallel for simd
   for (size_t i = 0; i < _nVars; i++)
   {
-    _r[i] = (1.0f-_smoothing) * (gradient[i]*gradient[i]) + _smoothing*_r[i];
+    _r[i] = (1.0f - _smoothing) * (gradient[i] * gradient[i]) + _smoothing * _r[i];
     _v[i] = (_eta / (std::sqrt(_r[i]) + _epsilon)) * -gradient[i];
     _currentValue[i] = _currentValue[i] - _v[i];
   }

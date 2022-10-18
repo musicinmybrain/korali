@@ -42,25 +42,30 @@ void Resampling::initialize()
 #ifdef _KORALI_USE_ONEDNN
   if (_nn->_engine == "OneDNN")
   {
-    if (_resamplingType == "Linear") _algorithm_t = dnnl::algorithm::resampling_linear;
-    else if (_resamplingType == "Nearest") _algorithm_t = dnnl::algorithm::resampling_nearest;
-    else KORALI_LOG_ERROR("[Layer %zu] resmpling method \"%s\" is not a valid option [\"Linear\", \"Nearest\"].\n", _index-1, _resamplingType.c_str());
+    if (_resamplingType == "Linear")
+      _algorithm_t = dnnl::algorithm::resampling_linear;
+    else if (_resamplingType == "Nearest")
+      _algorithm_t = dnnl::algorithm::resampling_nearest;
+    else
+      KORALI_LOG_ERROR("[Layer %zu] resmpling method \"%s\" is not a valid option [\"Linear\", \"Nearest\"].\n", _index - 1, _resamplingType.c_str());
   }
 #endif
 
 #ifdef _KORALI_USE_CUDNN
   if (_nn->_engine == "CuDNN")
   {
-    if (_resamplingType == "Linear") _algorithm_t = CUDNN_RESAMPLE_BILINEAR;
-    else if (_resamplingType == "Nearest") _algorithm_t = CUDNN_RESAMPLE_NEAREST;
-    else KORALI_LOG_ERROR("[Layer %zu] resmpling method \"%s\" is not a valid option [\"Linear\", \"Nearest\"].\n", _index-1, _resamplingType.c_str());
+    if (_resamplingType == "Linear")
+      _algorithm_t = CUDNN_RESAMPLE_BILINEAR;
+    else if (_resamplingType == "Nearest")
+      _algorithm_t = CUDNN_RESAMPLE_NEAREST;
+    else
+      KORALI_LOG_ERROR("[Layer %zu] resmpling method \"%s\" is not a valid option [\"Linear\", \"Nearest\"].\n", _index - 1, _resamplingType.c_str());
   }
 #endif
 }
 
 void Resampling::createForwardPipeline()
 {
-
 #ifdef _KORALI_USE_ONEDNN
   if (_nn->_engine == "OneDNN")
   {
@@ -68,7 +73,7 @@ void Resampling::createForwardPipeline()
     _propKind = _nn->_mode == "Training" ? prop_kind::forward_training : prop_kind::forward_inference;
     // Creating layer's data memory storage
     // const memory::dims layerDims = {N, OC*OH*OW};
-    const memory::dims layerDims = {N, OC*OH*OW};
+    const memory::dims layerDims = {N, OC * OH * OW};
     auto dataMemDesc = memory::desc(layerDims, memory::data_type::f32, memory::format_tag::nc);
     // Creating activation layer memory
     _outputMem.resize(_nn->_timestepCount);
@@ -185,8 +190,6 @@ void Resampling::backwardData(const size_t t)
   }
 #endif
 }
-
-
 
 void Resampling::setConfiguration(knlohmann::json& js) 
 {

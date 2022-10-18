@@ -12,9 +12,9 @@
 
 #pragma once
 
+#include "modules/solver/learner/deepSupervisor/optimizers/fAdam/fAdam.hpp"
 #include <string>
 #include <vector>
-#include "modules/solver/learner/deepSupervisor/optimizers/fAdam/fAdam.hpp"
 
 namespace korali
 {

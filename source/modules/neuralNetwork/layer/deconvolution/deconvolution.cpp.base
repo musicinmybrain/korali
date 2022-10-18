@@ -18,11 +18,11 @@ __startNamespace__;
 void __className__::initialize()
 {
   // Checking Layer size
-  if (_filters == -1 && _outputChannels == 0) KORALI_LOG_ERROR("[%s Layer %lu] No output channesl or filter number specified for layer (%lu).\n", _type.c_str(), _index-1);
+  if (_filters == -1 && _outputChannels == 0) KORALI_LOG_ERROR("[%s Layer %lu] No output channesl or filter number specified for layer (%lu).\n", _type.c_str(), _index - 1);
 
   // Checking position
-  if (_index == 0) KORALI_LOG_ERROR("[%s Layer %lu] layers cannot be the starting layer of the NN\n", _type.c_str(), _index-1);
-  if (_index == _nn->_layers.size() - 1) KORALI_LOG_ERROR("[%s Layer %lu] layers cannot be the last layer of the NN\n", _type.c_str(), _index-1);
+  if (_index == 0) KORALI_LOG_ERROR("[%s Layer %lu] layers cannot be the starting layer of the NN\n", _type.c_str(), _index - 1);
+  if (_index == _nn->_layers.size() - 1) KORALI_LOG_ERROR("[%s Layer %lu] layers cannot be the last layer of the NN\n", _type.c_str(), _index - 1);
 
   // Precalculating values for the deconvolution operation
   N = _batchSize;
@@ -30,53 +30,60 @@ void __className__::initialize()
   OW = _imageWidth;
   // Kernel ===============================================================================
   KH = KW = _kernelSize;
-  if(_kernelWidth != -1)
+  if (_kernelWidth != -1)
     KW = _kernelWidth;
-  if( _kernelHeight != -1)
+  if (_kernelHeight != -1)
     KH = _kernelHeight;
   // Strides ==============================================================================
   SV = SH = _strideSize;
-  if( _verticalStride != -1)
+  if (_verticalStride != -1)
     SV = _verticalStride;
-  if( _horizontalStride != -1)
+  if (_horizontalStride != -1)
     SH = _horizontalStride;
   // Paddings =============================================================================
   PT = PL = PB = PR = _paddingSize;
-  if( _paddingVertical != -1)
+  if (_paddingVertical != -1)
     PT = PB = _paddingVertical;
-  if( _paddingHorizontal != -1)
+  if (_paddingHorizontal != -1)
     PL = PR = _paddingVertical;
-  if( _paddingTop != -1)
+  if (_paddingTop != -1)
     PT = _paddingTop;
-  if( _paddingBottom != -1)
+  if (_paddingBottom != -1)
     PB = _paddingBottom;
-  if( _paddingLeft != -1)
+  if (_paddingLeft != -1)
     PL = _paddingLeft;
-  if( _paddingRight != -1)
+  if (_paddingRight != -1)
     PR = _paddingRight;
   // Check for non zeros
-  if (OH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image height must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index-1);
-  if (OW <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image width must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index-1);
-  if (KH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Kernel height must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index-1);
-  if (KW <= 0) KORALI_LOG_ERROR("[%s layer %zu] Kernel width must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index-1);
-  if (SV <= 0) KORALI_LOG_ERROR("[%s layer %zu] Vertical stride must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index-1);
-  if (SH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Horizontal stride must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index-1);
+  if (OH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image height must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index - 1);
+  if (OW <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image width must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index - 1);
+  if (KH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Kernel height must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index - 1);
+  if (KW <= 0) KORALI_LOG_ERROR("[%s layer %zu] Kernel width must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index - 1);
+  if (SV <= 0) KORALI_LOG_ERROR("[%s layer %zu] Vertical stride must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index - 1);
+  if (SH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Horizontal stride must be larger than zero for deconvolutional layer.\n", _type.c_str(), _index - 1);
 
   // Several sanity checks
-  if (KH > OH + PR + PL) KORALI_LOG_ERROR("[%s layer %zu] Kernel height cannot be larger than output image height plus padding.\n", _type.c_str(), _index-1);
-  if (KW > OW + PT + PB) KORALI_LOG_ERROR("[%s layer %zu] Kernel width cannot be larger than output image width plus padding.\n", _type.c_str(), _index-1);
-  if(_outputChannels == 0)
-    _outputChannels = _filters*OH*OW;
+  if (KH > OH + PR + PL) KORALI_LOG_ERROR("[%s layer %zu] Kernel height cannot be larger than output image height plus padding.\n", _type.c_str(), _index - 1);
+  if (KW > OW + PT + PB) KORALI_LOG_ERROR("[%s layer %zu] Kernel width cannot be larger than output image width plus padding.\n", _type.c_str(), _index - 1);
+  if (_outputChannels == 0)
+    _outputChannels = _filters * OH * OW;
 
   // Check whether the output channels of the previous layer is divided by the height and width
-  if (_outputChannels % (OH * OW) > 0) KORALI_LOG_ERROR("[Deconvolutional layer %zu] Number of channels (%lu) not divisible by the 2D HxW setup (%lux%lu).\n", _index-1, _outputChannels, OH, OW);
+  if (_outputChannels % (OH * OW) > 0) KORALI_LOG_ERROR("[Deconvolutional layer %zu] Number of channels (%lu) not divisible by the 2D HxW setup (%lux%lu).\n", _index - 1, _outputChannels, OH, OW);
   OC = _outputChannels / (OH * OW);
   // Deriving input height and width
   IH = ((OH - KH + PT + PB) / SV) + 1;
   IW = ((OW - KW + PR + PL) / SH) + 1;
   // Check whether the output channels of the previous layer is divided by the height and width i.e. if previous layer is a linear layer
   if (_prevLayer->_outputChannels % (IH * IW) > 0) KORALI_LOG_ERROR("[%s layer %zu] Previous layer contains a number of output channels (%lu) not divisible by the image size (%lux%lu) \
-                                                                      given kernel (%lux%lu) size and padding/stride configuration.\n", _index-1, _type.c_str(), _prevLayer->_outputChannels, IH, IW, KH, KW);
+                                                                      given kernel (%lux%lu) size and padding/stride configuration.\n",
+                                                                    _index - 1,
+                                                                    _type.c_str(),
+                                                                    _prevLayer->_outputChannels,
+                                                                    IH,
+                                                                    IW,
+                                                                    KH,
+                                                                    KW);
   IC = _prevLayer->_outputChannels / (IH * IW);
 }
 
@@ -107,57 +114,62 @@ void __className__::createHyperparameterMemory()
   _weightsCount = OC * IC * KH * KW;
   _biasCount = OC;
 
-_hyperparameterCount = _weightsCount + _biasCount;
+  _hyperparameterCount = _weightsCount + _biasCount;
 
-std::exception_ptr eptr;
-try{
+  std::exception_ptr eptr;
+  try
+  {
 #ifdef _KORALI_USE_ONEDNN
-if (_nn->_engine == "OneDNN")
-{
-  memory::dims weightDims = {OC, IC, KH, KW};
-  auto weightMemDesc = memory::desc(weightDims, memory::data_type::f32, memory::format_tag::oihw);
-  _weightsMem = memory(weightMemDesc, _nn->_dnnlEngine);
+    if (_nn->_engine == "OneDNN")
+    {
+      memory::dims weightDims = {OC, IC, KH, KW};
+      auto weightMemDesc = memory::desc(weightDims, memory::data_type::f32, memory::format_tag::oihw);
+      _weightsMem = memory(weightMemDesc, _nn->_dnnlEngine);
 
-  auto biasMemDesc = memory::desc({OC}, memory::data_type::f32, memory::format_tag::a);
-  _biasMem = memory(biasMemDesc, _nn->_dnnlEngine);
-}
+      auto biasMemDesc = memory::desc({OC}, memory::data_type::f32, memory::format_tag::a);
+      _biasMem = memory(biasMemDesc, _nn->_dnnlEngine);
+    }
 #endif
 
 #ifdef _KORALI_USE_CUDNN
-  if (_nn->_engine == "CuDNN")
-  {
-    // Kernel/Filter Memory
-    cudnnErrCheck(cudnnCreateFilterDescriptor(&_weightsFilterDesc));
-    cudnnErrCheck(cudnnSetFilter4dDescriptor(_weightsFilterDesc,
-                                            /*dataType=*/CUDNN_DATA_FLOAT,
-                                              /*format=*/CUDNN_TENSOR_NCHW,
-                                              /*in_channels=*/IC,
-                                              /*out_channels=*/OC,
-                                              /*kernel_height=*/KH,
-                                              /*kernel_width=*/KW));
-    cudaErrCheck(cudaMalloc((void **)&_weightsFilter, _weightsCount * sizeof(float)));
-    // Create Bias Tensors
-    cudnnErrCheck(cudnnCreateTensorDescriptor(&_biasTensorDesc));
-    cudnnErrCheck(cudnnSetTensor4dDescriptor(_biasTensorDesc,
-                                              CUDNN_TENSOR_NCHW,
-                                              CUDNN_DATA_FLOAT,
-                                              1,
-                                              OC,
-                                              1,
-                                              1));
+    if (_nn->_engine == "CuDNN")
+    {
+      // Kernel/Filter Memory
+      cudnnErrCheck(cudnnCreateFilterDescriptor(&_weightsFilterDesc));
+      cudnnErrCheck(cudnnSetFilter4dDescriptor(_weightsFilterDesc,
+                                               /*dataType=*/CUDNN_DATA_FLOAT,
+                                               /*format=*/CUDNN_TENSOR_NCHW,
+                                               /*in_channels=*/IC,
+                                               /*out_channels=*/OC,
+                                               /*kernel_height=*/KH,
+                                               /*kernel_width=*/KW));
+      cudaErrCheck(cudaMalloc((void **)&_weightsFilter, _weightsCount * sizeof(float)));
+      // Create Bias Tensors
+      cudnnErrCheck(cudnnCreateTensorDescriptor(&_biasTensorDesc));
+      cudnnErrCheck(cudnnSetTensor4dDescriptor(_biasTensorDesc,
+                                               CUDNN_TENSOR_NCHW,
+                                               CUDNN_DATA_FLOAT,
+                                               1,
+                                               OC,
+                                               1,
+                                               1));
       cudaErrCheck(cudaMalloc((void **)&_biasTensor, _biasCount * sizeof(float)));
     }
 #endif
-  } catch (...) {
+  }
+  catch (...)
+  {
     eptr = std::current_exception();
   }
-  try{
+  try
+  {
     Layer::exceptionHandler(eptr);
-  } catch(...){
+  }
+  catch (...)
+  {
     eptr = std::current_exception();
   }
   exceptionHandler(eptr);
-
 }
 
 void __className__::copyHyperparameterPointers(Layer *dstLayer)
@@ -195,29 +207,30 @@ void __className__::createForwardPipeline()
   if (_nn->_engine == "Korali") KORALI_LOG_ERROR("Deconvolutional Layers still not supported in Korali's NN backend. Use OneDNN.\n");
 
   std::exception_ptr eptr;
-  try{
-#ifdef _KORALI_USE_ONEDNN
-  if (_nn->_engine == "OneDNN")
+  try
   {
-    // Creating memory descriptor mappings for input memory
-    _srcMemDesc = memory::desc({N, IC, IH, IW}, memory::data_type::f32, memory::format_tag::nchw);
-    _dstMemDesc = memory::desc({N, OC, OH, OW}, memory::data_type::f32, memory::format_tag::nchw);
+#ifdef _KORALI_USE_ONEDNN
+    if (_nn->_engine == "OneDNN")
+    {
+      // Creating memory descriptor mappings for input memory
+      _srcMemDesc = memory::desc({N, IC, IH, IW}, memory::data_type::f32, memory::format_tag::nchw);
+      _dstMemDesc = memory::desc({N, OC, OH, OW}, memory::data_type::f32, memory::format_tag::nchw);
 
-    // Creating padding dims
-    memory::dims ST = {SV, SH};  // Horizontal Vertical
-    memory::dims PTL = {PT, PL}; // Top Left
-    memory::dims PBR = {PB, PR}; // Bottom Right
+      // Creating padding dims
+      memory::dims ST = {SV, SH};  // Horizontal Vertical
+      memory::dims PTL = {PT, PL}; // Top Left
+      memory::dims PBR = {PB, PR}; // Bottom Right
 
-    // We create the deconvolution operation
-    auto deconvolution_d = deconvolution_forward::desc(_propKind, algorithm::deconvolution_direct, _srcMemDesc, _weightsMem.get_desc(), _biasMem.get_desc(), _dstMemDesc, ST, PTL, PBR);
+      // We create the deconvolution operation
+      auto deconvolution_d = deconvolution_forward::desc(_propKind, algorithm::deconvolution_direct, _srcMemDesc, _weightsMem.get_desc(), _biasMem.get_desc(), _dstMemDesc, ST, PTL, PBR);
 
-    // Create inner product primitive descriptor.
-    dnnl::primitive_attr deconvolutionPrimitiveAttributes;
-    _forwardDeconvolutionPrimitiveDesc = deconvolution_forward::primitive_desc(deconvolution_d, deconvolutionPrimitiveAttributes, _nn->_dnnlEngine);
+      // Create inner product primitive descriptor.
+      dnnl::primitive_attr deconvolutionPrimitiveAttributes;
+      _forwardDeconvolutionPrimitiveDesc = deconvolution_forward::primitive_desc(deconvolution_d, deconvolutionPrimitiveAttributes, _nn->_dnnlEngine);
 
-    // Create the weights+bias primitive.
-    _forwardDeconvolutionPrimitive = deconvolution_forward(_forwardDeconvolutionPrimitiveDesc);
-  }
+      // Create the weights+bias primitive.
+      _forwardDeconvolutionPrimitive = deconvolution_forward(_forwardDeconvolutionPrimitiveDesc);
+    }
 #endif
 
 #ifdef _KORALI_USE_CUDNN
@@ -234,23 +247,23 @@ void __className__::createForwardPipeline()
       // Input Tensor
       cudnnErrCheck(cudnnCreateTensorDescriptor(&_inputDescriptor));
       cudnnErrCheck(cudnnSetTensor4dDescriptor(
-                      /*Inp. Tensor Descr.=*/ _inputDescriptor,
-                      /*format=*/CUDNN_TENSOR_NCHW,
-                      /*dataType=*/CUDNN_DATA_FLOAT,
-                      /*batch_size=*/N,
-                      /*channels=*/IC,
-                      /*image_height=*/IH,
-                      /*image_width=*/IW));
+        /*Inp. Tensor Descr.=*/_inputDescriptor,
+        /*format=*/CUDNN_TENSOR_NCHW,
+        /*dataType=*/CUDNN_DATA_FLOAT,
+        /*batch_size=*/N,
+        /*channels=*/IC,
+        /*image_height=*/IH,
+        /*image_width=*/IW));
       // Output Tensor
       cudnnErrCheck(cudnnCreateTensorDescriptor(&_outputDescriptor));
       cudnnErrCheck(cudnnSetTensor4dDescriptor(
-                      /*Output. Tensor Descr.=*/ _outputDescriptor,
-                      /*format=*/CUDNN_TENSOR_NCHW,
-                      /*dataType=*/CUDNN_DATA_FLOAT,
-                      /*batch_size=*/N,
-                      /*channels=*/OC,
-                      /*image_height=*/OH,
-                      /*image_width=*/OW));
+        /*Output. Tensor Descr.=*/_outputDescriptor,
+        /*format=*/CUDNN_TENSOR_NCHW,
+        /*dataType=*/CUDNN_DATA_FLOAT,
+        /*batch_size=*/N,
+        /*channels=*/OC,
+        /*image_height=*/OH,
+        /*image_width=*/OW));
       cudnnErrCheck(cudnnCreateConvolutionDescriptor(&_convolutionDescriptor));
       cudnnErrCheck(cudnnSetConvolution2dDescriptor(_convolutionDescriptor,
                                                     /*pad_height=PB=*/PT,
@@ -263,19 +276,20 @@ void __className__::createForwardPipeline()
                                                     /*computeType=*/CUDNN_DATA_FLOAT));
       // Backward Data Algorithm =====================================================
       cudnnConvolutionBwdDataAlgoPerf_t algoData_perf{};
-      if(_algorithmBackwardData == "GEMM-SUM")
+      if (_algorithmBackwardData == "GEMM-SUM")
         _convolutionBwdDataAlgorithm = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
-      else if(_algorithmBackwardData == "GEMM")
+      else if (_algorithmBackwardData == "GEMM")
         _convolutionBwdDataAlgorithm = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
-      else if(_algorithmBackwardData == "FFT")
+      else if (_algorithmBackwardData == "FFT")
         _convolutionBwdDataAlgorithm = CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT;
-      else if(_algorithmBackwardData == "FFT-TILING")
+      else if (_algorithmBackwardData == "FFT-TILING")
         _convolutionBwdDataAlgorithm = CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT_TILING;
-      else if(_algorithmBackwardData == "WINOGRAD")
+      else if (_algorithmBackwardData == "WINOGRAD")
         _convolutionBwdDataAlgorithm = CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD;
-      else if(_algorithmBackwardData == "WINOGRAD-NONFUSED")
+      else if (_algorithmBackwardData == "WINOGRAD-NONFUSED")
         _convolutionBwdDataAlgorithm = CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD_NONFUSED;
-      else {
+      else
+      {
         int requestedCount = 1;
         int count;
         cudnnErrCheck(cudnnFindConvolutionBackwardDataAlgorithm(
@@ -291,17 +305,19 @@ void __className__::createForwardPipeline()
       }
       // NOTE: this must be like in forward to get right ws -> need to turn output and input arround again
       err = cudnnGetErr(cudnnGetConvolutionBackwardDataWorkspaceSize(_nn->_cuDNNHandle,
-                                                                 /*wDesc=*/_weightsFilterDesc,
-                                                                 /*dyDesc/_outputGradientTensor[t] desc=*/_inputDescriptor,
-                                                                 /*convDesc=*/_convolutionDescriptor,
-                                                                 /*dxDesc/_prevLayer->_outputGradientTensor[t] desc=*/_outputDescriptor,
-                                                                 /*algo=*/_convolutionBwdDataAlgorithm,
-                                                                 /* *sizeInBytes=*/&_convolutionWorkspaceSize));
-      if(!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Forward Workspace Size  (BackwardDataWorkspaceSize): %s \n", _type.c_str(), _index-1, err.c_str());
+                                                                     /*wDesc=*/_weightsFilterDesc,
+                                                                     /*dyDesc/_outputGradientTensor[t] desc=*/_inputDescriptor,
+                                                                     /*convDesc=*/_convolutionDescriptor,
+                                                                     /*dxDesc/_prevLayer->_outputGradientTensor[t] desc=*/_outputDescriptor,
+                                                                     /*algo=*/_convolutionBwdDataAlgorithm,
+                                                                     /* *sizeInBytes=*/&_convolutionWorkspaceSize));
+      if (!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Forward Workspace Size  (BackwardDataWorkspaceSize): %s \n", _type.c_str(), _index - 1, err.c_str());
       // Creating workspace memory in createBackwardpipeline
     }
 #endif
-  } catch (...) {
+  }
+  catch (...)
+  {
     eptr = std::current_exception();
   }
   exceptionHandler(eptr);
@@ -367,23 +383,24 @@ void __className__::createBackwardPipeline()
     cudnnConvolutionFwdAlgoPerf_t algo_perf{};
     cudnnConvolutionBwdFilterAlgoPerf_t algoFilter_perf{};
     // Backward Data Algorithm =====================================================
-    if(_algorithmForward == "GEMM")
+    if (_algorithmForward == "GEMM")
       _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
-    else if(_algorithmForward == "GEMM-PRECOMP-INDICES")
+    else if (_algorithmForward == "GEMM-PRECOMP-INDICES")
       _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
-    else if(_algorithmForward == "GEMM-STORE-INPUT-TENSOR")
+    else if (_algorithmForward == "GEMM-STORE-INPUT-TENSOR")
       _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_GEMM;
-    else if(_algorithmForward == "DIRECT-CNN")
+    else if (_algorithmForward == "DIRECT-CNN")
       _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_DIRECT;
-    else if(_algorithmForward == "FFT")
+    else if (_algorithmForward == "FFT")
       _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_FFT;
-    else if(_algorithmForward == "FFT-TILING")
+    else if (_algorithmForward == "FFT-TILING")
       _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_FFT_TILING;
-    else if(_algorithmForward == "WINOGRAD")
+    else if (_algorithmForward == "WINOGRAD")
       _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD;
-    else if(_algorithmForward == "WINOGRAD-NONFUSED")
+    else if (_algorithmForward == "WINOGRAD-NONFUSED")
       _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED;
-    else {
+    else
+    {
       int requestedCount = 1;
       int count;
       cudnnErrCheck(cudnnFindConvolutionForwardAlgorithm(
@@ -395,22 +412,23 @@ void __className__::createBackwardPipeline()
         /*requestedAlgoCount=*/requestedCount,
         /* *returnedAlgoCount=*/&count,
         /* *perfResults=*/&algo_perf));
-        _convolutionFwdAlgorithm = algo_perf.algo;
-      }
+      _convolutionFwdAlgorithm = algo_perf.algo;
+    }
     // Backward Filter Algorithm ===================================================
-    if(_algorithmBackwardFilter == "GEMM-SUM")
+    if (_algorithmBackwardFilter == "GEMM-SUM")
       _convolutionBwdFilterAlgorithm = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0;
-    else if(_algorithmBackwardFilter == "GEMM")
+    else if (_algorithmBackwardFilter == "GEMM")
       _convolutionBwdFilterAlgorithm = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
-    else if(_algorithmBackwardFilter == "FFT")
+    else if (_algorithmBackwardFilter == "FFT")
       _convolutionBwdFilterAlgorithm = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT;
-    else if(_algorithmBackwardFilter == "FFT-TILING")
+    else if (_algorithmBackwardFilter == "FFT-TILING")
       _convolutionBwdFilterAlgorithm = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_3;
-    else if(_algorithmBackwardFilter == "WINOGRAD")
+    else if (_algorithmBackwardFilter == "WINOGRAD")
       _convolutionBwdFilterAlgorithm = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_WINOGRAD_NONFUSED;
-    else if(_algorithmBackwardFilter == "FFT-TILING")
+    else if (_algorithmBackwardFilter == "FFT-TILING")
       _convolutionBwdFilterAlgorithm = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT_TILING;
-    else {
+    else
+    {
       int requestedCount = 1;
       int count;
       cudnnErrCheck(cudnnFindConvolutionBackwardFilterAlgorithm(
@@ -422,17 +440,15 @@ void __className__::createBackwardPipeline()
         /*requestedAlgoCount=*/requestedCount,
         /* *returnedAlgoCount=*/&count,
         /* *perfResults=*/&algoFilter_perf));
-        _convolutionBwdFilterAlgorithm = algoFilter_perf.algo;
+      _convolutionBwdFilterAlgorithm = algoFilter_perf.algo;
     }
     // Allocate Workspace ==========================================================
     auto backwardWsSize = getBackwardWsSize();
     _convolutionWorkspaceSize = std::max(_convolutionWorkspaceSize, backwardWsSize);
-#ifdef DEBUG
-      _k->_logger->logInfo("Detailed", "[%s layer %zu] Allocating %f MB for cuDNN %1$s workspace.\n", _type.c_str(), _index-1, (float) _convolutionWorkspaceSize/(1024.0*1024.0));
-#endif
+  #ifdef DEBUG
+    _k->_logger->logInfo("Detailed", "[%s layer %zu] Allocating %f MB for cuDNN %1$s workspace.\n", _type.c_str(), _index - 1, (float)_convolutionWorkspaceSize / (1024.0 * 1024.0));
+  #endif
     cudaErrCheck(cudaMalloc((void **)&_convolutionWorkspace, _convolutionWorkspaceSize * sizeof(float)));
-
-
   }
 #endif
 }
@@ -460,23 +476,23 @@ void __className__::forwardData(const size_t t)
     float alpha2 = 0.0f;
     std::string err{};
     err = cudnnGetErr(cudnnConvolutionBackwardData(_nn->_cuDNNHandle,
-                                               &alpha1,
-                                               _weightsFilterDesc,
-                                               _weightsFilter,
-                                               /*dyDesc/_outputDescriptor desc=*/_inputDescriptor,
-                                               /*dy/_outputGradientTensor[t]=*/_prevLayer->_outputTensor[t],
-                                               /*convDesc*/_convolutionDescriptor,
-                                               _convolutionBwdDataAlgorithm,
-                                               _convolutionWorkspace,
-                                               _convolutionWorkspaceSize,
-                                               &alpha2,
-                                               /*dxDesc/_inputDescriptor desc=*/_outputDescriptor,
-                                               /*dx/_prevLayer->_outputGradientTensor[t]/result=*/_outputTensor[t]));
-    if(!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Forward Data (ConvolutionBackwardData): %s \n", _type.c_str(), _index-1, err.c_str());
+                                                   &alpha1,
+                                                   _weightsFilterDesc,
+                                                   _weightsFilter,
+                                                   /*dyDesc/_outputDescriptor desc=*/_inputDescriptor,
+                                                   /*dy/_outputGradientTensor[t]=*/_prevLayer->_outputTensor[t],
+                                                   /*convDesc*/ _convolutionDescriptor,
+                                                   _convolutionBwdDataAlgorithm,
+                                                   _convolutionWorkspace,
+                                                   _convolutionWorkspaceSize,
+                                                   &alpha2,
+                                                   /*dxDesc/_inputDescriptor desc=*/_outputDescriptor,
+                                                   /*dx/_prevLayer->_outputGradientTensor[t]/result=*/_outputTensor[t]));
+    if (!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Forward Data (ConvolutionBackwardData): %s \n", _type.c_str(), _index - 1, err.c_str());
     float alpha = 1.0f;
     float beta = 1.0f;
     err = cudnnGetErr(cudnnAddTensor(_nn->_cuDNNHandle, &alpha, _biasTensorDesc, _biasTensor, &beta, _outputDescriptor, _outputTensor[t]));
-    if(!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Forward Bias: %s \n", _type.c_str(), _index-1, err.c_str());
+    if (!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Forward Bias: %s \n", _type.c_str(), _index - 1, err.c_str());
   }
 #endif
 }
@@ -553,23 +569,22 @@ void __className__::backwardHyperparameters(size_t t)
       &beta,
       _biasTensorDesc,
       _biasGradientTensor));
-    if(!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Backward Bias: %s \n", _type.c_str(), _index-1, err.c_str());
+    if (!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Backward Bias: %s \n", _type.c_str(), _index - 1, err.c_str());
     err = cudnnGetErr(cudnnConvolutionBackwardFilter(
-                    _nn->_cuDNNHandle,
-                    &alpha,
-                    /*xDesc=*/_outputDescriptor,
-                    /*x=*/_outputGradientTensor[t],
-                    /*dyDesc=*/_inputDescriptor,
-                    /*y=*/_prevLayer->_outputTensor[t],
-                    _convolutionDescriptor,
-                    _convolutionBwdFilterAlgorithm,
-                    _convolutionWorkspace,
-                    _convolutionWorkspaceSize,
-                    &beta,
-                    _weightsFilterDesc,
-                    /*result=*/_weightsGradientFilter));
-    if(!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Backward Fitler: %s \n", _type.c_str(), _index-1, err.c_str());
-
+      _nn->_cuDNNHandle,
+      &alpha,
+      /*xDesc=*/_outputDescriptor,
+      /*x=*/_outputGradientTensor[t],
+      /*dyDesc=*/_inputDescriptor,
+      /*y=*/_prevLayer->_outputTensor[t],
+      _convolutionDescriptor,
+      _convolutionBwdFilterAlgorithm,
+      _convolutionWorkspace,
+      _convolutionWorkspaceSize,
+      &beta,
+      _weightsFilterDesc,
+      /*result=*/_weightsGradientFilter));
+    if (!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Backward Fitler: %s \n", _type.c_str(), _index - 1, err.c_str());
   }
 #endif
 }
@@ -585,7 +600,8 @@ void __className__::setHyperparameters(const float *hyperparameters)
 #endif
 
 #ifdef _KORALI_USE_CUDNN
-  if (_nn->_engine == "CuDNN"){
+  if (_nn->_engine == "CuDNN")
+  {
     cudaErrCheck(cudaMemcpy(_weightsFilter, &hyperparameters[0], _weightsCount * sizeof(float), cudaMemcpyHostToDevice));
     cudaErrCheck(cudaMemcpy(_biasTensor, &hyperparameters[_weightsCount], _biasCount * sizeof(float), cudaMemcpyHostToDevice));
   }
@@ -603,7 +619,8 @@ void __className__::getHyperparameters(float *hyperparameters)
 #endif
 
 #ifdef _KORALI_USE_CUDNN
-  if (_nn->_engine == "CuDNN"){
+  if (_nn->_engine == "CuDNN")
+  {
     cudaErrCheck(cudaMemcpy(&hyperparameters[0], _weightsFilter, _weightsCount * sizeof(float), cudaMemcpyDeviceToHost));
     cudaErrCheck(cudaMemcpy(&hyperparameters[_weightsCount], _biasTensor, _biasCount * sizeof(float), cudaMemcpyDeviceToHost));
   }
@@ -630,36 +647,37 @@ void __className__::getHyperparameterGradients(float *gradient)
 }
 
 #ifdef _KORALI_USE_CUDNN
-size_t __className__::getBackwardWsSize() {
-        size_t sizeFilterAlg = 0;
-        size_t sizeDataAlg = 0;
-        // if (!_algorithmBackwardFilter.empty())
-        // TODO: algorithm search cuDNN v8
-      cudnnFilterDescriptor_t tmpWeightsFilterDesc;
-      cudnnErrCheck(cudnnCreateFilterDescriptor(&tmpWeightsFilterDesc));
-      cudnnErrCheck(cudnnSetFilter4dDescriptor(tmpWeightsFilterDesc,
-                                              /*dataType=*/CUDNN_DATA_FLOAT,
-                                               /*format=*/CUDNN_TENSOR_NCHW,
-                                               /*out_channels=*/IC,
-                                               /*in_channels=*/OC,
-                                               /*kernel_height=*/KH,
-                                               /*kernel_width=*/KW));
-        cudnnErrCheck(cudnnGetConvolutionBackwardFilterWorkspaceSize(_nn->_cuDNNHandle,
-                                                                     _outputDescriptor,
-                                                                     _inputDescriptor,
-                                                                     _convolutionDescriptor,
-                                                                     tmpWeightsFilterDesc,
-                                                                     _convolutionBwdFilterAlgorithm,
-                                                                     &sizeFilterAlg));
-        // Input descriptor is now output descriptor as this is backward
-        cudnnErrCheck(cudnnGetConvolutionForwardWorkspaceSize(_nn->_cuDNNHandle,
-                                                              /*xDesc=*/_outputDescriptor,
-                                                              _weightsFilterDesc,
-                                                              _convolutionDescriptor,
-                                                              /*yDesc*/_inputDescriptor,
-                                                              /*_convolutionAlgorith=*/_convolutionFwdAlgorithm,
-                                                              &_convolutionWorkspaceSize));
-        return std::max(sizeFilterAlg, sizeDataAlg);
+size_t __className__::getBackwardWsSize()
+{
+  size_t sizeFilterAlg = 0;
+  size_t sizeDataAlg = 0;
+  // if (!_algorithmBackwardFilter.empty())
+  // TODO: algorithm search cuDNN v8
+  cudnnFilterDescriptor_t tmpWeightsFilterDesc;
+  cudnnErrCheck(cudnnCreateFilterDescriptor(&tmpWeightsFilterDesc));
+  cudnnErrCheck(cudnnSetFilter4dDescriptor(tmpWeightsFilterDesc,
+                                           /*dataType=*/CUDNN_DATA_FLOAT,
+                                           /*format=*/CUDNN_TENSOR_NCHW,
+                                           /*out_channels=*/IC,
+                                           /*in_channels=*/OC,
+                                           /*kernel_height=*/KH,
+                                           /*kernel_width=*/KW));
+  cudnnErrCheck(cudnnGetConvolutionBackwardFilterWorkspaceSize(_nn->_cuDNNHandle,
+                                                               _outputDescriptor,
+                                                               _inputDescriptor,
+                                                               _convolutionDescriptor,
+                                                               tmpWeightsFilterDesc,
+                                                               _convolutionBwdFilterAlgorithm,
+                                                               &sizeFilterAlg));
+  // Input descriptor is now output descriptor as this is backward
+  cudnnErrCheck(cudnnGetConvolutionForwardWorkspaceSize(_nn->_cuDNNHandle,
+                                                        /*xDesc=*/_outputDescriptor,
+                                                        _weightsFilterDesc,
+                                                        _convolutionDescriptor,
+                                                        /*yDesc*/ _inputDescriptor,
+                                                        /*_convolutionAlgorith=*/_convolutionFwdAlgorithm,
+                                                        &_convolutionWorkspaceSize));
+  return std::max(sizeFilterAlg, sizeDataAlg);
 }
 #endif
 

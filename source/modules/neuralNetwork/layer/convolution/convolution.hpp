@@ -287,7 +287,7 @@ class Convolution : public Layer
   /**
    * @brief cuDNN Device memory pointer for the filter weights
    */
-  void * _weightsFilter;
+  void *_weightsFilter;
   /**
    * @brief cuDNN Device memory pointer for the filter weights gradients
    */
@@ -335,7 +335,7 @@ class Convolution : public Layer
   /**
    * @brief cuDNN enum of backward filter convolution algorithm to be use.
    */
-   cudnnConvolutionBwdFilterAlgo_t _convolutionBwdFilterAlgorithm;
+  cudnnConvolutionBwdFilterAlgo_t _convolutionBwdFilterAlgorithm;
 
 #endif
 

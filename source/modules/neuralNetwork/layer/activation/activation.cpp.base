@@ -34,86 +34,89 @@ void __className__::createForwardPipeline()
   Layer::createForwardPipeline();
 
   std::exception_ptr eptr;
-  try{
-#ifdef _KORALI_USE_ONEDNN
-  if (_nn->_engine == "OneDNN")
+  try
   {
-    // If it is an element-wise operation, create an element-wise primitive
-    if (_function.rfind("Elementwise", 0) == 0)
+#ifdef _KORALI_USE_ONEDNN
+    if (_nn->_engine == "OneDNN")
     {
-      if (_function == "Elementwise/Clip") _activationAlgorithm = algorithm::eltwise_clip;
-      if (_function == "Elementwise/Linear") _activationAlgorithm = algorithm::eltwise_linear;
-      if (_function == "Elementwise/Log") _activationAlgorithm = algorithm::eltwise_log;
-      if ((_function == "Elementwise/Logistic") || (_function == "Elementwise/Sigmoid")) _activationAlgorithm = algorithm::eltwise_logistic;
-      if (_function == "Elementwise/ReLU") _activationAlgorithm = algorithm::eltwise_relu;
-      if (_function == "Elementwise/SoftReLU") _activationAlgorithm = algorithm::eltwise_soft_relu;
-      if (_function == "Elementwise/SoftSign") KORALI_LOG_ERROR("ONEDNN does not support activation functions of type 'Elementwise/SoftSign'.");
-      if (_function == "Elementwise/Tanh") _activationAlgorithm = algorithm::eltwise_tanh;
+      // If it is an element-wise operation, create an element-wise primitive
+      if (_function.rfind("Elementwise", 0) == 0)
+      {
+        if (_function == "Elementwise/Clip") _activationAlgorithm = algorithm::eltwise_clip;
+        if (_function == "Elementwise/Linear") _activationAlgorithm = algorithm::eltwise_linear;
+        if (_function == "Elementwise/Log") _activationAlgorithm = algorithm::eltwise_log;
+        if ((_function == "Elementwise/Logistic") || (_function == "Elementwise/Sigmoid")) _activationAlgorithm = algorithm::eltwise_logistic;
+        if (_function == "Elementwise/ReLU") _activationAlgorithm = algorithm::eltwise_relu;
+        if (_function == "Elementwise/SoftReLU") _activationAlgorithm = algorithm::eltwise_soft_relu;
+        if (_function == "Elementwise/SoftSign") KORALI_LOG_ERROR("ONEDNN does not support activation functions of type 'Elementwise/SoftSign'.");
+        if (_function == "Elementwise/Tanh") _activationAlgorithm = algorithm::eltwise_tanh;
 
-      // Creating descriptor
-      auto activationDesc = eltwise_forward::desc(
-        _propKind,
-        _activationAlgorithm,
-        _prevLayer->_outputMem[0].get_desc(),
-        _alpha,
-        _beta);
+        // Creating descriptor
+        auto activationDesc = eltwise_forward::desc(
+          _propKind,
+          _activationAlgorithm,
+          _prevLayer->_outputMem[0].get_desc(),
+          _alpha,
+          _beta);
 
-      // Create primitive descriptor.
-      _forwardEltwiseActivationPrimitiveDesc = eltwise_forward::primitive_desc(activationDesc, _nn->_dnnlEngine);
+        // Create primitive descriptor.
+        _forwardEltwiseActivationPrimitiveDesc = eltwise_forward::primitive_desc(activationDesc, _nn->_dnnlEngine);
 
-      // Create the primitive.
-      _forwardActivationPrimitive = eltwise_forward(_forwardEltwiseActivationPrimitiveDesc);
+        // Create the primitive.
+        _forwardActivationPrimitive = eltwise_forward(_forwardEltwiseActivationPrimitiveDesc);
+      }
+
+      // Check other possible types of activation functions
+      if (_function == "Softmax")
+      {
+        // Creating descriptor
+        const int axis = 1;
+        auto activationDesc = softmax_forward::desc(_propKind, _prevLayer->_outputMem[0].get_desc(), axis);
+
+        // Create primitive descriptor.
+        _forwardSoftmaxActivationPrimitiveDesc = softmax_forward::primitive_desc(activationDesc, _nn->_dnnlEngine);
+
+        // Create the primitive.
+        _forwardActivationPrimitive = softmax_forward(_forwardSoftmaxActivationPrimitiveDesc);
+      }
+      else if (_function == "Logsoftmax")
+      {
+        // Creating descriptor
+        const int axis = 1;
+        auto activationDesc = logsoftmax_forward::desc(_propKind, _prevLayer->_outputMem[0].get_desc(), axis);
+
+        // Create primitive descriptor.
+        _forwardLogSoftmaxActivationPrimitiveDesc = logsoftmax_forward::primitive_desc(activationDesc, _nn->_dnnlEngine);
+
+        // Create the primitive.
+        _forwardActivationPrimitive = logsoftmax_forward(_forwardLogSoftmaxActivationPrimitiveDesc);
+      }
     }
-
-    // Check other possible types of activation functions
-    if (_function == "Softmax")
-    {
-      // Creating descriptor
-      const int axis = 1;
-      auto activationDesc = softmax_forward::desc(_propKind, _prevLayer->_outputMem[0].get_desc(), axis);
-
-      // Create primitive descriptor.
-      _forwardSoftmaxActivationPrimitiveDesc = softmax_forward::primitive_desc(activationDesc, _nn->_dnnlEngine);
-
-      // Create the primitive.
-      _forwardActivationPrimitive = softmax_forward(_forwardSoftmaxActivationPrimitiveDesc);
-    } else if (_function == "Logsoftmax")
-    {
-      // Creating descriptor
-      const int axis = 1;
-      auto activationDesc = logsoftmax_forward::desc(_propKind, _prevLayer->_outputMem[0].get_desc(), axis);
-
-      // Create primitive descriptor.
-      _forwardLogSoftmaxActivationPrimitiveDesc = logsoftmax_forward::primitive_desc(activationDesc, _nn->_dnnlEngine);
-
-      // Create the primitive.
-      _forwardActivationPrimitive = logsoftmax_forward(_forwardLogSoftmaxActivationPrimitiveDesc);
-    }
-
-  }
 #endif
 
 #ifdef _KORALI_USE_CUDNN
-  if (_nn->_engine == "CuDNN")
-  {
-    cudnnErrCheck(cudnnCreateActivationDescriptor(&_activationDesc));
-    cudnnActivationMode_t activationMode;
+    if (_nn->_engine == "CuDNN")
+    {
+      cudnnErrCheck(cudnnCreateActivationDescriptor(&_activationDesc));
+      cudnnActivationMode_t activationMode;
 
-    if (_function == "Elementwise/Clip") activationMode = CUDNN_ACTIVATION_CLIPPED_RELU;
-    if (_function == "Elementwise/Linear") activationMode = CUDNN_ACTIVATION_IDENTITY;
-    if (_function == "Elementwise/Log") KORALI_LOG_ERROR("Activation function not supported: %s.\n", _function.c_str());
-    if ((_function == "Elementwise/Logistic") || (_function == "Elementwise/Sigmoid")) activationMode = CUDNN_ACTIVATION_SIGMOID;
-    if (_function == "Elementwise/ReLU") activationMode = CUDNN_ACTIVATION_RELU;
-    if (_function == "Elementwise/SoftReLU") KORALI_LOG_ERROR("CUDNN does not support activation functions of type 'Elementwise/SoftSign'.");
-    if (_function == "Elementwise/SoftSign") KORALI_LOG_ERROR("CUDNN does not support activation functions of type 'Elementwise/SoftSign'.");
-    if (_function == "Elementwise/Tanh") activationMode = CUDNN_ACTIVATION_TANH;
-    if (_function == "Softmax") activationMode = CUDNN_ACTIVATION_IDENTITY;
-    if (_function == "Logsoftmax") KORALI_LOG_ERROR("Logsoftmax To be Implemnted!");
+      if (_function == "Elementwise/Clip") activationMode = CUDNN_ACTIVATION_CLIPPED_RELU;
+      if (_function == "Elementwise/Linear") activationMode = CUDNN_ACTIVATION_IDENTITY;
+      if (_function == "Elementwise/Log") KORALI_LOG_ERROR("Activation function not supported: %s.\n", _function.c_str());
+      if ((_function == "Elementwise/Logistic") || (_function == "Elementwise/Sigmoid")) activationMode = CUDNN_ACTIVATION_SIGMOID;
+      if (_function == "Elementwise/ReLU") activationMode = CUDNN_ACTIVATION_RELU;
+      if (_function == "Elementwise/SoftReLU") KORALI_LOG_ERROR("CUDNN does not support activation functions of type 'Elementwise/SoftSign'.");
+      if (_function == "Elementwise/SoftSign") KORALI_LOG_ERROR("CUDNN does not support activation functions of type 'Elementwise/SoftSign'.");
+      if (_function == "Elementwise/Tanh") activationMode = CUDNN_ACTIVATION_TANH;
+      if (_function == "Softmax") activationMode = CUDNN_ACTIVATION_IDENTITY;
+      if (_function == "Logsoftmax") KORALI_LOG_ERROR("Logsoftmax To be Implemnted!");
 
-    if (cudnnSetActivationDescriptor(_activationDesc, activationMode, CUDNN_PROPAGATE_NAN, _alpha) != CUDNN_STATUS_SUCCESS) KORALI_LOG_ERROR("Error creating activation algorithm\n");
-  }
+      if (cudnnSetActivationDescriptor(_activationDesc, activationMode, CUDNN_PROPAGATE_NAN, _alpha) != CUDNN_STATUS_SUCCESS) KORALI_LOG_ERROR("Error creating activation algorithm\n");
+    }
 #endif
-  } catch (...) {
+  }
+  catch (...)
+  {
     eptr = std::current_exception();
   }
   exceptionHandler(eptr);
@@ -153,7 +156,8 @@ void __className__::createBackwardPipeline()
 
       // Create the primitive.
       _backwardActivationPrimitive = softmax_backward(backwardActivationPrimitiveDesc);
-    } else if (_function == "Logsoftmax")
+    }
+    else if (_function == "Logsoftmax")
     {
       // Creating descriptor
       const int axis = 1;
@@ -272,11 +276,11 @@ void __className__::forwardData(const size_t t)
         /*algorithm=*/CUDNN_SOFTMAX_ACCURATE,
         /*mode=*/CUDNN_SOFTMAX_MODE_CHANNEL,
         &_alpha,
-        /*xDesc/input desc*/_prevLayer->_outputTensorDesc,
+        /*xDesc/input desc*/ _prevLayer->_outputTensorDesc,
         /*x/input=*/_prevLayer->_outputTensor[t],
         &_beta,
         /*yDesc/output desc=*/_outputTensorDesc,
-        /*y/output*/_outputTensor[t]));
+        /*y/output*/ _outputTensor[t]));
     }
     else if (_function == "Logsoftmax")
     {
@@ -359,7 +363,8 @@ void __className__::backwardData(const size_t t)
     _backwardActivationArgs[DNNL_ARG_DIFF_DST] = _outputGradientMem[t];             // Input
     _backwardActivationArgs[DNNL_ARG_SRC] = _prevLayer->_outputMem[t];              // Input
     _backwardActivationArgs[DNNL_ARG_DIFF_SRC] = _prevLayer->_outputGradientMem[t]; // Output
-    if (_function == "Softmax" || _function == "Logsoftmax"){
+    if (_function == "Softmax" || _function == "Logsoftmax")
+    {
       _backwardActivationArgs[DNNL_ARG_DST] = _outputMem[t];
     }
 
@@ -388,11 +393,10 @@ void __className__::backwardData(const size_t t)
         /*xDesc/input desc=*/_outputTensorDesc,
         /*x/input=*/_outputTensor[t],
         /*yDesc/output desc=*/_outputTensorDesc,
-        /*dy/d_output*/_outputGradientTensor[t],
+        /*dy/d_output*/ _outputGradientTensor[t],
         &_beta,
         /*xDesc/input desc=*/_prevLayer->_outputTensorDesc,
-        /*dx/d_input*/_prevLayer->_outputGradientTensor[t]));
-
+        /*dx/d_input*/ _prevLayer->_outputGradientTensor[t]));
     }
     else if (_function == "Logsoftmax")
     {

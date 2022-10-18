@@ -2,28 +2,31 @@
 
 __startNamespace__;
 
-
-void __className__::initialize(){
+void __className__::initialize()
+{
   _currentValue.resize(_nVars, 0.0f);
 };
 
-void __className__::preProcessResult(std::vector<float> &gradient){
-    if (gradient.size() != _nVars)
-    {
-      fprintf(stderr, "Size of sample's gradient evaluations vector (%lu) is different from the number of problem variables defined (%lu).\n", gradient.size(), _nVars);
-      throw std::runtime_error("Bad Inputs for Optimizer.");
-    }
-    for (const float v : gradient){
-      if (!std::isfinite(v))
-        KORALI_LOG_ERROR("\nOptimizer recieved non-finite gradient");
-    }
+void __className__::preProcessResult(std::vector<float> &gradient)
+{
+  if (gradient.size() != _nVars)
+  {
+    fprintf(stderr, "Size of sample's gradient evaluations vector (%lu) is different from the number of problem variables defined (%lu).\n", gradient.size(), _nVars);
+    throw std::runtime_error("Bad Inputs for Optimizer.");
+  }
+  for (const float v : gradient)
+  {
+    if (!std::isfinite(v))
+      KORALI_LOG_ERROR("\nOptimizer recieved non-finite gradient");
+  }
 };
 
-void __className__::postProcessResult(std::vector<float> &parameters){
-    for (const float v : parameters)
-      if (!std::isfinite(v))
-        KORALI_LOG_ERROR("\nOptimizer calculated non-finite hyperparameters");
-    _modelEvaluationCount++;
+void __className__::postProcessResult(std::vector<float> &parameters)
+{
+  for (const float v : parameters)
+    if (!std::isfinite(v))
+      KORALI_LOG_ERROR("\nOptimizer calculated non-finite hyperparameters");
+  _modelEvaluationCount++;
 };
 
 __moduleAutoCode__;

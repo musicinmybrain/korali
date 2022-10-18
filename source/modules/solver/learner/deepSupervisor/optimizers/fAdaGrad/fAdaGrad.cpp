@@ -11,7 +11,8 @@ namespace optimizer
 {
 ;
 
-void fAdaGrad::initialize() {
+void fAdaGrad::initialize()
+{
   FastGradientBasedOptimizer::initialize();
   _gdiag.resize(_nVars, 0.0f);
   reset();
@@ -20,8 +21,9 @@ void fAdaGrad::initialize() {
 void fAdaGrad::reset()
 {
   _modelEvaluationCount = 0;
-  #pragma omp parallel for simd
-  for (size_t i = 0; i < _nVars; i++){
+#pragma omp parallel for simd
+  for (size_t i = 0; i < _nVars; i++)
+  {
     _currentValue[i] = 0.0f;
     _gdiag[i] = 0.0f;
   }
@@ -31,7 +33,7 @@ void fAdaGrad::processResult(std::vector<float> &gradient)
 {
   FastGradientBasedOptimizer::preProcessResult(gradient);
 
-  #pragma omp parallel for simd
+#pragma omp parallel for simd
   for (size_t i = 0; i < _nVars; i++)
   {
     _gdiag[i] = _gdiag[i] + (gradient[i] * gradient[i]);

@@ -1,6 +1,6 @@
-#include "modules/neuralNetwork/layer/pooling/pooling.hpp"
 #include "modules/neuralNetwork/layer/convolution/convolution.hpp"
 #include "modules/neuralNetwork/layer/deconvolution/deconvolution.hpp"
+#include "modules/neuralNetwork/layer/pooling/pooling.hpp"
 #include "modules/neuralNetwork/layer/resampling/resampling.hpp"
 #include "modules/neuralNetwork/neuralNetwork.hpp"
 
@@ -27,8 +27,9 @@ namespace layer
 void Pooling::initialize()
 {
   // Checking Layer size
-  if (_filters == -1 && _outputChannels == 0){
-    _k->_logger->logInfo("Detailed", "[%s Layer %lu] No output channels specified, assuming OC = IC.\n", _type.c_str(), _index-1);
+  if (_filters == -1 && _outputChannels == 0)
+  {
+    _k->_logger->logInfo("Detailed", "[%s Layer %lu] No output channels specified, assuming OC = IC.\n", _type.c_str(), _index - 1);
   }
 
   // Checking position
@@ -44,33 +45,33 @@ void Pooling::initialize()
 
   // Kernel ===============================================================================
   KH = KW = _kernelSize;
-  if(_kernelWidth != -1)
+  if (_kernelWidth != -1)
     KW = _kernelWidth;
-  if( _kernelHeight != -1)
+  if (_kernelHeight != -1)
     KH = _kernelHeight;
   // Strides ==============================================================================
   SV = SH = _strideSize;
-  if( _verticalStride != -1)
+  if (_verticalStride != -1)
     SV = _verticalStride;
-  if( _horizontalStride != -1)
+  if (_horizontalStride != -1)
     SH = _horizontalStride;
   // Paddings =============================================================================
   PT = PL = PB = PR = _paddingSize;
-  if( _paddingVertical != -1)
+  if (_paddingVertical != -1)
     PT = PB = _paddingVertical;
-  if( _paddingHorizontal != -1)
+  if (_paddingHorizontal != -1)
     PL = PR = _paddingVertical;
-  if( _paddingTop != -1)
+  if (_paddingTop != -1)
     PT = _paddingTop;
-  if( _paddingBottom != -1)
+  if (_paddingBottom != -1)
     PB = _paddingBottom;
-  if( _paddingLeft != -1)
+  if (_paddingLeft != -1)
     PL = _paddingLeft;
-  if( _paddingRight != -1)
+  if (_paddingRight != -1)
     PR = _paddingRight;
 
-  if (IW <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image width not given.\n", _type.c_str(), _index-1);
-  if (IH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image height not given.\n", _type.c_str(), _index-1);
+  if (IW <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image width not given.\n", _type.c_str(), _index - 1);
+  if (IH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image height not given.\n", _type.c_str(), _index - 1);
   // ======================================================================================
   if (KH <= 0) KORALI_LOG_ERROR("Kernel height must be larger than zero for pooling layer.\n");
   if (KW <= 0) KORALI_LOG_ERROR("Kernel width must be larger than zero for pooling layer.\n");
@@ -78,35 +79,36 @@ void Pooling::initialize()
   if (SH <= 0) KORALI_LOG_ERROR("Horizontal stride must be larger than zero for pooling layer.\n");
 
   // Several sanity checks
-  if (KH > IH + PR + PL) KORALI_LOG_ERROR("[%s layer %zu] Kernel height cannot be larger than input image height plus padding.\n", _type.c_str(), _index-1);
-  if (KW > IW + PT + PB) KORALI_LOG_ERROR("[%s layer %zu] Kernel width cannot be larger than input image width plus padding.\n", _type.c_str(), _index-1);
+  if (KH > IH + PR + PL) KORALI_LOG_ERROR("[%s layer %zu] Kernel height cannot be larger than input image height plus padding.\n", _type.c_str(), _index - 1);
+  if (KW > IW + PT + PB) KORALI_LOG_ERROR("[%s layer %zu] Kernel width cannot be larger than input image width plus padding.\n", _type.c_str(), _index - 1);
 
   // Check whether the output channels of the previous layer is divided by the height and width
-  if (_prevLayer->_outputChannels % (IH * IW) > 0) KORALI_LOG_ERROR("[Pooling layer %zu] Previous layer contains a number of channels (%lu) not divisible by the pooling 2D HxW setup (%lux%lu).\n", _index-1, _prevLayer->_outputChannels, IH, IW);
+  if (_prevLayer->_outputChannels % (IH * IW) > 0) KORALI_LOG_ERROR("[Pooling layer %zu] Previous layer contains a number of channels (%lu) not divisible by the pooling 2D HxW setup (%lux%lu).\n", _index - 1, _prevLayer->_outputChannels, IH, IW);
   IC = _prevLayer->_outputChannels / (IH * IW);
 
   // Deriving output height and width
   OH = ((IH - KH + PR + PL) / SH) + 1;
   OW = ((IW - KW + PT + PB) / SV) + 1;
-  if( ((IH - KH + PT + PB) % SV) != 0)
-    _k->_logger->logInfo("Normal", "[Convolutional layer %zu] (IH - KH + PT + PB) / SV = %lu using floor.\n", _index-1, OH-1);
-  if( ((IW - KW + PR + PL) % SH) != 0)
-    _k->_logger->logInfo("Normal", "[Convolutional layer %zu] (IW - KW + PR + PL) / SH = %lu using floor.\n", _index-1, OW-1);
-  if(_outputChannels == 0)
-    if(_filters == -1){
+  if (((IH - KH + PT + PB) % SV) != 0)
+    _k->_logger->logInfo("Normal", "[Convolutional layer %zu] (IH - KH + PT + PB) / SV = %lu using floor.\n", _index - 1, OH - 1);
+  if (((IW - KW + PR + PL) % SH) != 0)
+    _k->_logger->logInfo("Normal", "[Convolutional layer %zu] (IW - KW + PR + PL) / SH = %lu using floor.\n", _index - 1, OW - 1);
+  if (_outputChannels == 0)
+    if (_filters == -1)
+    {
       _filters = IC;
-      _outputChannels = _filters*OH*OW;
+      _outputChannels = _filters * OH * OW;
     }
   // Check whether the output channels of the previous layer is divided by the height and width
-  if (_outputChannels % (OH * OW) > 0) KORALI_LOG_ERROR("[Pooling layer %zu] Number of output channels (%lu) not divisible by the output image size (%lux%lu) given kernel (%lux%lu) size and padding/stride configuration.\n", _index-1, _outputChannels, OH, OW, KH, KW);
+  if (_outputChannels % (OH * OW) > 0) KORALI_LOG_ERROR("[Pooling layer %zu] Number of output channels (%lu) not divisible by the output image size (%lux%lu) given kernel (%lux%lu) size and padding/stride configuration.\n", _index - 1, _outputChannels, OH, OW, KH, KW);
   OC = _outputChannels / (OH * OW);
 #ifdef _KORALI_USE_CUDNN
   if (_nn->_engine == "CuDNN")
   {
     if (PT != PB)
-      KORALI_LOG_ERROR("[%s layer %zu] does not allow an symmetric top %zu and bottom %zu padding.\n", _index-1, _type.c_str(), PT, PB);
+      KORALI_LOG_ERROR("[%s layer %zu] does not allow an symmetric top %zu and bottom %zu padding.\n", _index - 1, _type.c_str(), PT, PB);
     if (PT != PB)
-      KORALI_LOG_ERROR("[%s layer %zu] does not allow an symmetric left %zu and right %zu padding.\n", _index-1, _type.c_str(), PL, PR);
+      KORALI_LOG_ERROR("[%s layer %zu] does not allow an symmetric left %zu and right %zu padding.\n", _index - 1, _type.c_str(), PL, PR);
   }
 #endif
 }
@@ -135,10 +137,14 @@ void Pooling::createForwardPipeline()
     memory::dims kernelDims = {KH, KW};
 
     // Determining algorithm
-    if (_function == "Max") _algorithm_t = dnnl::algorithm::pooling_max;
-    else if (_function == "Inclusive Average" || _function == "Average") _algorithm_t = dnnl::algorithm::pooling_avg_include_padding;
-    else if (_function == "Exclusive Average") _algorithm_t = dnnl::algorithm::pooling_avg_exclude_padding;
-    else KORALI_LOG_ERROR("[%s Layer %zu] pooling method \"%s\" is not a valid option for oneDNN engine [\"Max\", \"Inclusive Average\", \"Exclusive Average\"].\n", _type.c_str(), _index-1, _function.c_str());
+    if (_function == "Max")
+      _algorithm_t = dnnl::algorithm::pooling_max;
+    else if (_function == "Inclusive Average" || _function == "Average")
+      _algorithm_t = dnnl::algorithm::pooling_avg_include_padding;
+    else if (_function == "Exclusive Average")
+      _algorithm_t = dnnl::algorithm::pooling_avg_exclude_padding;
+    else
+      KORALI_LOG_ERROR("[%s Layer %zu] pooling method \"%s\" is not a valid option for oneDNN engine [\"Max\", \"Inclusive Average\", \"Exclusive Average\"].\n", _type.c_str(), _index - 1, _function.c_str());
 
     // We create the pooling operation
     auto pooling_d = pooling_forward::desc(_propKind, std::get<dnnl::algorithm>(_algorithm_t), _srcMemDesc, _dstMemDesc, ST, kernelDims, PTL, PBR);
@@ -161,48 +167,50 @@ void Pooling::createForwardPipeline()
   if (_nn->_engine == "CuDNN")
   {
     // Determining algorithm
-    if (_function == "Max") _algorithm_t = CUDNN_POOLING_MAX;
-    else if (_function == "Inclusive Average" || _function == "Average") _algorithm_t = CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
-    else if (_function == "Exclusive Average") _algorithm_t = CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING;
-    else KORALI_LOG_ERROR("[%s Layer %zu] pooling method \"%s\" is not a valid option for cuDNN engine [\"Max\", \"Inclusive Average\", \"Exclusive Average\"].\n", _type.c_str(), _index-1, _function.c_str());
+    if (_function == "Max")
+      _algorithm_t = CUDNN_POOLING_MAX;
+    else if (_function == "Inclusive Average" || _function == "Average")
+      _algorithm_t = CUDNN_POOLING_AVERAGE_COUNT_INCLUDE_PADDING;
+    else if (_function == "Exclusive Average")
+      _algorithm_t = CUDNN_POOLING_AVERAGE_COUNT_EXCLUDE_PADDING;
+    else
+      KORALI_LOG_ERROR("[%s Layer %zu] pooling method \"%s\" is not a valid option for cuDNN engine [\"Max\", \"Inclusive Average\", \"Exclusive Average\"].\n", _type.c_str(), _index - 1, _function.c_str());
 
     // Input Tensor
     cudnnErrCheck(cudnnCreateTensorDescriptor(&_inputDescriptor));
     cudnnErrCheck(cudnnSetTensor4dDescriptor(
-                    /*Inp. Tensor Descr.=*/ _inputDescriptor,
-                    /*format=*/CUDNN_TENSOR_NCHW,
-                    /*dataType=*/CUDNN_DATA_FLOAT,
-                    /*batch_size=*/N,
-                    /*channels=*/IC,
-                    /*image_height=*/IH,
-                    /*image_width=*/IW));
+      /*Inp. Tensor Descr.=*/_inputDescriptor,
+      /*format=*/CUDNN_TENSOR_NCHW,
+      /*dataType=*/CUDNN_DATA_FLOAT,
+      /*batch_size=*/N,
+      /*channels=*/IC,
+      /*image_height=*/IH,
+      /*image_width=*/IW));
     // Output Tensor
     cudnnErrCheck(cudnnCreateTensorDescriptor(&_outputDescriptor));
     cudnnErrCheck(cudnnSetTensor4dDescriptor(
-                    /*Output. Tensor Descr.=*/ _outputDescriptor,
-                    /*format=*/CUDNN_TENSOR_NCHW,
-                    /*dataType=*/CUDNN_DATA_FLOAT,
-                    /*batch_size=*/N,
-                    /*channels=*/OC,
-                    /*image_height=*/OH,
-                    /*image_width=*/OW));
+      /*Output. Tensor Descr.=*/_outputDescriptor,
+      /*format=*/CUDNN_TENSOR_NCHW,
+      /*dataType=*/CUDNN_DATA_FLOAT,
+      /*batch_size=*/N,
+      /*channels=*/OC,
+      /*image_height=*/OH,
+      /*image_width=*/OW));
 
-    //create descriptor handle
+    // create descriptor handle
     cudnnErrCheck(cudnnCreatePoolingDescriptor(&_poolingDescriptor));
-    //initialize descriptor
+    // initialize descriptor
     cudnnErrCheck(cudnnSetPooling2dDescriptor(_poolingDescriptor,
-                                           /*mode=*/std::get<cudnnPoolingMode_t>(_algorithm_t),
-                                           /*NAN propg. mode=*/CUDNN_NOT_PROPAGATE_NAN, // vs. CUDNN_PROPAGATE_NAN
-                                           /*filter height=*/KH,
-                                           /*filter width*/KW,
-                                           /*vert. padding=PB=*/PT,
-                                           /*horizontal padding=PL=*/PR,
-                                           /*vertical stride=*/SV,
-                                           /*horizontal stride=*/SH));
-
+                                              /*mode=*/std::get<cudnnPoolingMode_t>(_algorithm_t),
+                                              /*NAN propg. mode=*/CUDNN_NOT_PROPAGATE_NAN, // vs. CUDNN_PROPAGATE_NAN
+                                              /*filter height=*/KH,
+                                              /*filter width*/ KW,
+                                              /*vert. padding=PB=*/PT,
+                                              /*horizontal padding=PL=*/PR,
+                                              /*vertical stride=*/SV,
+                                              /*horizontal stride=*/SH));
   }
 #endif
-
 }
 
 void Pooling::createBackwardPipeline()
@@ -264,7 +272,6 @@ void Pooling::forwardData(const size_t t)
   }
 #endif
 
-
 #ifdef _KORALI_USE_CUDNN
   if (_nn->_engine == "CuDNN")
   {
@@ -303,8 +310,8 @@ void Pooling::backwardData(const size_t t)
   {
     float alpha = 1.0f;
     float beta = 0.0f;
-    //call pooling operator to compute gradient
-    cudnnErrCheck(cudnnPoolingBackward(_nn->_cuDNNHandle,    
+    // call pooling operator to compute gradient
+    cudnnErrCheck(cudnnPoolingBackward(_nn->_cuDNNHandle,
                                        _poolingDescriptor,
                                        &alpha,
                                        /*y/out Desc          =*/_outputDescriptor,

@@ -199,7 +199,7 @@ std::vector<float> Recurrent::generateInitialHyperparameters()
   // Weights applied to the recurrent layer
   for (size_t i = 0; i < _weightsRecurrentCount; i++)
     hyperparameters.push_back(xavierConstant * _nn->_uniformGenerator->getRandomNumber());
-  
+
   // Bias for the recurrent layer
   for (size_t i = 0; i < _biasCount; i++)
     hyperparameters.push_back(0.0f);

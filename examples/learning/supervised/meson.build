@@ -1,4 +1,5 @@
 subdir('classification')
+subdir('experiments')
 subdir('reconstuction')
 subdir('regression')
 subdir('time-series')

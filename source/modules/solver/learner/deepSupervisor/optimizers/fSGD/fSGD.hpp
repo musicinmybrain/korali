@@ -12,9 +12,9 @@
 
 #pragma once
 
+#include "modules/solver/learner/deepSupervisor/optimizers/fGradientBasedOptimizers.hpp"
 #include <string>
 #include <vector>
-#include "modules/solver/learner/deepSupervisor/optimizers/fGradientBasedOptimizers.hpp"
 
 namespace korali
 {
@@ -57,20 +57,20 @@ class fSGD : public FastGradientBasedOptimizer
 
   // VARIABLES =================================================
   /**
-  * @brief Maximum gradient size before clipping
-  */
+   * @brief Maximum gradient size before clipping
+   */
   float _clippingThreshold{10000};
   // FUNCTIONS =================================================
   /**
-  * @brief wether to perform graddient clipping and what kind of.
-  * @details
-  * - value-clipping: clip each gradient value individually
-  */
+   * @brief wether to perform graddient clipping and what kind of.
+   * @details
+   * - value-clipping: clip each gradient value individually
+   */
   std::string _gradientClipping{"value-clipping"};
   /**
-  * @brief Takes the gradients and clips them if they become too large
-  * @param gradient The gradient of the objective function at the current set of parameters
-  */
+   * @brief Takes the gradients and clips them if they become too large
+   * @param gradient The gradient of the objective function at the current set of parameters
+   */
   void clipGradients(std::vector<float> &gradient);
   // OVERRIDEN FUNCTIONS =======================================
   virtual void initialize() override;

@@ -11,7 +11,8 @@ namespace optimizer
 {
 ;
 
-void fMadGrad::initialize() {
+void fMadGrad::initialize()
+{
   FastGradientBasedOptimizer::initialize();
   _initialValue.resize(_nVars, 0.0f);
   _s.resize(_nVars, 0.0f);
@@ -23,8 +24,9 @@ void fMadGrad::initialize() {
 void fMadGrad::reset()
 {
   _modelEvaluationCount = 0;
-  #pragma omp parallel for simd
-  for (size_t i = 0; i < _nVars; i++){
+#pragma omp parallel for simd
+  for (size_t i = 0; i < _nVars; i++)
+  {
     _currentValue[i] = 0.0f;
     _initialValue[i] = 0.0f;
     _s[i] = 0.0f;
@@ -38,7 +40,7 @@ void fMadGrad::processResult(std::vector<float> &gradient)
   FastGradientBasedOptimizer::preProcessResult(gradient);
 
   float lambda = _eta; // * std::sqrt((float)_modelEvaluationCount + 1.0f);
-  #pragma omp parallel for simd
+#pragma omp parallel for simd
   for (size_t i = 0; i < _nVars; i++)
   {
     _s[i] = _s[i] + lambda * gradient[i];
