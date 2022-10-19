@@ -15,6 +15,8 @@ from torch.utils.data import DataLoader,random_split
 from torch import _pin_memory, nn
 import torch.optim as optim
 import seaborn as sns
+import torch.jit as jit
+
 sys.path.append(os.path.abspath('./_models'))
 sns.set()
 
@@ -59,7 +61,7 @@ parser.add_argument(
     help='Batch size to use for training data',
     type=int,
     default=32,
-    choices=[32, 1024, 8192, 16384, 32768],
+    # choices=[16, 1024, 8192, 16384, 32768],
     required=False)
 parser.add_argument(
     "-s",
@@ -143,6 +145,7 @@ def get_flops(training_set_size, bs, dim, hidden_layers):
     flops = iterrations*layers*flops_per_layer(bs, dim, dim)
     return flops
 threads = os.environ["OMP_NUM_THREADS"]
+torch.set_num_threads(72)
 np.random.seed(0xC0FFEE)
 # In case of iPython need to temporaily set sys.args to [''] in order to parse them
 tmp = sys.argv
@@ -152,11 +155,11 @@ if len(sys.argv) != 0:
         #sys.argv = ['--model', 'multi', "--weight", "21"]
         sys.argv = []
         IPYTHON = True
-        
+
 args = parser.parse_args()
 #sys.argv = tmp
 
-if args.verbosity in ["Normal", "Detailed", ]:
+if args.verbosity in ["Normal", "Detailed"]:
     print_header('Korali', color=bcolors.HEADER, width=140)
     print_args(vars(args), sep=' ', header_width=140)
 
@@ -164,7 +167,7 @@ if args.verbosity in ["Normal", "Detailed", ]:
 # ============================================================================
 
 if not args.path:
-    path = os.path.join("_korali_result", args.other, f"model_{args.model}", f"BS_{args.trainingBS}", f"WeightExp_{args.weight_dim}", f"Threads_{threads}", "pytorch")
+    path = os.path.join("_korali_result", args.other, "pytorch", f"model_{args.model}", f"BS_{args.trainingBS}", f"WeightExp_{args.weight_dim}", f"Threads_{threads}")
 else:
     path = args.path
 
@@ -177,6 +180,7 @@ layers = 2**(args.weight_dim-(2*SMALLEST_LAYER_SIZE_EXPONENT+OUTPUT_LAYERS))
 if args.verbosity in ("Normal", "Detailed"):
     print(f"layer dimension 2^{SMALLEST_LAYER_SIZE_EXPONENT}")
     print(f"layers {layers}")
+    print(f"Pytorch number of threads {torch.get_num_threads()}")
 
 
 # Data Loader ===============================================================
@@ -210,15 +214,17 @@ class LinBench(nn.Module):
         for _ in range(layers):
             self.layers.append(nn.Linear(layer_size, layer_size))
             self.layers.append(nn.ReLU(True))
-        
-        
+
+
     def forward(self, x):
         # Apply convolutions
         for layer in self.layers:
             x = layer(x)
         return x
-    
+
+# test = LinJitBench(layers, SMALLEST_LAYER_SIZE)
 test = LinBench(layers, SMALLEST_LAYER_SIZE)
+test = torch.jit.script(test)
 # Loss Function and Optimizer ===============================================
 loss_fn = torch.nn.MSELoss()
 params_to_optimize = [
@@ -267,23 +273,23 @@ def train_epoch(nn, data_generator, device, loss_fn, optimizer):
         train_loss.append(loss.detach().cpu().numpy())
     return np.mean(train_loss).item()
 # Training Loop =============================================================
-times = []
-for e_idx, epoch in enumerate(range(args.epochs)):
-    # Training
-    train_loss = []
-    # Iterate the dataloader (we do not need the label values, this is unsupervised learning)
-    tp_start = time.time_ns()
-    train_loss = train_epoch(test, data_generator, device, loss_fn, optimizer)
-    times.append(time.time_ns()-tp_start)
-    if args.verbosity in ("Normal", "Detailed"):
-        print(f"Epoch {e_idx} Training Loss {train_loss}")
+if args.submit:
+    times = []
+    for e_idx, epoch in enumerate(range(args.epochs)):
+        # Training
+        train_loss = []
+        # Iterate the dataloader (we do not need the label values, this is unsupervised learning)
+        tp_start = time.time_ns()
+        train_loss = train_epoch(test, data_generator, device, loss_fn, optimizer)
+        times.append(time.time_ns()-tp_start)
+        if args.verbosity in ("Normal", "Detailed"):
+            print(f"Epoch {e_idx} Training Loss {train_loss}")
 
-runtime_per_epochs = sum(times)/len(times)
-runtime_per_epochs = runtime_per_epochs*10**-9
-print(f"Average Runtime of {runtime_per_epochs}s per Epoch")
-print(f"Torch threads {torch.get_num_threads()}\n")
+    runtime_per_epochs = sum(times)/len(times)
+    runtime_per_epochs = runtime_per_epochs*10**-9
+    print(f"Average Runtime of {runtime_per_epochs}s per Epoch")
 
-if args.save:
-    mkdir_p(path)
-    with open(os.path.join(path, "results.csv"), 'w') as fb:
-        fb.write(str(runtime_per_epochs))
+    if args.save:
+        mkdir_p(path)
+        with open(os.path.join(path, "results.csv"), 'w') as fb:
+            fb.write(str(runtime_per_epochs))

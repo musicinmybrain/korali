@@ -420,6 +420,7 @@ std::vector<float> &NeuralNetwork::getHyperparameterGradients(const size_t batch
 
 std::vector<float> NeuralNetwork::getHyperparameters()
 {
+  KORALI_START_PROFILE("NeuralNetwork::Get Hyperparameters", _k);
   auto hyperparameters = std::vector<float>(_hyperparameterCount);
 
   size_t layerCount = _pipelines[0][0]._layerVector.size();
@@ -430,15 +431,13 @@ std::vector<float> NeuralNetwork::getHyperparameters()
     _pipelines[0][0]._layerVector[i]->getHyperparameters(&hyperparameters[index]);
   }
 
-  for (const float h : hyperparameters)
-    if (std::isfinite(h) == false)
-      KORALI_LOG_ERROR("Returning non-finite hyperparameters"); // TODO: move check to optimizer
-
+  KORALI_STOP_PROFILE("NeuralNetwork::Get Hyperparameters", _k);
   return hyperparameters;
 }
 
 void NeuralNetwork::setHyperparameters(const std::vector<float> &hyperparameters, const bool initial)
 {
+  KORALI_START_PROFILE("NeuralNetwork::Set Weights", _k);
   if (hyperparameters.size() != _hyperparameterCount)
     KORALI_LOG_ERROR("Wrong number of hyperparameters passed to the neural network. Expected: %lu, provided: %lu.\n", _hyperparameterCount, hyperparameters.size());
 
@@ -457,6 +456,7 @@ void NeuralNetwork::setHyperparameters(const std::vector<float> &hyperparameters
       _pipelines[0][0]._layerVector[i]->setHyperparameters(&hyperparameters[index]);
     }
   }
+  KORALI_STOP_PROFILE("NeuralNetwork::Set Weights", _k);
 }
 
 void NeuralNetwork::setConfiguration(knlohmann::json& js) 
