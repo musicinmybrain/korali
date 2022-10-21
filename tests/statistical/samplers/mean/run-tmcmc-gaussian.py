@@ -36,5 +36,5 @@ e["File Output"]["Enabled"] = False
 e["Random Seed"] = 1337
 k.run(e)
 
-verifyMean(e["Solver"]["Sample Database"], [-2.0], 0.05)
-verifyStd(e["Solver"]["Sample Database"], [3.0], 0.05)
+verifyMean(e["Results"]["Posterior Sample Database"], [-2.0], 0.05)
+verifyStd(e["Results"]["Posterior Sample Database"], [3.0], 0.05)

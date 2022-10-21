@@ -12,7 +12,7 @@ TASK=$2
 NAGENTS=1
 
 # number of nodes per worker
-NRANKS=9
+NRANKS=1
 
 # number of cores per worker
 NUMCORES=12
@@ -22,7 +22,6 @@ mpiflags="mpirun -n 2"
 
 if [ ! -z $SLURM_NNODES ]; then
  N=$SLURM_NNODES
- mpiflags="srun -N $N -n $((N+1)) -c 12"
 fi
 
 RUNPATH="${SCRATCH}/korali/${RUNNAME}"
@@ -32,4 +31,4 @@ cd ${RUNPATH}
 set -ux
 
 # $mpiflags ./eval-vracer-swimmer ${OPTIONS} -shapes "${OBJECTS}" -nAgents $NAGENTS
-srun --nodes=$((N-1)) --ntasks-per-node=$NUMCORES --cpus-per-task=1 --threads-per-core=1 ./eval-vracer-swimmer -task $TASK -nAgents $NAGENTS -nRanks $(( $NRANKS * $NUMCORES )) : --nodes=1 --ntasks-per-node=1 --cpus-per-task=$NUMCORES --threads-per-core=1 ./eval-vracer-swimmer -task $TASK -nAgents $NAGENTS -nRanks $(( $NRANKS * $NUMCORES ))
+srun --nodes=$((N-1)) --ntasks-per-node=$NUMCORES --cpus-per-task=1 --threads-per-core=1 ./eval-vracer-swimmer -eval $EVAL -task $TASK -nAgents $NAGENTS -nRanks $(( $NRANKS * $NUMCORES )) : --nodes=1 --ntasks-per-node=1 --cpus-per-task=$NUMCORES --threads-per-core=1 ./eval-vracer-swimmer -eval $EVAL -task $TASK -nAgents $NAGENTS -nRanks $(( $NRANKS * $NUMCORES ))

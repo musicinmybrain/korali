@@ -3,7 +3,8 @@
 
 __startNamespace__;
 
-void __className__::initialize() {
+void __className__::initialize()
+{
   __parentClassName__::initialize();
   reset();
 }
@@ -11,7 +12,7 @@ void __className__::initialize() {
 void __className__::reset()
 {
   _modelEvaluationCount = 0;
-  #pragma omp parallel for simd
+#pragma omp parallel for simd
   for (size_t i = 0; i < _nVars; i++)
     _currentValue[i] = 0.0f;
 }
@@ -23,7 +24,7 @@ void __className__::processResult(std::vector<float> &gradient)
   // clip gradients
   clipGradients(gradient);
 
-  #pragma omp parallel for simd
+#pragma omp parallel for simd
   for (size_t i = 0; i < _nVars; i++)
   {
     _currentValue[i] += _eta * gradient[i];
@@ -32,17 +33,21 @@ void __className__::processResult(std::vector<float> &gradient)
   __parentClassName__::postProcessResult(_currentValue);
 }
 
-void __className__::clipGradients(std::vector<float> &gradient){
-  if(_gradientClipping == "value-clipping"){
+void __className__::clipGradients(std::vector<float> &gradient)
+{
+  if (_gradientClipping == "value-clipping")
+  {
     float l2norm = 0;
-    #pragma omp parallel for simd reduction(+:l2norm)
-    for(size_t i = 0; i < _nVars; i++)
-      l2norm += gradient[i]*gradient[i];
+#pragma omp parallel for simd reduction(+ \
+                                        : l2norm)
+    for (size_t i = 0; i < _nVars; i++)
+      l2norm += gradient[i] * gradient[i];
     l2norm = sqrt(l2norm);
-    if (l2norm > _clippingThreshold){
-      #pragma omp parallel for simd
-      for(size_t i = 0; i < _nVars; i++)
-        gradient[i] = _clippingThreshold*gradient[i]/l2norm;
+    if (l2norm > _clippingThreshold)
+    {
+#pragma omp parallel for simd
+      for (size_t i = 0; i < _nVars; i++)
+        gradient[i] = _clippingThreshold * gradient[i] / l2norm;
     }
   };
 }

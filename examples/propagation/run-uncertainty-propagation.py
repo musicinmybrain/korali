@@ -82,15 +82,15 @@ with open('_korali_result_samples/latest') as f:
     d = json.load(f)
 
 e['Variables'][0]['Name'] = 'a'
-v = [p[0] for p in d['Results']['Sample Database']]
+v = [p[0] for p in d['Results']['Posterior Sample Database']]
 e['Variables'][0]['Precomputed Values'] = v
 
 e['Variables'][1]['Name'] = 'b'
-v = [p[1] for p in d['Results']['Sample Database']]
+v = [p[1] for p in d['Results']['Posterior Sample Database']]
 e['Variables'][1]['Precomputed Values'] = v
 
 e['Variables'][2]['Name'] = 'sigma'
-v = [p[2] for p in d['Results']['Sample Database']]
+v = [p[2] for p in d['Results']['Posterior Sample Database']]
 e['Variables'][2]['Precomputed Values'] = v
 
 e['Solver']['Type'] = 'Executor'

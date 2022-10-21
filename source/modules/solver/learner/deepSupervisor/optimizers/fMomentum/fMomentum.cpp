@@ -11,7 +11,8 @@ namespace optimizer
 {
 ;
 
-void fMomentum::initialize() {
+void fMomentum::initialize()
+{
   FastGradientBasedOptimizer::initialize();
   _gsmoothed.resize(_nVars);
   reset();
@@ -20,8 +21,9 @@ void fMomentum::initialize() {
 void fMomentum::reset()
 {
   _modelEvaluationCount = 0;
-  #pragma omp parallel for simd
-  for (size_t i = 0; i < _nVars; i++){
+#pragma omp parallel for simd
+  for (size_t i = 0; i < _nVars; i++)
+  {
     _currentValue[i] = 0.0f;
     _gsmoothed[i] = 0.0f;
   }
@@ -31,14 +33,13 @@ void fMomentum::processResult(std::vector<float> &gradient)
 {
   FastGradientBasedOptimizer::preProcessResult(gradient);
 
-  float not_smoothing = 1.0f-_smoothing;
-  #pragma omp parallel for simd
+  float not_smoothing = 1.0f - _smoothing;
+#pragma omp parallel for simd
   for (size_t i = 0; i < _nVars; i++)
   {
-    _gsmoothed[i] = not_smoothing*gradient[i] + _smoothing*_gsmoothed[i];
-    _currentValue[i] += _eta*_gsmoothed[i];
+    _gsmoothed[i] = not_smoothing * gradient[i] + _smoothing * _gsmoothed[i];
+    _currentValue[i] += _eta * _gsmoothed[i];
     // std::fma(_eta, _gsmoothed[i], _currentValue[i]);
-
   }
 
   FastGradientBasedOptimizer::postProcessResult(_currentValue);

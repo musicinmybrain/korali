@@ -4,24 +4,27 @@ namespace korali
 {
 ;
 
-void Solver::printGenerationAfter(){
-    _k->_logger->logInfo("Detailed", "Experiment: %lu - Generation Time: %.3fs\n", _k->_experimentId, _k->_genTime);
+void Solver::printGenerationAfter()
+{
+  _k->_logger->logInfo("Detailed", "Experiment: %lu - Generation Time: %.3fs\n", _k->_experimentId, _k->_genTime);
 };
 
-void Solver::printGenerationBefore(){
-    _k->_logger->logInfo("minimal", "--------------------------------------------------------------------\n");
-    _k->_logger->logInfo("minimal", "current generation: #%zu: \n", _k->_currentGeneration);
+void Solver::printGenerationBefore()
+{
+  _k->_logger->logInfo("minimal", "--------------------------------------------------------------------\n");
+  _k->_logger->logInfo("minimal", "current generation: #%zu: \n", _k->_currentGeneration);
 };
 
-void Solver::printRunAfter(){
-    _k->_logger->logInfo("Minimal", "--------------------------------------------------------------------\n");
-    _k->_logger->logInfo("Minimal", "%s finished correctly.\n", this->getType().c_str());
-    for(auto &crit : _terminationCriteria)
-    {
-        _k->_logger->logInfo("Normal", "Termination Criterion Met: %s\n", crit.c_str());
-    }
-    _k->_logger->logInfo("Normal", "Final Generation: %lu\n", _k->_currentGeneration);
-    _k->_logger->logInfo("Normal", "Elapsed Time: %.3fs\n", _k->_genTime);
+void Solver::printRunAfter()
+{
+  _k->_logger->logInfo("Minimal", "--------------------------------------------------------------------\n");
+  _k->_logger->logInfo("Minimal", "%s finished correctly.\n", this->getType().c_str());
+  for (auto &crit : _terminationCriteria)
+  {
+    _k->_logger->logInfo("Normal", "Termination Criterion Met: %s\n", crit.c_str());
+  }
+  _k->_logger->logInfo("Normal", "Final Generation: %lu\n", _k->_currentGeneration);
+  _k->_logger->logInfo("Normal", "Elapsed Time: %.3fs\n", _k->_genTime);
 };
 
 void Solver::setInitialConfiguration(){};

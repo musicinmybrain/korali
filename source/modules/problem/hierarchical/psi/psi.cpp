@@ -59,9 +59,9 @@ void Psi::initialize()
   {
     try
     {
-      _subProblemsSampleLogPriors[i] = _subExperiments[i]["Solver"]["Sample LogPrior Database"].get<std::vector<double>>();
-      _subProblemsSampleLogLikelihoods[i] = _subExperiments[i]["Solver"]["Sample LogLikelihood Database"].get<std::vector<double>>();
-      _subProblemsSampleCoordinates[i] = _subExperiments[i]["Solver"]["Sample Database"].get<std::vector<std::vector<double>>>();
+      _subProblemsSampleLogPriors[i] = _subExperiments[i]["Results"]["Posterior Sample LogPrior Database"].get<std::vector<double>>();
+      _subProblemsSampleLogLikelihoods[i] = _subExperiments[i]["Results"]["Posterior Sample LogLikelihood Database"].get<std::vector<double>>();
+      _subProblemsSampleCoordinates[i] = _subExperiments[i]["Results"]["Posterior Sample Database"].get<std::vector<std::vector<double>>>();
     }
     catch (std::exception &e)
     {

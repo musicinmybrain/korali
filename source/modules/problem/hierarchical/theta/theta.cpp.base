@@ -23,10 +23,10 @@ void __className__::initialize()
   _psiVariableCount = _psiExperimentObject._variables.size();
 
   // Loading Psi problem results
-  _psiProblemSampleCount = _psiExperiment["Solver"]["Chain Leaders LogLikelihoods"].size();
-  _psiProblemSampleLogLikelihoods = _psiExperiment["Solver"]["Sample LogLikelihood Database"].get<std::vector<double>>();
-  _psiProblemSampleLogPriors = _psiExperiment["Solver"]["Sample LogPrior Database"].get<std::vector<double>>();
-  _psiProblemSampleCoordinates = _psiExperiment["Solver"]["Sample Database"].get<std::vector<std::vector<double>>>();
+  _psiProblemSampleLogLikelihoods = _psiExperiment["Results"]["Posterior Sample LogLikelihood Database"].get<std::vector<double>>();
+  _psiProblemSampleLogPriors = _psiExperiment["Results"]["Posterior Sample LogPrior Database"].get<std::vector<double>>();
+  _psiProblemSampleCoordinates = _psiExperiment["Results"]["Posterior Sample Database"].get<std::vector<std::vector<double>>>();
+  _psiProblemSampleCount = _psiProblemSampleCoordinates.size();
 
   for (size_t i = 0; i < _psiProblemSampleLogPriors.size(); i++)
   {
@@ -44,10 +44,10 @@ void __className__::initialize()
   _subProblemVariableCount = _subExperimentObject._variables.size();
 
   // Loading Theta problem results
-  _subProblemSampleCount = _subExperiment["Solver"]["Chain Leaders LogLikelihoods"].size();
-  _subProblemSampleLogLikelihoods = _subExperiment["Solver"]["Sample LogLikelihood Database"].get<std::vector<double>>();
-  _subProblemSampleLogPriors = _subExperiment["Solver"]["Sample LogPrior Database"].get<std::vector<double>>();
-  _subProblemSampleCoordinates = _subExperiment["Solver"]["Sample Database"].get<std::vector<std::vector<double>>>();
+  _subProblemSampleLogLikelihoods = _subExperiment["Results"]["Posterior Sample LogLikelihood Database"].get<std::vector<double>>();
+  _subProblemSampleLogPriors = _subExperiment["Results"]["Posterior Sample LogPrior Database"].get<std::vector<double>>();
+  _subProblemSampleCoordinates = _subExperiment["Results"]["Posterior Sample Database"].get<std::vector<std::vector<double>>>();
+  _subProblemSampleCount = _subProblemSampleCoordinates.size();
 
   for (size_t i = 0; i < _subProblemSampleLogPriors.size(); i++)
   {

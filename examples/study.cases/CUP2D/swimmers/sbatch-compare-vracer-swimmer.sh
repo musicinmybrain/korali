@@ -9,16 +9,22 @@ RUNNAME=$1
 TASK=$2
 
 # path to previous run
-RESULTSPATH=/scratch/snx3000/pweber/korali/2D/_trainingResults
+RESULTSPATH=/scratch/snx3000/pweber/korali/16swimmers_transfer
 
 # number of agents
-NAGENTS=100
+NAGENTS=16
+
+# number of workers
+NWORKER=64
 
 # number of nodes per worker
-NRANKS=16
+NRANKS=2
 
 # number of cores per worker
 NUMCORES=12
+
+# number of workers * number of nodes per worker
+NNODES=$(( $NWORKER * $NRANKS ))
 
 # setup run directory and copy necessary files
 RUNPATH="${SCRATCH}/korali/${RUNNAME}"
@@ -37,9 +43,9 @@ cat <<EOF >daint_sbatch
 #SBATCH --partition=normal
 # #SBATCH --time=00:30:00
 # #SBATCH --partition=debug
-#SBATCH --nodes=$((NRANKS+1))
+#SBATCH --nodes=$((NNODES+1))
 
-srun --nodes=$NRANKS --ntasks-per-node=$NUMCORES --cpus-per-task=1 --threads-per-core=1 ./compare-vracer-swimmer -resultsPath $RESULTSPATH -task $TASK -nAgents $NAGENTS -nRanks $(( $NRANKS * $NUMCORES )) : --nodes=1 --ntasks-per-node=1 --cpus-per-task=$NUMCORES --threads-per-core=1 ./compare-vracer-swimmer -resultsPath $RESULTSPATH -task $TASK -nAgents $NAGENTS -nRanks $(( $NRANKS * $NUMCORES ))
+srun --nodes=$NNODES --ntasks-per-node=1 --cpus-per-task=$NUMCORES --threads-per-core=1 ./compare-vracer-swimmer -resultsPath $RESULTSPATH -task $TASK -nAgents $NAGENTS -nRanks $(( $NRANKS )) : --nodes=1 --ntasks-per-node=1 --cpus-per-task=$NUMCORES --threads-per-core=1 ./compare-vracer-swimmer -resultsPath $RESULTSPATH -task $TASK -nAgents $NAGENTS -nRanks $(( $NRANKS ))
 EOF
 
 echo "Starting task ${TASK} with ${NWORKER} simulations each using ${NRANKS} ranks with ${NUMCORES} cores"
@@ -47,3 +53,9 @@ echo "----------------------------"
 
 chmod 755 daint_sbatch
 sbatch daint_sbatch
+
+# GPU SOLVER
+#srun --nodes=$NRANKS --ntasks-per-node=1 --cpus-per-task=$NUMCORES --threads-per-core=1 ./compare-vracer-swimmer -resultsPath $RESULTSPATH -task $TASK -nAgents $NAGENTS -nRanks $(( $NRANKS )) : --nodes=1 --ntasks-per-node=1 --cpus-per-task=$NUMCORES --threads-per-core=1 ./compare-vracer-swimmer -resultsPath $RESULTSPATH -task $TASK -nAgents $NAGENTS -nRanks $(( $NRANKS ))
+
+# CPU SOLVER
+# srun --nodes=$NRANKS --ntasks-per-node=$NUMCORES --cpus-per-task=1 --threads-per-core=1 ./compare-vracer-swimmer -resultsPath $RESULTSPATH -task $TASK -nAgents $NAGENTS -nRanks $(( $NRANKS * $NUMCORES )) : --nodes=1 --ntasks-per-node=1 --cpus-per-task=$NUMCORES --threads-per-core=1 ./compare-vracer-swimmer -resultsPath $RESULTSPATH -task $TASK -nAgents $NAGENTS -nRanks $(( $NRANKS *$NUMCORES ))

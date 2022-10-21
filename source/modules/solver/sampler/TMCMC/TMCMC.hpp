@@ -216,9 +216,9 @@ class TMCMC : public Sampler
   */
    size_t _acceptedSamplesCount;
   /**
-  * @brief [Internal Use] Calculated logEvidence of the model.
+  * @brief [Internal Use] The current accumulated logEvidence. At termination, this is the logEvidence of the model.
   */
-   double _logEvidence;
+   double _currentAccumulatedLogEvidence;
   /**
   * @brief [Internal Use] Acceptance rate calculated from accepted samples.
   */
@@ -262,7 +262,7 @@ class TMCMC : public Sampler
   /**
   * @brief [Internal Use] Gradients stored in the database (taken from the chain leaders, only mTMCMC).
   */
-   std::vector<std::vector<double>> _sampleCovariancesDatabase;
+   std::vector<std::vector<double>> _sampleCovarianceDatabase;
   /**
   * @brief [Internal Use] Calculated upper domain boundaries (only relevant for mTMCMC).
   */

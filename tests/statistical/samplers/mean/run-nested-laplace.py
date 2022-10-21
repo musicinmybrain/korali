@@ -44,5 +44,5 @@ e["Solver"]["Termination Criteria"]["Max Effective Sample Size"] = 50000
 e["Random Seed"] = 1337
 k.run(e)
 
-verifyMean(e["Results"]["Posterior Samples Database"], [4.0], 0.05)
-verifyStd(e["Results"]["Posterior Samples Database"], [math.sqrt(2.0)], 0.05)
+verifyMean(e["Results"]["Posterior Sample Database"], [4.0], 0.05)
+verifyStd(e["Results"]["Posterior Sample Database"], [math.sqrt(2.0)], 0.05)

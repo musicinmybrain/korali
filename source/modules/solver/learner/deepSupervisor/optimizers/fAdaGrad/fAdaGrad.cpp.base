@@ -3,7 +3,8 @@
 
 __startNamespace__;
 
-void __className__::initialize() {
+void __className__::initialize()
+{
   __parentClassName__::initialize();
   _gdiag.resize(_nVars, 0.0f);
   reset();
@@ -12,8 +13,9 @@ void __className__::initialize() {
 void __className__::reset()
 {
   _modelEvaluationCount = 0;
-  #pragma omp parallel for simd
-  for (size_t i = 0; i < _nVars; i++){
+#pragma omp parallel for simd
+  for (size_t i = 0; i < _nVars; i++)
+  {
     _currentValue[i] = 0.0f;
     _gdiag[i] = 0.0f;
   }
@@ -23,7 +25,7 @@ void __className__::processResult(std::vector<float> &gradient)
 {
   __parentClassName__::preProcessResult(gradient);
 
-  #pragma omp parallel for simd
+#pragma omp parallel for simd
   for (size_t i = 0; i < _nVars; i++)
   {
     _gdiag[i] = _gdiag[i] + (gradient[i] * gradient[i]);

@@ -1,0 +1,18 @@
+Reinforcement Learning for 3D swimmers
+
+Each directory contains a different RL case and two main files:
+  1. vracer-swimmer.cpp
+  2. swimmerEnvironment.hpp
+
+vracer-swimmer.cpp does not really change among cases
+swimmerEnvironment.hpp defines the state, action, reward, terminal conditions, neural network and initial conditions for each case.
+
+To create a new case, copy and existing one and modify swimmerEnvironment.hpp
+
+To run:
+
+Use sbatch-train.sh or sbatch-test.sh. When using sbatch-train.sh to launch training:
+  If training is 2D:
+     Training starts from the beginning, unless there is a previous 2D run. In that case, training resumes.
+  If training is 3D:
+     We look for previous 3D results to resume training. If there are not previous 3D results, we look for 2D results. If those exist, we use them as initial conditions for the 3D policy hyperparameters. If they don't, we start training normally.

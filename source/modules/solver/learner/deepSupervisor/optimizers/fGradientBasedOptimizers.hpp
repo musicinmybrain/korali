@@ -12,13 +12,13 @@
 
 #pragma once
 
-#include <cstddef>
-#include <vector>
-#include <cstdlib>
-#include <stdexcept>
-#include <cmath>
 #include "auxiliar/logger.hpp"
 #include "modules/module.hpp"
+#include <cmath>
+#include <cstddef>
+#include <cstdlib>
+#include <stdexcept>
+#include <vector>
 
 namespace korali
 {
@@ -71,47 +71,47 @@ class FastGradientBasedOptimizer : public Module
   void applyVariableDefaults() override;
   
 
-    // VARIABLES =================================================
-    /**
-    * @brief [Internal Use] Current value of parameters.
-    */
-    std::vector<float> _currentValue;
-    /**
-    * @brief Wether to add weight decay.
-    */
-    bool _addWeightDecay{false};
-    /**
-    * @brief Weight Decay To add
-    */
-    std::vector<float> _weightDecay;
-    // FUNCTIONS =================================================
-    FastGradientBasedOptimizer() = default;
-    ~FastGradientBasedOptimizer() = default;
-    /**
-    * @brief Takes a sample evaluation and its gradient and calculates the next set of parameters
-    * @param gradient The gradient of the objective function at the current set of parameters
-    */
-    virtual void processResult(std::vector<float> &gradient) = 0;
-    /**
-    * @brief size checks
-    * @param gradient input gradients to be checked
-    */
-    virtual void preProcessResult(std::vector<float> &gradient);
-    /**
-    * @brief checks for infinity values and increments modelEvaluationCount
-    * @param parameters calculated by our optimizer
-    */
-    virtual void postProcessResult(std::vector<float> &parameters);
-    /**
-    * @brief Restores the optimizer to the initial state
-    */
-    virtual void reset() = 0;
-    /**
-    * @brief Wether the Optimizer Implements Weight Decay set in initialize.
-    */
-    virtual bool _implementsWeightDecay(){ return 0; };
-    // Overriden FUNCTIONS =======================================
-    virtual void initialize() override;
+  // VARIABLES =================================================
+  /**
+   * @brief [Internal Use] Current value of parameters.
+   */
+  std::vector<float> _currentValue;
+  /**
+   * @brief Wether to add weight decay.
+   */
+  bool _addWeightDecay{false};
+  /**
+   * @brief Weight Decay To add
+   */
+  std::vector<float> _weightDecay;
+  // FUNCTIONS =================================================
+  FastGradientBasedOptimizer() = default;
+  ~FastGradientBasedOptimizer() = default;
+  /**
+   * @brief Takes a sample evaluation and its gradient and calculates the next set of parameters
+   * @param gradient The gradient of the objective function at the current set of parameters
+   */
+  virtual void processResult(std::vector<float> &gradient) = 0;
+  /**
+   * @brief size checks
+   * @param gradient input gradients to be checked
+   */
+  virtual void preProcessResult(std::vector<float> &gradient);
+  /**
+   * @brief checks for infinity values and increments modelEvaluationCount
+   * @param parameters calculated by our optimizer
+   */
+  virtual void postProcessResult(std::vector<float> &parameters);
+  /**
+   * @brief Restores the optimizer to the initial state
+   */
+  virtual void reset() = 0;
+  /**
+   * @brief Wether the Optimizer Implements Weight Decay set in initialize.
+   */
+  virtual bool _implementsWeightDecay() { return 0; };
+  // Overriden FUNCTIONS =======================================
+  virtual void initialize() override;
 };
 
 } //optimizer
@@ -119,4 +119,3 @@ class FastGradientBasedOptimizer : public Module
 } //solver
 } //korali
 ;
-

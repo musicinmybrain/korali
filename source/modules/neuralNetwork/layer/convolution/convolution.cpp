@@ -1,8 +1,8 @@
 #include "modules/neuralNetwork/layer/convolution/convolution.hpp"
-#include "modules/neuralNetwork/neuralNetwork.hpp"
-#include "modules/neuralNetwork/layer/pooling/pooling.hpp"
 #include "modules/neuralNetwork/layer/deconvolution/deconvolution.hpp"
+#include "modules/neuralNetwork/layer/pooling/pooling.hpp"
 #include "modules/neuralNetwork/layer/resampling/resampling.hpp"
+#include "modules/neuralNetwork/neuralNetwork.hpp"
 
 #ifdef _KORALI_USE_CUDNN
   #include "auxiliar/cudaUtils.hpp"
@@ -27,10 +27,10 @@ namespace layer
 void Convolution::initialize()
 {
   // Checking Layer size
-  if (_filters == -1 && _outputChannels == 0) KORALI_LOG_ERROR("[%s Layer %lu] No output channesl or filter number specified for layer (%lu).\n", _type.c_str(), _index-1);
+  if (_filters == -1 && _outputChannels == 0) KORALI_LOG_ERROR("[%s Layer %lu] No output channesl or filter number specified for layer (%lu).\n", _type.c_str(), _index - 1);
   // Checking position
-  if (_index == 0) KORALI_LOG_ERROR("[%s Layer %lu] layers cannot be the starting layer of the NN\n", _type.c_str(), _index-1);
-  if (_index == _nn->_layers.size() - 1) KORALI_LOG_ERROR("[%s Layer %lu] layers cannot be the last layer of the NN\n", _type.c_str(), _index-1);
+  if (_index == 0) KORALI_LOG_ERROR("[%s Layer %lu] layers cannot be the starting layer of the NN\n", _type.c_str(), _index - 1);
+  if (_index == _nn->_layers.size() - 1) KORALI_LOG_ERROR("[%s Layer %lu] layers cannot be the last layer of the NN\n", _type.c_str(), _index - 1);
 
   // Precalculating values for the convolution operation
   N = _batchSize;
@@ -38,33 +38,33 @@ void Convolution::initialize()
   IW = _imageWidth;
   // Kernel ===============================================================================
   KH = KW = _kernelSize;
-  if(_kernelWidth != -1)
+  if (_kernelWidth != -1)
     KW = _kernelWidth;
-  if( _kernelHeight != -1)
+  if (_kernelHeight != -1)
     KH = _kernelHeight;
   // Strides ==============================================================================
   SV = SH = _strideSize;
-  if( _verticalStride != -1)
+  if (_verticalStride != -1)
     SV = _verticalStride;
-  if( _horizontalStride != -1)
+  if (_horizontalStride != -1)
     SH = _horizontalStride;
   // Paddings =============================================================================
   PT = PL = PB = PR = _paddingSize;
-  if( _paddingVertical != -1)
+  if (_paddingVertical != -1)
     PT = PB = _paddingVertical;
-  if( _paddingHorizontal != -1)
+  if (_paddingHorizontal != -1)
     PL = PR = _paddingVertical;
-  if( _paddingTop != -1)
+  if (_paddingTop != -1)
     PT = _paddingTop;
-  if( _paddingBottom != -1)
+  if (_paddingBottom != -1)
     PB = _paddingBottom;
-  if( _paddingLeft != -1)
+  if (_paddingLeft != -1)
     PL = _paddingLeft;
-  if( _paddingRight != -1)
+  if (_paddingRight != -1)
     PR = _paddingRight;
 
-  if (IW <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image width not given.\n", _type.c_str(), _index-1);
-  if (IH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image height not given.\n", _type.c_str(), _index-1);
+  if (IW <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image width not given.\n", _type.c_str(), _index - 1);
+  if (IH <= 0) KORALI_LOG_ERROR("[%s layer %zu] Image height not given.\n", _type.c_str(), _index - 1);
   // ======================================================================================
   // ======================================================================================
   // Check for non zeros
@@ -74,37 +74,35 @@ void Convolution::initialize()
   if (SH <= 0) KORALI_LOG_ERROR("Horizontal stride must be larger than zero for convolutional layer.\n");
 
   // Several sanity checks
-  if (KH > IH + PR + PL) KORALI_LOG_ERROR("[%s layer %zu] Kernel height cannot be larger than input image height plus padding.\n", _type.c_str(), _index-1);
-  if (KW > IW + PT + PB) KORALI_LOG_ERROR("[%s layer %zu] Kernel width cannot be larger than input image width plus padding.\n", _type.c_str(), _index-1);
+  if (KH > IH + PR + PL) KORALI_LOG_ERROR("[%s layer %zu] Kernel height cannot be larger than input image height plus padding.\n", _type.c_str(), _index - 1);
+  if (KW > IW + PT + PB) KORALI_LOG_ERROR("[%s layer %zu] Kernel width cannot be larger than input image width plus padding.\n", _type.c_str(), _index - 1);
 
   // Check whether the output channels of the previous layer is divided by the height and width
-  if (_prevLayer->_outputChannels % (IH * IW) > 0) KORALI_LOG_ERROR("Previous layer %zu to convolutional layer %zu contains a number of channels (%lu) not divisible by the convolutional 2D HxW setup (%lux%lu).\n", _index-2, _index-1, _prevLayer->_outputChannels, IH, IW);
+  if (_prevLayer->_outputChannels % (IH * IW) > 0) KORALI_LOG_ERROR("Previous layer %zu to convolutional layer %zu contains a number of channels (%lu) not divisible by the convolutional 2D HxW setup (%lux%lu).\n", _index - 2, _index - 1, _prevLayer->_outputChannels, IH, IW);
   IC = _prevLayer->_outputChannels / (IH * IW);
 
   OH = (IH - KH + PT + PB) / SV + 1;
   OW = (IW - KW + PR + PL) / SH + 1;
-  if( ((IH - KH + PT + PB) % SV) != 0)
-    _k->_logger->logInfo("Detailed", "[%s layer %zu] OH = (IH - KH + PT + PB) / SV + 1 = (%lu - %lu - %lu + %lu) / %lu +1 = %lu using floor.\n",
-                         _type.c_str(), _index-1, IH, KH, PT, PB, SV, OH);
-  if( ((IW - KW + PR + PL) % SH) != 0)
-    _k->_logger->logInfo("Detailed", "[%s layer %zu] OW = (IW - KW + PR + PL) / SH = (%lu - %lu - %lu + %lu) / %lu = %lu using floor.\n",
-                         _type.c_str(), _index-1, IW, KW, PR, PL, SH, OW);
+  if (((IH - KH + PT + PB) % SV) != 0)
+    _k->_logger->logInfo("Detailed", "[%s layer %zu] OH = (IH - KH + PT + PB) / SV + 1 = (%lu - %lu - %lu + %lu) / %lu +1 = %lu using floor.\n", _type.c_str(), _index - 1, IH, KH, PT, PB, SV, OH);
+  if (((IW - KW + PR + PL) % SH) != 0)
+    _k->_logger->logInfo("Detailed", "[%s layer %zu] OW = (IW - KW + PR + PL) / SH = (%lu - %lu - %lu + %lu) / %lu = %lu using floor.\n", _type.c_str(), _index - 1, IW, KW, PR, PL, SH, OW);
 
-  if(_outputChannels == 0)
-    _outputChannels = _filters*OH*OW;
+  if (_outputChannels == 0)
+    _outputChannels = _filters * OH * OW;
   // Check whether the output channels of the previous layer is divided by the height and width
   if (_outputChannels % (OH * OW) > 0)
-    KORALI_LOG_ERROR("[Convolutional layer %zu] Number of output channels (%lu) not divisible by the output image size (%lux%lu) given kernel (%lux%lu) size and padding/stride configuration.\n", _index-1, _outputChannels, OH, OW, KH, KW);
+    KORALI_LOG_ERROR("[Convolutional layer %zu] Number of output channels (%lu) not divisible by the output image size (%lux%lu) given kernel (%lux%lu) size and padding/stride configuration.\n", _index - 1, _outputChannels, OH, OW, KH, KW);
   OC = _outputChannels / (OH * OW);
 
 #ifdef _KORALI_USE_CUDNN
-    if (_nn->_engine == "CuDNN")
-    {
-      if (PT != PB)
-        KORALI_LOG_ERROR("[Convolutional layer %zu] does not allow an symmetric top %zu and bottom %zu padding.\n", _index-1, PT, PB);
-      if (PT != PB)
-        KORALI_LOG_ERROR("[Convolutional layer %zu] does not allow an symmetric left %zu and right %zu padding.\n", _index-1, PL, PR);
-    }
+  if (_nn->_engine == "CuDNN")
+  {
+    if (PT != PB)
+      KORALI_LOG_ERROR("[Convolutional layer %zu] does not allow an symmetric top %zu and bottom %zu padding.\n", _index - 1, PT, PB);
+    if (PT != PB)
+      KORALI_LOG_ERROR("[Convolutional layer %zu] does not allow an symmetric left %zu and right %zu padding.\n", _index - 1, PL, PR);
+  }
 #endif
 }
 
@@ -137,7 +135,8 @@ void Convolution::createHyperparameterMemory()
   _hyperparameterCount = _weightsCount + _biasCount;
 
   std::exception_ptr eptr;
-  try{
+  try
+  {
 #ifdef _KORALI_USE_ONEDNN
     if (_nn->_engine == "OneDNN")
     {
@@ -156,7 +155,7 @@ void Convolution::createHyperparameterMemory()
       // Kernel/Filter Memory
       cudnnErrCheck(cudnnCreateFilterDescriptor(&_weightsFilterDesc));
       cudnnErrCheck(cudnnSetFilter4dDescriptor(_weightsFilterDesc,
-                                              /*dataType=*/CUDNN_DATA_FLOAT,
+                                               /*dataType=*/CUDNN_DATA_FLOAT,
                                                /*format=*/CUDNN_TENSOR_NCHW,
                                                /*out_channels=*/OC,
                                                /*in_channels=*/IC,
@@ -175,16 +174,20 @@ void Convolution::createHyperparameterMemory()
       cudaErrCheck(cudaMalloc((void **)&_biasTensor, _biasCount * sizeof(float)));
     }
 #endif
-  } catch (...) {
+  }
+  catch (...)
+  {
     eptr = std::current_exception();
   }
-  try{
+  try
+  {
     Layer::exceptionHandler(eptr);
-  } catch(...){
+  }
+  catch (...)
+  {
     eptr = std::current_exception();
   }
   exceptionHandler(eptr);
-
 }
 
 void Convolution::copyHyperparameterPointers(Layer *dstLayer)
@@ -211,7 +214,6 @@ void Convolution::copyHyperparameterPointers(Layer *dstLayer)
     dstPtr->_biasTensor = _biasTensor;
   }
 #endif
-
 }
 
 void Convolution::createForwardPipeline()
@@ -221,7 +223,8 @@ void Convolution::createForwardPipeline()
   if (_nn->_engine == "Korali") KORALI_LOG_ERROR("Convolutional Layers still not supported in Korali's NN backend. Use OneDNN.\n");
 
   std::exception_ptr eptr;
-  try{
+  try
+  {
 #ifdef _KORALI_USE_ONEDNN
     if (_nn->_engine == "OneDNN")
     {
@@ -259,23 +262,23 @@ void Convolution::createForwardPipeline()
       // Input Tensor
       cudnnErrCheck(cudnnCreateTensorDescriptor(&_inputDescriptor));
       cudnnErrCheck(cudnnSetTensor4dDescriptor(
-                      /*Inp. Tensor Descr.=*/ _inputDescriptor,
-                      /*format=*/CUDNN_TENSOR_NCHW,
-                      /*dataType=*/CUDNN_DATA_FLOAT,
-                      /*batch_size=*/N,
-                      /*channels=*/IC,
-                      /*image_height=*/IH,
-                      /*image_width=*/IW));
+        /*Inp. Tensor Descr.=*/_inputDescriptor,
+        /*format=*/CUDNN_TENSOR_NCHW,
+        /*dataType=*/CUDNN_DATA_FLOAT,
+        /*batch_size=*/N,
+        /*channels=*/IC,
+        /*image_height=*/IH,
+        /*image_width=*/IW));
       // Output Tensor
       cudnnErrCheck(cudnnCreateTensorDescriptor(&_outputDescriptor));
       cudnnErrCheck(cudnnSetTensor4dDescriptor(
-                      /*Output. Tensor Descr.=*/ _outputDescriptor,
-                      /*format=*/CUDNN_TENSOR_NCHW,
-                      /*dataType=*/CUDNN_DATA_FLOAT,
-                      /*batch_size=*/N,
-                      /*channels=*/OC,
-                      /*image_height=*/OH,
-                      /*image_width=*/OW));
+        /*Output. Tensor Descr.=*/_outputDescriptor,
+        /*format=*/CUDNN_TENSOR_NCHW,
+        /*dataType=*/CUDNN_DATA_FLOAT,
+        /*batch_size=*/N,
+        /*channels=*/OC,
+        /*image_height=*/OH,
+        /*image_width=*/OW));
 
       // Convolution Descriptor describes the type of convolution we want to perform
       cudnnErrCheck(cudnnCreateConvolutionDescriptor(&_convolutionDescriptor));
@@ -291,23 +294,24 @@ void Convolution::createForwardPipeline()
 
       // Forward Algorithm ===========================================================
       cudnnConvolutionFwdAlgoPerf_t algo_perf{};
-      if(_algorithmForward == "GEMM")
+      if (_algorithmForward == "GEMM")
         _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
-      else if(_algorithmForward == "GEMM-PRECOMP-INDICES")
+      else if (_algorithmForward == "GEMM-PRECOMP-INDICES")
         _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
-      else if(_algorithmForward == "GEMM-STORE-INPUT-TENSOR")
+      else if (_algorithmForward == "GEMM-STORE-INPUT-TENSOR")
         _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_GEMM;
-      else if(_algorithmForward == "DIRECT-CNN")
+      else if (_algorithmForward == "DIRECT-CNN")
         _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_DIRECT;
-      else if(_algorithmForward == "FFT")
+      else if (_algorithmForward == "FFT")
         _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_FFT;
-      else if(_algorithmForward == "FFT-TILING")
+      else if (_algorithmForward == "FFT-TILING")
         _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_FFT_TILING;
-      else if(_algorithmForward == "WINOGRAD")
+      else if (_algorithmForward == "WINOGRAD")
         _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD;
-      else if(_algorithmForward == "WINOGRAD-NONFUSED")
+      else if (_algorithmForward == "WINOGRAD-NONFUSED")
         _convolutionFwdAlgorithm = CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED;
-      else {
+      else
+      {
         int requestedCount = 1;
         int count;
         cudnnErrCheck(cudnnFindConvolutionForwardAlgorithm(
@@ -319,7 +323,7 @@ void Convolution::createForwardPipeline()
           /*requestedAlgoCount=*/requestedCount,
           /* *returnedAlgoCount=*/&count,
           /* *perfResults=*/&algo_perf));
-          _convolutionFwdAlgorithm = algo_perf.algo;
+        _convolutionFwdAlgorithm = algo_perf.algo;
       }
       cudnnErrCheck(cudnnGetConvolutionForwardWorkspaceSize(_nn->_cuDNNHandle,
                                                             _inputDescriptor,
@@ -331,7 +335,9 @@ void Convolution::createForwardPipeline()
       // Create workspace memory in createBackwardpipeline
     }
 #endif
-  } catch (...) {
+  }
+  catch (...)
+  {
     eptr = std::current_exception();
   }
   exceptionHandler(eptr);
@@ -397,19 +403,20 @@ void Convolution::createBackwardPipeline()
     cudnnConvolutionBwdDataAlgoPerf_t algoData_perf{};
     cudnnConvolutionBwdFilterAlgoPerf_t algoFilter_perf{};
     // Backward Data Algorithm =====================================================
-    if(_algorithmBackwardData == "GEMM-SUM")
+    if (_algorithmBackwardData == "GEMM-SUM")
       _convolutionBwdDataAlgorithm = CUDNN_CONVOLUTION_BWD_DATA_ALGO_0;
-    else if(_algorithmBackwardData == "GEMM")
+    else if (_algorithmBackwardData == "GEMM")
       _convolutionBwdDataAlgorithm = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
-    else if(_algorithmBackwardData == "FFT")
+    else if (_algorithmBackwardData == "FFT")
       _convolutionBwdDataAlgorithm = CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT;
-    else if(_algorithmBackwardData == "FFT-TILING")
+    else if (_algorithmBackwardData == "FFT-TILING")
       _convolutionBwdDataAlgorithm = CUDNN_CONVOLUTION_BWD_DATA_ALGO_FFT_TILING;
-    else if(_algorithmBackwardData == "WINOGRAD")
+    else if (_algorithmBackwardData == "WINOGRAD")
       _convolutionBwdDataAlgorithm = CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD;
-    else if(_algorithmBackwardData == "WINOGRAD-NONFUSED")
+    else if (_algorithmBackwardData == "WINOGRAD-NONFUSED")
       _convolutionBwdDataAlgorithm = CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD_NONFUSED;
-    else {
+    else
+    {
       int requestedCount = 1;
       int count;
       cudnnErrCheck(cudnnFindConvolutionBackwardDataAlgorithm(
@@ -421,22 +428,23 @@ void Convolution::createBackwardPipeline()
         /*requestedAlgoCount=*/requestedCount,
         /* *returnedAlgoCount=*/&count,
         /* *perfResults=*/&algoData_perf));
-        _convolutionBwdDataAlgorithm = algoData_perf.algo;
+      _convolutionBwdDataAlgorithm = algoData_perf.algo;
     }
     // Backward Filter Algorithm ===================================================
-    if(_algorithmBackwardFilter == "GEMM-SUM")
+    if (_algorithmBackwardFilter == "GEMM-SUM")
       _convolutionBwdFilterAlgorithm = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_0;
-    else if(_algorithmBackwardFilter == "GEMM")
+    else if (_algorithmBackwardFilter == "GEMM")
       _convolutionBwdFilterAlgorithm = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
-    else if(_algorithmBackwardFilter == "FFT")
+    else if (_algorithmBackwardFilter == "FFT")
       _convolutionBwdFilterAlgorithm = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT;
-    else if(_algorithmBackwardFilter == "FFT-TILING")
+    else if (_algorithmBackwardFilter == "FFT-TILING")
       _convolutionBwdFilterAlgorithm = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_3;
-    else if(_algorithmBackwardFilter == "WINOGRAD")
+    else if (_algorithmBackwardFilter == "WINOGRAD")
       _convolutionBwdFilterAlgorithm = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_WINOGRAD_NONFUSED;
-    else if(_algorithmBackwardFilter == "FFT-TILING")
+    else if (_algorithmBackwardFilter == "FFT-TILING")
       _convolutionBwdFilterAlgorithm = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_FFT_TILING;
-    else {
+    else
+    {
       int requestedCount = 1;
       int count;
       cudnnErrCheck(cudnnFindConvolutionBackwardFilterAlgorithm(
@@ -448,15 +456,15 @@ void Convolution::createBackwardPipeline()
         /*requestedAlgoCount=*/requestedCount,
         /* *returnedAlgoCount=*/&count,
         /* *perfResults=*/&algoFilter_perf));
-        _convolutionBwdFilterAlgorithm = algoFilter_perf.algo;
+      _convolutionBwdFilterAlgorithm = algoFilter_perf.algo;
     }
     // Allocate Workspace ==========================================================
     auto backwardWsSize = getBackwardWsSize();
     _convolutionWorkspaceSize = std::max(_convolutionWorkspaceSize, backwardWsSize);
     cudaErrCheck(cudaMalloc((void **)&_convolutionWorkspace, _convolutionWorkspaceSize * sizeof(float)));
-#ifdef DEBUG
-      _k->_logger->logInfo("Detailed", "[%s layer %zu] Allocating %f MB for cuDNN convolution workspace.\n", _type.c_str(), _index-1, _convolutionWorkspaceSize/(1024.0*1024.0));
-#endif
+  #ifdef DEBUG
+    _k->_logger->logInfo("Detailed", "[%s layer %zu] Allocating %f MB for cuDNN convolution workspace.\n", _type.c_str(), _index - 1, _convolutionWorkspaceSize / (1024.0 * 1024.0));
+  #endif
   }
 #endif
 }
@@ -484,23 +492,23 @@ void Convolution::forwardData(const size_t t)
     float alpha2 = 0.0f;
     std::string err{};
     err = cudnnGetErr(cudnnConvolutionForward(_nn->_cuDNNHandle,
-                                          /*alpha=*/&alpha1,
-                                          /*xDesc/inputDesc=*/_inputDescriptor,
-                                          /*x/input=*/_prevLayer->_outputTensor[t],
-                                          _weightsFilterDesc,
-                                          _weightsFilter,
-                                          _convolutionDescriptor,
-                                          _convolutionFwdAlgorithm,
-                                          _convolutionWorkspace,
-                                          _convolutionWorkspaceSize,
-                                          /*beta=*/&alpha2,
-                                          /*yDesc/outputDesc=*/_outputDescriptor,
-                                          /*y/output=*/_outputTensor[t]));
-    if(!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Forward Data: %s \n", _type.c_str(), _index-1, err.c_str());
+                                              /*alpha=*/&alpha1,
+                                              /*xDesc/inputDesc=*/_inputDescriptor,
+                                              /*x/input=*/_prevLayer->_outputTensor[t],
+                                              _weightsFilterDesc,
+                                              _weightsFilter,
+                                              _convolutionDescriptor,
+                                              _convolutionFwdAlgorithm,
+                                              _convolutionWorkspace,
+                                              _convolutionWorkspaceSize,
+                                              /*beta=*/&alpha2,
+                                              /*yDesc/outputDesc=*/_outputDescriptor,
+                                              /*y/output=*/_outputTensor[t]));
+    if (!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Forward Data: %s \n", _type.c_str(), _index - 1, err.c_str());
     float alpha = 1.0f;
     float beta = 1.0f;
     err = cudnnGetErr(cudnnAddTensor(_nn->_cuDNNHandle, &alpha, _biasTensorDesc, _biasTensor, &beta, _outputDescriptor, _outputTensor[t]));
-    if(!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Forward Bias: %s \n", _type.c_str(), _index-1, err.c_str());
+    if (!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Forward Bias: %s \n", _type.c_str(), _index - 1, err.c_str());
     // cudnnConvolutionBiasActivationForward()
   }
 #endif
@@ -542,7 +550,7 @@ void Convolution::backwardData(const size_t t)
       /*dxDesc=*/_inputDescriptor,
       // =====================================
       /*dx=*/_prevLayer->_outputGradientTensor[t]));
-    if(!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Backward Data: %s \n", _type.c_str(), _index-1, err.c_str());
+    if (!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Backward Data: %s \n", _type.c_str(), _index - 1, err.c_str());
   }
 #endif
 }
@@ -582,27 +590,25 @@ void Convolution::backwardHyperparameters(size_t t)
       &beta,
       _biasTensorDesc,
       _biasGradientTensor));
-    if(!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Backward Bias: %s \n", _type.c_str(), _index-1, err.c_str());
+    if (!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Backward Bias: %s \n", _type.c_str(), _index - 1, err.c_str());
 
     err = cudnnGetErr(cudnnConvolutionBackwardFilter(
-                  _nn->_cuDNNHandle,
-                  &alpha,
-                  /*xDesc=*/_inputDescriptor,
-                  /*x=*/_prevLayer->_outputTensor[t],
-                  /*dyDesc=*/_outputDescriptor,
-                  /*dy=*/_outputGradientTensor[t],
-                  _convolutionDescriptor,
-                  _convolutionBwdFilterAlgorithm,
-                  _convolutionWorkspace,
-                  _convolutionWorkspaceSize,
-                  &beta,
-                  _weightsFilterDesc,
-                  _weightsGradientFilter));
-    if(!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Backward Fitler: %s \n", _type.c_str(), _index-1, err.c_str());
-
+      _nn->_cuDNNHandle,
+      &alpha,
+      /*xDesc=*/_inputDescriptor,
+      /*x=*/_prevLayer->_outputTensor[t],
+      /*dyDesc=*/_outputDescriptor,
+      /*dy=*/_outputGradientTensor[t],
+      _convolutionDescriptor,
+      _convolutionBwdFilterAlgorithm,
+      _convolutionWorkspace,
+      _convolutionWorkspaceSize,
+      &beta,
+      _weightsFilterDesc,
+      _weightsGradientFilter));
+    if (!err.empty()) KORALI_LOG_ERROR("[%s Layer %lu] Backward Fitler: %s \n", _type.c_str(), _index - 1, err.c_str());
   }
 #endif
-
 }
 
 void Convolution::setHyperparameters(const float *hyperparameters)
@@ -616,7 +622,8 @@ void Convolution::setHyperparameters(const float *hyperparameters)
 #endif
 
 #ifdef _KORALI_USE_CUDNN
-  if (_nn->_engine == "CuDNN"){
+  if (_nn->_engine == "CuDNN")
+  {
     cudaErrCheck(cudaMemcpy(_weightsFilter, &hyperparameters[0], _weightsCount * sizeof(float), cudaMemcpyHostToDevice));
     cudaErrCheck(cudaMemcpy(_biasTensor, &hyperparameters[_weightsCount], _biasCount * sizeof(float), cudaMemcpyHostToDevice));
   }
@@ -634,7 +641,8 @@ void Convolution::getHyperparameters(float *hyperparameters)
 #endif
 
 #ifdef _KORALI_USE_CUDNN
-  if (_nn->_engine == "CuDNN"){
+  if (_nn->_engine == "CuDNN")
+  {
     cudaErrCheck(cudaMemcpy(&hyperparameters[0], _weightsFilter, _weightsCount * sizeof(float), cudaMemcpyDeviceToHost));
     cudaErrCheck(cudaMemcpy(&hyperparameters[_weightsCount], _biasTensor, _biasCount * sizeof(float), cudaMemcpyDeviceToHost));
   }
@@ -661,30 +669,30 @@ void Convolution::getHyperparameterGradients(float *gradient)
 }
 
 #ifdef _KORALI_USE_CUDNN
-size_t Convolution::getBackwardWsSize() {
-        size_t sizeFilterAlg = 0;
-        size_t sizeDataAlg = 0;
-        // if (!_algorithmBackwardFilter.empty())
-        auto filterErr = cudnnGetErr(cudnnGetConvolutionBackwardFilterWorkspaceSize(_nn->_cuDNNHandle,
-                                                                     _inputDescriptor,
-                                                                     _outputDescriptor,
-                                                                     _convolutionDescriptor,
-                                                                     _weightsFilterDesc,
-                                                                     _convolutionBwdFilterAlgorithm,
-                                                                     &sizeFilterAlg));
-        if(!filterErr.empty()) KORALI_LOG_ERROR("[%s Layer %lu] %s n", _type.c_str(), _index-1, filterErr.c_str());
-        // if (!_algorithmBackwardData.empty())
-        cudnnErrCheck(cudnnGetConvolutionBackwardDataWorkspaceSize(_nn->_cuDNNHandle,
-                                                                   _weightsFilterDesc,
-                                                                   _outputDescriptor,
-                                                                   _convolutionDescriptor,
-                                                                   _inputDescriptor,
-                                                                   _convolutionBwdDataAlgorithm,
-                                                                   &sizeDataAlg));
-        return std::max(sizeFilterAlg, sizeDataAlg);
+size_t Convolution::getBackwardWsSize()
+{
+  size_t sizeFilterAlg = 0;
+  size_t sizeDataAlg = 0;
+  // if (!_algorithmBackwardFilter.empty())
+  auto filterErr = cudnnGetErr(cudnnGetConvolutionBackwardFilterWorkspaceSize(_nn->_cuDNNHandle,
+                                                                              _inputDescriptor,
+                                                                              _outputDescriptor,
+                                                                              _convolutionDescriptor,
+                                                                              _weightsFilterDesc,
+                                                                              _convolutionBwdFilterAlgorithm,
+                                                                              &sizeFilterAlg));
+  if (!filterErr.empty()) KORALI_LOG_ERROR("[%s Layer %lu] %s n", _type.c_str(), _index - 1, filterErr.c_str());
+  // if (!_algorithmBackwardData.empty())
+  cudnnErrCheck(cudnnGetConvolutionBackwardDataWorkspaceSize(_nn->_cuDNNHandle,
+                                                             _weightsFilterDesc,
+                                                             _outputDescriptor,
+                                                             _convolutionDescriptor,
+                                                             _inputDescriptor,
+                                                             _convolutionBwdDataAlgorithm,
+                                                             &sizeDataAlg));
+  return std::max(sizeFilterAlg, sizeDataAlg);
 }
 #endif
-
 
 void Convolution::setConfiguration(knlohmann::json& js) 
 {

@@ -11,7 +11,8 @@ namespace optimizer
 {
 ;
 
-void fSGD::initialize() {
+void fSGD::initialize()
+{
   FastGradientBasedOptimizer::initialize();
   reset();
 }
@@ -19,7 +20,7 @@ void fSGD::initialize() {
 void fSGD::reset()
 {
   _modelEvaluationCount = 0;
-  #pragma omp parallel for simd
+#pragma omp parallel for simd
   for (size_t i = 0; i < _nVars; i++)
     _currentValue[i] = 0.0f;
 }
@@ -31,7 +32,7 @@ void fSGD::processResult(std::vector<float> &gradient)
   // clip gradients
   clipGradients(gradient);
 
-  #pragma omp parallel for simd
+#pragma omp parallel for simd
   for (size_t i = 0; i < _nVars; i++)
   {
     _currentValue[i] += _eta * gradient[i];
@@ -40,17 +41,21 @@ void fSGD::processResult(std::vector<float> &gradient)
   FastGradientBasedOptimizer::postProcessResult(_currentValue);
 }
 
-void fSGD::clipGradients(std::vector<float> &gradient){
-  if(_gradientClipping == "value-clipping"){
+void fSGD::clipGradients(std::vector<float> &gradient)
+{
+  if (_gradientClipping == "value-clipping")
+  {
     float l2norm = 0;
-    #pragma omp parallel for simd reduction(+:l2norm)
-    for(size_t i = 0; i < _nVars; i++)
-      l2norm += gradient[i]*gradient[i];
+#pragma omp parallel for simd reduction(+ \
+                                        : l2norm)
+    for (size_t i = 0; i < _nVars; i++)
+      l2norm += gradient[i] * gradient[i];
     l2norm = sqrt(l2norm);
-    if (l2norm > _clippingThreshold){
-      #pragma omp parallel for simd
-      for(size_t i = 0; i < _nVars; i++)
-        gradient[i] = _clippingThreshold*gradient[i]/l2norm;
+    if (l2norm > _clippingThreshold)
+    {
+#pragma omp parallel for simd
+      for (size_t i = 0; i < _nVars; i++)
+        gradient[i] = _clippingThreshold * gradient[i] / l2norm;
     }
   };
 }

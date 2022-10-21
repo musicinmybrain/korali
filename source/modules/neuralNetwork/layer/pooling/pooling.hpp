@@ -202,15 +202,15 @@ class Pooling : public Layer
   /**
    * @brief Defines the pooling method to be useed for either of type oneDNN or cuDNN.
    */
-    std::variant<dnnl::algorithm, cudnnPoolingMode_t> _algorithm_t;
+  std::variant<dnnl::algorithm, cudnnPoolingMode_t> _algorithm_t;
 #endif
 
 #ifdef _KORALI_USE_ONEDNN
   #ifndef _KORALI_USE_CUDNN
-      /**
-      * @brief Defines the pooling method to be used for oneDNN.
-      */
-      std::variant<dnnl::algorithm> _algorithm_t;
+  /**
+   * @brief Defines the pooling method to be used for oneDNN.
+   */
+  std::variant<dnnl::algorithm> _algorithm_t;
   #endif
 
   /**
@@ -252,10 +252,10 @@ class Pooling : public Layer
 
 #ifdef _KORALI_USE_CUDNN
   #ifndef _KORALI_USE_ONEDNN
-      /**
-      * @brief Defines the pooling method to be used with cuDNN.
-      */
-      std::variant<cudnnPoolingMode_t> _algorithm_t;
+  /**
+   * @brief Defines the pooling method to be used with cuDNN.
+   */
+  std::variant<cudnnPoolingMode_t> _algorithm_t;
   #endif
   /**
    * @brief cuDNN Descriptor for the input data
@@ -268,7 +268,7 @@ class Pooling : public Layer
   /**
    * @brief cuDNN pooling descriptor.
    */
-  cudnnPoolingDescriptor_t  _poolingDescriptor;
+  cudnnPoolingDescriptor_t _poolingDescriptor;
 #endif
 
   void initialize() override;

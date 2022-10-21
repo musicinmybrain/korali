@@ -11,7 +11,8 @@ namespace optimizer
 {
 ;
 
-void fAdaBelief::initialize() {
+void fAdaBelief::initialize()
+{
   _secondCentralMoment.resize(_nVars, 0.0f);
   fAdam::initialize();
   reset();
@@ -22,12 +23,14 @@ void fAdaBelief::reset()
   _modelEvaluationCount = 0;
   _beta1Pow = 1.0f;
   _beta2Pow = 1.0f;
-  #pragma omp parallel for simd
-  for (size_t i = 0; i < _nVars; i++){
+#pragma omp parallel for simd
+  for (size_t i = 0; i < _nVars; i++)
+  {
     _currentValue[i] = 0.0f;
     _firstMoment[i] = 0.0f;
     _secondMoment[i] = 0.0f;
-    _secondCentralMoment[i] = 0.0f;;
+    _secondCentralMoment[i] = 0.0f;
+    ;
   }
 }
 
@@ -47,8 +50,8 @@ void fAdaBelief::processResult(std::vector<float> &gradient)
   const float notBeta1 = 1.0f - _beta1;
   const float notBeta2 = 1.0f - _beta2;
 
-  // update first and second moment estimators and parameters
-  #pragma omp parallel for simd
+// update first and second moment estimators and parameters
+#pragma omp parallel for simd
   for (size_t i = 0; i < _nVars; i++)
   {
     _firstMoment[i] = _beta1 * _firstMoment[i] - notBeta1 * gradient[i];

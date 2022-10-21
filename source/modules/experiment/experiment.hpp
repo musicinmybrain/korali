@@ -19,9 +19,9 @@
 #include "variable/variable.hpp"
 #include <chrono>
 #include <functional>
-#include <vector>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 namespace korali
 {
@@ -40,17 +40,16 @@ class Problem;
 */
 class Engine;
 
-
 #ifdef PROFILE
   #define KORALI_START_PROFILE(NAME, EXPERIMENT) EXPERIMENT->_startProfile(NAME, EXPERIMENT);
 #else
-  #define KORALI_START_PROFILE(NAME, EXPERIMENT){};
+  #define KORALI_START_PROFILE(NAME, EXPERIMENT) {};
 #endif
 
 #ifdef PROFILE
   #define KORALI_STOP_PROFILE(NAME, EXPERIMENT) EXPERIMENT->_stopProfile(NAME, EXPERIMENT);
 #else
-  #define KORALI_STOP_PROFILE(NAME, EXPERIMENT){};
+  #define KORALI_STOP_PROFILE(NAME, EXPERIMENT) {};
 #endif
 
 /**
@@ -214,7 +213,7 @@ class Experiment : public Module
   /**
    * @brief Vector of string->vector<pair> maps stores start time of "name" from program start and durtion of "name".
    */
-  std::unordered_map<std::string, std::vector<std::pair <double, double>>> _generationTimeStamp;
+  std::unordered_map<std::string, std::vector<std::pair<double, double>>> _generationTimeStamp;
   /**
    * @brief Indicates the times it takes for the generations to run..
    */

@@ -71,13 +71,13 @@ struct policy_t
   size_t actionIndex;
 
   /**
-  * @brief [Discrete] Stores the action probabilities of the categorial distribution.
-  */
+   * @brief [Discrete] Stores the action probabilities of the categorial distribution.
+   */
   std::vector<float> actionProbabilities;
 
   /**
-  * @brief [Discrete] Flags the actions that are available at the current state.
-  */
+   * @brief [Discrete] Flags the actions that are available at the current state.
+   */
   std::vector<size_t> availableActions;
 
   /**
@@ -454,9 +454,9 @@ class Agent : public Solver
   cBuffer<std::vector<float>> _importanceWeightVector;
 
   /**
-   * @brief Contains the latest calculation of the experience's truncated importance weight
+   * @brief Contains the latest calculation of the experience's truncated importance weight (for cache optimzed update of retV in updateExperienceMetadata)
    */
-  cBuffer<std::vector<float>> _truncatedImportanceWeightVector;
+  cBuffer<float> _truncatedImportanceWeightVectorContiguous;
 
   /**
    * @brief Contains the latest calculation of the product of the product of the experience's importance weights
@@ -494,9 +494,9 @@ class Agent : public Solver
   cBuffer<termination_t> _terminationVector;
 
   /**
-   * @brief Contains the result of the retrace (Vtbc) function for the currrent experience
+   * @brief Contains the result of the retrace (Vtbc) function for the currrent experience (for cache optimzed update of retV in updateExperienceMetadata)
    */
-  cBuffer<std::vector<float>> _retraceValueVector;
+  cBuffer<float> _retraceValueVectorContiguous;
 
   /**
    * @brief If this is a truncated terminal experience, this contains the state value for that state
@@ -509,14 +509,14 @@ class Agent : public Solver
   cBuffer<std::vector<std::vector<float>>> _truncatedStateVector;
 
   /**
-   * @brief Contains the rewards of every experience
+   * @brief Contains the rewards of every experience (for cache optimzed update of retV in updateExperienceMetadata)
    */
-  cBuffer<std::vector<float>> _rewardVector;
+  cBuffer<float> _rewardVectorContiguous;
 
   /**
-   * @brief Contains the state value evaluation for every experience
+   * @brief Contains the state value evaluation for every experience (for cache optimzed update of retV in updateExperienceMetadata)
    */
-  cBuffer<std::vector<float>> _stateValueVector;
+  cBuffer<float> _stateValueVectorContiguous;
 
   /**
    * @brief Stores the priority annealing rate.

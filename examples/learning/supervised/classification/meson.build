@@ -1,1 +1,2 @@
 subdir('mnist')
+subdir('cifar')

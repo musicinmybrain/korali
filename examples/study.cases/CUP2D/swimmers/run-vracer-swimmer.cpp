@@ -16,6 +16,10 @@ int main(int argc, char *argv[])
   int task    = atoi(argv[argc-5]);
   int nAgents = atoi(argv[argc-3]);
   int nRanks  = atoi(argv[argc-1]);
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  if (rank == 0)
+	  std::cout << "Running task : " << task << " with nAgents=" << nAgents << std::endl;
 
   // Storing parameters for environment
   _argc = argc;
@@ -100,6 +104,7 @@ int main(int argc, char *argv[])
   e["Solver"]["Learning Rate"] = 1e-4;
   e["Solver"]["Discount Factor"] = 0.95;
   e["Solver"]["Mini Batch"]["Size"] =  128;
+  // e["Solver"]["Multi Agent Relationship"] = "Competition";
 
   /// Defining the configuration of replay memory
   e["Solver"]["Experience Replay"]["Start Size"] = 1024;
@@ -111,7 +116,7 @@ int main(int argc, char *argv[])
 
   //// Defining Policy distribution and scaling parameters
   e["Solver"]["Policy"]["Distribution"] = "Clipped Normal";
-  e["Solver"]["State Rescaling"]["Enabled"] = true;
+  // e["Solver"]["State Rescaling"]["Enabled"] = true;
   e["Solver"]["Reward"]["Rescaling"]["Enabled"] = true;
 
   //// Defining Neural Network
@@ -134,7 +139,7 @@ int main(int argc, char *argv[])
   e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tanh";
 
   ////// Defining Termination Criteria
-  e["Solver"]["Termination Criteria"]["Max Experiences"] = nAgents*5e5;
+  e["Solver"]["Termination Criteria"]["Max Experiences"] = 5e5;
 
   ////// Setting Korali output configuration
   e["Console Output"]["Verbosity"] = "Normal";

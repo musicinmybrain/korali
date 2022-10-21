@@ -4,9 +4,7 @@
 #ifdef _OPENMP
   #include <omp.h>
 #endif
-#include<csignal>
-
-
+#include <csignal>
 
 namespace korali
 {
@@ -196,7 +194,10 @@ std::vector<float> NeuralNetwork::generateInitialHyperparameters()
     auto layerParameters = _pipelines[0][0]._layerVector[i]->generateInitialHyperparameters();
     // Safty check is any not finite value exists
 #ifdef DEBUG
-    if(std::any_of(layerParameters.begin(), layerParameters.end(), [](const float v) { return !std::isfinite(v);}))
+    if (std::any_of(layerParameters.begin(), layerParameters.end(), [](const float v)
+                    {
+                      return !std::isfinite(v);
+                    }))
       KORALI_LOG_ERROR("[Layer %zu/Type %s] Non-finite value assigned to inital hyperparameters.", i, _pipelines[0][0]._layerVector[i]->_type.c_str());
 #endif
     initialHyperparameters.insert(initialHyperparameters.end(), layerParameters.begin(), layerParameters.end());
@@ -323,7 +324,7 @@ void NeuralNetwork::backward(const std::vector<std::vector<float>> &outputGradie
       // Starting from the last layer, and going backwards
       size_t curLayer = lastLayer - i;
 
-      // TODO: problem here in backwardData of LSTM 
+      // TODO: problem here in backwardData of LSTM
       // Running backward data propagation
       p->_layerVector[curLayer]->backwardData(currentTimestep);
     }
@@ -337,9 +338,12 @@ void NeuralNetwork::backward(const std::vector<std::vector<float>> &outputGradie
       auto index = p->_layerVector[i]->_hyperparameterIndex;
       if (T == 1) p->_layerVector[i]->getHyperparameterGradients(&p->_hyperparameterGradients[index]);
 #ifdef DEBUG
-      bool isNonfin = std::any_of(&p->_hyperparameterGradients[index], &p->_hyperparameterGradients[index+p->_layerVector[i]->_hyperparameterCount], [](const float v) { return !std::isfinite(v);});
-      if(isNonfin)
-        KORALI_LOG_ERROR("[Layer %zu] Non-finite value inside %s hyperparametergradients.", i-1, p->_layerVector[i]->_type.c_str());
+      bool isNonfin = std::any_of(&p->_hyperparameterGradients[index], &p->_hyperparameterGradients[index + p->_layerVector[i]->_hyperparameterCount], [](const float v)
+                                  {
+                                    return !std::isfinite(v);
+                                  });
+      if (isNonfin)
+        KORALI_LOG_ERROR("[Layer %zu] Non-finite value inside %s hyperparametergradients.", i - 1, p->_layerVector[i]->_type.c_str());
 #endif
       if (T > 1) p->_layerVector[i]->getHyperparameterGradients(&batchHyperparameterGradients[index]);
     }
@@ -416,6 +420,7 @@ std::vector<float> &NeuralNetwork::getHyperparameterGradients(const size_t batch
 
 std::vector<float> NeuralNetwork::getHyperparameters()
 {
+  KORALI_START_PROFILE("NeuralNetwork::Get Hyperparameters", _k);
   auto hyperparameters = std::vector<float>(_hyperparameterCount);
 
   size_t layerCount = _pipelines[0][0]._layerVector.size();
@@ -426,32 +431,32 @@ std::vector<float> NeuralNetwork::getHyperparameters()
     _pipelines[0][0]._layerVector[i]->getHyperparameters(&hyperparameters[index]);
   }
 
-  for (const float h : hyperparameters)
-    if (std::isfinite(h) == false)
-      KORALI_LOG_ERROR("Returning non-finite hyperparameters"); //TODO: move check to optimizer
-
+  KORALI_STOP_PROFILE("NeuralNetwork::Get Hyperparameters", _k);
   return hyperparameters;
 }
 
 void NeuralNetwork::setHyperparameters(const std::vector<float> &hyperparameters, const bool initial)
 {
+  KORALI_START_PROFILE("NeuralNetwork::Set Weights", _k);
   if (hyperparameters.size() != _hyperparameterCount)
     KORALI_LOG_ERROR("Wrong number of hyperparameters passed to the neural network. Expected: %lu, provided: %lu.\n", _hyperparameterCount, hyperparameters.size());
 
   for (const float h : hyperparameters)
     if (std::isfinite(h) == false)
-      KORALI_LOG_ERROR("Assigning non-finite value to hyperparameters"); //TODO: move check to optimizer
+      KORALI_LOG_ERROR("Assigning non-finite value to hyperparameters"); // TODO: move check to optimizer
 
   size_t layerCount = _pipelines[0][0]._layerVector.size();
 
   for (size_t i = 0; i < layerCount; i++)
   {
     size_t index;
-    if(_pipelines[0][0]._layerVector[i]->_isLayerTrainable || initial){
+    if (_pipelines[0][0]._layerVector[i]->_isLayerTrainable || initial)
+    {
       index = _pipelines[0][0]._layerVector[i]->_hyperparameterIndex;
       _pipelines[0][0]._layerVector[i]->setHyperparameters(&hyperparameters[index]);
     }
   }
+  KORALI_STOP_PROFILE("NeuralNetwork::Set Weights", _k);
 }
 
 void NeuralNetwork::setConfiguration(knlohmann::json& js) 

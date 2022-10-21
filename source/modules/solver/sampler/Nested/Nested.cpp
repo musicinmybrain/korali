@@ -150,8 +150,6 @@ void Nested::setInitialConfiguration()
   {
     initEllipseVector();
   }
-
-  (*_k)["Results"]["Posterior Samples"] = {};
 }
 
 void Nested::runGeneration()
@@ -515,9 +513,10 @@ void Nested::sortLiveSamplesAscending()
   std::iota(_liveSamplesRank.begin(), _liveSamplesRank.end(), 0);
 
   // Sort sample rank ascending based on likelihood and prior weight
-  std::sort(_liveSamplesRank.begin(), _liveSamplesRank.end(), [this](const size_t &idx1, const size_t &idx2) -> bool {
-    return this->_liveLogPriorWeights[idx1] + this->_liveLogLikelihoods[idx1] < this->_liveLogPriorWeights[idx2] + this->_liveLogLikelihoods[idx2];
-  });
+  std::sort(_liveSamplesRank.begin(), _liveSamplesRank.end(), [this](const size_t &idx1, const size_t &idx2) -> bool
+            {
+              return this->_liveLogPriorWeights[idx1] + this->_liveLogLikelihoods[idx1] < this->_liveLogPriorWeights[idx2] + this->_liveLogLikelihoods[idx2];
+            });
 }
 
 void Nested::updateDeadSamples(size_t sampleIdx)
@@ -611,9 +610,9 @@ void Nested::generatePosterior()
     }
   }
 
-  (*_k)["Results"]["Posterior Samples Database"] = posteriorSamples;
-  (*_k)["Results"]["Posterior Samples LogPrior Database"] = posteriorSamplesLogPriorDatabase;
-  (*_k)["Results"]["Posterior Samples LogLikelihood Database"] = posteriorSamplesLogLikelihoodDatabase;
+  (*_k)["Results"]["Posterior Sample Database"] = posteriorSamples;
+  (*_k)["Results"]["Posterior Sample LogPrior Database"] = posteriorSamplesLogPriorDatabase;
+  (*_k)["Results"]["Posterior Sample LogLikelihood Database"] = posteriorSamplesLogLikelihoodDatabase;
 }
 
 double Nested::l2distance(const std::vector<double> &sampleOne, const std::vector<double> &sampleTwo) const
@@ -1024,6 +1023,7 @@ void Nested::finalize()
   if (_k->_currentGeneration <= 1) return;
   if (_addLivePoints == true) consumeLiveSamples();
 
+  (*_k)["Results"]["LogEvidence"] = _logEvidence;
   generatePosterior();
 
   _k->_logger->logInfo("Minimal", "Final Log Evidence: %.4f (+- %.4F)\n", _logEvidence, std::sqrt(_logEvidenceVar));

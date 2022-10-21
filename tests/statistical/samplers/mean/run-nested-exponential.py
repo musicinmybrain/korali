@@ -44,5 +44,5 @@ e["Random Seed"] = 1227
 k = korali.Engine()
 k.run(e)
 
-verifyMean(e["Results"]["Posterior Samples Database"], [4.0], 0.1)
-verifyStd(e["Results"]["Posterior Samples Database"], [4.0], 0.1)
+verifyMean(e["Results"]["Posterior Sample Database"], [4.0], 0.1)
+verifyStd(e["Results"]["Posterior Sample Database"], [4.0], 0.1)
