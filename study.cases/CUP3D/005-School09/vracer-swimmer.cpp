@@ -267,7 +267,7 @@ int main(int argc, char *argv[])
     e["Solver"]["Type"] = "Agent / Continuous / VRACER";
     e["Solver"]["Mode"] = "Training";
     e["Solver"]["Episodes Per Generation"] = 1;
-    e["Solver"]["Concurrent Environments"] = N;
+    e["Solver"]["Concurrent Workers"] = N;
 #else
   // Loading existing results and transplant best training policy
   auto eOld = korali::Experiment();

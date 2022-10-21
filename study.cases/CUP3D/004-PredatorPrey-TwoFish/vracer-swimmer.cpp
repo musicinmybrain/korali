@@ -277,7 +277,7 @@ int main(int argc, char *argv[])
     e["Solver"]["Type"] = "Agent / Continuous / VRACER";
     e["Solver"]["Mode"] = "Training";
     e["Solver"]["Episodes Per Generation"] = 1;
-    e["Solver"]["Concurrent Environments"] = N;
+    e["Solver"]["Concurrent Workers"] = N;
   
     setupRL(e);//define state, action and neural network
    

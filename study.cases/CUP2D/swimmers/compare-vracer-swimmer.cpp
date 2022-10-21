@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
   // e["Solver"]["Mode"] = "Testing";
   e["Solver"]["Mode"] = "Training";
   e["Solver"]["Episodes Per Generation"] = 1;
-  e["Solver"]["Concurrent Environments"] = N;
+  e["Solver"]["Concurrent Workers"] = N;
   e["Solver"]["Experiences Between Policy Updates"] = 1;
   e["Solver"]["Learning Rate"] = 1e-4;
   e["Solver"]["Discount Factor"] = 0.95;

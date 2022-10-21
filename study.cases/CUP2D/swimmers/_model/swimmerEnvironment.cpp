@@ -565,9 +565,9 @@ bool isTerminal(StefanFish *agent, int nAgents, int task)
   else if( nAgents == 100 )
   {
     xMin = 0.1;
-    xMax = 7.9;
+    xMax = 3.9;
     yMin = 0.1;
-    yMax = 7.9;
+    yMax = 3.9;
   }
   else{
     fprintf(stderr, "Number of Agents unknown, isTerminal not implemented...\n");
