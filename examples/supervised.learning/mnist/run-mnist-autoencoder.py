@@ -60,7 +60,7 @@ e["Solver"]["Termination Criteria"]["Max Generations"] = 1
 e["Solver"]["Type"] = "DeepSupervisor"
 e["Solver"]["Mode"] = "Training"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
-e["Solver"]["Neural Network"]["Engine"] = "CuDNN"
+e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 e["Solver"]["Mode"] = "Training"
 
