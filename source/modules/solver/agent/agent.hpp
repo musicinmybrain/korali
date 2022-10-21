@@ -19,7 +19,6 @@
 #include "modules/solver/deepSupervisor/deepSupervisor.hpp"
 #include "sample/sample.hpp"
 #include <algorithm> // std::shuffle
-#include <boost/circular_buffer.hpp>
 #include <random>
 
 namespace korali
