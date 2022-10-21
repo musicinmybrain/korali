@@ -1,0 +1,121 @@
+include:
+  - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.cscs.yml'
+
+
+stages:
+  - build # build stage is running on the Kubernetes cluster
+  - test  # test stage is running on Piz Daint
+
+
+# variables that apply to all jobs
+variables:
+  PERSIST_IMAGE_NAME_CPU: korali_cscs_ci_cpu
+  PERSIST_IMAGE_NAME_GPU: korali_cscs_ci_gpu
+  VERBOSE: 'YES' # debugging
+  SARUS_VERBOSE: 'YES' # debugging
+
+  
+# build stage  
+
+build_cpu:
+  tags:
+    - docker_jfrog
+  stage: build
+  script:
+    # we are using a Dockerfile that contains the real build instructions, this script will be ignored by the docker_jfrog runner if DOCKERFILE is set
+    - "true"
+  variables:
+    PERSIST_IMAGE_NAME: ${PERSIST_IMAGE_NAME_CPU}
+    DOCKERFILE:  docker/Dockerfile_cscs_ci.deploy.cpu
+    
+build_gpu:
+  tags:
+    - docker_jfrog
+  stage: build
+  script:
+    # we are using a Dockerfile that contains the real build instructions, this script will be ignored by the docker_jfrog runner if DOCKERFILE is set
+    - "true"
+  variables:
+    PERSIST_IMAGE_NAME: ${PERSIST_IMAGE_NAME_GPU}
+    DOCKERFILE:  docker/Dockerfile_cscs_ci.deploy.gpu
+    
+
+# test stage  
+
+# templates for jobs in test stage (base and cross-product of MPI-support and cpu/gpu architecture)
+.test_korali:
+  extends: .daint
+  stage: test
+  variables:
+    PULL_IMAGE: 'YES'
+    CSCS_REGISTRY_LOGIN: 'YES'
+    # SLURM_TIMELIMIT: '15:00'
+
+.test_korali_non_mpi_cpu:
+  extends: .test_korali
+  variables:
+    USE_MPI: 'NO'
+    SLURM_CONSTRAINT: 'mc'
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 1
+
+.test_korali_mpi_cpu:
+  extends: .test_korali
+  variables:
+    USE_MPI: 'YES'
+    SLURM_CONSTRAINT: 'mc'
+    SLURM_PARTITION: 'normal'
+    
+.test_korali_non_mpi_gpu:
+  extends: .test_korali
+  variables:
+    USE_MPI: 'NO'
+    SLURM_CONSTRAINT: 'gpu'
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 1
+
+.test_korali_mpi_gpu:
+  extends: .test_korali
+  variables:
+    USE_MPI: 'YES'
+    SLURM_CONSTRAINT: 'gpu'
+    SLURM_PARTITION: 'normal'
+
+
+# individual tests 
+# script commands get executed one after the other inside sarus container for each rank within the same srun job
+
+run_non_mpi_test_cpu:
+  extends: .test_korali_non_mpi_cpu
+  image: art.cscs.ch/contbuild/testing/anfink/${PERSIST_IMAGE_NAME_CPU}
+  script:
+    - echo "Hello from korali test in Sarus container on node ${SLURMD_NODENAME} (node ID ${SLURM_NODEID}, proc ID ${SLURM_PROCID}, replacing MPI ${USE_MPI})"
+    - cd /home/ubuntu/korali/examples/features/running.cxx && ./run-cmaes
+
+run_mpi_test_cpu:
+  extends: .test_korali_mpi_cpu
+  image: art.cscs.ch/contbuild/testing/anfink/${PERSIST_IMAGE_NAME_CPU}
+  script:
+    - echo "Hello from korali test in Sarus container on node ${SLURMD_NODENAME} (node ID ${SLURM_NODEID}, proc ID ${SLURM_PROCID}, replacing MPI ${USE_MPI})"
+    - cd /home/ubuntu/korali/examples/features/running.mpi.cxx && ./run-cmaes 4
+  variables:
+    SLURM_JOB_NUM_NODES: 2
+    SLURM_NTASKS: 9
+
+    
+run_non_mpi_test_gpu:
+  extends: .test_korali_non_mpi_gpu
+  image: art.cscs.ch/contbuild/testing/anfink/${PERSIST_IMAGE_NAME_GPU}
+  script:
+    - echo "Hello from korali test in Sarus container on node ${SLURMD_NODENAME} (node ID ${SLURM_NODEID}, proc ID ${SLURM_PROCID}, replacing MPI ${USE_MPI})"
+    - cd /home/ubuntu/korali/examples/features/running.cxx && ./run-cmaes
+
+run_mpi_test_gpu:
+  extends: .test_korali_mpi_gpu
+  image: art.cscs.ch/contbuild/testing/anfink/${PERSIST_IMAGE_NAME_GPU}
+  script:
+    - echo "Hello from korali test in Sarus container on node ${SLURMD_NODENAME} (node ID ${SLURM_NODEID}, proc ID ${SLURM_PROCID}, replacing MPI ${USE_MPI})"
+    - cd /home/ubuntu/korali/examples/features/running.mpi.cxx && ./run-cmaes 4
+  variables:
+    SLURM_JOB_NUM_NODES: 2
+    SLURM_NTASKS: 9

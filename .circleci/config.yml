@@ -41,6 +41,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: install dependencies
+          command: pip install seaborn
+      - run:
           name: config
           command: CC=<< parameters.CC >> CXX=<< parameters.CXX >> meson setup build --prefix=~/test_install -Donednn_path=/usr/local -Dmpi=<< parameters.useMPI >>  -Dmpi4py=<< parameters.useMPI4Py >> --buildtype=<< parameters.buildtype >> -Db_coverage=<< parameters.runCoverage >> -Dtest=<< parameters.runTests >>
       - run:

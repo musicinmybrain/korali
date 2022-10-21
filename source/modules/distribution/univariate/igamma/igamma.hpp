@@ -32,19 +32,19 @@ class Igamma : public Univariate
 
   public: 
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The shape parameter of the inverse gamma distribution.
   */
    double _shape;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The shape parameter of the inverse gamma distribution.
   */
    std::string _shapeConditional;
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The scale parameter of the inverse gamma distribution.
   */
    double _scale;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The scale parameter of the inverse gamma distribution.
   */
    std::string _scaleConditional;
   

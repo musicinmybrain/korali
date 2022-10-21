@@ -289,7 +289,7 @@ void Recurrent::setHyperparameters(const float *hyperparameters)
     const size_t G = _gateCount;
     const size_t IC = _prevLayer->_outputChannels;
     const size_t OC = _outputChannels;
-    const size_t D = 1;                            // directions
+    const size_t D = 1; // directions
 
     write_to_dnnl_memory(&hyperparameters[0], _weightsLayerMem);
     write_to_dnnl_memory(&hyperparameters[L * D * G * IC * OC], _weightsRecurrentMem);
@@ -312,7 +312,7 @@ void Recurrent::getHyperparameters(float *hyperparameters)
     const size_t G = _gateCount;
     const size_t IC = _prevLayer->_outputChannels;
     const size_t OC = _outputChannels;
-    const size_t D = 1;                            // directions
+    const size_t D = 1; // directions
 
     read_from_dnnl_memory(&hyperparameters[0], _weightsLayerMem);
     read_from_dnnl_memory(&hyperparameters[L * D * G * IC * OC], _weightsRecurrentMem);
@@ -335,7 +335,7 @@ void Recurrent::getHyperparameterGradients(float *gradient)
     const size_t G = _gateCount;
     const size_t IC = _prevLayer->_outputChannels;
     const size_t OC = _outputChannels;
-    const size_t D = 1;                            // directions
+    const size_t D = 1; // directions
 
     read_from_dnnl_memory(&gradient[0], _weightsLayerGradientMem);
     read_from_dnnl_memory(&gradient[L * D * G * IC * OC], _weightsRecurrentGradientMem);

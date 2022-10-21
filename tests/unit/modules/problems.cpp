@@ -219,6 +219,7 @@ namespace
   Variable v;
   v._distributionIndex = 0;
   e._variables.push_back(&v);
+  e["Solver"]["Type"] = "DeepSupervisor";
   e["Variables"][0]["Name"] = "Var 1";
   e["Variables"][0]["Initial Mean"] = 0.0;
   e["Variables"][0]["Initial Standard Deviation"] = 0.25;
@@ -232,16 +233,15 @@ namespace
   problemJs["Type"] = "Supervised Learning";
   problemJs["Max Timesteps"] = 1;
   problemJs["Training Batch Size"] = 1;
-  problemJs["Inference Batch Size"] = 1;
+  problemJs["Testing Batch Size"] = 1;
 
   problemJs["Input"]["Data"] = std::vector<std::vector<std::vector<float>>>({{{0.0}}});
   problemJs["Input"]["Size"] = 1;
   problemJs["Solution"]["Data"] = std::vector<std::vector<float>>({{0.0}});
   problemJs["Solution"]["Size"] = 1;
 
-  e["Solver"]["Type"] = "Learner/DeepSupervisor";
-
   ASSERT_NO_THROW(pObj = dynamic_cast<SupervisedLearning *>(Module::getModule(problemJs, &e)));
+ 
   e._problem = pObj;
 
   // Defaults should be applied without a problem
@@ -254,6 +254,16 @@ namespace
   auto baseProbJs = problemJs;
   auto baseExpJs = experimentJs;
 
+  e["Solver"]["Type"] = "Agent";
+  
+  // Testing wrong solver
+  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
+ 
+  e["Solver"]["Type"] = "DeepSupervisor";
+  
+  problemJs = baseProbJs;
+  experimentJs = baseExpJs;
+  
   // Testing correct configuration
   ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
 
@@ -289,17 +299,17 @@ namespace
 
   problemJs = baseProbJs;
   experimentJs = baseExpJs;
-  problemJs.erase("Inference Batch Size");
+  problemJs.erase("Testing Batch Size");
   ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
 
   problemJs = baseProbJs;
   experimentJs = baseExpJs;
-  problemJs["Inference Batch Size"] = "Not a Number";
+  problemJs["Testing Batch Size"] = "Not a Number";
   ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
 
   problemJs = baseProbJs;
   experimentJs = baseExpJs;
-  problemJs["Inference Batch Size"] = 1;
+  problemJs["Testing Batch Size"] = 1;
   ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
 
   problemJs = baseProbJs;
@@ -377,7 +387,7 @@ namespace
   problemJs["Solution"]["Size"] = 1;
   ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
  }
-
+ 
  TEST(Problem, Sampling)
  {
   // Creating base experiment
@@ -682,229 +692,6 @@ namespace
   problemJs = baseProbJs;
   experimentJs = baseExpJs;
   e["Variables"][0]["Sampled Values"] = std::vector<double>();
-  ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
- }
-
- TEST(Problem, Integration)
- {
-  // Creating base experiment
-  Experiment e;
-  auto& experimentJs = e._js.getJson();
-
-  knlohmann::json uniformDistroJs;
-  uniformDistroJs["Type"] = "Univariate/Uniform";
-  uniformDistroJs["Minimum"] = 0.0;
-  uniformDistroJs["Maximum"] = 1.0;
-  auto uniformGenerator = dynamic_cast<korali::distribution::univariate::Uniform*>(korali::Module::getModule(uniformDistroJs, &e));
-  uniformGenerator->applyVariableDefaults();
-  uniformGenerator->applyModuleDefaults(uniformDistroJs);
-  uniformGenerator->setConfiguration(uniformDistroJs);
-  e._distributions.push_back(uniformGenerator);
-  e._distributions[0]->_name = "Uniform";
-
-  // Creating initial variable
-  Variable v;
-  v._precomputedValues = std::vector<double>({0.0});
-  e._variables.push_back(&v);
-
-  // Integrand function
-  std::function<void(korali::Sample&)> modelFc = [](Sample& s) { s["Evaluation"] = 1.0; };
-
-  // Configuring Problem
-  Integration* pObj;
-  knlohmann::json problemJs;
-  problemJs["Type"] = "Integration";
-  problemJs["Integrand"] = modelFc;
-  problemJs["Integration Method"] = "Rectangle";
-  e["Solver"]["Type"] = "Integrator";
-
-  e["Variables"][0]["Name"] = "Var X";
-  e["Variables"][0]["Number Of Gridpoints"] = 10;
-  e["Variables"][0]["Sampling Distribution"] = "Uniform";
-  e["Variables"][0]["Lower Bound"] = 0.0;
-  e["Variables"][0]["Upper Bound"] = 1.0;
-  e["Variables"][0]["Sample Points"] = std::vector<double>({ 0.0, 0.1, 0.2, 0.3 });
-  e["Variables"][0]["Quadrature Weights"] = std::vector<double>({ 0.0, 0.1, 0.2, 0.3 });
-
-  ASSERT_NO_THROW(pObj = dynamic_cast<Integration *>(Module::getModule(problemJs, &e)));
-  e._problem = pObj;
-
-  // Defaults should be applied without a problem
-  ASSERT_NO_THROW(pObj->applyModuleDefaults(problemJs));
-
-  // Covering variable functions (no effect)
-  pObj->applyVariableDefaults();
-  ASSERT_NO_THROW(pObj->applyVariableDefaults());
-
-  // Trying to run unknown operation
-  Sample s;
-  ASSERT_ANY_THROW(pObj->runOperation("Unknown", s));
-
-  // Backup the correct base configuration
-  auto baseProbJs = problemJs;
-  auto baseExpJs = experimentJs;
-
-  // Testing correct configuration
-  ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
-
-  // Testing unrecognized solver
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Solver"]["Type"] = "";
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  // Testing initialization
-  ASSERT_NO_THROW(pObj->initialize());
-
-  // Testing fail cases
-  pObj->_integrationMethod = "Monte Carlo";
-  e._variables[0]->_samplingDistribution = "Unknown";
-  ASSERT_ANY_THROW(pObj->initialize());
-
-  pObj->_integrationMethod = "Custom";
-  e._variables[0]->_samplingDistribution = "";
-  e._variables[0]->_quadratureWeights = std::vector<double>({});
-  e._variables[0]->_samplePoints = std::vector<double>({0.0});
-  ASSERT_ANY_THROW(pObj->initialize());
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  problemJs.erase("Integrand");
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  problemJs["Integrand"] = "Not a Number";
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  problemJs["Integrand"] = 1;
-  ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  problemJs.erase("Integration Method");
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  problemJs["Integration Method"] = 1.0;
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  problemJs["Integration Method"] = "Unknown";
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  problemJs["Integration Method"] = "Rectangle";
-  ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0].erase("Lower Bound");
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0]["Lower Bound"] = "Not a Number";
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0]["Lower Bound"] = 1.0;
-  ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0].erase("Upper Bound");
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0]["Upper Bound"] = "Not a Number";
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0]["Upper Bound"] = 1.0;
-  ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0].erase("Number Of Gridpoints");
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0]["Number Of Gridpoints"] = "Not a Number";
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0]["Number Of Gridpoints"] = 1;
-  ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0].erase("Sampling Distribution");
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0]["Sampling Distribution"] = 1.0;
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0]["Sampling Distribution"] = "Uniform";
-  ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0].erase("Distribution Index");
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0]["Distribution Index"] = "Not a Number";
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0]["Distribution Index"] = 1;
-  ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0].erase("Sample Points");
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0]["Sample Points"] = "Not a Number";
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0]["Sample Points"] = std::vector<double>({});
-  ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0].erase("Quadrature Weights");
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0]["Quadrature Weights"] = "Not a Number";
-  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
-
-  problemJs = baseProbJs;
-  experimentJs = baseExpJs;
-  e["Variables"][0]["Quadrature Weights"] = std::vector<double>({});
   ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
  }
 
@@ -2194,6 +1981,28 @@ namespace
   experimentJs = baseExpJs;
   e["Variables"][0]["Upper Bound"] = 1.0;
   ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
+
+  // Testing RL Testing episodes
+  problemJs = baseProbJs;
+  experimentJs = baseExpJs;
+  problemJs["Testing Frequency"] = "Not a Number";
+  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
+
+  problemJs = baseProbJs;
+  experimentJs = baseExpJs;
+  problemJs.erase("Testing Frequency");
+  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
+
+  problemJs = baseProbJs;
+  experimentJs = baseExpJs;
+  problemJs["Policy Testing Episodes"] = "Not a Number";
+  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
+
+  problemJs = baseProbJs;
+  experimentJs = baseExpJs;
+  problemJs.erase("Policy Testing Episodes");
+  ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
+
  }
 
  TEST(Problem, ReinforcementLearningContinuous)

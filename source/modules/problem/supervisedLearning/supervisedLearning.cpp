@@ -118,10 +118,7 @@ void SupervisedLearning::setConfiguration(knlohmann::json& js)
   std::string solverName = toLower(_k->_js["Solver"]["Type"]); 
   std::string candidateSolverName; 
   solverName.erase(remove_if(solverName.begin(), solverName.end(), isspace), solverName.end()); 
-   candidateSolverName = toLower("Learner/DeepSupervisor"); 
-   candidateSolverName.erase(remove_if(candidateSolverName.begin(), candidateSolverName.end(), isspace), candidateSolverName.end()); 
-   if (solverName.rfind(candidateSolverName, 0) == 0) detectedCompatibleSolver = true;
-   candidateSolverName = toLower("Learner/Gaussian Process"); 
+   candidateSolverName = toLower("DeepSupervisor"); 
    candidateSolverName.erase(remove_if(candidateSolverName.begin(), candidateSolverName.end(), isspace), candidateSolverName.end()); 
    if (solverName.rfind(candidateSolverName, 0) == 0) detectedCompatibleSolver = true;
   if (detectedCompatibleSolver == false) KORALI_LOG_ERROR(" + Specified solver (%s) is not compatible with problem of type: supervisedLearning\n",  _k->_js["Solver"]["Type"].dump(1).c_str()); 

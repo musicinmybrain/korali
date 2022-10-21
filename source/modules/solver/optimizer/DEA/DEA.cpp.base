@@ -109,7 +109,6 @@ void __className__::prepareGeneration()
         if (_fixInfeasible && isFeasible == false) fixInfeasible(i);
 
         isFeasible = isSampleFeasible(_candidatePopulation[i]);
-        if (isFeasible == false) _infeasibleSampleCount++;
       } while (isFeasible == false);
     }
   _previousValueVector = _valueVector;

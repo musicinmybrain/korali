@@ -11,6 +11,7 @@
 #include "modules/distribution/univariate/normal/normal.hpp"
 #include "modules/distribution/univariate/truncatedNormal/truncatedNormal.hpp"
 #include "modules/distribution/univariate/uniform/uniform.hpp"
+#include "modules/distribution/univariate/poisson/poisson.hpp"
 #include "modules/distribution/univariate/weibull/weibull.hpp"
 #include "modules/distribution/multivariate/normal/normal.hpp"
 
@@ -1298,7 +1299,7 @@ namespace
 
   // Testing extreme case for log density
   ASSERT_NO_THROW(d->getLogDensity(1));
-  ASSERT_NO_THROW(d->getLogDensityGradient(1));
+  ASSERT_ANY_THROW(d->getLogDensityGradient(1));
 
  // Checking random numbers are within the expected range
   for (size_t i = 0; i < 100; i++)
@@ -1308,8 +1309,8 @@ namespace
   }
 
   // Testing extreme for log density gradient and hessian
-  ASSERT_NO_THROW(d->getLogDensityGradient(1));
-  ASSERT_NO_THROW(d->getLogDensityHessian(1));
+  ASSERT_ANY_THROW(d->getLogDensityGradient(1));
+  ASSERT_ANY_THROW(d->getLogDensityHessian(1));
  }
 
  TEST(Distrtibutions, iGammaDistribution)
@@ -2369,6 +2370,72 @@ namespace
   ASSERT_NO_THROW(d->getLogDensityGradient( 0.5 ));
   ASSERT_NO_THROW(d->getLogDensityHessian( 0.5 ));
  }
+ 
+ TEST(Distrtibutions, PoissonDistribution)
+ {
+  knlohmann::json distributionJs;
+  Experiment e;
+  distribution::univariate::Poisson* d;
+
+  // Creating distribution with an incorrect name
+  distributionJs["Type"] = "Distribution/Univariate/Poisson";
+  ASSERT_ANY_THROW(d = dynamic_cast<korali::distribution::univariate::Poisson*>(Module::getModule(distributionJs, &e)));
+
+  // Creating distribution correctly now
+  distributionJs["Type"] = "Univariate/Poisson";
+  ASSERT_NO_THROW(d = dynamic_cast<korali::distribution::univariate::Poisson*>(Module::getModule(distributionJs, &e)));
+
+  //////////////////////////////////////////////////
+
+  // Getting module defaults
+  distributionJs["Name"] = "Test";
+  ASSERT_NO_THROW(d->applyModuleDefaults(distributionJs));
+  ASSERT_NO_THROW(d->applyVariableDefaults());
+  auto baseJs = distributionJs;
+
+  // Testing incorrect mean
+  d->_mean = -16.0;
+  ASSERT_ANY_THROW(d->updateDistribution());
+  
+  // Testing meaningful mean
+  distributionJs["Mean"] = 2.0;
+  ASSERT_NO_THROW(d->setConfiguration(distributionJs));
+  ASSERT_NO_THROW(d->updateDistribution());
+
+  // Testing get property pointer
+  ASSERT_TRUE(d->getPropertyPointer("Mean") != NULL);
+  
+  // Testing get configuration method
+  d->getConfiguration(distributionJs);
+  ASSERT_EQ(distributionJs["Type"].get<std::string>(), "univariate/poisson");
+  ASSERT_EQ(distributionJs["Mean"].get<double>(), 2.0);
+
+  /////////////////////////////////////////////////
+
+  // Testing expected density
+  EXPECT_EQ(d->getDensity( -1.0 ), 0.);
+  EXPECT_NEAR(d->getDensity( 0.0 ), 0.1353352832, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_NEAR(d->getDensity( 1.0 ), 0.2706705664, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_NEAR(d->getDensity( 2.0 ), 0.2706705664, PDENSITY_ERROR_TOLERANCE);
+
+  // Testing expected log density
+  EXPECT_EQ(d->getLogDensity( -1.0 ), -INFINITY);
+  EXPECT_NEAR(d->getLogDensity( 0.0 ), -2.0, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_NEAR(d->getLogDensity( 1.0 ), -1.3068528197, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_NEAR(d->getLogDensity( 2.0 ), -1.3068528197, PDENSITY_ERROR_TOLERANCE);
+
+  // Checking random numbers are within the expected range
+  for (size_t i = 0; i < 100; i++)
+  {
+   double y = d->getRandomNumber();
+   EXPECT_TRUE((y >= 0.) && (y <= 1e6));
+  }
+
+  // Check that gradient and Hessian not exist
+  ASSERT_ANY_THROW(d->getLogDensityGradient( 1.0 ));
+  ASSERT_ANY_THROW(d->getLogDensityHessian( 1.0 ));
+ }
+
 
  TEST(Distrtibutions, UniformDistribution)
  {

@@ -1,6 +1,8 @@
 #include "engine.hpp"
 #include "modules/solver/agent/discrete/dVRACER/dVRACER.hpp"
-#include "omp.h"
+#ifdef _OPENMP
+  #include "omp.h"
+#endif
 #include "sample/sample.hpp"
 
 namespace korali
@@ -31,10 +33,10 @@ void dVRACER::initializeAgent()
 
   _effectiveMinibatchSize = _miniBatchSize * _problem->_agentsPerEnvironment;
 
-  if( _multiAgentRelationship == "Competition" )
+  if (_multiAgentRelationship == "Competition")
     KORALI_LOG_ERROR("Multi Agent Relationship = %s is not supported for discrete reinforcement learning problems.\n", _multiAgentRelationship);
 
-  if( _bayesianLearning )
+  if (_bayesianLearning)
     KORALI_LOG_ERROR("Bayesian learning is not supported for discrete reinforcement learning problems.\n");
 
   // Parallel initialization of neural networks (first touch!)
@@ -48,7 +50,7 @@ void dVRACER::initializeAgent()
     _criticPolicyExperiment[p]["Problem"]["Input"]["Size"] = _problem->_stateVectorSize;
     _criticPolicyExperiment[p]["Problem"]["Solution"]["Size"] = 1 + _policyParameterCount; // The value function, action q values, and inverse temperatur
 
-    _criticPolicyExperiment[p]["Solver"]["Type"] = "Learner/DeepSupervisor";
+    _criticPolicyExperiment[p]["Solver"]["Type"] = "DeepSupervisor";
     _criticPolicyExperiment[p]["Solver"]["Mode"] = "Training";
     _criticPolicyExperiment[p]["Solver"]["Number Of Policy Threads"] = 1;
     _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Enabled"] = _l2RegularizationEnabled;
@@ -79,13 +81,13 @@ void dVRACER::initializeAgent()
     _criticPolicyExperiment[p]["Solver"]["Neural Network"]["Output Layer"]["Shift"][1 + _problem->_actionCount] = _initialInverseTemperature - 0.5;
 
     // Running initialization to verify that the configuration is correct
-// #pragma omp critical
-{
-    _criticPolicyExperiment[p].setEngine(_k->_engine);
-    _criticPolicyExperiment[p].initialize();
-}
+    // #pragma omp critical
+    {
+      _criticPolicyExperiment[p].setEngine(_k->_engine);
+      _criticPolicyExperiment[p].initialize();
+    }
     _criticPolicyProblem[p] = dynamic_cast<problem::SupervisedLearning *>(_criticPolicyExperiment[p]._problem);
-    _criticPolicyLearner[p] = dynamic_cast<solver::learner::DeepSupervisor *>(_criticPolicyExperiment[p]._solver);
+    _criticPolicyLearner[p] = dynamic_cast<solver::DeepSupervisor *>(_criticPolicyExperiment[p]._solver);
 
     // Preallocating space in the underlying supervised problem's input and solution data structures (for performance, we don't reinitialize it every time)
     _criticPolicyProblem[p]->_inputData.resize(_effectiveMinibatchSize);
@@ -108,7 +110,7 @@ void dVRACER::trainPolicy()
   const size_t numPolicies = _problem->_policiesPerEnvironment;
 
   // Update all policies using all experiences
-// #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
+  // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
   for (size_t p = 0; p < numPolicies; p++)
   {
     // Fill policyInfo with behavioral policy (access to availableActions)
@@ -117,14 +119,14 @@ void dVRACER::trainPolicy()
     // Forward NN
     runPolicy(stateSequenceBatch, policyInfo, p);
 
-// #pragma omp critical
-{
-    // Using policy information to update experience's metadata
-    updateExperienceMetadata(miniBatch, policyInfo);
+    // #pragma omp critical
+    {
+      // Using policy information to update experience's metadata
+      updateExperienceMetadata(miniBatch, policyInfo);
 
-    // Now calculating policy gradients
-    calculatePolicyGradients(miniBatch, p);
-}
+      // Now calculating policy gradients
+      calculatePolicyGradients(miniBatch, p);
+    }
 
     // Updating learning rate for critic/policy learner guided by REFER
     _criticPolicyLearner[p]->_learningRate = _currentLearningRate;
@@ -153,7 +155,7 @@ void dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
 #pragma omp parallel for schedule(guided, numAgents) num_threads(_numberOfCPUs) reduction(+ \
-                                                               : _statisticsAverageInverseTemperature, _statisticsAverageActionUnlikeability)
+                                                                                          : _statisticsAverageInverseTemperature, _statisticsAverageActionUnlikeability)
   for (size_t b = 0; b < miniBatchSize; b++)
   {
     // Getting index of current experiment
@@ -161,12 +163,12 @@ void dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_
     const size_t agentId = miniBatch[b].second;
 
     // Getting old and current policy
-    const auto &expPolicy = _expPolicyVector[expId][agentId];
-    const auto &curPolicy = _curPolicyVector[expId][agentId];
+    const auto &expPolicy = _expPolicyBuffer[expId][agentId];
+    const auto &curPolicy = _curPolicyBuffer[expId][agentId];
 
     // Getting state-value and estimator
-    const float stateValue = _stateValueVectorContiguous[expId*numAgents + agentId];
-    const float expVtbc = _retraceValueVectorContiguous[expId*numAgents + agentId];
+    const float stateValue = _stateValueBufferContiguous[expId * numAgents + agentId];
+    const float expVtbc = _retraceValueBufferContiguous[expId * numAgents + agentId];
 
     // Storage for the update gradient
     std::vector<float> gradientLoss(1 + _policyParameterCount, 0.0f);
@@ -179,22 +181,22 @@ void dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_
       gradientLoss[0] /= numAgents;
 
     // Compute policy gradient only if inside trust region
-    if (_isOnPolicyVector[expId][agentId])
+    if (_isOnPolicyBuffer[expId][agentId])
     {
       // Qret for terminal state is just reward
-      float Qret = getScaledReward(_rewardVectorContiguous[expId*numAgents + agentId]);
+      float Qret = getScaledReward(_rewardBufferContiguous[expId * numAgents + agentId]);
 
       // If experience is non-terminal, add Vtbc
-      if (_terminationVector[expId] == e_nonTerminal)
+      if (_terminationBuffer[expId] == e_nonTerminal)
       {
-        const float nextExpVtbc = _retraceValueVectorContiguous[(expId + 1)*numAgents + agentId];
+        const float nextExpVtbc = _retraceValueBufferContiguous[(expId + 1) * numAgents + agentId];
         Qret += _discountFactor * nextExpVtbc;
       }
 
       // If experience is truncated, add truncated state value
-      if (_terminationVector[expId] == e_truncated)
+      if (_terminationBuffer[expId] == e_truncated)
       {
-        float nextExpVtbc = _truncatedStateValueVector[expId][agentId];
+        const float nextExpVtbc = _truncatedStateValueBuffer[expId][agentId];
         Qret += _discountFactor * nextExpVtbc;
       }
 
@@ -207,7 +209,7 @@ void dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_
       // If multi-agent correlation, multiply with additional factor
       if (_multiAgentCorrelation)
       {
-        float correlationFactor = _productImportanceWeightVector[expId] / _importanceWeightVector[expId][agentId];
+        float correlationFactor = _productImportanceWeightBuffer[expId] / _importanceWeightBuffer[expId][agentId];
         for (size_t i = 0; i < polGrad.size(); i++)
           polGrad[i] *= correlationFactor;
       }
@@ -341,13 +343,13 @@ std::vector<policy_t> dVRACER::getPolicyInfo(const std::vector<std::pair<size_t,
     const size_t agentId = miniBatch[b].second;
 
     // Filling policy information
-    policyInfo[b] = _expPolicyVector[expId][agentId];
+    policyInfo[b] = _expPolicyBuffer[expId][agentId];
   }
 
   return policyInfo;
 }
 
-knlohmann::json dVRACER::getAgentPolicy()
+knlohmann::json dVRACER::getPolicy()
 {
   knlohmann::json hyperparameters;
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
@@ -355,13 +357,13 @@ knlohmann::json dVRACER::getAgentPolicy()
   return hyperparameters;
 }
 
-void dVRACER::setAgentPolicy(const knlohmann::json &hyperparameters)
+void dVRACER::setPolicy(const knlohmann::json &hyperparameters)
 {
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
     _criticPolicyLearner[p]->setHyperparameters(hyperparameters[p].get<std::vector<float>>());
 }
 
-void dVRACER::printAgentInformation()
+void dVRACER::printInformation()
 {
   _k->_logger->logInfo("Normal", " + [dVRACER] Policy Learning Rate: %.3e\n", _currentLearningRate);
   _k->_logger->logInfo("Normal", " + [dVRACER] Average Inverse Temperature: %.3e\n", _statisticsAverageInverseTemperature);

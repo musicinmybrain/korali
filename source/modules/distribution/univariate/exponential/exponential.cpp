@@ -10,8 +10,7 @@ namespace univariate
 {
 ;
 
-double
-Exponential::getDensity(const double x) const
+double Exponential::getDensity(const double x) const
 {
   return gsl_ran_exponential_pdf(x - _location, _mean);
 }
@@ -41,6 +40,7 @@ double Exponential::getRandomNumber()
 void Exponential::updateDistribution()
 {
   _aux = 0.0;
+  if (_mean <= 0.0) KORALI_LOG_ERROR("Incorrect mean parameter of exponential distribution: %f.\n", _mean);
 }
 
 void Exponential::setConfiguration(knlohmann::json& js) 

@@ -1,6 +1,8 @@
 #include "engine.hpp"
 #include "modules/solver/agent/continuous/VRACER/VRACER.hpp"
-#include "omp.h"
+#ifdef _OPENMP
+  #include "omp.h"
+#endif
 #include "sample/sample.hpp"
 #include <gsl/gsl_sf_psi.h>
 
@@ -33,7 +35,7 @@ void VRACER::initializeAgent()
 
   _effectiveMinibatchSize = _miniBatchSize * _problem->_agentsPerEnvironment;
 
-  if( (_multiAgentRelationship == "Competition") || _problem->_ensembleLearning )
+  if ((_multiAgentRelationship == "Competition") || _problem->_ensembleLearning)
     _effectiveMinibatchSize = _miniBatchSize;
 
   // Parallel initialization of neural networks (first touch!)
@@ -47,7 +49,7 @@ void VRACER::initializeAgent()
     _criticPolicyExperiment[p]["Problem"]["Input"]["Size"] = _problem->_stateVectorSize;
     _criticPolicyExperiment[p]["Problem"]["Solution"]["Size"] = 1 + _policyParameterCount;
 
-    _criticPolicyExperiment[p]["Solver"]["Type"] = "Learner/DeepSupervisor";
+    _criticPolicyExperiment[p]["Solver"]["Type"] = "DeepSupervisor";
     _criticPolicyExperiment[p]["Solver"]["Mode"] = "Training";
     _criticPolicyExperiment[p]["Solver"]["Number Of Policy Threads"] = 1;
     _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Enabled"] = _l2RegularizationEnabled;
@@ -73,13 +75,13 @@ void VRACER::initializeAgent()
     }
 
     // Running initialization to verify that the configuration is correct
-// #pragma omp critical
-{
-    _criticPolicyExperiment[p].setEngine(_k->_engine);
-    _criticPolicyExperiment[p].initialize();
-}
+    // #pragma omp critical
+    {
+      _criticPolicyExperiment[p].setEngine(_k->_engine);
+      _criticPolicyExperiment[p].initialize();
+    }
     _criticPolicyProblem[p] = dynamic_cast<problem::SupervisedLearning *>(_criticPolicyExperiment[p]._problem);
-    _criticPolicyLearner[p] = dynamic_cast<solver::learner::DeepSupervisor *>(_criticPolicyExperiment[p]._solver);
+    _criticPolicyLearner[p] = dynamic_cast<solver::DeepSupervisor *>(_criticPolicyExperiment[p]._solver);
 
     // Preallocating space in the underlying supervised problem's input and solution data structures (for performance, we don't reinitialize it every time)
     _criticPolicyProblem[p]->_inputData.resize(_effectiveMinibatchSize);
@@ -107,31 +109,31 @@ void VRACER::trainPolicy()
 
   // Run training generation for all policies
   // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
-  for ( size_t p = 0; p < numPolicies; p++ )
-  { 
+  for (size_t p = 0; p < numPolicies; p++)
+  {
     // Prepare stateSequenceBatch and miniBatch
-    auto _miniBatch          = miniBatch;
+    auto _miniBatch = miniBatch;
     auto _stateSequenceBatch = stateSequenceBatch;
 
     // Disable experience sharing for competing agents or Bayesian reinforcement learning
-    if( (_multiAgentRelationship == "Competition") || _problem->_ensembleLearning )
+    if ((_multiAgentRelationship == "Competition") || _problem->_ensembleLearning)
     {
       std::vector<std::pair<size_t, size_t>> miniBatchBuffer(_miniBatchSize);
       std::vector<std::vector<std::vector<float>>> stateSequenceBuffer(_miniBatchSize);
-      for( size_t i = 0; i<_miniBatchSize; i++ )
+      for (size_t i = 0; i < _miniBatchSize; i++)
       {
-        miniBatchBuffer[i]     = miniBatch[ i*numPolicies + p ];
-        stateSequenceBuffer[i] = stateSequenceBatch[ i*numPolicies + p ];
+        miniBatchBuffer[i] = miniBatch[i * numPolicies + p];
+        stateSequenceBuffer[i] = stateSequenceBatch[i * numPolicies + p];
       }
-      _miniBatch          = miniBatchBuffer;
+      _miniBatch = miniBatchBuffer;
       _stateSequenceBatch = stateSequenceBuffer;
     }
 
     // Sample posterior to ensure consistency between training and testing
-    if ( _bayesianLearning )
+    if (_bayesianLearning)
     {
       // Compute posterior sample
-      auto hyperparameters = samplePosterior( p );
+      auto hyperparameters = samplePosterior(p);
 
       // Set parameters in neural network
       _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
@@ -141,14 +143,14 @@ void VRACER::trainPolicy()
     std::vector<policy_t> policyInfo;
     runPolicy(_stateSequenceBatch, policyInfo, p);
 
-// #pragma omp critical
-{
-    // Using policy information to update experience's metadata
-    updateExperienceMetadata(_miniBatch, policyInfo);
+    // #pragma omp critical
+    {
+      // Using policy information to update experience's metadata
+      updateExperienceMetadata(_miniBatch, policyInfo);
 
-    // Now calculating policy gradients
-    calculatePolicyGradients(_miniBatch, p);
-}
+      // Now calculating policy gradients
+      calculatePolicyGradients(_miniBatch, p);
+    }
 
     // Updating learning rate for critic/policy learner guided by REFER
     _criticPolicyLearner[p]->_learningRate = _currentLearningRate;
@@ -157,13 +159,13 @@ void VRACER::trainPolicy()
     _criticPolicyLearner[p]->runGeneration();
 
     // Store policyData for agent p for later update of metadata
-    if ( (numPolicies > 1) && (_multiAgentRelationship != "Competition") && !_problem->_ensembleLearning )
+    if ((numPolicies > 1) && (_multiAgentRelationship != "Competition") && !_problem->_ensembleLearning)
       for (size_t b = 0; b < _miniBatchSize; b++)
         policyInfoUpdateMetadata[b * numPolicies + p] = policyInfo[b * numPolicies + p];
   }
 
   // Correct experience metadata
-  if ( (numPolicies > 1) && (_multiAgentRelationship != "Competition") && !_problem->_ensembleLearning )
+  if ((numPolicies > 1) && (_multiAgentRelationship != "Competition") && !_problem->_ensembleLearning)
     updateExperienceMetadata(miniBatch, policyInfoUpdateMetadata);
 }
 
@@ -178,9 +180,10 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
   const size_t miniBatchSize = miniBatch.size();
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
-#pragma omp parallel for schedule(guided, numAgents) num_threads(_numberOfCPUs) reduction(vec_float_plus \
-                                                               : _miniBatchPolicyMean, _miniBatchPolicyStdDev) \
-                                                                reduction(+: _valueLoss, _policyLoss )
+#pragma omp parallel for schedule(guided, numAgents) num_threads(_numberOfCPUs) reduction(vec_float_plus                                  \
+                                                                                          : _miniBatchPolicyMean, _miniBatchPolicyStdDev) \
+  reduction(+                                                                                                                             \
+            : _valueLoss, _policyLoss)
   for (size_t b = 0; b < miniBatchSize; b++)
   {
     // Getting index of current experiment
@@ -188,13 +191,13 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     const size_t agentId = miniBatch[b].second;
 
     // Get policy and action for this experience
-    const auto &expPolicy = _expPolicyVector[expId][agentId];
-    const auto &expAction = _actionVector[expId][agentId];
+    const auto &expPolicy = _expPolicyBuffer[expId][agentId];
+    const auto &expAction = _actionBuffer[expId][agentId];
 
     // Gathering metadata
-    const float stateValue = _stateValueVectorContiguous[expId*numAgents + agentId];
-    const float expVtbc = _retraceValueVectorContiguous[expId*numAgents + agentId];
-    const auto &curPolicy = _curPolicyVector[expId][agentId];
+    const auto stateValue = _stateValueBufferContiguous[expId * numAgents + agentId];
+    const auto &curPolicy = _curPolicyBuffer[expId][agentId];
+    const auto expVtbc = _retraceValueBufferContiguous[expId * numAgents + agentId];
 
     // Storage for the update gradient
     std::vector<float> gradientLoss(1 + 2 * _problem->_actionVectorSize, 0.0f);
@@ -205,7 +208,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     // Cumulate value loss
     _valueLoss += 0.5 * (expVtbc - stateValue) * (expVtbc - stateValue);
 
-    //Gradient has to be divided by Number of Agents in Cooperation models
+    // Gradient has to be divided by Number of Agents in Cooperation models
     if (_multiAgentRelationship == "Cooperation")
       gradientLoss[0] /= numAgents;
 
@@ -214,22 +217,22 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       KORALI_LOG_ERROR("Value Gradient has an invalid value: %f\n", gradientLoss[0]);
 
     // Compute policy gradient inside trust region
-    if (_isOnPolicyVector[expId][agentId])
+    if (_isOnPolicyBuffer[expId][agentId])
     {
       // Qret for terminal state is just reward
-      float Qret = getScaledReward(_rewardVectorContiguous[expId*numAgents+agentId]);
+      float Qret = getScaledReward(_rewardBufferContiguous[expId * numAgents + agentId]);
 
       // If experience is non-terminal, add Vtbc
-      if (_terminationVector[expId] == e_nonTerminal)
+      if (_terminationBuffer[expId] == e_nonTerminal)
       {
-        const float nextExpVtbc = _retraceValueVectorContiguous[(expId + 1)*numAgents + agentId];
+        const float nextExpVtbc = _retraceValueBufferContiguous[(expId + 1) * numAgents + agentId];
         Qret += _discountFactor * nextExpVtbc;
       }
 
       // If experience is truncated, add truncated state value
-      if (_terminationVector[expId] == e_truncated)
+      if (_terminationBuffer[expId] == e_truncated)
       {
-        const float nextExpVtbc = _truncatedStateValueVector[expId][agentId];
+        const float nextExpVtbc = _truncatedStateValueBuffer[expId][agentId];
         Qret += _discountFactor * nextExpVtbc;
       }
 
@@ -237,8 +240,8 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       const float lossOffPolicy = Qret - stateValue;
 
       // Cumulate policy loss
-      const float importanceWeight = _importanceWeightVector[expId][agentId];
-      _policyLoss += importanceWeight * ( Qret - stateValue );
+      const float importanceWeight = _importanceWeightBuffer[expId][agentId];
+      _policyLoss += importanceWeight * (Qret - stateValue);
 
       // Compute Off-Policy Gradient
       auto polGrad = calculateImportanceWeightGradient(expAction, curPolicy, expPolicy, importanceWeight);
@@ -246,7 +249,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       // Multi-agent correlation implies additional factor
       if (_multiAgentCorrelation)
       {
-        const float correlationFactor = _productImportanceWeightVector[expId] / _importanceWeightVector[expId][agentId];
+        const float correlationFactor = _productImportanceWeightBuffer[expId] / _importanceWeightBuffer[expId][agentId];
         for (size_t i = 0; i < polGrad.size(); i++)
           polGrad[i] *= correlationFactor;
       }
@@ -281,9 +284,9 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     }
 
     // Add noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
-    if( _langevinDynamicsNoiseLevel > 0.0 )
-    for( size_t i = 0; i<2*_problem->_actionVectorSize+1; i++ )
-      gradientLoss[i] += std::sqrt(_langevinDynamicsNoiseLevel * _currentLearningRate) * _normalGenerator->getRandomNumber();
+    if (_langevinDynamicsNoiseLevel > 0.0)
+      for (size_t i = 0; i < 2 * _problem->_actionVectorSize + 1; i++)
+        gradientLoss[i] += std::sqrt(_langevinDynamicsNoiseLevel * _currentLearningRate) * _normalGenerator->getRandomNumber();
 
     // Set Gradient of Loss as Solution
     _criticPolicyProblem[policyIdx]->_solutionData[b] = gradientLoss;
@@ -334,7 +337,7 @@ void VRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &state
   }
 }
 
-knlohmann::json VRACER::getAgentPolicy()
+knlohmann::json VRACER::getPolicy()
 {
   knlohmann::json hyperparameters;
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
@@ -342,13 +345,13 @@ knlohmann::json VRACER::getAgentPolicy()
   return hyperparameters;
 }
 
-void VRACER::setAgentPolicy(const knlohmann::json &hyperparameters)
+void VRACER::setPolicy(const knlohmann::json &hyperparameters)
 {
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
     _criticPolicyLearner[p]->setHyperparameters(hyperparameters[p].get<std::vector<float>>());
 }
 
-void VRACER::printAgentInformation()
+void VRACER::printInformation()
 {
   _k->_logger->logInfo("Normal", " + [VRACER] Policy Learning Rate: %.3e\n", _currentLearningRate);
   _k->_logger->logInfo("Detailed", " + [VRACER] Policy Parameters (Mu & Sigma):\n");

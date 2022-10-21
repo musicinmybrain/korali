@@ -1,11 +1,11 @@
 #include "gtest/gtest.h"
 #include "korali.hpp"
-#include "modules/solver/learner/deepSupervisor/optimizers/fCMAES.hpp"
-#include "modules/solver/learner/deepSupervisor/optimizers/fAdaBelief.hpp"
-#include "modules/solver/learner/deepSupervisor/optimizers/fAdagrad.hpp"
-#include "modules/solver/learner/deepSupervisor/optimizers/fAdam.hpp"
-#include "modules/solver/learner/deepSupervisor/optimizers/fMadGrad.hpp"
-#include "modules/solver/learner/deepSupervisor/optimizers/fRMSProp.hpp"
+#include "modules/solver/deepSupervisor/optimizers/fCMAES.hpp"
+#include "modules/solver/deepSupervisor/optimizers/fAdaBelief.hpp"
+#include "modules/solver/deepSupervisor/optimizers/fAdagrad.hpp"
+#include "modules/solver/deepSupervisor/optimizers/fAdam.hpp"
+#include "modules/solver/deepSupervisor/optimizers/fMadGrad.hpp"
+#include "modules/solver/deepSupervisor/optimizers/fRMSProp.hpp"
 #include <limits>
 
 namespace

@@ -13,6 +13,7 @@
 #pragma once
 
 #include "modules/solver/solver.hpp"
+#include "sample/sample.hpp"
 
 namespace korali
 {
@@ -31,17 +32,17 @@ class Integrator : public Solver
   */
    size_t _executionsPerGeneration;
   /**
-  * @brief [Internal Use] Number of samples to execute.
-  */
-   size_t _sampleCount;
-  /**
   * @brief [Internal Use] Current value of the integral.
   */
-   double _integral;
+   double _accumulatedIntegral;
   /**
-  * @brief [Internal Use] Holds helper to calculate cartesian indices from linear index.
+  * @brief [Internal Use] Gridpoints for quadrature.
   */
-   std::vector<size_t> _indicesHelper;
+   std::vector<std::vector<float>> _gridPoints;
+  /**
+  * @brief [Internal Use] Precomputed weight for MC sample.
+  */
+   float _weight;
   
  
   /**
@@ -65,7 +66,17 @@ class Integrator : public Solver
   void applyVariableDefaults() override;
   
 
-  void setInitialConfiguration() override;
+  /**
+   * @brief Container for samples to be evaluated per generation
+   */
+  std::vector<Sample> _samples;
+
+  /**
+   * @brief Prepares and launches a sample to be evaluated
+   * @param sampleIndex index of sample to be launched
+   */
+  virtual void launchSample(size_t sampleIndex) = 0;
+  virtual void setInitialConfiguration() override;
   void runGeneration() override;
   void printGenerationBefore() override;
   void printGenerationAfter() override;

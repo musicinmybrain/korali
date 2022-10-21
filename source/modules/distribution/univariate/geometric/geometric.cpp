@@ -23,11 +23,13 @@ double Geometric::getLogDensity(const double x) const
 
 double Geometric::getLogDensityGradient(const double x) const
 {
-  return std::log(1.0 - _successProbability);
+  KORALI_LOG_ERROR("Gradient of discrete pdf %s not defined.\n", _name.c_str());
+  return 0.;
 }
 
 double Geometric::getLogDensityHessian(const double x) const
 {
+  KORALI_LOG_ERROR("Hessian of discrete pdf %s not defined.\n", _name.c_str());
   return 0.;
 }
 
@@ -38,6 +40,8 @@ double Geometric::getRandomNumber()
 
 void Geometric::updateDistribution()
 {
+  if (_successProbability <= 0.0) KORALI_LOG_ERROR("Incorrect success probability parameter of geometric distribution: %f.\n", _successProbability);
+  if (_successProbability > 1.0) KORALI_LOG_ERROR("Incorrect success probability parameter of geometric distribution: %f.\n", _successProbability);
   _aux = 0.0;
 }
 

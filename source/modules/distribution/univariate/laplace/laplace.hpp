@@ -30,19 +30,19 @@ class Laplace : public Univariate
   private:
   public: 
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The mean of the Laplace distribution.
   */
    double _mean;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The mean of the Laplace distribution.
   */
    std::string _meanConditional;
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The scale of the Laplace distribution, it controls the variance.
   */
    double _width;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The scale of the Laplace distribution, it controls the variance.
   */
    std::string _widthConditional;
   

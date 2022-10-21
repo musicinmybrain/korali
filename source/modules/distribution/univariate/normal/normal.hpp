@@ -33,19 +33,19 @@ class Normal : public Univariate
 
   public: 
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The mean of the Normal (Gaussian) distribution.
   */
    double _mean;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The mean of the Normal (Gaussian) distribution.
   */
    std::string _meanConditional;
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The standard deviation of the Normal (Gaussian) distribution.
   */
    double _standardDeviation;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The standard deviation of the Normal (Gaussian) distribution.
   */
    std::string _standardDeviationConditional;
   

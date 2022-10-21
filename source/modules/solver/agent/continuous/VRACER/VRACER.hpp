@@ -69,6 +69,7 @@ class VRACER : public Continuous
   /**
    * @brief Calculates the gradients for the policy/critic neural network
    * @param miniBatch The indexes of the experience mini batch
+   * @param policyIdx The indexes of the policy to compute the gradient for
    */
   void calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx);
 
@@ -86,10 +87,10 @@ class VRACER : public Continuous
    */
   std::vector<float> _miniBatchPolicyStdDev;
 
-  knlohmann::json getAgentPolicy() override;
-  void setAgentPolicy(const knlohmann::json &hyperparameters) override;
+  knlohmann::json getPolicy() override;
+  void setPolicy(const knlohmann::json &hyperparameters) override;
   void trainPolicy() override;
-  void printAgentInformation() override;
+  void printInformation() override;
   void initializeAgent() override;
 };
 

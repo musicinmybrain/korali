@@ -31,11 +31,10 @@ We can store experiments in a list `eList`:
 Run Experiment Vector
 ---------------------------
 
-We can runn all experiments in one Korali application
+We can run all experiments in one Korali application
 
 .. code-block:: python
 
-    # Running first 100 generations
     k.run(eList)
 
 Running

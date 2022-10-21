@@ -512,10 +512,13 @@ void Nested::sortLiveSamplesAscending()
   // Init sample ranks
   std::iota(_liveSamplesRank.begin(), _liveSamplesRank.end(), 0);
 
+  // clang-format off
   // Sort sample rank ascending based on likelihood and prior weight
-  std::sort(_liveSamplesRank.begin(), _liveSamplesRank.end(), [this](const size_t &idx1, const size_t &idx2) -> bool {
-    return this->_liveLogPriorWeights[idx1] + this->_liveLogLikelihoods[idx1] < this->_liveLogPriorWeights[idx2] + this->_liveLogLikelihoods[idx2];
-  });
+  std::sort(_liveSamplesRank.begin(), _liveSamplesRank.end(), [this](const size_t &idx1, const size_t &idx2) -> bool
+            {
+              return this->_liveLogPriorWeights[idx1] + this->_liveLogLikelihoods[idx1] < this->_liveLogPriorWeights[idx2] + this->_liveLogLikelihoods[idx2];
+            });
+  // clang-format on
 }
 
 void Nested::updateDeadSamples(size_t sampleIdx)

@@ -137,17 +137,9 @@ class DEA : public Optimizer
   */
    std::vector<double> _maxDistances;
   /**
-  * @brief [Internal Use] Keeps count of infeasible samples so far.
-  */
-   size_t _infeasibleSampleCount;
-  /**
   * @brief [Internal Use] Minimum step size of any variable in the current generation.
   */
    double _currentMinimumStepSize;
-  /**
-  * @brief [Termination Criteria] Max number of mutations per sample per generation if infeasible (only relevant if Fix Infeasible is set False).
-  */
-   size_t _maxInfeasibleResamplings;
   /**
   * @brief [Termination Criteria] Specifies the target fitness to stop minimization.
   */

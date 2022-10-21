@@ -23,7 +23,6 @@ sns.color_palette("tab10")
 from korali.rlview.utils import get_figure
 
 ##################### Plotting Reward History
-
 def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservations, showAgents, dir ):
     # get color
     color = next(ax._get_lines.prop_cycler)['color']
@@ -230,11 +229,13 @@ if __name__ == '__main__':
     parser.add_argument(
         '--minReward',
         help='Minimum reward to display',
+        type=float,
         default=+math.inf,
         required=False)
     parser.add_argument(
         '--maxReward',
         help='Maximum reward to display',
+        type=float,
         default=-math.inf,
         required=False)
     parser.add_argument(
@@ -279,6 +280,11 @@ if __name__ == '__main__':
         help='Enable the plotting of the returns for each agent.',
         action='store_true',
         required=False)
+    parser.add_argument(
+      '--test',
+      help='Run without graphics (for testing purpose)',
+      action='store_true',
+      required=False)
 
     args = parser.parse_args()
 
@@ -287,7 +293,8 @@ if __name__ == '__main__':
         print("[Korali] Argument of confidence interval must be in [0,1].")
         exit(-1)
 
-    if args.output:
+    ### Setup without graphics, if needed
+    if (args.test or args.output): 
         matplotlib.use('Agg')
  
     ### Reading values from result files

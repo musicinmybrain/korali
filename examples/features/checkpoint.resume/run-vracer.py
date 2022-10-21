@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
-sys.path.append('../../learning/reinforcement/cartpole/_model')
+sys.path.append('../../reinforcement.learning/cartpole/_model')
 from env import *
 
 ####### Defining Korali Problem
@@ -17,16 +17,16 @@ found = e.loadState('_result_vracer/latest')
 # If not found, we run first 10 generations.
 if (found == False):
   print('------------------------------------------------------')
-  print('Running first 50 generations...')
+  print('Running first 5 generations...')
   print('------------------------------------------------------')
-  e["Solver"]["Termination Criteria"]["Max Generations"] = 50
+  e["Solver"]["Termination Criteria"]["Max Generations"] = 5
 
 # If found, we continue 
 if (found == True):
   print('------------------------------------------------------')
-  print('Running 50 more generations...')
+  print('Running 5 more generations...')
   print('------------------------------------------------------')
-  e["Solver"]["Termination Criteria"]["Max Generations"] = e["Current Generation"] + 50
+  e["Solver"]["Termination Criteria"]["Max Generations"] = e["Current Generation"] + 5
   
 ### Defining the Cartpole problem's configuration
 

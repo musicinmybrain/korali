@@ -38,6 +38,4 @@ e["File Output"]["Path"] = "_setup/results_phase_3b/"
 
 # Starting Korali's Engine and running experiment
 k = korali.Engine()
-k["Conduit"]["Type"] = "Concurrent"
-k["Conduit"]["Concurrent Jobs"] = 4
 k.run(e)

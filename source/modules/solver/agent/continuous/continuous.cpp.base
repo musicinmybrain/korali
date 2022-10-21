@@ -105,7 +105,7 @@ void __className__::getAction(korali::Sample &sample)
     auto state = sample["State"][i];
 
     // Adding state to the state time sequence
-    _stateTimeSequence[i].push_back(state);
+    _stateTimeSequence[i].add(state);
 
     // Storage for the action to select
     std::vector<float> action(_problem->_actionVectorSize);
@@ -113,28 +113,28 @@ void __className__::getAction(korali::Sample &sample)
     // Forward state sequence to get the Gaussian means and sigmas from policy
     std::vector<policy_t> policy;
 
-    if ( _problem->_ensembleLearning || _bayesianLearning )
+    if (_problem->_ensembleLearning || _bayesianLearning)
     {
       // Producing random number and select policy to produce the action
       const float x = _uniformGenerator->getRandomNumber();
-      size_t policyIdx = std::floor( x * (float)numPolicies );
-      policyIdx = policyIdx == numPolicies ? numPolicies-1 : policyIdx;
-      
-      if ( _bayesianLearning )
+      size_t policyIdx = std::floor(x * (float)numPolicies);
+      policyIdx = policyIdx == numPolicies ? numPolicies - 1 : policyIdx;
+
+      if (_bayesianLearning)
       {
         // Compute posterior sample
-        auto hyperparameters = samplePosterior( policyIdx );
+        auto hyperparameters = samplePosterior(policyIdx);
 
         // Set parameters in neural network
         _criticPolicyLearner[policyIdx]->setHyperparameters(hyperparameters);
       }
 
-      runPolicy({boostToVector(_stateTimeSequence[i])}, policy, policyIdx);
+      runPolicy({_stateTimeSequence[i].getVector()}, policy, policyIdx);
     }
     else if (_problem->_policiesPerEnvironment == 1)
-      runPolicy({boostToVector(_stateTimeSequence[i])}, policy);
+      runPolicy({_stateTimeSequence[i].getVector()}, policy);
     else
-      runPolicy({boostToVector(_stateTimeSequence[i])}, policy, i);
+      runPolicy({_stateTimeSequence[i].getVector()}, policy, i);
 
     /*****************************************************************************
      * During Training we select action according to policy's probability

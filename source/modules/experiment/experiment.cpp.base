@@ -6,7 +6,7 @@
 #include "modules/experiment/experiment.hpp"
 #include "modules/problem/problem.hpp"
 #include "modules/solver/agent/agent.hpp"
-#include "modules/solver/learner/learner.hpp"
+#include "modules/solver/deepSupervisor/deepSupervisor.hpp"
 #include "modules/solver/solver.hpp"
 #include "sample/sample.hpp"
 #include <chrono>

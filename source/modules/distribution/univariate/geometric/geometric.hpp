@@ -30,11 +30,11 @@ class Geometric : public Univariate
   private:
   public: 
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] Probability of success of an individual trial.
   */
    double _successProbability;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] Probability of success of an individual trial.
   */
    std::string _successProbabilityConditional;
   
