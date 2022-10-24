@@ -9,9 +9,6 @@ import time
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
 
 
 sys.path.append(os.path.abspath('./_models'))
@@ -63,7 +60,7 @@ parser.add_argument(
 parser.add_argument(
     '--trainingSetSize',
     help='Batch size to use for training data',
-    default=2**15,
+    default=2**18,
     type=int,
     required=False)
 parser.add_argument(
@@ -144,7 +141,6 @@ parser.add_argument(
 
 
 threads = os.environ["OMP_NUM_THREADS"]
-tf_threads = tf.config.threading.get_inter_op_parallelism_threads()
 np.random.seed(0xC0FFEE)
 # In case of iPython need to temporaily set sys.args to [''] in order to parse them
 tmp = sys.argv
@@ -157,11 +153,24 @@ if len(sys.argv) != 0:
 
 args = parser.parse_args()
 #sys.argv = tmp
-
+if args.engine != "CuDNN":
+    os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
 # Saving Path ================================================================
 if args.verbosity in ["Normal", "Detailed"]:
     print_header('Korali', color=bcolors.HEADER, width=140)
     print_args(vars(args), sep=' ', header_width=140)
+
+
+if not args.path:
+    path = os.path.join("_korali_result", args.other, "pytorch", f"model_{args.model}", f"BS_{args.trainingBS}", f"WeightExp_{args.weight_dim}", f"Threads_{threads}")
+else:
+    path = args.path
+
+tf_threads = tf.config.threading.get_inter_op_parallelism_threads()
+os.environ["CUDA_VISIBLE_DEVICES"]="-1"
 
 # Models Size Definitions ====================================================
 SMALLEST_LAYER_SIZE_EXPONENT = 7

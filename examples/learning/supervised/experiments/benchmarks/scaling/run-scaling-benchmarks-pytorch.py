@@ -16,6 +16,7 @@ from torch import _pin_memory, nn
 import torch.optim as optim
 import seaborn as sns
 import torch.jit as jit
+os.environ["CUDA_VISIBLE_DEVICES"]=""
 
 sys.path.append(os.path.abspath('./_models'))
 sns.set()
@@ -145,7 +146,8 @@ def get_flops(training_set_size, bs, dim, hidden_layers):
     flops = iterrations*layers*flops_per_layer(bs, dim, dim)
     return flops
 threads = os.environ["OMP_NUM_THREADS"]
-torch.set_num_threads(72)
+# Best let Torch choose but can also choose ourselves
+# torch.set_num_threads(12)
 np.random.seed(0xC0FFEE)
 # In case of iPython need to temporaily set sys.args to [''] in order to parse them
 tmp = sys.argv
@@ -181,6 +183,9 @@ if args.verbosity in ("Normal", "Detailed"):
     print(f"layer dimension 2^{SMALLEST_LAYER_SIZE_EXPONENT}")
     print(f"layers {layers}")
     print(f"Pytorch number of threads {torch.get_num_threads()}")
+    print(torch.__config__.parallel_info())
+    print(torch.__config__.show())
+
 
 
 # Data Loader ===============================================================
@@ -215,12 +220,12 @@ class LinBench(nn.Module):
             self.layers.append(nn.Linear(layer_size, layer_size))
             self.layers.append(nn.ReLU(True))
 
-
     def forward(self, x):
         # Apply convolutions
         for layer in self.layers:
             x = layer(x)
         return x
+
 
 # test = LinJitBench(layers, SMALLEST_LAYER_SIZE)
 test = LinBench(layers, SMALLEST_LAYER_SIZE)
@@ -237,15 +242,15 @@ if args.engine == "CuDNN":
     use_cuda = torch.cuda.is_available()
     torch.backends.cudnn.benchmark = True
 device = torch.device("cuda:0" if use_cuda else "cpu")
-device = torch.device("cpu")
+# device = torch.device("cpu")
 test.to(device)
 # Create Datasets ===========================================================
 # Parameters
 loader_args = {
         'batch_size': args.trainingBS,
-        'shuffle': False,
-        'num_workers': 1,
-        'pin_memory': False
+        # 'shuffle': False,
+        # 'num_workers': 12,
+        'pin_memory': True
      }
 
 # Generators
@@ -261,16 +266,18 @@ def train_epoch(nn, data_generator, device, loss_fn, optimizer):
     for Xmini, ymini in data_generator:
         # Move tensor to the proper device
         Xmini_dev, ymini_dev = Xmini.to(device), ymini.to(device)
-
+        # Xmini_dev, ymini_dev = Xmini, ymini
+        # Set gradients to zero
+        optimizer.zero_grad()
         # Run Forward Pass
         yhat_dev = nn(Xmini_dev)
         # Evaluate loss
         loss = loss_fn(yhat_dev, ymini_dev)
         # Backward pass
-        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         train_loss.append(loss.detach().cpu().numpy())
+        # train_loss.append(loss.detach().numpy())
     return np.mean(train_loss).item()
 # Training Loop =============================================================
 if args.submit:
@@ -281,12 +288,12 @@ if args.submit:
         # Iterate the dataloader (we do not need the label values, this is unsupervised learning)
         tp_start = time.time_ns()
         train_loss = train_epoch(test, data_generator, device, loss_fn, optimizer)
-        times.append(time.time_ns()-tp_start)
+        tp_stop = (time.time_ns()-tp_start)*10**-9
+        times.append(tp_stop)
         if args.verbosity in ("Normal", "Detailed"):
-            print(f"Epoch {e_idx} Training Loss {train_loss}")
+            print(f"Epoch {e_idx} Training Loss {train_loss} Runtime {tp_stop}")
 
     runtime_per_epochs = sum(times)/len(times)
-    runtime_per_epochs = runtime_per_epochs*10**-9
     print(f"Average Runtime of {runtime_per_epochs}s per Epoch")
 
     if args.save:

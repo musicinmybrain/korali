@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 import os
-import sys
-from datetime import datetime
-import shutil
-from korali.auxiliar.printing import *
-from time import strftime
+import os
 import argparse
+from korali.auxiliar.printing import *
 
 def mkdir_p(dir):
     """Make a directory if it doesn't exist and create intermediates as well."""
@@ -14,6 +11,13 @@ def mkdir_p(dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--conduit",
+        help="Conduit to use",
+        choices=["Sequential", "Distributed"],
+        default="Sequential",
+        required=False,
+    )
     parser.add_argument(
         "-N",
         "--nodes",
@@ -98,7 +102,6 @@ if __name__ == "__main__":
         help='Batch size to use for training data',
         type=int,
         default=32,
-        choices=[32, 1024],
         required=False)
     # parser.add_argument(
     #     "-s",
@@ -128,23 +131,22 @@ if __name__ == "__main__":
     #     choices=[15,17,19,21,23,25],
     #     type=int,
     # )
-    # parser.add_argument(
-    #     "--other",
-    #     help="Can be used to add a folder to distinguish the model inside the results file",
-    #     required=False,
-    #     default="",
-    #     type=str,
-    # )
     parser.add_argument(
         '--verbosity',
         help='Verbosity to print',
         default="Silent",
         required=False)
-    # parser.add_argument(
-    #     '--threads',
-    #     help='Verbosity to print',
-    #     default="notset",
-    #     required=False)
+    parser.add_argument(
+        '--other',
+        help='Verbosity to print',
+        default="",
+        required=False)
+    parser.add_argument(
+        "--plot",
+        help="Whether to submit the jobs.",
+        action="store_true",
+        required=False
+    )
     args = parser.parse_args()
     print_header('Script', color=bcolors.HEADER, width=140)
     print_args(vars(args), sep=' ', header_width=140)
@@ -152,15 +154,19 @@ if __name__ == "__main__":
     # if args.conduit == "Distributed":
     #     assert 2*args.nodes == args.batch_concurrency
     # COPY EXECUTABLE, UTILITIES And MODELS to SCRATCH ==================================================
-    EXECUTABLE = "run-scaling-benchmarks.py"
+    # EXECUTABLE = "run-scaling-benchmarks.py"
+    # EXECUTABLE = "run-scaling-benchmarks-tensorflow.py"
+    EXECUTABLE = "run-scaling-benchmarks-pytorch.py"
     # ===================================================================================================
-    threads = [1, 2, 4, 8, 12, 16, 20, 24, 28, 32, 36]
-    # threads = [36]
-    weights = [15, 17, 19, 21, 23, 25]
-    # weights = [23]
+    # threads = [1, 2, 4, 8, 16, 24, 28, 36]
+    threads = [36]
+    weights = [23]
+    # weights = [15, 17, 19, 21, 23]
     models = ["multi"]
-    # batch_sizes = [1024]
-    batch_sizes = [32, 1024]
+    # batch_sizes = [8192]
+    # batch_sizes = [16, 32, 256, 512, 1024, 16384, 32768]
+    batch_sizes = [128]
+    # batch_sizes = [8192]
     SCRIPT_DIR_ON_SCRATCH = os.path.dirname(__file__)
     for m in models:
         for w in weights:
@@ -169,7 +175,7 @@ if __name__ == "__main__":
                     args.threads = t
                     # pattern: _korali_result/model/lat10/timepoint
                     jname = f"Model_{m}_WeightExp_{w}_BS_{b}_Threads_{t}"
-                    args.path = os.path.join("_korali_result", f"model_{m}", f"BS_{b}", f"WeightExp_{w}", f"Threads_{t}")
+                    args.path = os.path.join("_korali_result", "daint", args.other, f"model_{m}", f"BS_{b}", f"WeightExp_{w}", f"Threads_{t}")
                     job_output_path = args.path
                     mkdir_p(args.path)
                     jfile = os.path.join(args.path, f"{jname}.job")
@@ -203,7 +209,6 @@ if __name__ == "__main__":
                             f" --model {m}"
                             f" --weight-dim {w}"
                             f" --trainingBS {b}"
-                            f" --threads {t}"
                             f" --engine {args.engine}"
                             f" --epochs {args.epochs}"
                             f" --optimizer {args.optimizer}"
@@ -220,6 +225,10 @@ if __name__ == "__main__":
                         command += f" --save"
                         if args.load_model:
                             command += f" --load-model"
+                        if args.submit:
+                            command += f" --submit"
+                        if args.plot:
+                            command += f" --plot"
                         fh.writelines(command)
                     # SUBMIT JOBS ===============================================================
                     if args.submit:

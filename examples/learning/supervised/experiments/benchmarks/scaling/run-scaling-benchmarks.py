@@ -45,7 +45,7 @@ parser.add_argument(
 parser.add_argument(
     '--trainingSetSize',
     help='Batch size to use for training data',
-    default=2**15,
+    default=2*15,
     type=int,
     required=False)
 parser.add_argument(
@@ -53,7 +53,7 @@ parser.add_argument(
     help='Batch size to use for training data',
     type=int,
     default=32,
-    # choices=[32, 1024, 8192, 16384, 32768],
+    # choices=[32, 256, 512 1024, 8192, 16384, 32768],
     required=False)
 parser.add_argument(
     "-s",
@@ -190,14 +190,12 @@ if args.submit:
         print(f"FLOPS: {get_flops(args.trainingSetSize, args.trainingBS, dim, layers)}")
     e["Problem"]["Description"] = f"FLOPS_{get_flops(args.trainingSetSize, args.trainingBS, dim, dim)}_THREADS_{threads}"
     e["Solver"]["Batch Concurrency"] = 1
-    e["Solver"]["Metrics"]["Type"] = []
     e["Problem"]["Type"] = "Supervised Learning"
     e["Problem"]["Max Timesteps"] = 1
     e["Problem"]["Training Batch Size"] = args.trainingBS
 
     e["Problem"]["Input"]["Data"] = X_train
     e["Problem"]["Solution"]["Data"] = y_train
-    e["Solver"]["Metrics"]["Type"] = []
 
 
     e["Solver"]["Type"] = "Learner/DeepSupervisor"
@@ -218,7 +216,7 @@ if args.submit:
     e["File Output"]["Enabled"] = args.save
     e["File Output"]["Frequency"] = 0
     e["File Output"]["Path"] = path
-    e["Save Only"] = ["Current Generation" ,"Run ID", "Time Stamps"]
+    e["Save Only"] = ["Current Generation", "Run ID", "Time Stamps"]
     e["Solver"]["Termination Criteria"]["Epochs"] = args.epochs
     k["Conduit"]["Type"] = "Sequential"
     k.run(e)
@@ -231,10 +229,11 @@ extra_stats = {
     "BS": args.trainingBS,
     "CPU": cpu
 }
+print(f"Runtime {e['Time Stamps'][0]['Generation'][0][1]}")
 
-results = get_total_stats(os.path.join(path, "latest"), {})
-cum = get_cumulative_results(results)
 if args.plot:
+    results = get_total_stats(os.path.join(path, "latest"), {})
+    cum = get_cumulative_results(results)
     plt.rcParams['figure.figsize'] = 18, 12
     plot_all(results, cum, title = f"{cpu} with {threads} threads, Batch Size {args.trainingBS}, Weights 2^{args.weight_dim} and {layers} layers")
     plt.savefig(os.path.join(path, "profiling.pdf"), dpi = 200)
