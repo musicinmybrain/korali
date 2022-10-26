@@ -79,5 +79,5 @@ k.run(eList)
 
 # Running next 10 generations
 for e in eList:
-  e["Solver"]["Termination Criteria"]["Max Generations"] = 10
+  e["Solver"]["Termination Criteria"]["Max Generations"] = 20
 k.run(eList)

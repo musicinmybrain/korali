@@ -6,7 +6,7 @@ int main(int argc, char *argv[])
 {
   /////// Getting configuration defaults
 
-  std::string optimizer = argc < 2 ? "Adam" : argv[1];
+  std::string optimizer = argc < 2 ? "fAdam" : argv[1];
   float learningRate = argc < 3 ? 1e-4f : std::stof(argv[2]);
 
   /////// Initializing environment

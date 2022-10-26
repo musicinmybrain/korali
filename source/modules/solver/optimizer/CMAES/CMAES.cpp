@@ -555,7 +555,11 @@ void CMAES::updateDistribution()
   {
     _bestValidSample = -1;
     for (size_t i = 0; i < _currentPopulationSize; i++)
-      if (_sampleConstraintViolationCounts[_sortingIndex[i]] == 0) _bestValidSample = _sortingIndex[i];
+      if (_sampleConstraintViolationCounts[_sortingIndex[i]] == 0)
+      {
+        _bestValidSample = _sortingIndex[i];
+        break;
+      }
   }
 
   /* update function value history */

@@ -103,17 +103,17 @@ void __className__::popEngine()
   _engineStack.pop();
 }
 
-bool __className__::isRoot()
+bool __className__::isRoot() const
 {
   return true;
 }
 
-size_t __className__::getProcessId()
+size_t __className__::getProcessId() const
 {
   return 0;
 }
 
-size_t __className__::getWorkerCount()
+size_t __className__::getWorkerCount() const
 {
   return 1;
 }

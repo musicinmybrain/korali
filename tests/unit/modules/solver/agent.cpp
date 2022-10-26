@@ -109,7 +109,7 @@ namespace
   /// Configuring the neural network and its hidden layers
 
   agentJs["Neural Network"]["Engine"] = "OneDNN";
-  agentJs["Neural Network"]["Optimizer"] = "Adam";
+  agentJs["Neural Network"]["Optimizer"] = "fAdam";
 
   agentJs["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear";
   agentJs["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 16;
@@ -600,7 +600,7 @@ namespace
 
   agentJs = baseOptJs;
   experimentJs = baseExpJs;
-  agentJs["Neural Network"]["Optimizer"] = "Adam";
+  agentJs["Neural Network"]["Optimizer"] = "fAdam";
   ASSERT_NO_THROW(a->setConfiguration(agentJs));
 
   agentJs = baseOptJs;
@@ -615,7 +615,7 @@ namespace
 
   agentJs = baseOptJs;
   experimentJs = baseExpJs;
-  agentJs["Neural Network"]["Engine"] = "Adam";
+  agentJs["Neural Network"]["Engine"] = "fAdam";
   ASSERT_NO_THROW(a->setConfiguration(agentJs));
 
   agentJs = baseOptJs;
@@ -951,7 +951,7 @@ namespace
    /// Configuring the neural network and its hidden layers
 
    agentJs["Neural Network"]["Engine"] = "OneDNN";
-   agentJs["Neural Network"]["Optimizer"] = "Adam";
+   agentJs["Neural Network"]["Optimizer"] = "fAdam";
 
    agentJs["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear";
    agentJs["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 16;
@@ -1216,7 +1216,7 @@ namespace
    /// Configuring the neural network and its hidden layers
 
    agentJs["Neural Network"]["Engine"] = "OneDNN";
-   agentJs["Neural Network"]["Optimizer"] = "Adam";
+   agentJs["Neural Network"]["Optimizer"] = "fAdam";
 
    agentJs["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear";
    agentJs["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 16;
@@ -1356,7 +1356,7 @@ namespace
    /// Configuring the neural network and its hidden layers
 
    agentJs["Neural Network"]["Engine"] = "OneDNN";
-   agentJs["Neural Network"]["Optimizer"] = "Adam";
+   agentJs["Neural Network"]["Optimizer"] = "fAdam";
 
    agentJs["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear";
    agentJs["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 16;
@@ -1428,7 +1428,7 @@ namespace
     /// Configuring the neural network and its hidden layers
 
     agentJs["Neural Network"]["Engine"] = "OneDNN";
-    agentJs["Neural Network"]["Optimizer"] = "Adam";
+    agentJs["Neural Network"]["Optimizer"] = "fAdam";
 
     agentJs["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear";
     agentJs["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 16;

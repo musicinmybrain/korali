@@ -45,7 +45,7 @@ e["Solver"]["Termination Criteria"]["Target Loss"] = testMSEThreshold * 0.2
 ### Defining the shape of the neural network
 
 e["Solver"]["Neural Network"]["Engine"] = "Korali"
-e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
+e["Solver"]["Neural Network"]["Optimizer"] = "fAdam"
 
 e["Solver"]["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear"
 e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 8

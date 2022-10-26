@@ -61,8 +61,7 @@ e["Solver"]["Type"] = "DeepSupervisor"
 e["Solver"]["Mode"] = "Training"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
-e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
-e["Solver"]["Mode"] = "Training"
+e["Solver"]["Neural Network"]["Optimizer"] = "fAdam"
 
 ### Defining the shape of the neural network [autoencoder version of LeNet-1 - http://yann.lecun.com/exdb/publis/pdf/lecun-90c.pdf (fig. 2)]
 ## Convolutional Layer with tanh activation function [1x28x28] -> [6x24x24]

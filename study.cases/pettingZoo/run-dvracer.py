@@ -106,7 +106,7 @@ e["Solver"]["Reward"]["Rescaling"]["Enabled"] = True
 ### Configuring the neural network and its hidden layers
 
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
-e["Solver"]['Neural Network']['Optimizer'] = "Adam"
+e["Solver"]['Neural Network']['Optimizer'] = "fAdam"
 e["Solver"]["L2 Regularization"]["Enabled"] = args.l2 > 0.
 e["Solver"]["L2 Regularization"]["Importance"] = args.l2
 

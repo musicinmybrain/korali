@@ -33,7 +33,7 @@ namespace
    // Defining the shape of the neural network
 
    supervisorJs["Neural Network"]["Engine"] = "Korali";
-   supervisorJs["Neural Network"]["Optimizer"] = "Adam";
+   supervisorJs["Neural Network"]["Optimizer"] = "fAdam";
 
    supervisorJs["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear";
    supervisorJs["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 32;
@@ -159,7 +159,7 @@ namespace
 
    supervisorJs = baseOptJs;
    experimentJs = baseExpJs;
-   supervisorJs["Neural Network"]["Optimizer"] = "Adam";
+   supervisorJs["Neural Network"]["Optimizer"] = "fAdam";
    ASSERT_NO_THROW(supervisor->setConfiguration(supervisorJs));
 
    supervisorJs = baseOptJs;

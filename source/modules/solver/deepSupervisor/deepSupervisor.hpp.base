@@ -3,12 +3,7 @@
 #include "modules/experiment/experiment.hpp"
 #include "modules/neuralNetwork/neuralNetwork.hpp"
 #include "modules/problem/supervisedLearning/supervisedLearning.hpp"
-#include "modules/solver/deepSupervisor/optimizers/fAdaBelief.hpp"
-#include "modules/solver/deepSupervisor/optimizers/fAdagrad.hpp"
-#include "modules/solver/deepSupervisor/optimizers/fAdam.hpp"
 #include "modules/solver/deepSupervisor/optimizers/fGradientBasedOptimizer.hpp"
-#include "modules/solver/deepSupervisor/optimizers/fMadGrad.hpp"
-#include "modules/solver/deepSupervisor/optimizers/fRMSProp.hpp"
 
 __startNamespace__;
 
@@ -24,11 +19,6 @@ class __className__ : public __parentClassName__
    * @brief Korali Experiment for optimizing the NN's weights and biases.
    */
   korali::Experiment _optExperiment;
-
-  /**
-   * @brief Gradient-based solver pointer to access directly (for performance).
-   */
-  korali::fGradientBasedOptimizer *_optimizer;
 
   /**
    * @brief A neural network to be trained based on inputs and solutions.

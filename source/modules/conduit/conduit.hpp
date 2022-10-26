@@ -73,13 +73,13 @@ class Conduit : public Module
    * @brief Determines whether the caller rank/thread/process is root.
    * @return True, if it is root; false, otherwise.
    */
-  virtual bool isRoot() { return true; }
+  virtual bool isRoot() const { return true; }
 
   /**
    * @brief Determines whether the caller rank is the leader of its worker root
    * @return True, if it is the worker leader rank; false, otherwise.
    */
-  virtual bool isWorkerLeadRank() { return true; }
+  virtual bool isWorkerLeadRank() const { return true; }
 
   /**
    * @brief  (Worker Side) Starts the processing of a sample at the worker side
@@ -196,13 +196,13 @@ class Conduit : public Module
    * @brief Returns the identifier corresponding to the executing process (to differentiate their random seeds)
    * @return The executing process id
    */
-  virtual size_t getProcessId() = 0;
+  virtual size_t getProcessId() const = 0;
 
   /**
    * @brief Get total Korali worker count in the conduit
    * @return The number of workers
    */
-  virtual size_t getWorkerCount() = 0;
+  virtual size_t getWorkerCount() const = 0;
 };
 
 } //korali

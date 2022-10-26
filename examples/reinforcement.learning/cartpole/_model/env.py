@@ -73,7 +73,7 @@ def multienv(s):
     s["Reward"] = cart.getReward() * 0.1
    
   # Storing New State
-  s["State"] = (cart.getState()).tolist()
+  s["State"] = cart.getState().tolist()
   
   # Advancing step counter
   step = step + 1

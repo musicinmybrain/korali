@@ -1,103 +1,101 @@
-/**************************************************************
- * A single-precision fast version of GRADIENT_BASED_OPTIMIZER for Learning
- **************************************************************/
+/** \namespace korali
+* @brief Namespace declaration for modules of type: korali.
+*/
 
-#ifndef _KORALI_FAST_GRADIENT_BASED_OPTIMIZER_HPP_
-#define _KORALI_FAST_GRADIENT_BASED_OPTIMIZER_HPP_
+/** \file
+* @brief Header file for module: fGradientBasedOptimizer.
+*/
 
+/** \dir solver/deepSupervisor/optimizers
+* @brief Contains code, documentation, and scripts for module: fGradientBasedOptimizer.
+*/
+
+#pragma once
+
+#include "auxiliar/logger.hpp"
+#include "modules/module.hpp"
+#include <cmath>
 #include <cstddef>
+#include <cstdlib>
+#include <stdexcept>
 #include <vector>
 
 namespace korali
 {
+;
+
 /**
-* @brief Class declaration for module: GRADIENT_BASED_OPTIMIZER.
+* @brief Class declaration for module: fGradientBasedOptimizer.
 */
-class fGradientBasedOptimizer
+class fGradientBasedOptimizer : public Module
 {
-  public:
-
+  public: 
   /**
-  * @brief Default destructor to avoid warnings
+  * @brief Term to guard agains numerical instability.
   */
-  virtual ~fGradientBasedOptimizer() = default;
-
+   float _epsilon;
   /**
-  * @brief Number of problem variables
+  * @brief Size of variable space size(x) of f(x)
   */
-  size_t _nVars;
-
+   size_t _nVars;
   /**
-  * @brief Learning Rate
+  * @brief Step size/learning rate for current iterration.
   */
-  float _eta;
-
+   float _eta;
+  
+ 
   /**
-  * @brief Decay for gradient update
+  * @brief Obtains the entire current state and configuration of the module.
+  * @param js JSON object onto which to save the serialized state of the module.
   */
-  float _decay;
-
+  void getConfiguration(knlohmann::json& js) override;
   /**
-   * @brief Counter for the current generation
+  * @brief Sets the entire state and configuration of the module, given a JSON object.
+  * @param js JSON object from which to deserialize the state of the module.
+  */
+  void setConfiguration(knlohmann::json& js) override;
+  /**
+  * @brief Applies the module's default configuration upon its creation.
+  * @param js JSON object containing user configuration. The defaults will not override any currently defined settings.
+  */
+  void applyModuleDefaults(knlohmann::json& js) override;
+  /**
+  * @brief Applies the module's default variable configuration to each variable in the Experiment upon creation.
+  */
+  void applyVariableDefaults() override;
+  
+
+  // VARIABLES =================================================
+  /**
+   * @brief [Internal Use] Current value of parameters.
    */
-  size_t _currentGeneration;
-
-  /**
-   * @brief Initial values for the variables
-   */
-  std::vector<float> _initialValues;
-
-  /**
-   * @brief Indicates how many generations to run
-   */
-  size_t _maxGenerations;
-
-  /**
-  * @brief Keeps track of how many model evaluations performed
-  */
-  size_t _modelEvaluationCount;
-
-  /**
-* @brief [Internal Use] Current value of parameters.
-*/
   std::vector<float> _currentValue;
-  /**
-* @brief [Internal Use] Function evaluation for the current parameters.
-*/
-  float _currentEvaluation;
-  /**
-* @brief [Internal Use] Smaller function evaluation
-*/
-  float _bestEvaluation;
-  /**
-* @brief [Internal Use] Gradient of Function with respect to Parameters.
-*/
-  std::vector<float> _gradient;
 
   /**
-   * @brief Determines whether the module can trigger termination of an experiment run.
-   * @return True, if it should trigger termination; false, otherwise.
+   * @brief Takes a sample evaluation and its gradient and calculates the next set of parameters
+   * @param gradient The gradient of the objective function at the current set of parameters
    */
-  virtual bool checkTermination() = 0;
+  virtual void processResult(std::vector<float> &gradient) = 0;
 
   /**
-  * @brief Takes a sample evaluation and its gradient and calculates the next set of parameters
-  * @param evaluation The value of the objective function at the current set of parameters
-  * @param gradient The gradient of the objective function at the current set of parameters
-  */
-  virtual void processResult(float evaluation, std::vector<float> &gradient) = 0;
+   * @brief Checks size and values of gradient
+   * @param gradient Gradient values to check
+   */
+  virtual void preProcessResult(std::vector<float> &gradient);
 
   /**
-  * @brief Restores the optimizer to the initial state
-  */
+   * @brief Checks the result of the gradient update
+   * @param parameters Parameter values to check
+   */
+  virtual void postProcessResult(std::vector<float> &parameters);
+
+  /**
+   * @brief Restores the optimizer to the initial state
+   */
   virtual void reset() = 0;
 
-  /**
-   * @brief Prints progress information
-   */
-  virtual void printInfo() = 0;
+  virtual void initialize() override;
 };
 
-} // namespace korali
-
-#endif // _KORALI_FAST_GRADIENT_BASED_OPTIMIZER_HPP_
+} //korali
+;

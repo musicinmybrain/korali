@@ -37,7 +37,7 @@ if (found == False):
 # If found, we continue with the next 5 generations.
 if (found == True):
   print('------------------------------------------------------')
-  print('Running last 10 generations...')
+  print('Running last 5 generations...')
   print('------------------------------------------------------')
   e["Solver"]["Termination Criteria"]["Max Generations"] = 10
 
@@ -63,7 +63,7 @@ e["Solver"]["Learning Rate"] = 0.005
 ### Defining the shape of the neural network
 
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
-e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
+e["Solver"]["Neural Network"]["Optimizer"] = "fAdam"
 
 e["Solver"]["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear"
 e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 32
