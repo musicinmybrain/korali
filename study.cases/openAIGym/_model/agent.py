@@ -3,8 +3,7 @@
 import gym
 from packaging.version import parse as parse_version
 oldEnv = parse_version(gym.__version__) < parse_version('0.26.0')
-#import pyBulletEnvironments
-import math
+
 from HumanoidWrapper import HumanoidWrapper
 from AntWrapper import AntWrapper
 
@@ -88,12 +87,12 @@ def agent(s, env):
 
   # Performing the action
   action = s["Action"]
+  
   if oldEnv:
    state, reward, done, _ = env.step(action)
   else:
    state, reward, done, _, _ = env.step(action)
   
-
   # Getting Reward
   s["Reward"] = reward
 

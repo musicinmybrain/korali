@@ -103,7 +103,7 @@ def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservat
                 meanReturn = np.append(averageStart, averageRest)
                 meanReturns.append( meanReturn )
 
-                stdReturn = np.append(averageSquaredStart, averageSquaredRest) - meanReturn**2
+                stdReturn = np.sqrt(np.append(averageSquaredStart, averageSquaredRest) - meanReturn**2)
                 stdReturns.append(stdReturn)
 
     ## Only keep first maxEpisodes entries

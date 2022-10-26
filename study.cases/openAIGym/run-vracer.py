@@ -13,7 +13,9 @@ parser.add_argument('--dis', help='Sampling Distribution.', required=False, type
 parser.add_argument('--l2', help='L2 Regularization.', required=False, type=float, default = 0.)
 parser.add_argument('--opt', help='Off Policy Target.', required=False, type=float, default = 0.1)
 parser.add_argument('--lr', help='Learning Rate.', required=False, type=float, default = 0.0001)
-parser.add_argument('--run', help='Number of Run.', required=False, type=int, default = 0)
+parser.add_argument('--exp', help='Number of experiences.', required=False, type=int, default = 1000000)
+parser.add_argument('--run', help='Run tag.', required=False, type=int, default = 0)
+
 args = parser.parse_args()
 print(args)
 
@@ -85,12 +87,12 @@ e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Sof
 
 ### Setting file output configuration
 
-e["Solver"]["Termination Criteria"]["Max Experiences"] = 10e6
-e["Solver"]["Termination Criteria"]["Max Generations"] = 100
+e["Solver"]["Termination Criteria"]["Max Experiences"] = args.exp
 e["Solver"]["Experience Replay"]["Serialize"] = True
 e["Console Output"]["Verbosity"] = "Detailed"
 e["File Output"]["Enabled"] = True
 e["File Output"]["Frequency"] = 10
+e["File Output"]["Use Multiple Files"] = False
 e["File Output"]["Path"] = resultFolder
 
 ### Running Experiment
