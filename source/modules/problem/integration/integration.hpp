@@ -30,10 +30,6 @@ class Integration : public Problem
   * @brief Stores the function to integrate.
   */
    std::uint64_t _integrand;
-  /**
-  * @brief Indicates the name of the integration method to use.
-  */
-   std::string _integrationMethod;
   
  
   /**

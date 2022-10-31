@@ -30,19 +30,19 @@ class Weibull : public Univariate
   private:
   public: 
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The shape of the Weibull distribution.
   */
    double _shape;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The shape of the Weibull distribution.
   */
    std::string _shapeConditional;
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The scale of the Weibull distribution.
   */
    double _scale;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The scale of the Weibull distribution.
   */
    std::string _scaleConditional;
   

@@ -108,16 +108,16 @@ class Distributed : public Conduit
   void sendMessageToEngine(knlohmann::json &message) override;
   knlohmann::json recvMessageFromEngine() override;
   void sendMessageToSample(Sample &sample, knlohmann::json &message) override;
-  size_t getProcessId() override;
+  size_t getProcessId() const override;
 
   /**
    * @brief Determines which rank is the root.
    * @return The rank id of the root rank.
    */
-  int getRootRank();
-  bool isRoot() override;
-  bool isWorkerLeadRank() override;
-  size_t getWorkerCount() override;
+  int getRootRank() const;
+  bool isRoot() const override;
+  bool isWorkerLeadRank() const override;
+  size_t getWorkerCount() const override;
 };
 
 } //conduit

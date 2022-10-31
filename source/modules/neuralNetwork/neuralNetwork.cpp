@@ -412,7 +412,7 @@ std::vector<float> NeuralNetwork::getHyperparameters()
 
   for (const float h : hyperparameters)
     if (std::isfinite(h) == false)
-      KORALI_LOG_ERROR("Returning non-finite hyperparameters"); //TODO: move check to optimizer
+      KORALI_LOG_ERROR("Returning non-finite hyperparameters"); // TODO: move check to optimizer
 
   return hyperparameters;
 }
@@ -424,7 +424,7 @@ void NeuralNetwork::setHyperparameters(const std::vector<float> &hyperparameters
 
   for (const float h : hyperparameters)
     if (std::isfinite(h) == false)
-      KORALI_LOG_ERROR("Assigning non-finite value to hyperparameters"); //TODO: move check to optimizer
+      KORALI_LOG_ERROR("Assigning non-finite value to hyperparameters"); // TODO: move check to optimizer
 
   size_t layerCount = _pipelines[0][0]._layerVector.size();
 

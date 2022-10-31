@@ -88,11 +88,15 @@ def main(path, test, output, plotAll=False):
   if ("nested" in solverName):
    solverDir = curdir + '/Nested'
    moduleName = '.Nested'
+ 
+  if ("ssm" in solverName):
+   solverDir = curdir + '/SSM'
+   moduleName = '.SSM'
 
   if ("tmcmc" in solverName):
    solverDir = curdir + '/TMCMC'
    moduleName = '.TMCMC'
-
+  
   if (solverDir == ""):
    print("[Korali] Solver '{0}' does not provide support for plotting.".format(solverName))
    exit(0)

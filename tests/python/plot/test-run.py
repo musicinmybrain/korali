@@ -1,10 +1,6 @@
 #! /usr/bin/env python3
 from subprocess import call
 
-r = call(["python3", "-m", "korali.plot", "--help"])
-if r!=0:
-  exit(r)
-
 r = call(["python3", "-m", "korali.plot", "--dir", "cmaes", "--test"])
 if r!=0:
   exit(r)

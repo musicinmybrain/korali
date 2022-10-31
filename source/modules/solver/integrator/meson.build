@@ -19,3 +19,7 @@ korali_include += include_directories('.')
 korali_source += module_header
 korali_source += module_source
 korali_config += module_config
+
+subdir('montecarlo')
+subdir('quadrature')
+

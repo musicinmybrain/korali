@@ -30,19 +30,19 @@ class Beta : public Univariate
   private:
   public: 
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] Shape parameter of the beta distribution.
   */
    double _alpha;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] Shape parameter of the beta distribution.
   */
    std::string _alphaConditional;
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] Shape parameter of the beta distribution.
   */
    double _beta;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] Shape parameter of the beta distribution.
   */
    std::string _betaConditional;
   

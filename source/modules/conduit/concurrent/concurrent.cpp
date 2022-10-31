@@ -189,17 +189,17 @@ void Concurrent::sendMessageToSample(Sample &sample, knlohmann::json &message)
   write(_inputsPipe[sample._workerId][1], msgData.data(), messageSize * sizeof(uint8_t));
 }
 
-bool Concurrent::isRoot()
+bool Concurrent::isRoot() const
 {
   return _workerId == -1;
 }
 
-size_t Concurrent::getProcessId()
+size_t Concurrent::getProcessId() const
 {
   return _workerId;
 }
 
-size_t Concurrent::getWorkerCount()
+size_t Concurrent::getWorkerCount() const
 {
   return _concurrentJobs;
 }

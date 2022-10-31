@@ -115,7 +115,6 @@ void DEA::prepareGeneration()
         if (_fixInfeasible && isFeasible == false) fixInfeasible(i);
 
         isFeasible = isSampleFeasible(_candidatePopulation[i]);
-        if (isFeasible == false) _infeasibleSampleCount++;
       } while (isFeasible == false);
     }
   _previousValueVector = _valueVector;
@@ -413,14 +412,6 @@ void DEA::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Max Distances");
  }
 
- if (isDefined(js, "Infeasible Sample Count"))
- {
- try { _infeasibleSampleCount = js["Infeasible Sample Count"].get<size_t>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ DEA ] \n + Key:    ['Infeasible Sample Count']\n%s", e.what()); } 
-   eraseValue(js, "Infeasible Sample Count");
- }
-
  if (isDefined(js, "Current Minimum Step Size"))
  {
  try { _currentMinimumStepSize = js["Current Minimum Step Size"].get<double>();
@@ -512,15 +503,6 @@ void DEA::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Fix Infeasible'] required by DEA.\n"); 
 
- if (isDefined(js, "Termination Criteria", "Max Infeasible Resamplings"))
- {
- try { _maxInfeasibleResamplings = js["Termination Criteria"]["Max Infeasible Resamplings"].get<size_t>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ DEA ] \n + Key:    ['Termination Criteria']['Max Infeasible Resamplings']\n%s", e.what()); } 
-   eraseValue(js, "Termination Criteria", "Max Infeasible Resamplings");
- }
-  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Termination Criteria']['Max Infeasible Resamplings'] required by DEA.\n"); 
-
  if (isDefined(js, "Termination Criteria", "Min Value"))
  {
  try { _minValue = js["Termination Criteria"]["Min Value"].get<double>();
@@ -559,7 +541,6 @@ void DEA::getConfiguration(knlohmann::json& js)
    js["Parent Selection Rule"] = _parentSelectionRule;
    js["Accept Rule"] = _acceptRule;
    js["Fix Infeasible"] = _fixInfeasible;
-   js["Termination Criteria"]["Max Infeasible Resamplings"] = _maxInfeasibleResamplings;
    js["Termination Criteria"]["Min Value"] = _minValue;
    js["Termination Criteria"]["Min Step Size"] = _minStepSize;
  if(_normalGenerator != NULL) _normalGenerator->getConfiguration(js["Normal Generator"]);
@@ -574,7 +555,6 @@ void DEA::getConfiguration(knlohmann::json& js)
    js["Previous Mean"] = _previousMean;
    js["Current Best Variables"] = _currentBestVariables;
    js["Max Distances"] = _maxDistances;
-   js["Infeasible Sample Count"] = _infeasibleSampleCount;
    js["Current Minimum Step Size"] = _currentMinimumStepSize;
  for (size_t i = 0; i <  _k->_variables.size(); i++) { 
  } 
@@ -584,7 +564,7 @@ void DEA::getConfiguration(knlohmann::json& js)
 void DEA::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Population Size\": 200, \"Crossover Rate\": 0.9, \"Mutation Rate\": 0.5, \"Mutation Rule\": \"Fixed\", \"Parent Selection Rule\": \"Random\", \"Accept Rule\": \"Greedy\", \"Fix Infeasible\": true, \"Termination Criteria\": {\"Max Infeasible Resamplings\": 10000000, \"Min Value\": -Infinity, \"Max Value\": Infinity, \"Min Step Size\": -Infinity}, \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}, \"Normal Generator\": {\"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"Value Vector\": [], \"Previous Value Vector\": [], \"Sample Population\": [[]], \"Candidate Population\": [[]], \"Best Sample Index\": 0, \"Best Ever Value\": -Infinity, \"Previous Best Ever Value\": -Infinity, \"Current Mean\": [], \"Previous Mean\": [], \"Current Best Variables\": [], \"Max Distances\": [], \"Infeasible Sample Count\": 0, \"Current Minimum Step Size\": 0.0}";
+ std::string defaultString = "{\"Population Size\": 200, \"Crossover Rate\": 0.9, \"Mutation Rate\": 0.5, \"Mutation Rule\": \"Fixed\", \"Parent Selection Rule\": \"Random\", \"Accept Rule\": \"Greedy\", \"Fix Infeasible\": true, \"Termination Criteria\": {\"Min Value\": -Infinity, \"Max Value\": Infinity, \"Min Step Size\": -Infinity}, \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}, \"Normal Generator\": {\"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"Value Vector\": [], \"Previous Value Vector\": [], \"Sample Population\": [[]], \"Candidate Population\": [[]], \"Best Sample Index\": 0, \"Best Ever Value\": -Infinity, \"Previous Best Ever Value\": -Infinity, \"Current Mean\": [], \"Previous Mean\": [], \"Current Best Variables\": [], \"Max Distances\": [], \"Current Minimum Step Size\": 0.0}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Optimizer::applyModuleDefaults(js);
@@ -604,12 +584,6 @@ void DEA::applyVariableDefaults()
 bool DEA::checkTermination()
 {
  bool hasFinished = false;
-
- if (_infeasibleSampleCount > _maxInfeasibleResamplings)
- {
-  _terminationCriteria.push_back("DEA['Max Infeasible Resamplings'] = " + std::to_string(_maxInfeasibleResamplings) + ".");
-  hasFinished = true;
- }
 
  if ((_k->_currentGeneration > 1) && (-_bestEverValue < _minValue))
  {

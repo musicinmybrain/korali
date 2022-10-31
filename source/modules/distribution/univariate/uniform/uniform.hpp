@@ -30,19 +30,19 @@ class Uniform : public Univariate
   private:
   public: 
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The lower bound of the uniform distribution.
   */
    double _minimum;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The lower bound of the uniform distribution.
   */
    std::string _minimumConditional;
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The upper bound of the uniform distribution.
   */
    double _maximum;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The upper bound of the uniform distribution.
   */
    std::string _maximumConditional;
   

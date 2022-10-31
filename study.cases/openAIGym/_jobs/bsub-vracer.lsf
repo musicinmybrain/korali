@@ -1,0 +1,28 @@
+#!/bin/bash -l
+#BSUB -W 24:00
+#BSUB -J vracer
+#BSUB -o vracer-%J.out
+#BSUB -e vracer-%J.err
+#BSUB -n 8
+
+export OMP_NUM_THREADS=8
+pushd .
+cd ..
+
+source /cluster/apps/local/env2lmod.sh
+module purge
+module load gcc/8.2.0 python/3.9.9 openmpi/4.0.2 gsl/2.6
+module load git-lfs
+
+RUN=1
+ENV="HalfCheetah-v4"
+
+python3 run-vracer.py --env ${ENV} --run ${RUN}
+
+DIR="./_result_vracer_${ENV}_${RUN}/"
+
+python3 -m korali.rlview --dir $DIR --out "rl-${ENV}_${RUN}.png"
+
+code=$?
+
+exit $code

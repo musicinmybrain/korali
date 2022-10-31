@@ -38,7 +38,7 @@ dea_criteria = [
 dea_values = [
   1,     # Max Generations
   3,     # Max Generations
-  0,     # Max Infeasible Resamplings
+  1,     # Max Infeasible Resamplings
   0.1    # Min Value Difference Threshold
   ]
 

@@ -4,8 +4,7 @@
 
 __startNamespace__;
 
-double
-__className__::getDensity(const double x) const
+double __className__::getDensity(const double x) const
 {
   return gsl_ran_exponential_pdf(x - _location, _mean);
 }
@@ -35,6 +34,7 @@ double __className__::getRandomNumber()
 void __className__::updateDistribution()
 {
   _aux = 0.0;
+  if (_mean <= 0.0) KORALI_LOG_ERROR("Incorrect mean parameter of exponential distribution: %f.\n", _mean);
 }
 
 __moduleAutoCode__;

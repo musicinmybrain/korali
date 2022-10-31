@@ -301,7 +301,7 @@ void __className__::initializeEnvironment(Sample &agent)
   _conduit = _agent->_k->_engine->_conduit;
 
   // First, we update the initial policy's hyperparameters
-  _agent->setAgentPolicy(agent["Policy Hyperparameters"]);
+  _agent->setPolicy(agent["Policy Hyperparameters"]);
 
   // Then, we reset the state sequence for time-dependent learners
   _agent->resetTimeSequence();
@@ -346,7 +346,8 @@ void __className__::requestNewPolicy(Sample &agent)
 
   // If requested new policy, wait for incoming message containing new hyperparameters
   agent["Policy Hyperparameters"] = KORALI_RECV_MSG_FROM_ENGINE();
-  _agent->setAgentPolicy(agent["Policy Hyperparameters"]);
+  _agent->setPolicy(agent["Policy Hyperparameters"]);
+
   auto t1 = std::chrono::steady_clock::now();                                                       // Profiling
   _agentCommunicationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count(); // Profiling
 }

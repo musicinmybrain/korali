@@ -305,7 +305,7 @@ void ReinforcementLearning::initializeEnvironment(Sample &agent)
   _conduit = _agent->_k->_engine->_conduit;
 
   // First, we update the initial policy's hyperparameters
-  _agent->setAgentPolicy(agent["Policy Hyperparameters"]);
+  _agent->setPolicy(agent["Policy Hyperparameters"]);
 
   // Then, we reset the state sequence for time-dependent learners
   _agent->resetTimeSequence();
@@ -350,7 +350,8 @@ void ReinforcementLearning::requestNewPolicy(Sample &agent)
 
   // If requested new policy, wait for incoming message containing new hyperparameters
   agent["Policy Hyperparameters"] = KORALI_RECV_MSG_FROM_ENGINE();
-  _agent->setAgentPolicy(agent["Policy Hyperparameters"]);
+  _agent->setPolicy(agent["Policy Hyperparameters"]);
+
   auto t1 = std::chrono::steady_clock::now();                                                       // Profiling
   _agentCommunicationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count(); // Profiling
 }
@@ -640,7 +641,7 @@ void ReinforcementLearning::getConfiguration(knlohmann::json& js)
 void ReinforcementLearning::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Agents Per Environment\": 1, \"Policies Per Environment\": 1, \"Testing Frequency\": 0, \"Policy Testing Episodes\": 5, \"Environment Count\": 1, \"Actions Between Policy Updates\": 0, \"Custom Settings\": {}}";
+ std::string defaultString = "{\"Agents Per Environment\": 1, \"Policies Per Environment\": 1, \"Testing Frequency\": 0, \"Policy Testing Episodes\": 10, \"Environment Count\": 1, \"Actions Between Policy Updates\": 0, \"Custom Settings\": {}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Problem::applyModuleDefaults(js);

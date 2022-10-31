@@ -30,19 +30,19 @@ class Exponential : public Univariate
   private:
   public: 
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] Shift for the exponential distribution.
   */
    double _location;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] Shift for the exponential distribution.
   */
    std::string _locationConditional;
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] Mean and standard deviation of the (unshifted) exponential distribution.
   */
    double _mean;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] Mean and standard deviation of the (unshifted) exponential distribution.
   */
    std::string _meanConditional;
   

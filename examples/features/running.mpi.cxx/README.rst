@@ -54,6 +54,8 @@ If the computational model requires communication between the MPI ranks, you nee
     MPI_Comm_rank(comm, &myRank);
     MPI_Comm_size(comm, &rankCount);
 
+Note that all MPI ranks shall write results to the sample object.
+
 Run
 ---------------------------
 

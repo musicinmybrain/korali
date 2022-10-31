@@ -40,6 +40,4 @@ e["Random Seed"] = 0xC0FFEE
 
 # Starting Korali's Engine and running experiment
 k = korali.Engine()
-k["Conduit"]["Type"] = "Concurrent"
-k["Conduit"]["Concurrent Jobs"] = 4
 k.run(e)

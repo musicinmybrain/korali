@@ -136,7 +136,6 @@ void TMCMC::runGeneration()
     }
 
     size_t finishedId = KORALI_WAITANY(samples);
-    // printf("%s\n", samples[finishedId]._js.getJson().dump(2).c_str());
     _chainPendingEvaluation[finishedId] = false;
 
     _chainCandidatesLogLikelihoods[finishedId] = KORALI_GET(double, samples[finishedId], "logLikelihood");

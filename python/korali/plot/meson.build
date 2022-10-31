@@ -6,6 +6,7 @@ python_sources = files([
   'MCMC.py',
   'MOCMAES.py',
   'Nested.py',
+  'SSM.py',
   'TMCMC.py',
   '__init__.py',
   '__main__.py',

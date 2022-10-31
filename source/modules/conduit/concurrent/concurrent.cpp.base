@@ -185,17 +185,17 @@ void __className__::sendMessageToSample(Sample &sample, knlohmann::json &message
   write(_inputsPipe[sample._workerId][1], msgData.data(), messageSize * sizeof(uint8_t));
 }
 
-bool __className__::isRoot()
+bool __className__::isRoot() const
 {
   return _workerId == -1;
 }
 
-size_t __className__::getProcessId()
+size_t __className__::getProcessId() const
 {
   return _workerId;
 }
 
-size_t __className__::getWorkerCount()
+size_t __className__::getWorkerCount() const
 {
   return _concurrentJobs;
 }

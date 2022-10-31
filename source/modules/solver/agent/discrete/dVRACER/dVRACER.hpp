@@ -75,7 +75,7 @@ class dVRACER : public Discrete
   /**
    * @brief Pointer to training the actor network
    */
-  std::vector<learner::DeepSupervisor *> _criticPolicyLearner;
+  std::vector<solver::DeepSupervisor *> _criticPolicyLearner;
 
   /**
    * @brief Korali experiment for obtaining the agent's action
@@ -96,19 +96,23 @@ class dVRACER : public Discrete
   /**
    * @brief Calculates the gradients for the policy/critic neural network
    * @param miniBatch The indexes of the experience mini batch
+   * @param policyIdx The indexes of the policy to compute the gradient for
    */
   void calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx);
 
-  float calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx = 0) override;
-
-  void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) override;
-
+  /**
+   * @brief Retreives the policy infos for the samples in the minibatch
+   * @param miniBatch The indexes of the experience mini batch
+   * @return A vector containing the policy infos in the order they are given in the miniBatch
+   */
   std::vector<policy_t> getPolicyInfo(const std::vector<std::pair<size_t, size_t>> &miniBatch) const;
 
-  knlohmann::json getAgentPolicy() override;
-  void setAgentPolicy(const knlohmann::json &hyperparameters) override;
+  float calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx = 0) override;
+  void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) override;
+  knlohmann::json getPolicy() override;
+  void setPolicy(const knlohmann::json &hyperparameters) override;
   void trainPolicy() override;
-  void printAgentInformation() override;
+  void printInformation() override;
   void initializeAgent() override;
 };
 

@@ -43,6 +43,10 @@ class Optimizer : public Solver
   */
    std::vector<double> _bestEverVariables;
   /**
+  * @brief [Internal Use] Keeps count of the number of infeasible samples.
+  */
+   size_t _infeasibleSampleCount;
+  /**
   * @brief [Termination Criteria] Specifies the maximum target fitness to stop maximization.
   */
    double _maxValue;
@@ -50,6 +54,10 @@ class Optimizer : public Solver
   * @brief [Termination Criteria] Specifies the minimum fitness differential between two consecutive generations before stopping execution.
   */
    double _minValueDifferenceThreshold;
+  /**
+  * @brief [Termination Criteria] Maximum number of resamplings per candidate per generation if sample is outside of Lower and Upper Bound.
+  */
+   size_t _maxInfeasibleResamplings;
   
  
   /**

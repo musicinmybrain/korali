@@ -1,6 +1,8 @@
 #include "engine.hpp"
 #include "modules/solver/agent/discrete/dVRACER/dVRACER.hpp"
-#include "omp.h"
+#ifdef _OPENMP
+  #include "omp.h"
+#endif
 #include "sample/sample.hpp"
 
 namespace korali
@@ -40,7 +42,7 @@ void dVRACER::initializeAgent()
     _criticPolicyExperiment[p]["Problem"]["Input"]["Size"] = _problem->_stateVectorSize;
     _criticPolicyExperiment[p]["Problem"]["Solution"]["Size"] = 1 + _policyParameterCount; // The value function, action q values, and inverse temperatur
 
-    _criticPolicyExperiment[p]["Solver"]["Type"] = "Learner/DeepSupervisor";
+    _criticPolicyExperiment[p]["Solver"]["Type"] = "DeepSupervisor";
     _criticPolicyExperiment[p]["Solver"]["Mode"] = "Training";
     _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Enabled"] = _l2RegularizationEnabled;
     _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Importance"] = _l2RegularizationImportance;
@@ -73,7 +75,7 @@ void dVRACER::initializeAgent()
     _criticPolicyExperiment[p].setEngine(_k->_engine);
     _criticPolicyExperiment[p].initialize();
     _criticPolicyProblem[p] = dynamic_cast<problem::SupervisedLearning *>(_criticPolicyExperiment[p]._problem);
-    _criticPolicyLearner[p] = dynamic_cast<solver::learner::DeepSupervisor *>(_criticPolicyExperiment[p]._solver);
+    _criticPolicyLearner[p] = dynamic_cast<solver::DeepSupervisor *>(_criticPolicyExperiment[p]._solver);
 
     // Preallocating space in the underlying supervised problem's input and solution data structures (for performance, we don't reinitialize it every time)
     _criticPolicyProblem[p]->_inputData.resize(_effectiveMinibatchSize);
@@ -145,12 +147,12 @@ void dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_
     const size_t agentId = miniBatch[b].second;
 
     // Getting old and current policy
-    const auto &expPolicy = _expPolicyVector[expId][agentId];
-    const auto &curPolicy = _curPolicyVector[expId][agentId];
+    const auto &expPolicy = _expPolicyBuffer[expId][agentId];
+    const auto &curPolicy = _curPolicyBuffer[expId][agentId];
 
     // Getting state-value and estimator
-    const auto &stateValue = _stateValueVector[expId][agentId];
-    const auto &expVtbc = _retraceValueVector[expId][agentId];
+    const auto &stateValue = _stateValueBufferContiguous[expId * numAgents + agentId];
+    const auto &expVtbc = _retraceValueBufferContiguous[expId * numAgents + agentId];
 
     // Storage for the update gradient
     std::vector<float> gradientLoss(1 + _policyParameterCount, 0.0f);
@@ -163,22 +165,23 @@ void dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_
       gradientLoss[0] /= numAgents;
 
     // Compute policy gradient only if inside trust region
-    if (_isOnPolicyVector[expId][agentId])
+    if (_isOnPolicyBuffer[expId][agentId])
     {
       // Qret for terminal state is just reward
-      float Qret = getScaledReward(_rewardVector[expId][agentId]);
+      float Qret = getScaledReward(_rewardBufferContiguous[expId * numAgents + agentId]);
 
       // If experience is non-terminal, add Vtbc
-      if (_terminationVector[expId] == e_nonTerminal)
+      if (_terminationBuffer[expId] == e_nonTerminal)
       {
-        float nextExpVtbc = _retraceValueVector[expId + 1][agentId];
+        const float nextExpVtbc = _retraceValueBufferContiguous[(expId + 1) * numAgents + agentId];
+
         Qret += _discountFactor * nextExpVtbc;
       }
 
       // If experience is truncated, add truncated state value
-      if (_terminationVector[expId] == e_truncated)
+      if (_terminationBuffer[expId] == e_truncated)
       {
-        float nextExpVtbc = _truncatedStateValueVector[expId][agentId];
+        const float nextExpVtbc = _truncatedStateValueBuffer[expId][agentId];
         Qret += _discountFactor * nextExpVtbc;
       }
 
@@ -191,7 +194,7 @@ void dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_
       // If multi-agent correlation, multiply with additional factor
       if (_multiAgentCorrelation)
       {
-        float correlationFactor = _productImportanceWeightVector[expId] / _importanceWeightVector[expId][agentId];
+        float correlationFactor = _productImportanceWeightBuffer[expId] / _importanceWeightBuffer[expId][agentId];
         for (size_t i = 0; i < polGrad.size(); i++)
           polGrad[i] *= correlationFactor;
       }
@@ -325,13 +328,13 @@ std::vector<policy_t> dVRACER::getPolicyInfo(const std::vector<std::pair<size_t,
     const size_t agentId = miniBatch[b].second;
 
     // Filling policy information
-    policyInfo[b] = _expPolicyVector[expId][agentId];
+    policyInfo[b] = _expPolicyBuffer[expId][agentId];
   }
 
   return policyInfo;
 }
 
-knlohmann::json dVRACER::getAgentPolicy()
+knlohmann::json dVRACER::getPolicy()
 {
   knlohmann::json hyperparameters;
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
@@ -339,13 +342,13 @@ knlohmann::json dVRACER::getAgentPolicy()
   return hyperparameters;
 }
 
-void dVRACER::setAgentPolicy(const knlohmann::json &hyperparameters)
+void dVRACER::setPolicy(const knlohmann::json &hyperparameters)
 {
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
     _criticPolicyLearner[p]->setHyperparameters(hyperparameters[p].get<std::vector<float>>());
 }
 
-void dVRACER::printAgentInformation()
+void dVRACER::printInformation()
 {
   _k->_logger->logInfo("Normal", " + [dVRACER] Policy Learning Rate: %.3e\n", _currentLearningRate);
   _k->_logger->logInfo("Normal", " + [dVRACER] Average Inverse Temperature: %.3e\n", _statisticsAverageInverseTemperature);

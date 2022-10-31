@@ -43,7 +43,7 @@ void Distributed::initialize()
     if (workerRemainder != 0) KORALI_LOG_ERROR("Korali was instantiated with %lu MPI ranks (minus %lu for the engine), divided into %lu workers. This setup does not provide a perfectly divisible distribution, and %lu unused ranks remain.\n", _rankCount, _engineRanks, _workerCount, workerRemainder);
   }
 
-  // Syncrhonizing all ranks
+  // Synchronizing all ranks
   MPI_Barrier(__KoraliGlobalMPIComm);
 
   // Initializing worker id setting storage
@@ -124,7 +124,7 @@ void Distributed::terminateServer()
   terminationJs["Conduit Action"] = "Terminate";
 
   // Serializing message in binary form
-  std::vector<std::uint8_t> msgData = knlohmann::json::to_cbor(terminationJs);
+  const std::vector<std::uint8_t> msgData = knlohmann::json::to_cbor(terminationJs);
 
   if (isRoot())
   {
@@ -151,7 +151,7 @@ void Distributed::broadcastMessageToWorkers(knlohmann::json &message)
   if (!isRoot()) return;
 
   // Serializing message in binary form
-  std::vector<std::uint8_t> msgData = knlohmann::json::to_cbor(message);
+  const std::vector<std::uint8_t> msgData = knlohmann::json::to_cbor(message);
 
   for (int i = 0; i < _workerCount; i++)
     for (int j = 0; j < _ranksPerWorker; j++)
@@ -159,7 +159,7 @@ void Distributed::broadcastMessageToWorkers(knlohmann::json &message)
 #endif
 }
 
-int Distributed::getRootRank()
+int Distributed::getRootRank() const
 {
 #ifdef _KORALI_USE_MPI
   return _rankCount - 1;
@@ -168,7 +168,7 @@ int Distributed::getRootRank()
   return 0;
 }
 
-bool Distributed::isRoot()
+bool Distributed::isRoot() const
 {
 #ifdef _KORALI_USE_MPI
   return _rankId == getRootRank();
@@ -177,7 +177,7 @@ bool Distributed::isRoot()
   return true;
 }
 
-bool Distributed::isWorkerLeadRank()
+bool Distributed::isWorkerLeadRank() const
 {
   // Arbitrarily, we decide that rank 0 is the root rank
   return _localRankId == 0;
@@ -189,7 +189,7 @@ void Distributed::sendMessageToEngine(knlohmann::json &message)
   if (_localRankId == 0)
   {
     // Serializing message in binary form
-    std::vector<std::uint8_t> msgData = knlohmann::json::to_cbor(message);
+    const std::vector<std::uint8_t> msgData = knlohmann::json::to_cbor(message);
     MPI_Send(msgData.data(), msgData.size(), MPI_UINT8_T, getRootRank(), __KORALI_MPI_MESSAGE_JSON_TAG, __KoraliGlobalMPIComm);
   }
 #endif
@@ -290,12 +290,12 @@ void Distributed::popEngine()
 #endif
 }
 
-size_t Distributed::getProcessId()
+size_t Distributed::getProcessId() const
 {
   return _rankId;
 }
 
-size_t Distributed::getWorkerCount()
+size_t Distributed::getWorkerCount() const
 {
   return _workerCount;
 }

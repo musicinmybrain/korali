@@ -27,6 +27,7 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <algorithm>
 
 namespace korali
 {
@@ -214,10 +215,7 @@ T safeLogMinus(T x, T y)
 template <typename T>
 T logSumExp(const T *logValues, const size_t &n)
 {
-  T maxLogValue = -Inf;
-  for (size_t i = 0; i < n; i++)
-    if (logValues[i] > maxLogValue)
-      maxLogValue = logValues[i];
+  T maxLogValue = *std::max_element(logValues, logValues + n);
 
   if (std::isinf(maxLogValue) == true)
   {
