@@ -19,6 +19,8 @@ parser.add_argument('--test', help='Run policy evaluation.', required=False, act
 args = parser.parse_args()
 print(args)
 
+excludePos = True
+
 ####### Defining Korali Problem
 
 import korali
@@ -33,7 +35,7 @@ e.loadState(resultFolder + '/latest')
 
 ### Initializing openAI Gym environment
 
-initEnvironment(e, args.env)
+initEnvironment(e, args.env, excludePos)
 
 e["Problem"]["Testing Frequency"] = 25
 e["Problem"]["Policy Testing Episodes"] = 50
@@ -83,7 +85,7 @@ e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Sof
 ### Setting file output configuration
 
 e["Solver"]["Termination Criteria"]["Max Experiences"] = args.exp
-e["Solver"]["Experience Replay"]["Serialize"] = True
+e["Solver"]["Experience Replay"]["Serialize"] = False
 e["Console Output"]["Verbosity"] = "Detailed"
 e["File Output"]["Enabled"] = True
 e["File Output"]["Frequency"] = 200

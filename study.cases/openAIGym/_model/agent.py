@@ -6,12 +6,17 @@ import os.path
 from HumanoidWrapper import HumanoidWrapper
 from AntWrapper import AntWrapper
 
-def initEnvironment(e, envName, moviePath = ''):
+def initEnvironment(e, envName, excludePosition=True, moviePath = ''):
 
  # Creating environment 
  
- #env = gym.make(envName, exclude_current_positions_from_observation=True)
- env = gym.make(envName, reset_noise_scale=0.3, exclude_current_positions_from_observation=False)
+ if envName == "Reacher-v4":
+    env = gym.make(envName)
+    excludePosition = True
+ else:
+    #env = gym.make(envName, reset_noise_scale=0.3, exclude_current_positions_from_observation=excludePosition)
+    #env = gym.make(envName, exclude_current_positions_from_observation=excludePosition)
+    env = gym.make(envName)
  
  # Handling special cases
  
@@ -30,12 +35,16 @@ def initEnvironment(e, envName, moviePath = ''):
  
  ### Defining problem configuration for openAI Gym environments
  e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
- e["Problem"]["Environment Function"] = lambda s : environment(s, env)
+ e["Problem"]["Environment Function"] = lambda s : environment(s, env, excludePosition)
  e["Problem"]["Custom Settings"]["Print Step Information"] = "Disabled"
  e["Problem"]["Custom Settings"]["Save State"] = "False"
  
  # Getting environment variable counts
- stateVariableCount = env.observation_space.shape[0] - 1
+ if excludePosition == True:
+   stateVariableCount = env.observation_space.shape[0]
+ else:
+   stateVariableCount = env.observation_space.shape[0] - 1
+
  actionVariableCount = env.action_space.shape[0]
  
  # Generating state variable index list
@@ -58,7 +67,7 @@ def initEnvironment(e, envName, moviePath = ''):
   e["Variables"][stateVariableCount + i]["Upper Bound"] = float(env.action_space.high[i])
   e["Variables"][stateVariableCount + i]["Initial Exploration Noise"] = 0.4472
 
-def environment(s, env):
+def environment(s, env, excludePosition):
  
  if (s["Custom Settings"]["Print Step Information"] == "Enabled"):
   printStep = True
@@ -86,7 +95,11 @@ def environment(s, env):
    obsstates = []
    obsactions = []
   
- s["State"] = env.reset()[0].tolist()[1:]
+ if excludePosition == False:
+    s["State"] = env.reset()[0].tolist()[1:]
+ else:
+    s["State"] = env.reset()[0].tolist()
+ 
  step = 0
  done = False
  
@@ -121,7 +134,10 @@ def environment(s, env):
       actions.append(action)
   
   # Storing New State
-  s["State"] = state.tolist()[1:]
+  if excludePosition == False:
+    s["State"] = env.reset()[0].tolist()[1:]
+  else:
+    s["State"] = env.reset()[0].tolist()
   
   # Advancing step counter
   step = step + 1
