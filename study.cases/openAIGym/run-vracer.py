@@ -1,9 +1,7 @@
-#!/usr/bin/env python3
-import os
 import sys
 import argparse
 sys.path.append('_model')
-from agent import *
+from environment import *
 
 ####### Parsing arguments
 
@@ -31,18 +29,14 @@ e = korali.Experiment()
 
 dis_dir = args.dis.replace(" ","_")
 resultFolder = f'_result_vracer_{args.env}_{args.run}/'
-<<<<<<< HEAD
 e.loadState(resultFolder + '/latest')
-=======
-e.loadState(resultFolder + '/latest');
->>>>>>> master
 
 ### Initializing openAI Gym environment
 
 initEnvironment(e, args.env, excludePos)
 
-e["Problem"]["Testing Frequency"] = 25
-e["Problem"]["Policy Testing Episodes"] = 50
+e["Problem"]["Testing Frequency"] = 1
+e["Problem"]["Policy Testing Episodes"] = 10
 
 ### Defining Agent Configuration 
 
@@ -101,6 +95,5 @@ if args.test:
     e["Solver"]["Testing"]["Sample Ids"] = list(range(100))
     e["Problem"]["Custom Settings"]["Save State"] = "True"
     e["Problem"]["Custom Settings"]["File Name"] = f"observations_{args.env}.json"
-    #e["Problem"]["Custom Settings"]["Print Step Information"] = "Enabled"
  
 k.run(e)
