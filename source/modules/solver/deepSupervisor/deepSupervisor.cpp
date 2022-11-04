@@ -553,6 +553,7 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
  if (_neuralNetworkOptimizer == "fAdaBelief") validOption = true; 
  if (_neuralNetworkOptimizer == "fMadGrad") validOption = true; 
  if (_neuralNetworkOptimizer == "fAdaGrad") validOption = true; 
+ if (_neuralNetworkOptimizer == "fSGD") validOption = true; 
  if (validOption == false) KORALI_LOG_ERROR(" + Unrecognized value (%s) provided for mandatory setting: ['Neural Network']['Optimizer'] required by deepSupervisor.\n", _neuralNetworkOptimizer.c_str()); 
 }
    eraseValue(js, "Neural Network", "Optimizer");

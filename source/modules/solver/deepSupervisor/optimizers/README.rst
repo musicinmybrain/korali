@@ -7,3 +7,4 @@ This modules are intended for use with learners. It provides the optimisers
     * fAdaGrad
     * fAdam
     * fMadGrad
+    * fSGD

@@ -1,0 +1,49 @@
+#include "modules/solver/deepSupervisor/optimizers/fSGD/fSGD.hpp"
+
+__startNamespace__;
+
+void __className__::initialize()
+{
+  fGradientBasedOptimizer::initialize();
+}
+
+void __className__::reset()
+{
+  
+}
+
+void __className__::processResult(std::vector<float> &gradient)
+{
+  __parentClassName__::preProcessResult(gradient);
+
+  // Compute gradient norm and apply clipping
+  float l2norm = 0;
+#pragma omp parallel for simd reduction(+ : l2norm)
+  for (size_t i = 0; i < _nVars; i++)
+    l2norm += gradient[i] * gradient[i];
+  l2norm = std::sqrt(l2norm);
+  if (l2norm > _clippingThreshold)
+  {
+#pragma omp parallel for simd
+    for (size_t i = 0; i < _nVars; i++)
+      gradient[i] = _clippingThreshold * gradient[i] / l2norm;
+  }
+
+#pragma omp parallel for simd
+  for (size_t i = 0; i < _nVars; i++)
+    _currentValue[i] += _eta * gradient[i];
+
+  __parentClassName__::postProcessResult(_currentValue);
+}
+
+void __className__::printInternals()
+{
+  printf("_currentValue[i]:\n");
+  for (size_t i = 0; i < 10; i++)
+    printf("%f\n", _currentValue[i]);
+  fflush(stdout);
+}
+
+__moduleAutoCode__;
+
+__endNamespace__;

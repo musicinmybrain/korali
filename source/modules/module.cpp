@@ -62,6 +62,7 @@
 #include "solver/deepSupervisor/optimizers/fAdaBelief/fAdaBelief.hpp"
 #include "solver/deepSupervisor/optimizers/fMadGrad/fMadGrad.hpp"
 #include "solver/deepSupervisor/optimizers/fAdaGrad/fAdaGrad.hpp"
+#include "solver/deepSupervisor/optimizers/fSGD/fSGD.hpp"
 #include "solver/optimizer/AdaBelief/AdaBelief.hpp"
 #include "solver/optimizer/Adam/Adam.hpp"
 #include "solver/optimizer/CMAES/CMAES.hpp"
@@ -175,6 +176,7 @@ Module *Module::getModule(knlohmann::json &js, Experiment *e)
   if (iCompare(moduleType, "DeepSupervisor/optimizers/fAdaBelief")) module = new korali::fAdaBelief();
   if (iCompare(moduleType, "DeepSupervisor/optimizers/fMadGrad")) module = new korali::fMadGrad();
   if (iCompare(moduleType, "DeepSupervisor/optimizers/fAdaGrad")) module = new korali::fAdaGrad();
+  if (iCompare(moduleType, "DeepSupervisor/optimizers/fSGD")) module = new korali::fSGD();
   if (iCompare(moduleType, "Agent/Continuous/VRACER")) module = new korali::solver::agent::continuous::VRACER();
   if (iCompare(moduleType, "Agent/Discrete/dVRACER")) module = new korali::solver::agent::discrete::dVRACER();
   if (iCompare(moduleType, "Optimizer/CMAES")) module = new korali::solver::optimizer::CMAES();
