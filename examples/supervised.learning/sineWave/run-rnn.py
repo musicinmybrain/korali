@@ -15,7 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument(
     '--optimizer',
     help='Optimizer to use for NN parameter updates',
-    default='fAdam',
+    default='Adam',
     required=False)
 parser.add_argument(
     '--maxGenerations',

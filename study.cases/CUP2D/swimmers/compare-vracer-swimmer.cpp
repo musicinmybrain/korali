@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
 
   //// Defining Neural Network
   e["Solver"]["Neural Network"]["Engine"] = "OneDNN";
-  e["Solver"]["Neural Network"]["Optimizer"] = "fAdam";
+  e["Solver"]["Neural Network"]["Optimizer"] = "Adam";
 
   e["Solver"]["L2 Regularization"]["Enabled"] = true;
   e["Solver"]["L2 Regularization"]["Importance"] = 1.0;

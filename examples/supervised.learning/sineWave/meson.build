@@ -1,6 +1,6 @@
 e = find_program('run-ffn.py', required: true)
 test('supervised.learning.sineWave.fnn.adabelief', e,
-      args: [ '--optimizer', 'fAdaBelief', '--learningRate', '0.005', '--maxGenerations', '30' ],
+      args: [ '--optimizer', 'AdaBelief', '--learningRate', '0.005', '--maxGenerations', '30' ],
       timeout : 3600,
       suite: 'regression',
       workdir: meson.current_source_dir(),
@@ -10,7 +10,7 @@ test('supervised.learning.sineWave.fnn.adabelief', e,
 
 e = find_program('run-ffn.py', required: true)
 test('supervised.learning.sineWave.fnn.adagrad', e,
-      args: [ '--optimizer', 'fAdaGrad', '--learningRate', '0.05', '--maxGenerations', '30'],
+      args: [ '--optimizer', 'AdaGrad', '--learningRate', '0.05', '--maxGenerations', '30'],
       timeout : 3600,
       suite: 'regression',
       workdir: meson.current_source_dir(),
@@ -20,7 +20,7 @@ test('supervised.learning.sineWave.fnn.adagrad', e,
 
 e = find_program('run-ffn.py', required: true)
 test('supervised.learning.sineWave.fnn.adam', e,
-      args: [ '--optimizer', 'fAdam', '--learningRate', '0.005', '--maxGenerations', '30' ],
+      args: [ '--optimizer', 'Adam', '--learningRate', '0.005', '--maxGenerations', '30' ],
       timeout : 3600,
       suite: 'regression',
       workdir: meson.current_source_dir(),
@@ -30,7 +30,7 @@ test('supervised.learning.sineWave.fnn.adam', e,
 
 e = find_program('run-ffn.py', required: true)
 test('supervised.learning.sineWave.fnn.madgrad', e,
-      args: [ '--optimizer', 'fMadGrad', '--learningRate', '0.005', '--maxGenerations', '30'],
+      args: [ '--optimizer', 'MadGrad', '--learningRate', '0.005', '--maxGenerations', '30'],
       timeout : 3600,
       suite: 'regression',
       workdir: meson.current_source_dir(),
@@ -40,7 +40,7 @@ test('supervised.learning.sineWave.fnn.madgrad', e,
 
 e = find_program('run-ffn.py', required: true)
 test('supervised.learning.sineWave.fnn.adam', e,
-      args: [ '--optimizer', 'fAdam', '--learningRate', '0.005', '--engine', 'Korali', '--maxGenerations', '30'],
+      args: [ '--optimizer', 'Adam', '--learningRate', '0.005', '--engine', 'Korali', '--maxGenerations', '30'],
       timeout : 3600,
       suite: 'regression',
       workdir: meson.current_source_dir(),
@@ -50,7 +50,7 @@ test('supervised.learning.sineWave.fnn.adam', e,
 
 # e = find_program('run-rnn.py', required: true)
 # test('supervised.learning.sineWave.rnn.adabelief', e,
-#       args: [ '--optimizer', 'fAdaBelief', '--learningRate', '0.001', '--maxGenerations', '200' ],
+#       args: [ '--optimizer', 'AdaBelief', '--learningRate', '0.001', '--maxGenerations', '200' ],
 #       timeout : 3600,
 #       suite: 'regression',
 #       workdir: meson.current_source_dir(),

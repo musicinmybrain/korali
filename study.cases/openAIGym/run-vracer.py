@@ -61,7 +61,7 @@ for i in range(100):
 	e["Solver"]["Experience Replay"]["Off Policy"]["Target"] = args.opt
 
 	e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
-	e["Solver"]['Neural Network']['Optimizer'] = "fAdam"
+	e["Solver"]['Neural Network']['Optimizer'] = "Adam"
 	e["Solver"]["L2 Regularization"]["Enabled"] = args.l2 > 0.
 	e["Solver"]["L2 Regularization"]["Importance"] = args.l2
 

@@ -82,7 +82,7 @@ e["Solver"]["L2 Regularization"]["Enabled"] = False
 e["Solver"]["Policy"]["Distribution"] = args.distribution
 e["Solver"]["Learning Rate"] = 1e-4
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
-e["Solver"]["Neural Network"]["Optimizer"] = "fAdam"
+e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 
 e["Solver"]["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear"
 e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 128

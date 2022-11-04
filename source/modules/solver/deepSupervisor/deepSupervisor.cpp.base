@@ -88,7 +88,7 @@ void __className__::initialize()
   {
     // Configure Optimizer
     knlohmann::json optimizerConfig;
-    optimizerConfig["Type"] = "deepSupervisor/optimizers/" + _neuralNetworkOptimizer;
+    optimizerConfig["Type"] = "deepSupervisor/optimizers/f" + _neuralNetworkOptimizer;
     optimizerConfig["N Vars"] = _neuralNetwork->_hyperparameterCount;
 
     _optimizer = dynamic_cast<korali::fGradientBasedOptimizer *>(korali::Module::getModule(optimizerConfig, _k));
