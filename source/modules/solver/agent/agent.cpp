@@ -127,9 +127,9 @@ void Agent::initialize()
   if (_hmcEnabled && (_problem->_policiesPerEnvironment > 1))
     KORALI_LOG_ERROR("HMC only compatible with single policy!");
 
-  // HMC only compatible with single policy
+  // HMC only compatible with SGD
   if (_hmcEnabled && (_neuralNetworkOptimizer != "fSGD") )
-    KORALI_LOG_ERROR("[korali] WARNING: Not using the recommended optimizer (%s). Make sure that HMC is only used with an optimizer that has no momentum.\n", _neuralNetworkOptimizer.c_str());
+    KORALI_LOG_ERROR("[korali] WARNING: Using (%s) instead of the recommended SGD optimizer. Make sure that HMC is only used with an optimizer that has no momentum.\n", _neuralNetworkOptimizer.c_str());
 
   /*********************************************************************
    * If initial generation, set initial agent configuration
