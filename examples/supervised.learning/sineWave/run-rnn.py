@@ -141,51 +141,51 @@ if len(sys.argv) == 2:
 e["Random Seed"] = 0xC0FFEE
 k.run(e)
 
-# ### Obtaining inferred results from the NN and comparing them to the actual solution
+### Obtaining inferred results from the NN and comparing them to the actual solution
 
-# X = np.random.uniform(0, np.pi*2, args.testBatchSize)
+X = np.random.uniform(0, np.pi*2, args.testBatchSize)
 
-# # Providing inputs batches with varying timesequence lengths
-# testInputSetX = [ ]
-# testInputSetT = [ ]
-# for j, x in enumerate(X):
-#  testInputSetX.append([ ])
-#  testInputSetT.append([ ])
-#  for t in range(randrange(len(T)) + 1):
-#   testInputSetX[j].append([x])
-#   testInputSetT[j].append([T[t]])
+# Providing inputs batches with varying timesequence lengths
+testInputSetX = [ ]
+testInputSetT = [ ]
+for j, x in enumerate(X):
+ testInputSetX.append([ ])
+ testInputSetT.append([ ])
+ for t in range(randrange(len(T)) + 1):
+  testInputSetX[j].append([x])
+  testInputSetT[j].append([T[t]])
 
-# # Giving the solution for the last time step of each batch sequence
-# testSolutionSet = [ ]
-# for j, x in enumerate(X):
-#  t = testInputSetT[j][-1][0]
-#  testSolutionSet.append([ y(x, t) ]) 
+# Giving the solution for the last time step of each batch sequence
+testSolutionSet = [ ]
+for j, x in enumerate(X):
+ t = testInputSetT[j][-1][0]
+ testSolutionSet.append([ y(x, t) ]) 
 
-# e["Solver"]["Mode"] = "Testing"
-# e["Problem"]["Input"]["Data"] = testInputSetX
+e["Solver"]["Mode"] = "Testing"
+e["Problem"]["Input"]["Data"] = testInputSetX
 
-# ### Running Testing and getting results
-# k.run(e)
-# testInferredSet = [ x[0] for x in e["Solver"]["Evaluation"] ]
+### Running Testing and getting results
+k.run(e)
+testInferredSet = [ x[0] for x in e["Solver"]["Evaluation"] ]
 
-# ### Calc MSE on test set
+### Calc MSE on test set
 
-# mse = np.mean((np.array(testInferredSet) - np.array(testSolutionSet))**2)
-# print("MSE on test set: {}".format(mse))
+mse = np.mean((np.array(testInferredSet) - np.array(testSolutionSet))**2)
+print("MSE on test set: {}".format(mse))
  
-# ### Plotting inferred result
-# if args.plot:
-#  cmap = cm.get_cmap(name='Set1')
-#  xAxis = [ x[-1][0] for x in testInputSetX ]
+### Plotting inferred result
+if args.plot:
+ cmap = cm.get_cmap(name='Set1')
+ xAxis = [ x[-1][0] for x in testInputSetX ]
 
-#  for i, x in enumerate(testInputSetX):
-#   t = len(x)-1  
-#   plt.plot(xAxis[i], testSolutionSet[i], "o", color=cmap(t))
-#   plt.plot(xAxis[i], testInferredSet[i], "x", color=cmap(t))
+ for i, x in enumerate(testInputSetX):
+  t = len(x)-1  
+  plt.plot(xAxis[i], testSolutionSet[i], "o", color=cmap(t))
+  plt.plot(xAxis[i], testInferredSet[i], "x", color=cmap(t))
  
-#  labelPatches = [ ] 
-#  for i, t in enumerate(T):
-#   labelPatches.append(mpatch.Patch(color=cmap(i), label='Seq Length: ' + str(i+1)))
-#  plt.legend(handles=labelPatches, loc='lower right')
+ labelPatches = [ ] 
+ for i, t in enumerate(T):
+  labelPatches.append(mpatch.Patch(color=cmap(i), label='Seq Length: ' + str(i+1)))
+ plt.legend(handles=labelPatches, loc='lower right')
 
-#  plt.show()
+ plt.show()

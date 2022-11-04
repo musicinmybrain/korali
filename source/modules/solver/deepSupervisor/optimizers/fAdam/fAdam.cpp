@@ -6,6 +6,8 @@ namespace korali
 
 void fAdam::initialize()
 {
+  _beta1Pow = 1.0f;
+  _beta2Pow = 1.0f;
   fGradientBasedOptimizer::initialize();
   _firstMoment.resize(_nVars, 0.0f);
   _secondMoment.resize(_nVars, 0.0f);
@@ -47,6 +49,15 @@ void fAdam::processResult(std::vector<float> &gradient)
   }
 
   fGradientBasedOptimizer::postProcessResult(_currentValue);
+}
+
+void fAdam::printInternals()
+{
+  printf("_beta1Pow=%f, _beta2Pow=%f, ", _beta1Pow, _beta2Pow);
+  printf("_currentValue[i], _firstMoment[i], _secondMoment[i]:\n");
+  for (size_t i = 0; i < 10; i++)
+    printf("%f %f %f\n", _currentValue[i], _firstMoment[i], _secondMoment[i]);
+  fflush(stdout);
 }
 
 void fAdam::setConfiguration(knlohmann::json& js) 

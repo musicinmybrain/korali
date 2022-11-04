@@ -30,6 +30,14 @@ void fGradientBasedOptimizer::setConfiguration(knlohmann::json& js)
 {
  if (isDefined(js, "Results"))  eraseValue(js, "Results");
 
+ if (isDefined(js, "Current Value"))
+ {
+ try { _currentValue = js["Current Value"].get<std::vector<float>>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ optimizers ] \n + Key:    ['Current Value']\n%s", e.what()); } 
+   eraseValue(js, "Current Value");
+ }
+
  if (isDefined(js, "Epsilon"))
  {
  try { _epsilon = js["Epsilon"].get<float>();
@@ -70,6 +78,7 @@ void fGradientBasedOptimizer::getConfiguration(knlohmann::json& js)
    js["Epsilon"] = _epsilon;
    js["N Vars"] = _nVars;
    js["Eta"] = _eta;
+   js["Current Value"] = _currentValue;
  Module::getConfiguration(js);
 } 
 

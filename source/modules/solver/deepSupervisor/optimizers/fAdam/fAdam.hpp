@@ -74,6 +74,7 @@ class fAdam : public fGradientBasedOptimizer
   virtual void initialize() override;
   virtual void processResult(std::vector<float> &gradient) override;
   virtual void reset() override;
+  virtual void printInternals() override;
 };
 
 } //korali

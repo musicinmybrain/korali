@@ -65,9 +65,9 @@ def agent(s, env):
   printStep = False
 
  if oldEnv:
-  observation = env.reset()
+  observation = env.reset( seed = 42 )
  else:
-  observation, _ = env.reset()
+  observation, _ = env.reset( seed = 42 )
  s["State"] = observation.tolist()
 
  step = 0
@@ -84,6 +84,7 @@ def agent(s, env):
 
   # Printing step information
   if (printStep):  print('[Korali] Frame ' + str(step), end = '')
+  if (printStep):  print(' - State: ' + str(state) + ' - Action: ' + str(action))
 
   # Performing the action
   action = s["Action"]
@@ -96,8 +97,6 @@ def agent(s, env):
   # Getting Reward
   s["Reward"] = reward
 
-  # Printing step information
-  #if (printStep):  print(' - State: ' + str(state) + ' - Action: ' + str(action))
   cumulativeReward = cumulativeReward + reward
   if (printStep):  print(' - Cumulative Reward: ' + str(cumulativeReward))
 

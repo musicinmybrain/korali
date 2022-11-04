@@ -46,11 +46,6 @@ namespace
   ASSERT_NO_THROW(nn->initialize());
   ASSERT_ANY_THROW(nn->initialize());
 
-  std::vector<float> _hyperparameters;
-  ASSERT_NO_THROW(_hyperparameters = nn->generateInitialHyperparameters());
-  ASSERT_NO_THROW(nn->setHyperparameters(_hyperparameters));
-  ASSERT_ANY_THROW(nn->setHyperparameters(std::vector<float>({0.1, 0.1})));
-
   nn->_isInitialized = false;
   nn->_engine = "CuDNN";
   ASSERT_NO_THROW(nn->initialize());
@@ -673,11 +668,6 @@ namespace
    ASSERT_NO_THROW(nn->applyVariableDefaults());
    ASSERT_NO_THROW(nn->initialize());
    ASSERT_ANY_THROW(nn->initialize());
-
-   std::vector<float> _hyperparameters;
-   ASSERT_NO_THROW(_hyperparameters = nn->generateInitialHyperparameters());
-   ASSERT_NO_THROW(nn->setHyperparameters(_hyperparameters));
-   ASSERT_ANY_THROW(nn->setHyperparameters(std::vector<float>({0.1, 0.1})));
 
    nn->_isInitialized = false;
    nn->_engine = "CuDNN";

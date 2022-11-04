@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+import shutil as sh
 import numpy as np
 import matplotlib.pyplot as plt
 import time
@@ -74,7 +75,7 @@ e["Problem"]["Solution"]["Size"] = 10
 
 ### Using a neural network solver (deep learning) for inference
 
-e["Solver"]["Termination Criteria"]["Max Generations"] = 1
+e["Solver"]["Termination Criteria"]["Max Generations"] = 0
 e["Solver"]["Type"] = "DeepSupervisor"
 e["Solver"]["Mode"] = "Training"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
@@ -166,8 +167,8 @@ e["Solver"]["Neural Network"]["Hidden Layers"][7]["Function"] = "Softmax"
 
 ### Configuring output
 
-e["Console Output"]["Verbosity"] = "Silent"
-e["File Output"]["Enabled"] = False
+e["Console Output"]["Verbosity"] = "Normal"
+e["File Output"]["Enabled"] = True
 e["Random Seed"] = 0xC0FFEE
 
 ### Printing Configuration
@@ -180,50 +181,67 @@ print("[Korali] Epochs: " + str(epochs))
 print("[Korali] Initial Learning Rate: " + str(learningRate))
 print("[Korali] Decay: " + str(decay))
 
+### Delete old results
+
+if os.path.exists("_korali_result"):
+ sh.rmtree("_korali_result")
+
 ### Running SGD loop
 
 for epoch in range(epochs):
-    for step in range(stepsPerEpoch):
-        # Creating minibatch
-        miniBatchInput = trainingImageVector[step * trainingBatchSize : (step+1) * trainingBatchSize]
-        miniBatchSolution = trainingLabelVector[step * trainingBatchSize : (step+1) * trainingBatchSize]
+ for step in range(stepsPerEpoch):
+  # Print process
+  print("Processing epoch {}/{}, minibatch {}/{}".format(epoch, epochs, step, stepsPerEpoch))
 
-        # Passing minibatch to Korali
-        e["Solver"]["Mode"] = "Training"
-        e["Problem"]["Input"]["Data"] = miniBatchInput
-        e["Problem"]["Solution"]["Data"] = miniBatchSolution
+  # Creating minibatch
+  miniBatchInput = trainingImageVector[step * trainingBatchSize : (step+1) * trainingBatchSize]
+  miniBatchSolution = trainingLabelVector[step * trainingBatchSize : (step+1) * trainingBatchSize]
+  
+  # Load state
+  e.loadState('_korali_result/latest')
 
-        # Reconfiguring solver
-        e["Solver"]["Learning Rate"] = learningRate
-        e["Solver"]["Termination Criteria"]["Max Generations"] = e["Solver"]["Termination Criteria"]["Max Generations"] + 1
+  # Passing minibatch to Korali
+  e["Problem"]["Input"]["Data"] = miniBatchInput
+  e["Problem"]["Solution"]["Data"] = miniBatchSolution
+ 
+  # Reconfiguring solver
+  e["Solver"]["Learning Rate"] = learningRate
+  e["Solver"]["Termination Criteria"]["Max Generations"] = e["Solver"]["Termination Criteria"]["Max Generations"] + 1
+  
+  # Running step
+  k.run(e)
+  
+ # Printing Information
+ print("[Korali] --------------------------------------------------")
+ print("[Korali] Epoch: " + str(epoch) + "/" + str(epochs))
+ print("[Korali] Learning Rate: " + str(learningRate))
+ print('[Korali] Current Training Loss: ' + str(e["Solver"]["Current Loss"])) 
 
-        # Running step
-        k.run(e)
+ # Evaluating testing set
+ # testingInferredVector = testInferredSet = e.getEvaluation(testingImageVector)
+ 
+ # Getting MSE loss for testing set
+ # squaredMeanError = 0.0
+ # for i, res in enumerate(testingInferredVector):
+ #  sol = testingLabelVector[i]
+ #  for j, s in enumerate(sol):
+ #   diff = res[j] - sol[j]
+ #   squaredMeanError += diff * diff 
+ # squaredMeanError = squaredMeanError / (float(testingBatchSize) * 2.0)
+ # print('[Korali] Current Testing Loss:  ' + str(squaredMeanError))
 
-    # Printing Information
-    print("[Korali] --------------------------------------------------")
-    print("[Korali] Epoch: " + str(epoch) + "/" + str(epochs))
-    print("[Korali] Learning Rate: " + str(learningRate))
-    print('[Korali] Current Training Loss: ' + str(e["Solver"]["Current Loss"])) 
-
-    # Adjusting learning rate via decay
-    learningRate = learningRate * (1.0 / (1.0 + decay * (epoch+1)));
-
-    ### Inference on Validation Dataset
-
-    e["Solver"]["Mode"] = "Testing"
-    e["Problem"]["Input"]["Data"] = testingImageVector
-
-    ### Running Testing and getting results
-
-    k.run(e)
-    print(np.array(e["Solver"]["Evaluation"]).shape)
-    testInferredSet = [ x for x in e["Solver"]["Evaluation"] ]
-    
-    ### Calc MSE on test set
-
-    mse = np.mean((np.array(testInferredSet) - np.array(testingLabelVector))**2)
-    print("[Korali] MSE on test set: {}".format(mse))
+ # Getting prediction accuracy on testing dataset
+ # count = 0
+ # for i, res in enumerate(testingInferredVector):
+ #  correctLabel = np.argmax(testingLabelVector[i])
+ #  bestGuess    = np.argmax(res)
+ #  if correctLabel == bestGuess:
+ #   count += 1
+ # accuracy = count / testingBatchSize
+ # print('[Korali] Current Testing Accuracy:  ' + str(accuracy))
+ 
+ # Adjusting learning rate via decay
+ learningRate = learningRate * (1.0 / (1.0 + decay * (epoch+1)));
  
     ### Calc prediction accuracy on testing dataset
     count = 0

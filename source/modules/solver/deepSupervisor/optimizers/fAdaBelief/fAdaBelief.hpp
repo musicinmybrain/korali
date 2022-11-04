@@ -46,10 +46,6 @@ class fAdaBelief : public fGradientBasedOptimizer
   */
    std::vector<double> _firstMoment;
   /**
-  * @brief [Internal Use] Second moment of Gradient.
-  */
-   std::vector<double> _secondMoment;
-  /**
   * @brief [Internal Use] Second central moment.
   */
    std::vector<double> _secondCentralMoment;
@@ -79,6 +75,7 @@ class fAdaBelief : public fGradientBasedOptimizer
   virtual void initialize() override;
   virtual void processResult(std::vector<float> &gradient) override;
   virtual void reset() override;
+  virtual void printInternals() override;
 };
 
 } //korali

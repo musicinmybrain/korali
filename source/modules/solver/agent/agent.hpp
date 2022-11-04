@@ -600,16 +600,6 @@ class Agent : public Solver
    */
   problem::ReinforcementLearning *_problem;
 
-  /**
-   * @brief Random device for the generation of shuffling numbers
-   */
-  std::random_device rd;
-
-  /**
-   * @brief Mersenne twister for the generation of shuffling numbers
-   */
-  std::mt19937 *mt;
-
   /****************************************************************************************************
    * Session-wise Profiling Timers
    ***************************************************************************************************/

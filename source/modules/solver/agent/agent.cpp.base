@@ -67,10 +67,6 @@ void __className__::initialize()
   _numberOfCandidates = 0;
   _numberOfAcceptedCandidates = 0;
 
-  // Initializing random seed for the shuffle operation
-  mt = new std::mt19937(rd());
-  mt->seed(_k->_randomSeed++);
-
   // If not set, using heurisitc for maximum size
   if (_experienceReplayMaximumSize == 0)
     _experienceReplayMaximumSize = std::pow(2, 14) * std::sqrt(_problem->_stateVectorSize + _problem->_actionVectorSize);
@@ -1454,6 +1450,11 @@ void __className__::serializeExperienceReplay()
   for (size_t i = 0; i < _numberOfSamples; i++)
     stateJson["Hyperparameter Vector"][i] = _hyperparameterBuffer[i];
 
+  // Serialize the optimizer
+  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+    _criticPolicyLearner[p]->_optimizer->getConfiguration(stateJson["Optimizer"][p]);
+
+
   // If results directory doesn't exist, create it
   if (!dirExists(_k->_fileOutputPath)) mkdir(_k->_fileOutputPath);
 
@@ -1553,10 +1554,15 @@ void __className__::deserializeExperienceReplay()
     _curPolicyBuffer.add(curPolicy);
   }
 
+
   // Deserialize the hyperparameter vector
   const size_t numSamples = std::min(_policyUpdateCount, _numberOfSamples);
   for (size_t i = 0; i < numSamples; i++)
     _hyperparameterBuffer.add(stateJson["Hyperparameter Vector"][i].get<std::vector<std::vector<float>>>());
+
+  // Deserialize the optimizer
+  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+    _criticPolicyLearner[p]->_optimizer->setConfiguration(stateJson["Optimizer"][p]);
 
   auto endTime = std::chrono::steady_clock::now();                                                                         // Profiling
   double deserializationTime = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count() / 1.0e+9; // Profiling

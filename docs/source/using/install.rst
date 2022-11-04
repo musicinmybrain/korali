@@ -121,7 +121,8 @@ Cray systems use a propietary build system that may cause conflicts with the def
     # Load Python module (you can add this to your `~/.bashrc`).
     module load cray-python
 
-    # Reinstall mpi4py locally and reinstall korali.
+    # Clear cache and reinstall mpi4py locally
+    python -m pip cache remove mpi4py
     python3 -m pip install --user mpi4py --ignore-installed -v
     
 Optional Requirements

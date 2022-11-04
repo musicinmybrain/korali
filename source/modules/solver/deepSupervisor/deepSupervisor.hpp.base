@@ -39,14 +39,10 @@ class __className__ : public __parentClassName__
   std::vector<float> getHyperparameters();
 
   /**
-   * @brief Sets the hyperparameter of the neural network.
+   * @brief Sets the hyperparameter of the neural network and the optimizer.
    * @param hyperparameters The parameter of the neural network.
    */
   void setHyperparameters(const std::vector<float> &hyperparameters);
-
-  void initialize() override;
-  void runGeneration() override;
-  void printGenerationAfter() override;
 
   /**
    * @brief Runs training generation.
@@ -82,6 +78,10 @@ class __className__ : public __parentClassName__
    * @param sample A sample containing the new NN's hyperparameters
    */
   void updateHyperparametersOnWorker(korali::Sample &sample);
+
+  void initialize() override;
+  void runGeneration() override;
+  void printGenerationAfter() override;
 };
 
 __endNamespace__;

@@ -42,6 +42,14 @@ void __className__::processResult(std::vector<float> &gradient)
   __parentClassName__::postProcessResult(_currentValue);
 }
 
+void __className__::printInternals()
+{
+  printf("_currentValue[i], _s[i], _v[i], _z[i]:\n");
+  for (size_t i = 0; i < 10; i++)
+    printf("%f %f %f %f\n", _currentValue[i], _s[i], _v[i], _z[i]);
+  fflush(stdout);
+}
+
 __moduleAutoCode__;
 
 __endNamespace__;

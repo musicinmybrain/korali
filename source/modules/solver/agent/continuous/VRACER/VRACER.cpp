@@ -42,6 +42,8 @@ void VRACER::initializeAgent()
   // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
+    _criticPolicyExperiment[p]["Random Seed"] = _k->_randomSeed;
+
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
     _criticPolicyExperiment[p]["Problem"]["Max Timesteps"] = _timeSequenceLength;
     _criticPolicyExperiment[p]["Problem"]["Training Batch Size"] = _effectiveMinibatchSize;
@@ -135,7 +137,7 @@ void VRACER::trainPolicy()
       // Compute posterior sample
       auto hyperparameters = samplePosterior(p);
 
-      // Set parameters in neural network
+      // Set parameters in neural network and optimizer
       _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
     }
 
@@ -145,11 +147,11 @@ void VRACER::trainPolicy()
 
     // #pragma omp critical
     // {
-      // Using policy information to update experience's metadata
-      updateExperienceMetadata(miniBatchCopy, policyInfo);
+    // Using policy information to update experience's metadata
+    updateExperienceMetadata(miniBatchCopy, policyInfo);
 
-      // Now calculating policy gradients
-      calculatePolicyGradients(miniBatchCopy, p);
+    // Now calculating policy gradients
+    calculatePolicyGradients(miniBatchCopy, p);
     // }
 
     // Updating learning rate for critic/policy learner guided by REFER
@@ -348,7 +350,7 @@ knlohmann::json VRACER::getPolicy()
 void VRACER::setPolicy(const knlohmann::json &hyperparameters)
 {
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-    _criticPolicyLearner[p]->setHyperparameters(hyperparameters[p].get<std::vector<float>>());
+    _criticPolicyLearner[p]->_neuralNetwork->setHyperparameters(hyperparameters[p].get<std::vector<float>>());
 }
 
 void VRACER::printInformation()

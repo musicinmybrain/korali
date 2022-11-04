@@ -44,6 +44,14 @@ void fMadGrad::processResult(std::vector<float> &gradient)
   fGradientBasedOptimizer::postProcessResult(_currentValue);
 }
 
+void fMadGrad::printInternals()
+{
+  printf("_currentValue[i], _s[i], _v[i], _z[i]:\n");
+  for (size_t i = 0; i < 10; i++)
+    printf("%f %f %f %f\n", _currentValue[i], _s[i], _v[i], _z[i]);
+  fflush(stdout);
+}
+
 void fMadGrad::setConfiguration(knlohmann::json& js) 
 {
  if (isDefined(js, "Results"))  eraseValue(js, "Results");

@@ -132,7 +132,7 @@ void Continuous::getAction(korali::Sample &sample)
         auto hyperparameters = samplePosterior(policyIdx);
 
         // Set parameters in neural network
-        _criticPolicyLearner[policyIdx]->setHyperparameters(hyperparameters);
+        _criticPolicyLearner[policyIdx]->_neuralNetwork->setHyperparameters(hyperparameters);
       }
 
       runPolicy({_stateTimeSequence[i].getVector()}, policy, policyIdx);

@@ -184,7 +184,7 @@ class NeuralNetwork : public Module
 
   /**
    * @brief Generates the initial values for the hyperparameters
-   * @return The initial hyperparameters
+   * @return The generated hyperparameters
    */
   std::vector<float> generateInitialHyperparameters();
 

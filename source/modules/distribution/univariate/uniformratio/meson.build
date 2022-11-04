@@ -1,4 +1,4 @@
-module_name = 'univariate'
+module_name = 'uniformratio'
 
 r = run_command(korali_gen, [ '--input', module_name + '.hpp.base', module_name + '.cpp.base', '--config', module_name + '.config', '--output', module_name + '.hpp', module_name + '.cpp' ])
 if r.returncode() != 0
@@ -19,18 +19,3 @@ korali_include += include_directories('.')
 korali_source += module_header
 korali_source += module_source
 korali_config += module_config
-
-subdir('beta')
-subdir('cauchy')
-subdir('exponential')
-subdir('gamma')
-subdir('geometric')
-subdir('igamma')
-subdir('laplace')
-subdir('logNormal')
-subdir('normal')
-subdir('poisson')
-subdir('truncatedNormal')
-subdir('uniform')
-subdir('uniformratio')
-subdir('weibull')

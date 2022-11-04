@@ -6,9 +6,10 @@ namespace korali
 
 void fAdaBelief::initialize()
 {
+  _beta1Pow = 1.0f;
+  _beta2Pow = 1.0f;
   fGradientBasedOptimizer::initialize();
   _firstMoment.resize(_nVars, 0.0f);
-  _secondMoment.resize(_nVars, 0.0f);
   _secondCentralMoment.resize(_nVars, 0.0f);
   reset();
 }
@@ -22,7 +23,6 @@ void fAdaBelief::reset()
   {
     _currentValue[i] = 0.0f;
     _firstMoment[i] = 0.0f;
-    _secondMoment[i] = 0.0f;
     _secondCentralMoment[i] = 0.0f;
     ;
   }
@@ -60,6 +60,15 @@ void fAdaBelief::processResult(std::vector<float> &gradient)
   fGradientBasedOptimizer::postProcessResult(_currentValue);
 }
 
+void fAdaBelief::printInternals()
+{
+  printf("_beta1Pow=%f, _beta2Pow=%f, ", _beta1Pow, _beta2Pow);
+  printf("_currentValue[i], _firstMoment[i], _secondCentralMoment[i]:\n");
+  for (size_t i = 0; i < 10; i++)
+    printf("%f %f %f\n", _currentValue[i], _firstMoment[i], _secondCentralMoment[i]);
+  fflush(stdout);
+}
+
 void fAdaBelief::setConfiguration(knlohmann::json& js) 
 {
  if (isDefined(js, "Results"))  eraseValue(js, "Results");
@@ -86,14 +95,6 @@ void fAdaBelief::setConfiguration(knlohmann::json& js)
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ fAdaBelief ] \n + Key:    ['First Moment']\n%s", e.what()); } 
    eraseValue(js, "First Moment");
- }
-
- if (isDefined(js, "Second Moment"))
- {
- try { _secondMoment = js["Second Moment"].get<std::vector<double>>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ fAdaBelief ] \n + Key:    ['Second Moment']\n%s", e.what()); } 
-   eraseValue(js, "Second Moment");
  }
 
  if (isDefined(js, "Second Central Moment"))
@@ -137,7 +138,6 @@ void fAdaBelief::getConfiguration(knlohmann::json& js)
    js["Beta1 Pow"] = _beta1Pow;
    js["Beta2 Pow"] = _beta2Pow;
    js["First Moment"] = _firstMoment;
-   js["Second Moment"] = _secondMoment;
    js["Second Central Moment"] = _secondCentralMoment;
  fGradientBasedOptimizer::getConfiguration(js);
 } 

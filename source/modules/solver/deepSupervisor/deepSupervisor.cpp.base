@@ -16,8 +16,9 @@ void __className__::initialize()
   // Fixing termination criteria for testing mode
   if (_mode == "Testing") _maxGenerations = _k->_currentGeneration + 1;
 
-  // Don't reinitialize if experiment was already initialized
-  if (_k->_isInitialized == true) return;
+  // Don't reinitialize neural network if experiment was already initialized [if running several minibatches]
+  if (_k->_isInitialized == true)
+    return;
 
   // Check whether the minibatch size (N) can be divided by the requested concurrency
   if (_problem->_trainingBatchSize % _batchConcurrency > 0) KORALI_LOG_ERROR("The training concurrency requested (%lu) does not divide the training mini batch size (%lu) perfectly.", _batchConcurrency, _problem->_trainingBatchSize);
@@ -82,28 +83,28 @@ void __className__::initialize()
   _neuralNetwork->setConfiguration(trainingNeuralNetworkConfig);
   _neuralNetwork->initialize();
 
-  // If the hyperparameters have not been specified, produce new initial ones
-  if (_hyperparameters.size() == 0) _hyperparameters = _neuralNetwork->generateInitialHyperparameters();
-
-  // Allocate memory for hyperparameter gradients
-  _hyperparameterGradients.resize(_hyperparameters.size());
-
-  // Initialize optimizer if can not be loaded
-  if (_k->_currentGeneration < _k->_fileOutputFrequency)
+  // Configure optimizer
+  if (_k->_currentGeneration == 0)
   {
-    // Configuring neural network's inputs
+    // Configure Optimizer
     knlohmann::json optimizerConfig;
     optimizerConfig["Type"] = "deepSupervisor/optimizers/" + _neuralNetworkOptimizer;
-    optimizerConfig["N Vars"] = _hyperparameters.size();
+    optimizerConfig["N Vars"] = _neuralNetwork->_hyperparameterCount;
 
     _optimizer = dynamic_cast<korali::fGradientBasedOptimizer *>(korali::Module::getModule(optimizerConfig, _k));
     _optimizer->applyModuleDefaults(optimizerConfig);
     _optimizer->setConfiguration(optimizerConfig);
     _optimizer->initialize();
+    _optimizer->_currentValue = _neuralNetwork->generateInitialHyperparameters();
+  }
+  else
+  {
+    // Load saved hyperparameters
+    _neuralNetwork->setHyperparameters(_optimizer->_currentValue);
   }
 
-  // Setting hyperparameter structures in the neural network and optimizer
-  setHyperparameters(_hyperparameters);
+  // Allocate memory for hyperparameter gradients
+  _hyperparameterGradients.resize(_optimizer->_currentValue.size());
 
   // Setting current loss
   _currentLoss = 0.0f;
@@ -269,6 +270,8 @@ void __className__::runTrainingGeneration()
       for (size_t i = 0; i < OC; i++)
         MSEVector[b][i] = MSEVector[b][i] - results[b][i];
 
+#pragma omp parallel for reduction(+ \
+                                   : _currentLoss) collapse(2)
     for (size_t b = 0; b < N; b++)
       for (size_t i = 0; i < OC; i++)
         _currentLoss += MSEVector[b][i] * MSEVector[b][i];
@@ -277,6 +280,9 @@ void __className__::runTrainingGeneration()
     // Running back propagation on the MSE vector
     _hyperparameterGradients = backwardGradients(MSEVector);
   }
+
+  // Append Loss to Loss History
+  _lossHistory.push_back(_currentLoss);
 
   // If the solution represents the gradients, just pass them on
   if (_lossFunction == "Direct Gradient") _hyperparameterGradients = backwardGradients(_problem->_solutionData);

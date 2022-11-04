@@ -54,10 +54,6 @@ class DeepSupervisor : public Solver
   */
    std::string _neuralNetworkOptimizer;
   /**
-  * @brief Stores the training neural network hyperparameters (weights and biases).
-  */
-   std::vector<float> _hyperparameters;
-  /**
   * @brief Function to calculate the difference (loss) between the NN inference and the exact solution and its gradients for optimization.
   */
    std::string _lossFunction;
@@ -93,6 +89,10 @@ class DeepSupervisor : public Solver
   * @brief [Internal Use] Current value of the loss function.
   */
    float _currentLoss;
+  /**
+  * @brief [Internal Use] Current value of the loss function.
+  */
+   std::vector<float> _lossHistory;
   /**
   * @brief [Internal Use] Stores the gradient of the neural network parameters.
   */
@@ -169,14 +169,10 @@ class DeepSupervisor : public Solver
   std::vector<float> getHyperparameters();
 
   /**
-   * @brief Sets the hyperparameter of the neural network.
+   * @brief Sets the hyperparameter of the neural network and the optimizer.
    * @param hyperparameters The parameter of the neural network.
    */
   void setHyperparameters(const std::vector<float> &hyperparameters);
-
-  void initialize() override;
-  void runGeneration() override;
-  void printGenerationAfter() override;
 
   /**
    * @brief Runs training generation.
@@ -212,6 +208,10 @@ class DeepSupervisor : public Solver
    * @param sample A sample containing the new NN's hyperparameters
    */
   void updateHyperparametersOnWorker(korali::Sample &sample);
+
+  void initialize() override;
+  void runGeneration() override;
+  void printGenerationAfter() override;
 };
 
 } //solver

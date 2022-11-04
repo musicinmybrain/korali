@@ -20,8 +20,9 @@ void DeepSupervisor::initialize()
   // Fixing termination criteria for testing mode
   if (_mode == "Testing") _maxGenerations = _k->_currentGeneration + 1;
 
-  // Don't reinitialize if experiment was already initialized
-  if (_k->_isInitialized == true) return;
+  // Don't reinitialize neural network if experiment was already initialized [if running several minibatches]
+  if (_k->_isInitialized == true)
+    return;
 
   // Check whether the minibatch size (N) can be divided by the requested concurrency
   if (_problem->_trainingBatchSize % _batchConcurrency > 0) KORALI_LOG_ERROR("The training concurrency requested (%lu) does not divide the training mini batch size (%lu) perfectly.", _batchConcurrency, _problem->_trainingBatchSize);
@@ -86,28 +87,28 @@ void DeepSupervisor::initialize()
   _neuralNetwork->setConfiguration(trainingNeuralNetworkConfig);
   _neuralNetwork->initialize();
 
-  // If the hyperparameters have not been specified, produce new initial ones
-  if (_hyperparameters.size() == 0) _hyperparameters = _neuralNetwork->generateInitialHyperparameters();
-
-  // Allocate memory for hyperparameter gradients
-  _hyperparameterGradients.resize(_hyperparameters.size());
-
-  // Initialize optimizer if can not be loaded
-  if (_k->_currentGeneration < _k->_fileOutputFrequency)
+  // Configure optimizer
+  if (_k->_currentGeneration == 0)
   {
-    // Configuring neural network's inputs
+    // Configure Optimizer
     knlohmann::json optimizerConfig;
     optimizerConfig["Type"] = "deepSupervisor/optimizers/" + _neuralNetworkOptimizer;
-    optimizerConfig["N Vars"] = _hyperparameters.size();
+    optimizerConfig["N Vars"] = _neuralNetwork->_hyperparameterCount;
 
     _optimizer = dynamic_cast<korali::fGradientBasedOptimizer *>(korali::Module::getModule(optimizerConfig, _k));
     _optimizer->applyModuleDefaults(optimizerConfig);
     _optimizer->setConfiguration(optimizerConfig);
     _optimizer->initialize();
+    _optimizer->_currentValue = _neuralNetwork->generateInitialHyperparameters();
+  }
+  else
+  {
+    // Load saved hyperparameters
+    _neuralNetwork->setHyperparameters(_optimizer->_currentValue);
   }
 
-  // Setting hyperparameter structures in the neural network and optimizer
-  setHyperparameters(_hyperparameters);
+  // Allocate memory for hyperparameter gradients
+  _hyperparameterGradients.resize(_optimizer->_currentValue.size());
 
   // Setting current loss
   _currentLoss = 0.0f;
@@ -273,6 +274,8 @@ void DeepSupervisor::runTrainingGeneration()
       for (size_t i = 0; i < OC; i++)
         MSEVector[b][i] = MSEVector[b][i] - results[b][i];
 
+#pragma omp parallel for reduction(+ \
+                                   : _currentLoss) collapse(2)
     for (size_t b = 0; b < N; b++)
       for (size_t i = 0; i < OC; i++)
         _currentLoss += MSEVector[b][i] * MSEVector[b][i];
@@ -281,6 +284,9 @@ void DeepSupervisor::runTrainingGeneration()
     // Running back propagation on the MSE vector
     _hyperparameterGradients = backwardGradients(MSEVector);
   }
+
+  // Append Loss to Loss History
+  _lossHistory.push_back(_currentLoss);
 
   // If the solution represents the gradients, just pass them on
   if (_lossFunction == "Direct Gradient") _hyperparameterGradients = backwardGradients(_problem->_solutionData);
@@ -463,6 +469,14 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Current Loss");
  }
 
+ if (isDefined(js, "Loss History"))
+ {
+ try { _lossHistory = js["Loss History"].get<std::vector<float>>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Loss History']\n%s", e.what()); } 
+   eraseValue(js, "Loss History");
+ }
+
  if (isDefined(js, "Hyperparameter Gradients"))
  {
  try { _hyperparameterGradients = js["Hyperparameter Gradients"].get<std::vector<float>>();
@@ -544,15 +558,6 @@ void DeepSupervisor::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Neural Network", "Optimizer");
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Neural Network']['Optimizer'] required by deepSupervisor.\n"); 
-
- if (isDefined(js, "Hyperparameters"))
- {
- try { _hyperparameters = js["Hyperparameters"].get<std::vector<float>>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ deepSupervisor ] \n + Key:    ['Hyperparameters']\n%s", e.what()); } 
-   eraseValue(js, "Hyperparameters");
- }
-  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Hyperparameters'] required by deepSupervisor.\n"); 
 
  if (isDefined(js, "Loss Function"))
  {
@@ -651,7 +656,6 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
    js["Neural Network"]["Output Layer"] = _neuralNetworkOutputLayer;
    js["Neural Network"]["Engine"] = _neuralNetworkEngine;
    js["Neural Network"]["Optimizer"] = _neuralNetworkOptimizer;
-   js["Hyperparameters"] = _hyperparameters;
    js["Loss Function"] = _lossFunction;
    js["Learning Rate"] = _learningRate;
    js["L2 Regularization"]["Enabled"] = _l2RegularizationEnabled;
@@ -662,6 +666,7 @@ void DeepSupervisor::getConfiguration(knlohmann::json& js)
    js["Termination Criteria"]["Target Loss"] = _targetLoss;
    js["Evaluation"] = _evaluation;
    js["Current Loss"] = _currentLoss;
+   js["Loss History"] = _lossHistory;
    js["Hyperparameter Gradients"] = _hyperparameterGradients;
  if(_optimizer != NULL) _optimizer->getConfiguration(js["Optimizer"]);
  for (size_t i = 0; i <  _k->_variables.size(); i++) { 

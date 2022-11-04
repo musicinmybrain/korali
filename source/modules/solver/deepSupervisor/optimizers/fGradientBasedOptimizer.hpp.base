@@ -13,12 +13,6 @@ __startNamespace__;
 class __className__ : public __parentClassName__
 {
   public:
-  // VARIABLES =================================================
-  /**
-   * @brief [Internal Use] Current value of parameters.
-   */
-  std::vector<float> _currentValue;
-
   /**
    * @brief Takes a sample evaluation and its gradient and calculates the next set of parameters
    * @param gradient The gradient of the objective function at the current set of parameters
@@ -36,6 +30,11 @@ class __className__ : public __parentClassName__
    * @param parameters Parameter values to check
    */
   virtual void postProcessResult(std::vector<float> &parameters);
+
+  /**
+   * @brief Prints internals of solver
+   */
+  virtual void printInternals() = 0;
 
   /**
    * @brief Restores the optimizer to the initial state
