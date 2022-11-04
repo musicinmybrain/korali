@@ -9,7 +9,6 @@ void __className__::initialize()
 
 void __className__::reset()
 {
-  
 }
 
 void __className__::processResult(std::vector<float> &gradient)
@@ -18,7 +17,8 @@ void __className__::processResult(std::vector<float> &gradient)
 
   // Compute gradient norm and apply clipping
   float l2norm = 0;
-#pragma omp parallel for simd reduction(+ : l2norm)
+#pragma omp parallel for simd reduction(+ \
+                                        : l2norm)
   for (size_t i = 0; i < _nVars; i++)
     l2norm += gradient[i] * gradient[i];
   l2norm = std::sqrt(l2norm);

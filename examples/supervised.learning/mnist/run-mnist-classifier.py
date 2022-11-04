@@ -215,42 +215,7 @@ for epoch in range(epochs):
  print("[Korali] --------------------------------------------------")
  print("[Korali] Epoch: " + str(epoch) + "/" + str(epochs))
  print("[Korali] Learning Rate: " + str(learningRate))
- print('[Korali] Current Training Loss: ' + str(e["Solver"]["Current Loss"])) 
-
- # Evaluating testing set
- # testingInferredVector = testInferredSet = e.getEvaluation(testingImageVector)
- 
- # Getting MSE loss for testing set
- # squaredMeanError = 0.0
- # for i, res in enumerate(testingInferredVector):
- #  sol = testingLabelVector[i]
- #  for j, s in enumerate(sol):
- #   diff = res[j] - sol[j]
- #   squaredMeanError += diff * diff 
- # squaredMeanError = squaredMeanError / (float(testingBatchSize) * 2.0)
- # print('[Korali] Current Testing Loss:  ' + str(squaredMeanError))
-
- # Getting prediction accuracy on testing dataset
- # count = 0
- # for i, res in enumerate(testingInferredVector):
- #  correctLabel = np.argmax(testingLabelVector[i])
- #  bestGuess    = np.argmax(res)
- #  if correctLabel == bestGuess:
- #   count += 1
- # accuracy = count / testingBatchSize
- # print('[Korali] Current Testing Accuracy:  ' + str(accuracy))
+ print('[Korali] Current Training Loss: ' + str(e["Solver"]["Current Loss"]))
  
  # Adjusting learning rate via decay
  learningRate = learningRate * (1.0 / (1.0 + decay * (epoch+1)));
- 
-    ### Calc prediction accuracy on testing dataset
-    count = 0
-    for i, res in enumerate(testingLabelVector):
-        print(testingLabelVector[i], res)
-        correctLabel = np.argmax(testingLabelVector[i])
-        bestGuess    = np.argmax(res)
-        if correctLabel == bestGuess:
-            count += 1
-    accuracy = count / testingBatchSize
-    print("[Korali] Current Testing Accuracy: {:e}".format(accuracy))
-

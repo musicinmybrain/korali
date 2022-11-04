@@ -80,26 +80,6 @@ namespace
    supervisorJs["Current Loss"] = 1.0;
    ASSERT_NO_THROW(supervisor->setConfiguration(supervisorJs));
 
-   supervisorJs = baseOptJs;
-   experimentJs = baseExpJs;
-   supervisorJs["Normalization Means"] = "Not a Number";
-   ASSERT_ANY_THROW(supervisor->setConfiguration(supervisorJs));
-
-   supervisorJs = baseOptJs;
-   experimentJs = baseExpJs;
-   supervisorJs["Normalization Means"] = std::vector<float>({1.0f});
-   ASSERT_NO_THROW(supervisor->setConfiguration(supervisorJs));
-
-   supervisorJs = baseOptJs;
-   experimentJs = baseExpJs;
-   supervisorJs["Normalization Variances"] = "Not a Number";
-   ASSERT_ANY_THROW(supervisor->setConfiguration(supervisorJs));
-
-   supervisorJs = baseOptJs;
-   experimentJs = baseExpJs;
-   supervisorJs["Normalization Variances"] = std::vector<float>({1.0f});
-   ASSERT_NO_THROW(supervisor->setConfiguration(supervisorJs));
-
    // Testing mandatory parameters
 
    supervisorJs = baseOptJs;

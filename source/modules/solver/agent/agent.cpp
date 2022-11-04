@@ -128,7 +128,7 @@ void Agent::initialize()
     KORALI_LOG_ERROR("HMC only compatible with single policy!");
 
   // HMC only compatible with SGD
-  if (_hmcEnabled && (_neuralNetworkOptimizer != "fSGD") )
+  if (_hmcEnabled && (_neuralNetworkOptimizer != "fSGD"))
     KORALI_LOG_ERROR("[korali] WARNING: Using (%s) instead of the recommended SGD optimizer. Make sure that HMC is only used with an optimizer that has no momentum.\n", _neuralNetworkOptimizer.c_str());
 
   /*********************************************************************
@@ -1462,7 +1462,6 @@ void Agent::serializeExperienceReplay()
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
     _criticPolicyLearner[p]->_optimizer->getConfiguration(stateJson["Optimizer"][p]);
 
-
   // If results directory doesn't exist, create it
   if (!dirExists(_k->_fileOutputPath)) mkdir(_k->_fileOutputPath);
 
@@ -1561,7 +1560,6 @@ void Agent::deserializeExperienceReplay()
     _expPolicyBuffer.add(expPolicy);
     _curPolicyBuffer.add(curPolicy);
   }
-
 
   // Deserialize the hyperparameter vector
   const size_t numSamples = std::min(_policyUpdateCount, _numberOfSamples);

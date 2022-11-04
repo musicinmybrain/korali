@@ -11,7 +11,6 @@ void fSGD::initialize()
 
 void fSGD::reset()
 {
-  
 }
 
 void fSGD::processResult(std::vector<float> &gradient)
@@ -20,7 +19,8 @@ void fSGD::processResult(std::vector<float> &gradient)
 
   // Compute gradient norm and apply clipping
   float l2norm = 0;
-#pragma omp parallel for simd reduction(+ : l2norm)
+#pragma omp parallel for simd reduction(+ \
+                                        : l2norm)
   for (size_t i = 0; i < _nVars; i++)
     l2norm += gradient[i] * gradient[i];
   l2norm = std::sqrt(l2norm);
