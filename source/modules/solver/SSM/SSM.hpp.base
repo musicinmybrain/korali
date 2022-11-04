@@ -31,7 +31,7 @@ class __className__ : public __parentClassName__
    */
   void updateBins();
 
-  void setInitialConfiguration();
+  void setInitialConfiguration() override;
   void runGeneration() override;
   void printGenerationBefore() override;
   void printGenerationAfter() override;

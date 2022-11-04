@@ -34,7 +34,7 @@ void dVRACER::initializeAgent()
   _effectiveMinibatchSize = _miniBatchSize * _problem->_agentsPerEnvironment;
 
   if (_multiAgentRelationship == "Competition")
-    KORALI_LOG_ERROR("Multi Agent Relationship = %s is not supported for discrete reinforcement learning problems.\n", _multiAgentRelationship);
+    KORALI_LOG_ERROR("Multi Agent Relationship = %s is not supported for discrete reinforcement learning problems.\n", _multiAgentRelationship.c_str());
 
   if (_bayesianLearning)
     KORALI_LOG_ERROR("Bayesian learning is not supported for discrete reinforcement learning problems.\n");
