@@ -33,9 +33,7 @@ pushd $RUNPATH
 OMP_NUM_THREADS=12 python3 run-vracer.py --env "$ENV" --dis "$DIS" --l2 $L2 --opt $OPT --lr $LR
 
 resdir=$(ls -d _result_vracer_*)
-DISNW="$(echo -e "${DIS}" | tr -d '[:space:]')"
-figureName=vracer_${ENV}_${DISNW}_${L2}_${OPT}_${LR}.png
-python3 -m korali.rlview --dir $resdir --output $figureName
+python3 -m korali.rlview --dir $resdir --output vracer.png
 
 popd
 

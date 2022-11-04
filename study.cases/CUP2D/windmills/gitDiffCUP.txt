@@ -1,0 +1,161 @@
+diff --git a/Cubism b/Cubism
+--- a/Cubism
++++ b/Cubism
+@@ -1 +1 @@
+-Subproject commit 04d855f4cbb1b9438676ffba32f915487d642839
++Subproject commit 04d855f4cbb1b9438676ffba32f915487d642839-dirty
+diff --git a/source/Definitions.h b/source/Definitions.h
+index b1c856f..c012436 100644
+--- a/source/Definitions.h
++++ b/source/Definitions.h
+@@ -211,3 +211,31 @@ using VectorLab = cubism::BlockLabMPI<BlockLabDirichlet<VectorBlock, std::alloca
+ using ScalarLab = cubism::BlockLabMPI<BlockLabNeumann  <ScalarBlock, std::allocator>,ScalarGrid>;
+ using ScalarAMR = cubism::MeshAdaptationMPI<ScalarGrid,ScalarLab,ScalarGrid>;
+ using VectorAMR = cubism::MeshAdaptationMPI<VectorGrid,VectorLab,ScalarGrid>;
++
++
++// added for the windmills OSP
++struct StreamerVectorX
++{
++  static constexpr int NCHANNELS = 3;
++  template <typename TBlock, typename T>
++  static void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
++  {
++    for (int i = 0; i < TBlock::ElementType::DIM; i++) output[i] = 0.0;
++    output[0] = b(ix,iy,iz).u[0];
++  }
++  static std::string prefix() { return std::string(""); }
++  static const char * getAttributeName() { return "Vector"; }
++};
++
++struct StreamerVectorY
++{
++  static constexpr int NCHANNELS = 3;
++  template <typename TBlock, typename T>
++  static void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
++  {
++    for (int i = 0; i < TBlock::ElementType::DIM; i++) output[i] = 0.0;
++    output[1] = b(ix,iy,iz).u[1];
++  }
++  static std::string prefix() { return std::string(""); }
++  static const char * getAttributeName() { return "Vector"; }
++};
+\ No newline at end of file
+diff --git a/source/Obstacles/Windmill.h b/source/Obstacles/Windmill.h
+index 8693ad0..f0ed37e 100644
+--- a/source/Obstacles/Windmill.h
++++ b/source/Obstacles/Windmill.h
+@@ -38,6 +38,7 @@ class Windmill : public Shape
+     omega = 0;
+     avg_profile = std::vector<std::vector<Real>> (2, std::vector<Real>(numberRegions, 0.0));
+     setInitialConditions(0);
++    sim.nextDumpTime = 30; // set starting dump time to be 30s
+   }
+ 
+   void resetAll() override
+diff --git a/source/Simulation.cpp b/source/Simulation.cpp
+index b727c66..60cad73 100644
+--- a/source/Simulation.cpp
++++ b/source/Simulation.cpp
+@@ -253,6 +253,7 @@ void Simulation::parseRuntime()
+   sim.muteAll = parser("-muteAll").asInt(0);
+   sim.DumpUniform = parser("-DumpUniform").asBool(false);
+   if(sim.muteAll) sim.verbose = 0;
++  std::cerr<<"Verbose value :"<< sim.verbose << std::endl;
+ }
+ 
+ void Simulation::createShapes()
+@@ -446,6 +447,16 @@ Real Simulation::calcMaxTimestep()
+     }
+   }
+ 
++  double rl_step = 0.05;
++  // takes into account both if over to next step or close to being over (epsilon 1e-5)
++  double N_ = std::floor((1/rl_step) * (sim.time + sim.dt));
++  double close = N_ - std::floor((1/rl_step) * (sim.time));
++  // make the time step fall on multiples of 0.05
++  if ( close != 0)
++  {
++    sim.dt = N_ * rl_step - sim.time;
++  }
++
+   if( sim.dt <= 0 ){
+     std::cout << "[CUP2D] dt <= 0. Aborting..." << std::endl;
+     fflush(0);
+diff --git a/source/SimulationData.cpp b/source/SimulationData.cpp
+index e2defe0..7001284 100644
+--- a/source/SimulationData.cpp
++++ b/source/SimulationData.cpp
+@@ -72,12 +72,12 @@ void SimulationData::allocateGrid()
+ void SimulationData::dumpChi(std::string name)
+ {
+   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+-  DumpHDF5_MPI<StreamerScalar,Real>(*chi, time, "chi_" + ss.str(),path4serialization);
++  DumpHDF5_MPI2<StreamerScalar,Real>(*chi, time, "chi_" + ss.str(),path4serialization);
+ }
+ void SimulationData::dumpPres(std::string name)
+ {
+   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+-  DumpHDF5_MPI<StreamerScalar,Real>(*pres, time, "pres_" + ss.str(),path4serialization);
++  DumpHDF5_MPI2<StreamerScalar,Real>(*pres, time, "pres_" + ss.str(),path4serialization);
+ }
+ void SimulationData::dumpPold(std::string name)
+ {
+@@ -87,12 +87,13 @@ void SimulationData::dumpPold(std::string name)
+ void SimulationData::dumpTmp(std::string name)
+ {
+   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+-  DumpHDF5_MPI<StreamerScalar,Real>(*tmp, time, "tmp_" + ss.str(),path4serialization);
++  DumpHDF5_MPI2<StreamerScalar,Real>(*tmp, time, "tmp_" + ss.str(),path4serialization);
+ }
+ void SimulationData::dumpVel(std::string name)
+ {
+   std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
+-  DumpHDF5_MPI<StreamerVector,Real>(*(vel), time,"vel_" + ss.str(), path4serialization);
++  DumpHDF5_MPI2<StreamerVectorX,Real>(*(vel), time,"velX_" + ss.str(), path4serialization);
++  DumpHDF5_MPI2<StreamerVectorY,Real>(*(vel), time,"velY_" + ss.str(), path4serialization);
+ }
+ void SimulationData::dumpVold(std::string name)
+ {
+diff --git a/tools/uniform_conversion/main.cpp b/tools/uniform_conversion/main.cpp
+index c262dfd..ad7f2fe 100644
+--- a/tools/uniform_conversion/main.cpp
++++ b/tools/uniform_conversion/main.cpp
+@@ -13,8 +13,8 @@
+ namespace fs = std::filesystem;
+ 
+ #define DIMENSION 2
+-#define BS 16
+-#define Cfactor 2
++#define BS 8
++#define Cfactor 8 // has to be a power of 2
+ 
+ 
+ struct BlockGroup
+@@ -541,7 +541,8 @@ int main(int argc, char **argv)
+   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+ 
+   std::vector<std::string> filenames;
+-  std::string path("./");
++  std::string name = argv[1];
++  std::string path("/scratch/snx3000/anoca/CUP2D/OSP/" + name + "/"); 
+   std::string ext(".h5");
+   for (auto &p : fs::recursive_directory_iterator(path))
+   {
+@@ -560,8 +561,15 @@ int main(int argc, char **argv)
+   {
+     if (rank == 0)
+ 	    std::cout << "processing files: " << filenames[i] << std::endl;
+-    convert_to_uniform(filenames[i],i);
++    convert_to_uniform(path + filenames[i],i);
+     MPI_Barrier(MPI_COMM_WORLD);
++    if (rank == 0)
++    {
++      std::cout<<(path + filenames[i]).c_str()<<std::endl;
++      std::cout<<remove((path + filenames[i] + ".h5").c_str())<<std::endl;
++      std::cout<<remove((path + filenames[i] + ".xmf").c_str()) <<std::endl;
++      std::cout<<remove((path + filenames[i] + "-groups.h5").c_str())<<std::endl;
++    }
+   }
+   MPI_Finalize();
+   return 0;

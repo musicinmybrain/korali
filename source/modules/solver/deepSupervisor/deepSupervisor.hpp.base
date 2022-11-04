@@ -57,6 +57,41 @@ class __className__ : public __parentClassName__
   void initialize() override;
   void runGeneration() override;
   void printGenerationAfter() override;
+
+  /**
+   * @brief Runs training generation.
+   */
+  void runTrainingGeneration();
+
+  /**
+   * @brief Runs testing generation.
+   */
+  void runTestingGeneration();
+
+  /**
+   * @brief Run the backward pipeline of the network given the gradient of the loss and return the gradient.
+   * @param gradients A vector containing the gradient of the loss with respect to the output of the network
+   * @return A vector containing the gradient of the loss with respect to the weights of the network
+   */
+  std::vector<float> backwardGradients(const std::vector<std::vector<float>> &gradients);
+
+  /**
+   * @brief Run the training pipeline of the network given an input and return the output.
+   * @param sample A sample containing the NN's input BxTxIC (B: Batch Size, T: Time steps, IC: Input channels) and solution BxOC data (B: Batch Size, OC: Output channels)
+   */
+  void runTrainingOnWorker(korali::Sample &sample);
+
+  /**
+   * @brief Run the forward evaluation pipeline of the network given an input and return the output.
+   * @param sample A sample containing the NN's input BxTxIC (B: Batch Size, T: Time steps, IC: Input channels)
+   */
+  void runEvaluationOnWorker(korali::Sample &sample);
+
+  /**
+   * @brief Update the hyperparameters for the neural network after an update for every worker.
+   * @param sample A sample containing the new NN's hyperparameters
+   */
+  void updateHyperparametersOnWorker(korali::Sample &sample);
 };
 
 __endNamespace__;

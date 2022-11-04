@@ -402,7 +402,7 @@ void Linear::backwardHyperparameters(size_t t)
 #endif
 }
 
-void Linear::setHyperparameters(float *hyperparameters)
+void Linear::setHyperparameters(const float *hyperparameters)
 {
   size_t IC = _prevLayer->_outputChannels;
   size_t OC = _outputChannels;

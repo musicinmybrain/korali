@@ -14,13 +14,14 @@ e = korali.Experiment()
 
 e["Problem"]["Type"] = "Integration"
 e["Problem"]["Integrand"] = pcubic
+e["Random Seed"] = 0xC0FF33
 
 e["Variables"][0]["Name"] = "X"
 e["Variables"][0]["Lower Bound"] = 0.0
 e["Variables"][0]["Upper Bound"] = 1.0
 
 e["Solver"]["Type"] = "Integrator/MonteCarlo"
-e["Solver"]["Number Of Samples"] = 100
+e["Solver"]["Number Of Samples"] = 1000
 e["Solver"]["Executions Per Generation"] = 10
 
 e["Console Output"]["Verbosity"] = "Detailed"
@@ -31,4 +32,4 @@ k = korali.Engine()
 k.run(e)
 
 # Verify result
-assert (math.isclose(e["Results"]["Integral"], 0.25, rel_tol=0., abs_tol=0.05))
+assert math.isclose(e["Results"]["Integral"], 0.25, rel_tol=0., abs_tol=0.05), f'Expected 0.25 is {e["Results"]["Integral"]}'

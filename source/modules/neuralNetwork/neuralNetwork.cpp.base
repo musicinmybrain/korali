@@ -286,12 +286,13 @@ void __className__::backward(const std::vector<std::vector<float>> &outputGradie
 
   // First, re-setting all output gradients to zero
   std::fill(p->_rawOutputGradients.begin(), p->_rawOutputGradients.end(), 0.0f);
-
 // To store the gradients in the NN we place them on the last input timestep
 #pragma omp parallel for
   for (size_t b = 0; b < N; b++)
     for (size_t i = 0; i < OC; i++)
+    {
       p->_rawOutputGradients[p->_inputBatchLastStep[b] * N * OC + b * OC + i] = outputGradients[b][i];
+    }
 
   // Resetting cumulative hyperparameter gradients
   std::fill(p->_hyperparameterGradients.begin(), p->_hyperparameterGradients.end(), 0.0f);
@@ -397,17 +398,21 @@ std::vector<float> &__className__::getHyperparameterGradients(const size_t batch
 
 std::vector<float> __className__::getHyperparameters()
 {
-  auto params = std::vector<float>(_hyperparameterCount);
+  auto hyperparameters = std::vector<float>(_hyperparameterCount);
 
   size_t layerCount = _pipelines[0][0]._layerVector.size();
 
   for (size_t i = 0; i < layerCount; i++)
   {
     auto index = _pipelines[0][0]._layerVector[i]->_hyperparameterIndex;
-    _pipelines[0][0]._layerVector[i]->getHyperparameters(&params[index]);
+    _pipelines[0][0]._layerVector[i]->getHyperparameters(&hyperparameters[index]);
   }
 
-  return params;
+  for (const float h : hyperparameters)
+    if (std::isfinite(h) == false)
+      KORALI_LOG_ERROR("Returning non-finite hyperparameters"); // TODO: move check to optimizer
+
+  return hyperparameters;
 }
 
 void __className__::setHyperparameters(const std::vector<float> &hyperparameters)
@@ -415,14 +420,16 @@ void __className__::setHyperparameters(const std::vector<float> &hyperparameters
   if (hyperparameters.size() != _hyperparameterCount)
     KORALI_LOG_ERROR("Wrong number of hyperparameters passed to the neural network. Expected: %lu, provided: %lu.\n", _hyperparameterCount, hyperparameters.size());
 
-  auto params = std::vector<float>(hyperparameters.begin(), hyperparameters.end());
+  for (const float h : hyperparameters)
+    if (std::isfinite(h) == false)
+      KORALI_LOG_ERROR("Assigning non-finite value to hyperparameters"); // TODO: move check to optimizer
 
   size_t layerCount = _pipelines[0][0]._layerVector.size();
 
   for (size_t i = 0; i < layerCount; i++)
   {
     auto index = _pipelines[0][0]._layerVector[i]->_hyperparameterIndex;
-    _pipelines[0][0]._layerVector[i]->setHyperparameters(&params[index]);
+    _pipelines[0][0]._layerVector[i]->setHyperparameters(&hyperparameters[index]);
   }
 }
 

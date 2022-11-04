@@ -29,7 +29,7 @@ void _workerWrapper()
 
 void Sequential::initialize()
 {
-  _workerQueue.push(0);
+  _workerQueue.push_back(0);
 }
 
 void Sequential::initServer()
@@ -107,14 +107,19 @@ void Sequential::popEngine()
   _engineStack.pop();
 }
 
-bool Sequential::isRoot()
+bool Sequential::isRoot() const
 {
   return true;
 }
 
-size_t Sequential::getProcessId()
+size_t Sequential::getProcessId() const
 {
   return 0;
+}
+
+size_t Sequential::getWorkerCount() const
+{
+  return 1;
 }
 
 void Sequential::setConfiguration(knlohmann::json& js) 

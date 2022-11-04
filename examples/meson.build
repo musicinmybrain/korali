@@ -1,4 +1,5 @@
 subdir('bayesian.inference')
+subdir('design')
 subdir('features')
 subdir('hierarchical.bayesian')
 subdir('integration')

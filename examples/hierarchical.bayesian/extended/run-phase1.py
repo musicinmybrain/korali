@@ -64,7 +64,4 @@ for i in range(5):
   eList.append(e)
 
 k = korali.Engine()
-k["Conduit"]["Type"] = "Concurrent"
-k["Conduit"]["Concurrent Jobs"] = 4
-
 k.run(eList)

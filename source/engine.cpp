@@ -32,7 +32,19 @@ Engine::Engine()
   gsl_set_error_handler_off();
 }
 
-void Engine::initialize()
+void Engine::initializeExperiments()
+{
+  // Initializing experiment's configuration
+  for (size_t i = 0; i < _experimentVector.size(); i++)
+  {
+    _experimentVector[i]->_experimentId = i;
+    _experimentVector[i]->_engine = this;
+    _experimentVector[i]->initialize();
+    _experimentVector[i]->_isFinished = false;
+  }
+}
+
+void Engine::start()
 {
   // Setting Engine configuration defaults
   if (!isDefined(_js.getJson(), "Profiling", "Detail")) _js["Profiling"]["Detail"] = "None";
@@ -47,29 +59,6 @@ void Engine::initialize()
   _profilingDetail = _js["Profiling"]["Detail"];
   _profilingFrequency = _js["Profiling"]["Frequency"];
 
-  // Initializing experiment's configuration
-  for (size_t i = 0; i < _experimentVector.size(); i++)
-  {
-    _experimentVector[i]->_experimentId = i;
-    _experimentVector[i]->_engine = this;
-    _experimentVector[i]->initialize();
-    _experimentVector[i]->_isFinished = false;
-  }
-  
-  // Check configuration correctness
-  auto js = _js.getJson();
-  if (isDefined(js, "Conduit")) eraseValue(js, "Conduit");
-  if (isDefined(js, "Dry Run")) eraseValue(js, "Dry Run");
-  if (isDefined(js, "Conduit", "Type")) eraseValue(js, "Conduit", "Type");
-  if (isDefined(js, "Profiling", "Detail")) eraseValue(js, "Profiling", "Detail");
-  if (isDefined(js, "Profiling", "Path")) eraseValue(js, "Profiling", "Path");
-  if (isDefined(js, "Profiling", "Frequency")) eraseValue(js, "Profiling", "Frequency");
-
-  if (isEmpty(js) == false) KORALI_LOG_ERROR("Unrecognized settings for Korali's Engine: \n%s\n", js.dump(2).c_str());
-}
-
-void Engine::start()
-{
   // Checking if its a dry run and return if it is
   if (_isDryRun) return;
 
@@ -87,6 +76,20 @@ void Engine::start()
 
   // Recovering Conduit configuration in case of restart
   _conduit->getConfiguration(_js.getJson()["Conduit"]);
+
+  // Now initializing experiments
+  initializeExperiments();
+
+  // Check configuration correctness
+  auto js = _js.getJson();
+  if (isDefined(js, "Conduit")) eraseValue(js, "Conduit");
+  if (isDefined(js, "Dry Run")) eraseValue(js, "Dry Run");
+  if (isDefined(js, "Conduit", "Type")) eraseValue(js, "Conduit", "Type");
+  if (isDefined(js, "Profiling", "Detail")) eraseValue(js, "Profiling", "Detail");
+  if (isDefined(js, "Profiling", "Path")) eraseValue(js, "Profiling", "Path");
+  if (isDefined(js, "Profiling", "Frequency")) eraseValue(js, "Profiling", "Frequency");
+
+  if (isEmpty(js) == false) KORALI_LOG_ERROR("Unrecognized settings for Korali's Engine: \n%s\n", js.dump(2).c_str());
 
   if (_conduit->isRoot())
   {
@@ -151,7 +154,6 @@ void Engine::run(Experiment &experiment)
   _experimentVector.clear();
   experiment._k->_engine = this;
   _experimentVector.push_back(experiment._k);
-  initialize();
   start();
 }
 
@@ -163,7 +165,6 @@ void Engine::run(std::vector<Experiment> &experiments)
     experiments[i]._k->_engine = this;
     _experimentVector.push_back(experiments[i]._k);
   }
-  initialize();
   start();
 }
 
@@ -251,6 +252,5 @@ PYBIND11_MODULE(libkorali, m)
     .def(pybind11::init<>())
     .def("__getitem__", pybind11::overload_cast<pybind11::object>(&Experiment::getItem), pybind11::return_value_policy::reference)
     .def("__setitem__", pybind11::overload_cast<pybind11::object, pybind11::object>(&Experiment::setItem), pybind11::return_value_policy::reference)
-    .def("loadState", &Experiment::loadState)
-    .def("getEvaluation", &Experiment::getEvaluation);
+    .def("loadState", &Experiment::loadState);
 }

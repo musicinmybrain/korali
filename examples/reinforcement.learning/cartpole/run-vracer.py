@@ -4,6 +4,7 @@ import sys
 sys.path.append('./_model')
 from env import *
 import argparse
+import numpy as np
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -21,6 +22,7 @@ parser.add_argument(
     '--optimizer',
     help='Optimizer to use for NN parameter updates',
     default='Adam',
+    type=str,
     required=False)
 parser.add_argument(
     '--learningRate',
@@ -39,7 +41,6 @@ k = korali.Engine()
 e = korali.Experiment()
 
 ### Defining the Cartpole problem's configuration
-
 e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
 e["Problem"]["Environment Function"] = env
 e["Problem"]["Testing Frequency"] = 100
@@ -71,17 +72,16 @@ e["Solver"]["Episodes Per Generation"] = 10
 
 e["Solver"]["Experience Replay"]["Start Size"] = 1000
 e["Solver"]["Experience Replay"]["Maximum Size"] = 10000
+e["Solver"]["Experience Replay"]["Off Policy"]["REFER Beta"]= 0.3
 
 e["Solver"]["Discount Factor"] = 0.99
 e["Solver"]["Learning Rate"] = args.learningRate
 e["Solver"]["Mini Batch"]["Size"] = 32
-
-e["Solver"]["State Rescaling"]["Enabled"] = False
-e["Solver"]["Reward"]["Rescaling"]["Enabled"] = False
+e["Solver"]["State Rescaling"]["Enabled"] = True
+e["Solver"]["Reward"]["Rescaling"]["Enabled"] = True
 
 ### Configuring the neural network and its hidden layers
 
-e["Solver"]["Learning Rate"] = 1e-4
 e["Solver"]["Neural Network"]["Engine"] = args.engine
 e["Solver"]["Neural Network"]["Optimizer"] = args.optimizer
 e["Solver"]["Policy"]["Distribution"] = "Clipped Normal"
@@ -104,7 +104,9 @@ e["Solver"]["Termination Criteria"]["Max Generations"] = args.maxGenerations
 
 ### Setting file output configuration
 
-e["File Output"]["Enabled"] = False
+e["File Output"]["Enabled"] = True
+e["File Output"]["Use Multiple Files"] = False
+e["File Output"]["Frequency"] = 5
 
 ### Running Experiment
 

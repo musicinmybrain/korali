@@ -13,286 +13,318 @@ import scipy.stats as st
 import matplotlib.pyplot as plt
 from korali.plot.helpers import hlsColors, drawMulticoloredLine
 from scipy.signal import savgol_filter
+import pdb
 
-# Check if name has correct suffix
-def validateOutput(output):
-  if not (output.endswith(".png") or output.endswith(".eps") or output.endswith(".svg")):
-    print("[Korali] Error: Outputfile '{0}' must end with '.eps', '.png' or '.svg' suffix.".format(output))
-    sys.exit(-1)
+import seaborn as sns
+sns.set_theme()
+sns.set_style("whitegrid")
+sns.color_palette("tab10")
+
+from korali.rlview.utils import get_figure
 
 ##################### Plotting Reward History
+def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservations, showAgents, dir ):
+    # get color
+    color = next(ax._get_lines.prop_cycler)['color']
 
-def plotRewardHistory(ax, dirs, results, minReward, maxReward, averageDepth, maxObservations, showCI, aggregate):
- ## Setting initial x-axis (episode) and  y-axis (reward) limits
- maxPlotObservations = -math.inf
- maxPlotReward = -math.inf
- minPlotReward = +math.inf
+    maxEpisodes = math.inf
 
- ## Creating colormap
- cmap = matplotlib.cm.get_cmap('brg')
- colCurrIndex = 0.0
+    returnsHistory = []
+    observationHistory = []
 
- ## Reading the individual results
- unpackedResults = []
+    if showCI > 0.0:
+        medianReturns  = []
+        lowerCiReturns = []
+        upperCiReturns = []
+    else:
+        meanReturns = []
+        stdReturns = []
 
- for resId, r in enumerate(results):
-  environmentCount = r["Problem"]["Environment Count"]
-  nAgents = r["Problem"]["Agents Per Environment"]
+    numResults = len(results)
+    if showAgents:
+        if numResults != 1:
+            print("Script only supports plotting the results of the individual agents for one run!")
+            exit(-1)
 
-  ## Split results for multi envs
-  envIds = r["Solver"]["Training"]["Environment Id History"]
-  resultsFolder = dirs[resId]
-  del dirs[resId]
-  for envId in range(environmentCount):
-   dirs.insert(resId+envId, resultsFolder+" env {}".format(envId))
-   res = {}
-   res["Solver"] = { "Training" : { "Experience History" : [ exp for (env, exp) in zip (envIds, r["Solver"]["Training"]["Experience History"]) if env == envId ] } }
-   res["Solver"]["Training"]["Reward History"] = [ rew for (env, rew) in zip(envIds, r["Solver"]["Training"]["Reward History"]) if env == envId ]
+        numResults = results[0]["Problem"]["Agents Per Environment"]
+        
+    ## Unpack and preprocess the results
+    for r in results:
+        # Load Returns
+        returns = np.array(r["Solver"]["Training"]["Reward History"])
 
-   cumulativeObsCountHistory = np.cumsum(np.array(res["Solver"]["Training"]["Experience History"])) / nAgents
-   rewardHistory = np.array(res["Solver"]["Training"]["Reward History"])
+        if (r["Problem"]["Agents Per Environment"] > 1) and not showAgents:
+            returns = np.mean(returns, axis=0)
+            returns = np.reshape(returns, (1,-1))
 
-   # Merge Results
-   if aggregate == True and len(unpackedResults) > 0:
-    coH, rH, trTh, teTh = unpackedResults[0]
-    aggCumObs = np.append(coH, cumulativeObsCountHistory)
-    aggRewards = np.append(rH, rewardHistory)
+        returns = np.reshape(returns, (numResults,-1))
 
-    sortedAggRewards = np.array([r for _, r in sorted(zip(aggCumObs, aggRewards), key=lambda pair: pair[0])])
-    sortedAggCumObs = np.sort(aggCumObs)
-    unpackedResults[0] = (sortedAggCumObs, sortedAggRewards)
-   # Append Results
-   else:
-    unpackedResults.append( (cumulativeObsCountHistory, rewardHistory) )
+        for _return in returns:
+            # Load and save cumulative sum of observations
+            observationHistory.append(np.cumsum(r["Solver"]["Training"]["Experience History"]))
 
- ## Plotting the individual experiment results
- for resId, r in enumerate(unpackedResults):
-  
-  cumulativeObsArr, rewardHistory = r
-  
-  currObsCount = cumulativeObsArr[-1]
-  
-  # Updating common plot limits
+            # store results
+            returnsHistory.append(_return)
 
-  if (currObsCount > maxPlotObservations): maxPlotObservations = currObsCount
-  if (maxObservations): maxPlotObservations = int(maxObservations)
+            # Adjust x-range
+            currEpisodeCount = len(_return)
+            if (currEpisodeCount < maxEpisodes): maxEpisodes = currEpisodeCount
 
-  if (min(rewardHistory) < minPlotReward): 
-   if (min(rewardHistory) > -math.inf):
-    minPlotReward = min(rewardHistory)
-  
-  if (max(rewardHistory) > maxPlotReward):
-   if (max(rewardHistory) < math.inf):
-    maxPlotReward = max(rewardHistory)
+            if showCI > 0.0:
+                median= [ _return[0] ]
+                confIntervalLower= [ _return[0] ]
+                confIntervalUpper= [ _return[0] ]
 
-  # Getting average cumulative reward statistics
-  cumRewards = np.cumsum(rewardHistory)
-  meanHistoryStart = cumRewards[:averageDepth]/np.arange(1,averageDepth+1)
-  meanHistoryEnd = (cumRewards[averageDepth:]-cumRewards[:-averageDepth])/float(averageDepth)
-  meanHistory = np.append(meanHistoryStart, meanHistoryEnd)
+                for i in range(1, len(_return)):
+                    # load data in averging window
+                    startPos = max(i - averageDepth, 0)
+                    endPos = i
+                    data = _return[startPos:endPos]
+                    # compute quantiles
+                    median.append(np.percentile(data, 50))
+                    confIntervalLower.append( np.percentile(data, 50-50*showCI) )
+                    confIntervalUpper.append( np.percentile(data, 50+50*showCI) )
+                
+                # append data
+                medianReturns.append(median)
+                lowerCiReturns.append(confIntervalLower)
+                upperCiReturns.append(confIntervalUpper)
+            else:
+                # Average returns over averageDepth episodes
+                averageReturns = np.cumsum(_return)
+                averageStart = averageReturns[:averageDepth]/np.arange(1,averageDepth+1)
+                averageRest  = (averageReturns[averageDepth:]-averageReturns[:-averageDepth])/float(averageDepth)
 
-  confIntervalLowerHistory = None
-  confIntervalUpperHistory = None
+                averageReturnsSquared = np.cumsum(_return*_return)
+                averageSquaredStart = averageReturnsSquared[:averageDepth]/np.arange(1,averageDepth+1)
+                averageSquaredRest  = (averageReturnsSquared[averageDepth:]-averageReturnsSquared[:-averageDepth])/float(averageDepth)
 
-  # Calculating confidence intervals
-  if showCI > 0.0:
-    confIntervalLowerHistory= [ rewardHistory[0] ]
-    confIntervalUpperHistory= [ rewardHistory[0] ]
+                # Append Results
+                meanReturn = np.append(averageStart, averageRest)
+                meanReturns.append( meanReturn )
 
-    for i in range(1, len(rewardHistory)):
-      startPos = max(i - averageDepth, 0)
-      endPos = i
-      data = rewardHistory[startPos:endPos]
-      ciLow = np.percentile(data, 50-50*showCI)
-      ciUp = np.percentile(data, 50+50*showCI)
-      confIntervalLowerHistory.append(ciLow)
-      confIntervalUpperHistory.append(ciUp)
-      
-    confIntervalLowerHistory = np.array(confIntervalLowerHistory)
-    confIntervalUpperHistory = np.array(confIntervalUpperHistory)
+                stdReturn = np.sqrt(np.append(averageSquaredStart, averageSquaredRest) - meanReturn**2)
+                stdReturns.append(stdReturn)
 
-  # Plotting common plot
-  ax.plot(cumulativeObsArr, rewardHistory, 'x', markersize=1.3, color=cmap(colCurrIndex), alpha=0.15, zorder=0)
-  ax.plot(cumulativeObsArr, meanHistory, '-', color=cmap(colCurrIndex), linewidth=3.0, zorder=1, label=dirs[resId]) 
+    ## Only keep first maxEpisodes entries
+    for i in range(numResults):
+        observationHistory[i] = observationHistory[i][:maxEpisodes]
+        returnsHistory[i] = returnsHistory[i][:maxEpisodes]
+        if showCI > 0.0:
+            medianReturns[i]  = medianReturns[i][:maxEpisodes]
+            lowerCiReturns[i] = lowerCiReturns[i][:maxEpisodes]
+            upperCiReturns[i] = upperCiReturns[i][:maxEpisodes]
+        else:
+            meanReturns[i] = meanReturns[i][:maxEpisodes]
+            stdReturns[i] = stdReturns[i][:maxEpisodes]
 
-  # Plotting confidence intervals
-  if showCI > 0.:
-    ax.fill_between(cumulativeObsArr, confIntervalLowerHistory, confIntervalUpperHistory, color=cmap(colCurrIndex), alpha=0.2)
+    ## Plot results
+    episodes = np.arange(1,maxEpisodes+1)
+    if showObservations:
+        episodes = observationHistory[0]
+    
+    if numResults == 1:
+        if showCI > 0.0: # Plot median together with CI
+            ax.plot(episodes, medianReturns[0], '-', linewidth=2.0, zorder=1, label=dir, color=color)
+            ax.fill_between(episodes, lowerCiReturns[0], upperCiReturns[0][:maxEpisodes], alpha=0.5)
+        else: # .. or mean with standard deviation
+            ax.plot(episodes, meanReturns[0], '-', linewidth=2.0, zorder=1, label=dir, color=color)
+            ax.fill_between(episodes, meanReturns[0]-stdReturns[0], meanReturns[0]+stdReturns[0], alpha=0.2)
+        if showData:
+            ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=plt.gca().lines[-1].get_color())
+    elif showAgents:
+        for i in range(numResults):
+            if showCI > 0.0:
+                ax.plot(episodes, medianReturns[i], '-', linewidth=2.0, zorder=1, label=dir, color=color)
+                ax.fill_between(episodes, lowerCiReturns[i], upperCiReturns[i], alpha=0.5)
+            else:
+                ax.plot(episodes, meanReturns[i], '-', linewidth=2.0, zorder=1, label=dir, color=color)
+                ax.fill_between(episodes, meanReturns[i]-stdReturns[i], meanReturns[i]+stdReturns[i], alpha=0.5)
+            if showData:
+                ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=plt.gca().lines[-1].get_color())
+    else:
+        if showCI > 0.0: # Plot median over runs
+            medianReturns = np.array(medianReturns)
 
-  # Updating color index
-  if (len(results) > 1):
-   colCurrIndex = colCurrIndex + (1.0 / float(len(unpackedResults)-1)) - 0.0001
-  
-  ## Configuring common plotting features
+            median = []
+            confIntervalLower = []
+            confIntervalUpper = []
+            for i in range(maxEpisodes):
+                # load data
+                data = medianReturns[:,i]
+                # compute quantiles
+                median.append( np.percentile(data, 50) )
+                confIntervalLower.append( np.percentile(data, 50-50*showCI) )
+                confIntervalUpper.append( np.percentile(data, 50+50*showCI) )
 
-  if (minReward): minPlotReward = float(minReward)
-  if (maxReward): maxPlotReward = float(maxReward)
+            ax.plot(episodes, median, '-', linewidth=2.0, zorder=1, label=dir)
+            ax.fill_between(episodes, confIntervalLower, confIntervalUpper, alpha=0.5)
+        else: # .. or mean with standard deviation
+            meanReturns = np.array(meanReturns)
 
-  ax.set_ylabel('Cumulative Reward')  
-  ax.set_xlabel('# Observations')
-  ax.set_title('Korali RL History Viewer')
+            mean = []
+            std  = []
+            for i in range(maxEpisodes):
+                # load data
+                data = meanReturns[:,i]
+                # compute mean and standard deviation
+                mean.append( np.mean(data) )
+                std.append( np.std(data) )
+            mean = np.array(mean)
+            std  = np.array(std)
 
-  ax.yaxis.grid()
-  ax.set_xlim([0, maxPlotObservations-1])
-  ax.set_ylim([minPlotReward - 0.1*abs(minPlotReward), maxPlotReward + 0.1*abs(maxPlotReward)])
- 
+            ax.plot(episodes, mean, '-', linewidth=2.0, zorder=1, label=dir, color=color)
+            ax.fill_between(episodes, mean-std, mean+std, alpha=0.5)
+
+        if showData:
+            for i in range(len(returnsHistory)):
+                ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=plt.gca().lines[-1].get_color())
+
 ##################### Results parser
 
-def parseResults(dir):
+def parseResults( dir, numRuns ):
+    # Empty Container for results
+    results = [ ]
 
- results = [ ]
-
- for p in dir:
-  configFile = p + '/latest'
-  if (not os.path.isfile(configFile)):
-   print("[Korali] Error: Did not find any results in the {0} folder...".format(p))
-   exit(-1)
- 
-  with open(configFile) as f:
-    data = json.load(f)
-
-  results.append(data)
+    # Load from Folder containing Results
+    for p in dir:
+        result = [ ]
+        # Load result for each run
+        for run in range(numRuns):
+            configFile = p + '/latest'
+            if numRuns > 1:
+                configFile = p + "/run{}".format(run) + '/latest'
+            if (not os.path.isfile(configFile)):
+                print("[Korali] Error: Did not find any results in the {0} folder...".format(configFile))
+                exit(-1)
+            with open(configFile) as f:
+                data = json.load(f)
+            result.append(data)
+        results.append(result)
   
- return results
+    return results
  
 ##################### Main Routine: Parsing arguments and result files
   
 if __name__ == '__main__':
 
- # Setting termination signal handler
- 
- signal.signal(signal.SIGINT, lambda x, y: exit(0))
+    # Setting termination signal handler
+    signal.signal(signal.SIGINT, lambda x, y: exit(0))
 
- # Parsing arguments
-
- parser = argparse.ArgumentParser(
-     prog='korali.rlview',
-     description='Plot the results of a Korali Reinforcement Learning execution.')
- parser.add_argument(
-     '--dir',
-     help='Path(s) to result files, separated by space',
-     default=['_korali_result'],
-     required=False,
-     nargs='+')
- parser.add_argument(
-     '--maxObservations',
-     help='Maximum observations (x-axis) to display',
-     type=int,
-     default=None,
-     required=False)
- parser.add_argument(
-     '--maxReward',
-     help='Maximum reward to display',
-     default=None,
-     required=False)
- parser.add_argument(
-     '--updateFrequency',
-     help='Specified the time (seconds) between live updates to the plot',
-     default=0.0,
-     required=False)
- parser.add_argument(
-     '--maxPlottingTime',
-     help='Specified the maximum time (seconds) to update the plot for (for testing purposes)',
-     default=0.0,
-     required=False)
- parser.add_argument(
-     '--minReward',
-     help='Minimum reward to display',
-     default=None,
-     required=False)
- parser.add_argument(
-      '--averageDepth',
-      help='Specifies the depth for plotting average',
-      type=int,
-      default=100,
-      required=False)
- parser.add_argument(
-      '--showCI',
-      help='Option to plot the reward confidence interval.',
-      type = float,
-      default=0.0,
-      required=False)
- parser.add_argument(
-      '--aggregate',
-      help='Aggregate multiple runs and plot result summary.',
-      action='store_true')
- parser.add_argument(
+    # Parsing arguments
+    parser = argparse.ArgumentParser(
+        prog='korali.rlview',
+        description='Plot the results of a Korali Reinforcement Learning execution. If single run, the displayed statistics are computed from the data in the averaging window. For multiple runs the displayed statistics are computed from the zeroth moments of the single runs.')
+    parser.add_argument(
+        '--dir',
+        help='Path(s) to result files, separated by space',
+        required=True,
+        nargs='+')
+    parser.add_argument(
+        '--maxEpisodes',
+        help='Maximum number of episodes (x-axis) to display',
+        type=int,
+        default=+math.inf,
+        required=False)
+    parser.add_argument(
+        '--minReward',
+        help='Minimum reward to display',
+        type=float,
+        default=+math.inf,
+        required=False)
+    parser.add_argument(
+        '--maxReward',
+        help='Maximum reward to display',
+        type=float,
+        default=-math.inf,
+        required=False)
+    parser.add_argument(
+        '--averageDepth',
+        help='Specifies the number of episodes used to compute statistics',
+        type=int,
+        default=100,
+        required=False)
+    parser.add_argument(
+        '--numRuns',
+        help='Number of evaluation runs that are stored under --dir/runXX.',
+        type=int,
+        default=1,
+        required=False)
+    parser.add_argument(
+        '--showCI',
+        help='Option to plot median+CI (default=False -> plot mean+std).',
+        type = float,
+        default=0.0,
+        required=False)
+    parser.add_argument(
+        '--showCumulativeRewards',
+        help='Option to show the cumulative reward for each episode.',
+        action='store_true',
+        required=False)
+    parser.add_argument(
+        '--showObservations',
+        help='Option to show # Observations instead of # Episodes.',
+        action='store_true',
+        required=False)
+    parser.add_argument(
+        '--showLegend',
+        help='Option to show the legend.',
+        action='store_true',
+        required=False)
+    parser.add_argument(
+        '--output',
+        help='Indicates the output file path. If not specified, it prints to screen.',
+        required=False)
+    parser.add_argument(
+        '--showAgents',
+        help='Enable the plotting of the returns for each agent.',
+        action='store_true',
+        required=False)
+    parser.add_argument(
       '--test',
       help='Run without graphics (for testing purpose)',
       action='store_true',
       required=False)
- parser.add_argument(
-      '--output',
-      help='Indicates the output file path. If not specified, it prints to screen.',
-      required=False)
 
- args = parser.parse_args()
+    args = parser.parse_args()
 
- ### Validating input
+    ### Validating arguments
+    if args.showCI < 0.0 or args.showCI > 1.0:
+        print("[Korali] Argument of confidence interval must be in [0,1].")
+        exit(-1)
 
- if args.showCI < 0.0 or args.showCI > 1.0:
-  print("[Korali] Argument of confidence interval must be in [0,1].")
-  exit(-1)
-
- if args.output:
-    validateOutput(args.output)
-
- ### Setup without graphics, if needed
+    ### Setup without graphics, if needed
+    if (args.test or args.output): 
+        matplotlib.use('Agg')
  
- if (args.test or args.output): 
-     matplotlib.use('Agg')
- 
- ### Reading values from result files
+    ### Reading values from result files
+    results = parseResults(args.dir, args.numRuns)
 
- results = parseResults(args.dir)
- if (len(results) == 0): 
-  print('Error: No result folders have been provided for plotting.')
-  exit(-1)
- 
- ### Creating figure(s)
-  
- fig1 = plt.figure()
- ax1 = fig1.add_subplot(111)
-     
- ### Creating plots
+    ### Creating figure
+    fig, ax = get_figure(width='article')
 
- plotRewardHistory(ax1, args.dir, results, args.minReward, args.maxReward, args.averageDepth, args.maxObservations, args.showCI, args.aggregate)
- if (len(args.dir)>1):
-     plt.legend()
- plt.draw()
- 
- ### Printing live results if update frequency > 0
- 
- fq = float(args.updateFrequency)
- maxTime = float(args.maxPlottingTime)
- 
- if (fq > 0.0):
-  initialTime = time.time()
-  while(True):
-   results = parseResults(args.dir)
-   plt.pause(fq)
-   ax1.clear()
-   plotRewardHistory(ax1, args.dir, results, args.minReward, args.maxReward, args.averageDepth, args.maxObservations, args.showCI, args.aggregate)
-   plt.draw()
-   
-   # Check if maximum time exceeded
-   if (maxTime> 0.0):
-    currentTime = time.time()
-    elapsedTime = currentTime - initialTime
-    if (elapsedTime > maxTime):
-     print('[Korali] Maximum plotting time reached. Exiting...') 
-     exit(0)
- 
+    ### Creating plot
+    for run in range(len(results)):
+        plotRewardHistory(ax, results[run], args.averageDepth, args.showCI, args.showCumulativeRewards, args.showObservations, args.showAgents, args.dir[run])
 
-   plt.show()
-  exit(0)
+    ax.set_ylabel('Cumulative Reward')
+    if args.showObservations:
+        ax.set_xlabel('# Observations')
+    else:
+        ax.set_xlabel('# Episodes')
+    ax.set_title('Korali RL History Viewer')
+    if args.showLegend:
+        ax.legend()
 
- if (args.output is None):
-   plt.show()
- else:
-   if args.output.endswith('.eps'):
-     plt.savefig(args.output, format='eps')
-   elif args.output.endswith('.svg'):
-     plt.savefig(args.output, format='svg')
-   else:
-     plt.savefig(args.output, format='png')
+    if args.maxEpisodes < math.inf:
+        ax.set_xlim([0, args.maxEpisodes])
+    if (args.minReward < math.inf) and (args.maxReward > -math.inf):
+        ax.set_ylim([args.minReward - 0.1*abs(args.minReward), args.maxReward + 0.1*abs(args.maxReward)])
+
+    ### Show/save plot
+    fig.tight_layout()
+    if (args.output is None):
+        plt.show()
+    else:
+        plt.savefig(args.output)
+

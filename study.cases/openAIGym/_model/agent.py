@@ -6,6 +6,10 @@ import os.path
 from HumanoidWrapper import HumanoidWrapper
 from AntWrapper import AntWrapper
 
+from packaging.version import parse as parse_version
+oldEnv = parse_version(gym.__version__) < parse_version('0.26.0')
+
+
 def initEnvironment(e, envName, excludePosition=True, moviePath = ''):
 
  # Creating environment 
@@ -19,20 +23,20 @@ def initEnvironment(e, envName, excludePosition=True, moviePath = ''):
     env = gym.make(envName)
  
  # Handling special cases
- 
+
  if (envName == 'Humanoid-v2'):
   env = HumanoidWrapper(env)
-  
+
  if (envName == 'HumanoidStandup-v2'):
   env = HumanoidWrapper(env)
-  
+
  if (envName == 'Ant-v2'):
   env = AntWrapper(env)
-  
+
  # Re-wrapping if saving a movie
  if (moviePath != ''):
   env = gym.wrappers.Monitor(env, moviePath, force=True)
- 
+
  ### Defining problem configuration for openAI Gym environments
  e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
  e["Problem"]["Environment Function"] = lambda s : environment(s, env, excludePosition)
@@ -46,26 +50,26 @@ def initEnvironment(e, envName, excludePosition=True, moviePath = ''):
    stateVariableCount = env.observation_space.shape[0] - 1
 
  actionVariableCount = env.action_space.shape[0]
- 
+
  # Generating state variable index list
  stateVariablesIndexes = range(stateVariableCount)
- 
+
  # Defining State Variables
- 
+
  for i in stateVariablesIndexes:
   e["Variables"][i]["Name"] = "State Variable " + str(i)
   e["Variables"][i]["Type"] = "State"
   e["Variables"][i]["Lower Bound"] = float(env.observation_space.low[i])
   e["Variables"][i]["Upper Bound"] = float(env.observation_space.high[i])
-  
+
  # Defining Action Variables
- 
+
  for i in range(actionVariableCount):
   e["Variables"][stateVariableCount + i]["Name"] = "Action Variable " + str(i)
   e["Variables"][stateVariableCount + i]["Type"] = "Action"
   e["Variables"][stateVariableCount + i]["Lower Bound"] = float(env.action_space.low[i])
   e["Variables"][stateVariableCount + i]["Upper Bound"] = float(env.action_space.high[i])
-  e["Variables"][stateVariableCount + i]["Initial Exploration Noise"] = 0.4472
+  e["Variables"][stateVariableCount + i]["Initial Exploration Noise"] = 0.2
 
 def environment(s, env, excludePosition):
  

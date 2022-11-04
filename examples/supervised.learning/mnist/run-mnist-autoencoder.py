@@ -50,7 +50,7 @@ if len(sys.argv) == 2:
 e["Problem"]["Type"] = "Supervised Learning"
 e["Problem"]["Max Timesteps"] = 1
 e["Problem"]["Training Batch Size"] = trainingBatchSize
-e["Problem"]["Inference Batch Size"] = testingBatchSize
+e["Problem"]["Testing Batch Size"] = testingBatchSize
 e["Problem"]["Input"]["Size"] = len(trainingImages[0])
 e["Problem"]["Solution"]["Size"] = len(trainingImages[0])
 
@@ -58,8 +58,8 @@ e["Problem"]["Solution"]["Size"] = len(trainingImages[0])
 
 e["Solver"]["Termination Criteria"]["Max Generations"] = 1
 e["Solver"]["Type"] = "DeepSupervisor"
+e["Solver"]["Mode"] = "Training"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
-e["Solver"]["Steps Per Generation"] = 1
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 
@@ -256,17 +256,17 @@ for epoch in range(epochs):
  print('[Korali] Current Training Loss: ' + str(e["Solver"]["Current Loss"])) 
     
  # Evaluating testing set
- testingInferredVector = testInferredSet = e.getEvaluation(testingImageVector)
+ # testingInferredVector = testInferredSet = e.getEvaluation(testingImageVector)
  
  # Getting MSE loss for testing set
- squaredMeanError = 0.0
- for i, res in enumerate(testingInferredVector):
-  sol = testingImageVector[i][0]
-  for j, s in enumerate(sol):
-   diff = res[j] - s
-   squaredMeanError += diff * diff 
- squaredMeanError = squaredMeanError / (float(testingBatchSize) * 2.0)
- print('[Korali] Current Testing Loss:  ' + str(squaredMeanError))
+ # squaredMeanError = 0.0
+ # for i, res in enumerate(testingInferredVector):
+ #  sol = testingImageVector[i][0]
+ #  for j, s in enumerate(sol):
+ #   diff = res[j] - s
+ #   squaredMeanError += diff * diff 
+ # squaredMeanError = squaredMeanError / (float(testingBatchSize) * 2.0)
+ # print('[Korali] Current Testing Loss:  ' + str(squaredMeanError))
  
  # Adjusting learning rate via decay
  learningRate = learningRate * (1.0 / (1.0 + decay * (epoch+1)));

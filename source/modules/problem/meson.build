@@ -21,6 +21,7 @@ korali_source += module_source
 korali_config += module_config
 
 subdir('bayesian')
+subdir('design')
 subdir('hierarchical')
 subdir('integration')
 subdir('optimization')

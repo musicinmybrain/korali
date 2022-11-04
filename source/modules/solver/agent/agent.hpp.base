@@ -45,12 +45,12 @@ struct policy_t
   /**
    * @brief Contains the parameters that define the policy distribution used to produced the action.
    *        For continuous policies, it depends on the distribution selected.
-   *        For discrete policies, the q-values of every action and the temperature parameter for the softMax function.
+   *        For discrete policies, it contains the categorical probability of every action.
    */
   std::vector<float> distributionParameters;
 
   /**
-   * @brief [Discrete] Stores the index of the selected experience.
+   * @brief [Discrete] Stores the index of the selected experience
    */
   size_t actionIndex;
 
@@ -60,7 +60,12 @@ struct policy_t
   std::vector<float> actionProbabilities;
 
   /**
-   * @brief [Continuous] Stores the Unbounded Actions of the Squashed Normal Policy Distribution.
+   * @brief [Discrete] Flags the actions that are available at the current state.
+   */
+  std::vector<size_t> availableActions;
+
+  /**
+   * @brief [Continuous] Stores the Unbounded Actions of the Squashed Normal Policy Distribution
    */
   std::vector<float> unboundedAction;
 };
@@ -106,17 +111,17 @@ class __className__ : public __parentClassName__
   /**
    * @brief Stores the state of the experience
    */
-  cBuffer<std::vector<float>> _stateBuffer;
+  cBuffer<std::vector<std::vector<float>>> _stateBuffer;
 
   /**
    * @brief Stores the action taken by the agent
    */
-  cBuffer<std::vector<float>> _actionBuffer;
+  cBuffer<std::vector<std::vector<float>>> _actionBuffer;
 
   /**
    * @brief Stores the current sequence of states observed by the agent (limited to time sequence length defined by the user)
    */
-  cBuffer<std::vector<float>> _stateTimeSequence;
+  std::vector<cBuffer<std::vector<float>>> _stateTimeSequence;
 
   /**
    * @brief Episode that experience belongs to
@@ -131,27 +136,32 @@ class __className__ : public __parentClassName__
   /**
    * @brief Contains the latest calculation of the experience's importance weight
    */
-  cBuffer<float> _importanceWeightBuffer;
+  cBuffer<std::vector<float>> _importanceWeightBuffer;
 
   /**
-   * @brief Contains the latest calculation of the experience's truncated importance weight
+   * @brief Contains the latest calculation of the experience's truncated importance weight (for cache optimzed update of retV in updateExperienceMetadata)
    */
-  cBuffer<float> _truncatedImportanceWeightBuffer;
+  cBuffer<float> _truncatedImportanceWeightBufferContiguous;
+
+  /**
+   * @brief Contains the latest calculation of the product of the product of the experience's importance weights
+   */
+  cBuffer<float> _productImportanceWeightBuffer;
 
   /**
    * @brief Contains the most current policy information given the experience state
    */
-  cBuffer<policy_t> _curPolicyBuffer;
+  cBuffer<std::vector<policy_t>> _curPolicyBuffer;
 
   /**
    * @brief Contains the policy information produced at the moment of the action was taken
    */
-  cBuffer<policy_t> _expPolicyBuffer;
+  cBuffer<std::vector<policy_t>> _expPolicyBuffer;
 
   /**
    * @brief Indicates whether the experience is on policy, given the specified off-policiness criteria
    */
-  cBuffer<bool> _isOnPolicyBuffer;
+  cBuffer<std::vector<char>> _isOnPolicyBuffer;
 
   /**
    * @brief Specifies whether the experience is terminal (truncated or normal) or not.
@@ -159,34 +169,34 @@ class __className__ : public __parentClassName__
   cBuffer<termination_t> _terminationBuffer;
 
   /**
-   * @brief Contains the result of the retrace (Vtbc) function for the currrent experience
+   * @brief Contains the result of the retrace (Vtbc) function for the currrent experience (for cache optimzed update of retV in updateExperienceMetadata)
    */
-  cBuffer<float> _retraceValueBuffer;
+  cBuffer<float> _retraceValueBufferContiguous;
 
   /**
    * @brief If this is a truncated terminal experience, this contains the state value for that state
    */
-  cBuffer<float> _truncatedStateValueBuffer;
+  cBuffer<std::vector<float>> _truncatedStateValueBuffer;
 
   /**
    * @brief If this is a truncated terminal experience, the truncated state is also saved here
    */
-  cBuffer<std::vector<float>> _truncatedStateBuffer;
+  cBuffer<std::vector<std::vector<float>>> _truncatedStateBuffer;
 
   /**
-   * @brief Contains the environment id of every experience
+   * @brief Contains the rewards of every experience (for cache optimzed update of retV in updateExperienceMetadata)
    */
-  cBuffer<size_t> _environmentIdBuffer;
+  cBuffer<float> _rewardBufferContiguous;
 
   /**
-   * @brief Contains the rewards of every experience
+   * @brief Contains the state value evaluation for every experience (for cache optimzed update of retV in updateExperienceMetadata)
    */
-  cBuffer<float> _rewardBuffer;
+  cBuffer<float> _stateValueBufferContiguous;
 
   /**
-   * @brief Contains the state value evaluation for every experience
+   * @brief Stores the priority annealing rate.
    */
-  cBuffer<float> _stateValueBuffer;
+  float _priorityAnnealingRate;
 
   /**
    * @brief Stores the importance weight annealing factor.
@@ -307,6 +317,12 @@ class __className__ : public __parentClassName__
   void normalizeStateNeuralNetwork(NeuralNetwork *neuralNetwork, size_t miniBatchSize, size_t normalizationSteps);
 
   /**
+   * @brief Average rewards across agents per experience in multi agent framework.
+   * @param message A json object containing all experiences from all agents.
+   */
+  void averageRewardsAcrossAgents(knlohmann::json &message);
+
+  /**
    * @brief Additional post-processing of episode after episode terminated.
    * @param episode A vector of experiences pertaining to the episode.
    */
@@ -314,17 +330,23 @@ class __className__ : public __parentClassName__
 
   /**
    * @brief Generates an experience mini batch from the replay memory
-   * @param miniBatchSize Size of the mini batch to create
-   * @return A vector with the indexes to the experiences in the mini batch
+   * @return A vector of pairs with the indexes to the experiences and agents in the mini batch
    */
-  std::vector<size_t> generateMiniBatch(size_t miniBatchSize);
+  std::vector<std::pair<size_t, size_t>> generateMiniBatch();
+
+  /**
+   * @brief Gets a vector of states corresponding of time sequence corresponding to the provided last experience index
+   * @param miniBatch Indexes to the latest experiences in a batch of sequences
+   * @return The time step vector of states
+   */
+  std::vector<std::vector<std::vector<float>>> getMiniBatchStateSequence(const std::vector<std::pair<size_t, size_t>> &miniBatch);
 
   /**
    * @brief Updates the state value, retrace, importance weight and other metadata for a given minibatch of experiences
    * @param miniBatch The mini batch of experience ids to update
    * @param policyData The policy to use to evaluate the experiences
    */
-  void updateExperienceMetadata(const std::vector<size_t> &miniBatch, const std::vector<policy_t> &policyData);
+  void updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<policy_t> &policyData);
 
   /**
    * @brief Resets time sequence within the agent, to forget past actions from other episodes
@@ -333,10 +355,19 @@ class __className__ : public __parentClassName__
 
   /**
    * @brief Function to pass a state time series through the NN and calculates the action probabilities, along with any additional information
-   * @param stateBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
+   * @param stateSequence The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
+   * @param policyIdx The index for the policy for which the state-value is computed
    * @return A JSON object containing the information produced by the policies given the current state series
    */
-  virtual std::vector<policy_t> runPolicy(const std::vector<std::vector<std::vector<float>>> &stateBatch) = 0;
+  virtual float calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx = 0) = 0;
+
+  /**
+   * @brief Function to pass a state time series through the NN and calculates the action probabilities, along with any additional information
+   * @param stateSequenceBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
+   * @param policy Vector with policy objects that is filled after forwarding the policy
+   * @param policyIdx The index for the policy for which the state-value is computed
+   */
+  virtual void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) = 0;
 
   /**
    * @brief Calculates the starting experience index of the time sequence for the selected experience
@@ -346,19 +377,12 @@ class __className__ : public __parentClassName__
   size_t getTimeSequenceStartExpId(size_t expId);
 
   /**
-   * @brief Gets a vector of states corresponding of time sequence corresponding to the provided last experience index
-   * @param miniBatch Indexes to the latest experiences in a batch of sequences
-   * @param includeAction Specifies whether to include the experience's action in the sequence
-   * @return The time step vector of states
-   */
-  std::vector<std::vector<std::vector<float>>> getMiniBatchStateSequence(const std::vector<size_t> &miniBatch, const bool includeAction = false);
-
-  /**
    * @brief Gets a vector of states corresponding of time sequence corresponding to the provided second-to-last experience index for which a truncated state exists
    * @param expId The index of the second-to-latest experience in the sequence
+   * @param agentId The index of the agent
    * @return The time step vector of states, including the truncated state
    */
-  std::vector<std::vector<float>> getTruncatedStateSequence(size_t expId);
+  std::vector<std::vector<float>> getTruncatedStateSequence(size_t expId, size_t agentId);
 
   /**
    * @brief Calculates importance weight of current action from old and new policies
@@ -402,16 +426,15 @@ class __className__ : public __parentClassName__
 
   /**
    * @brief Rescales a given reward by the square root of the sum of squarred rewards
-   * @param environmentId The id of the environment to which this reward belongs
    * @param reward the input reward to rescale
    * @return The normalized reward
    */
-  inline float getScaledReward(const size_t environmentId, const float reward)
+  inline float getScaledReward(const float reward)
   {
-    float rescaledReward = reward / _rewardRescalingSigma[environmentId];
+    float rescaledReward = reward / _rewardRescalingSigma;
 
     if (std::isfinite(rescaledReward) == false)
-      KORALI_LOG_ERROR("Scaled reward for environment %lu is non finite: %f  (Sigma: %f)\n", environmentId, rescaledReward, _rewardRescalingSigma[environmentId]);
+      KORALI_LOG_ERROR("Scaled reward is non finite: %f  (Sigma: %f)\n", rescaledReward, _rewardRescalingSigma);
 
     return rescaledReward;
   }

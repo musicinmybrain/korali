@@ -4,7 +4,6 @@
 #BSUB -o vracer-%J.out
 #BSUB -e vracer-%J.err
 #BSUB -n 8
-#BSUB -N wadaniel@ethz.ch
 
 export OMP_NUM_THREADS=8
 pushd .
@@ -16,7 +15,6 @@ module load gcc/8.2.0 python/3.9.9 openmpi/4.0.2 gsl/2.6
 module load git-lfs
 
 RUN=1
-#ENV="Hopper-v4"
 ENV="HalfCheetah-v4"
 
 python3 run-vracer.py --env ${ENV} --run ${RUN}

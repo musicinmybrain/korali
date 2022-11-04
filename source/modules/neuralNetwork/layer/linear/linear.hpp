@@ -185,7 +185,7 @@ class Linear : public Layer
   void createBackwardPipeline() override;
   void forwardData(const size_t t) override;
 
-  void setHyperparameters(float *hyperparameters) override;
+  void setHyperparameters(const float *hyperparameters) override;
   void getHyperparameters(float *hyperparameters) override;
   void getHyperparameterGradients(float *gradient) override;
   void backwardData(const size_t t) override;

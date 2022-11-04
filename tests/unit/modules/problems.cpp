@@ -233,7 +233,7 @@ namespace
   problemJs["Type"] = "Supervised Learning";
   problemJs["Max Timesteps"] = 1;
   problemJs["Training Batch Size"] = 1;
-  problemJs["Inference Batch Size"] = 1;
+  problemJs["Testing Batch Size"] = 1;
 
   problemJs["Input"]["Data"] = std::vector<std::vector<std::vector<float>>>({{{0.0}}});
   problemJs["Input"]["Size"] = 1;
@@ -299,17 +299,17 @@ namespace
 
   problemJs = baseProbJs;
   experimentJs = baseExpJs;
-  problemJs.erase("Inference Batch Size");
+  problemJs.erase("Testing Batch Size");
   ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
 
   problemJs = baseProbJs;
   experimentJs = baseExpJs;
-  problemJs["Inference Batch Size"] = "Not a Number";
+  problemJs["Testing Batch Size"] = "Not a Number";
   ASSERT_ANY_THROW(pObj->setConfiguration(problemJs));
 
   problemJs = baseProbJs;
   experimentJs = baseExpJs;
-  problemJs["Inference Batch Size"] = 1;
+  problemJs["Testing Batch Size"] = 1;
   ASSERT_NO_THROW(pObj->setConfiguration(problemJs));
 
   problemJs = baseProbJs;

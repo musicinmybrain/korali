@@ -13,8 +13,4 @@ r = call(["python3", "-m", "korali.cxx", "--libs"])
 if r!=0:
   exit(r)
 
-r = call(["python3", "-m", "korali.cxx", "--help"])
-if r!=0:
-  exit(r)
-
 exit(0)

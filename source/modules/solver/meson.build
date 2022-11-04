@@ -22,6 +22,7 @@ korali_config += module_config
 
 subdir('agent')
 subdir('deepSupervisor')
+subdir('designer')
 subdir('executor')
 subdir('integrator')
 subdir('optimizer')

@@ -17,9 +17,13 @@ void Continuous::initializeAgent()
   // Getting continuous problem pointer
   _problem = dynamic_cast<problem::reinforcementLearning::Continuous *>(_k->_problem);
 
+  // Only relevant for discrete
+  _problem->_actionCount = 0;
+
   // Obtaining action shift and scales for bounded distributions
   _actionShifts.resize(_problem->_actionVectorSize);
   _actionScales.resize(_problem->_actionVectorSize);
+
   for (size_t i = 0; i < _problem->_actionVectorSize; i++)
   {
     // For bounded distributions, infinite bounds should result in an error message
@@ -41,7 +45,6 @@ void Continuous::initializeAgent()
   {
     _policyParameterCount = 2 * _problem->_actionVectorSize; // Mus and Sigmas
 
-    // Allocating space for the required transformations
     _policyParameterTransformationMasks.resize(_policyParameterCount);
     _policyParameterScaling.resize(_policyParameterCount);
     _policyParameterShifting.resize(_policyParameterCount);
@@ -56,22 +59,20 @@ void Continuous::initializeAgent()
       if (sigma <= 0.0f) KORALI_LOG_ERROR("Provided initial noise (%f) for action variable %lu is not defined or negative.\n", sigma, varIdx);
 
       // Identity mask for Means
+      _policyParameterTransformationMasks[i] = "Identity";
       _policyParameterScaling[i] = 1.0; //_actionScales[i];
       _policyParameterShifting[i] = _actionShifts[i];
-      _policyParameterTransformationMasks[i] = "Identity";
 
       // Softplus mask for Sigmas
+      _policyParameterTransformationMasks[_problem->_actionVectorSize + i] = "Softplus"; // f(x) = 0.5 * (x + std::sqrt(1. + x * x));
       _policyParameterScaling[_problem->_actionVectorSize + i] = 2.0f * sigma;
       _policyParameterShifting[_problem->_actionVectorSize + i] = 0.0f;
-      _policyParameterTransformationMasks[_problem->_actionVectorSize + i] = "Softplus"; // 0.5 * (x + sqrt(1 + x*x))
     }
   }
 
   if (_policyDistribution == "Beta")
   {
     _policyParameterCount = 2 * _problem->_actionVectorSize; // Mu and Variance
-
-    // Allocating space for the required transformations
     _policyParameterTransformationMasks.resize(_policyParameterCount);
     _policyParameterScaling.resize(_policyParameterCount);
     _policyParameterShifting.resize(_policyParameterCount);
@@ -101,42 +102,53 @@ void Continuous::initializeAgent()
 void Continuous::getAction(korali::Sample &sample)
 {
   // Get action for all the agents in the environment
-  for (size_t i = 0; i < sample["State"].size(); i++)
+  for (size_t i = 0; i < _problem->_agentsPerEnvironment; i++)
   {
     // Getting current state
+
     auto state = sample["State"][i];
 
     // Adding state to the state time sequence
-    _stateTimeSequence.add(state);
+    _stateTimeSequence[i].add(state);
 
     // Storage for the action to select
     std::vector<float> action(_problem->_actionVectorSize);
 
     // Forward state sequence to get the Gaussian means and sigmas from policy
-    auto policy = runPolicy({_stateTimeSequence.getVector()})[0];
+    // in case of multiple polices it runs the i-th policy otherwise standard
+    std::vector<policy_t> policy;
+    if (_problem->_policiesPerEnvironment == 1)
+      runPolicy({_stateTimeSequence[i].getVector()}, policy);
+    else
+      runPolicy({_stateTimeSequence[i].getVector()}, policy, i);
 
     /*****************************************************************************
      * During Training we select action according to policy's probability
      * distribution
      ****************************************************************************/
 
-    if (sample["Mode"] == "Training") action = generateTrainingAction(policy);
+    if (sample["Mode"] == "Training") action = generateTrainingAction(policy[0]);
 
     /*****************************************************************************
-     * During testing, we select the means (point of highest density) for all
+     * During testing, we select the modes for all
      * elements of the action vector
      ****************************************************************************/
 
-    if (sample["Mode"] == "Testing") action = generateTestingAction(policy);
+    if (sample["Mode"] == "Testing") action = generateTestingAction(policy[0]);
 
     /*****************************************************************************
      * Storing the action and its policy
      ****************************************************************************/
 
-    sample["Policy"][i]["Distribution Parameters"] = policy.distributionParameters;
-    sample["Policy"][i]["State Value"] = policy.stateValue;
-    sample["Policy"][i]["Unbounded Action"] = policy.unboundedAction;
+    // Check action
+    for (size_t j = 0; j < _problem->_actionVectorSize; j++)
+      if (std::isfinite(action[j]) == false) KORALI_LOG_ERROR("Agent %lu action %lu returned an invalid value: %f\n", i, j, action[j]);
+
+    // Write action to sample
     sample["Action"][i] = action;
+    sample["Policy"]["State Value"][i] = policy[0].stateValue;
+    sample["Policy"]["Unbounded Action"][i] = policy[0].unboundedAction;
+    sample["Policy"]["Distribution Parameters"][i] = policy[0].distributionParameters;
   }
 }
 

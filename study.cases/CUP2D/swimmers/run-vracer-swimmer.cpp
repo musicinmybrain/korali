@@ -12,17 +12,24 @@ int main(int argc, char *argv[])
     exit(-1);
   }
 
-  // Storing command-line arguments
+  // retreiving number of task, agents, and ranks
+  int task    = atoi(argv[argc-5]);
+  int nAgents = atoi(argv[argc-3]);
+  int nRanks  = atoi(argv[argc-1]);
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  if (rank == 0)
+	  std::cout << "Running task : " << task << " with nAgents=" << nAgents << std::endl;
+
+  // Storing parameters for environment
   _argc = argc;
   _argv = argv;
-
-  // retreiving number of agents
-  int nAgents = atoi(argv[argc-1]);
 
   // Getting number of workers
   int N = 1;
   MPI_Comm_size(MPI_COMM_WORLD, &N);
   N = N - 1; // Minus one for Korali's engine
+  N = (int)(N / nRanks); // Divided by the ranks per worker
 
   // Setting results path
   std::string trainingResultsPath = "_trainingResults/";
@@ -35,30 +42,33 @@ int main(int argc, char *argv[])
   // Check if existing results are there and continuing them
   auto found = e.loadState(trainingResultsPath + std::string("/latest"));
   if (found == true){
-    printf("[Korali] Continuing execution from previous run...\n");
+    // printf("[Korali] Continuing execution from previous run...\n");
     // Hack to enable execution after Testing.
-    e["Solver"]["Termination Criteria"]["Max Generations"] = e["Current Generation"].get<int>() + 10000;
+    e["Solver"]["Termination Criteria"]["Max Generations"] = std::numeric_limits<int>::max();
   }
 
   // Configuring Experiment
   e["Problem"]["Environment Function"] = &runEnvironment;
   e["Problem"]["Agents Per Environment"] = nAgents;
-  #ifdef MULTITASK
-  e["Problem"]["Environment Count"] = 3;
+  // e["Problem"]["Policies Per Environment"] = nAgents;
+
+  #if 0
+  if( task == -1 )
+    e["Problem"]["Environment Count"] = 2;
   #endif
-  e["Problem"]["Training Reward Threshold"] = 100.0;
-  e["Problem"]["Policy Testing Episodes"] = 5;
-  // e["Problem"]["Actions Between Policy Updates"] = 1;
 
   // Setting results path and dumping frequency in CUP
   e["Problem"]["Custom Settings"]["Dump Frequency"] = 0.0;
   e["Problem"]["Custom Settings"]["Dump Path"] = trainingResultsPath;
+  // e["Problem"]["Actions Between Policy Updates"] = 1;
 
   // Setting up the state variables
-  #ifdef NOSENSOR
   size_t numStates = 10;
-  #else
-  size_t numStates = 16;
+  #if defined(STEFANS_SENSORS_STATE)
+  numStates = 16;
+  #endif
+  #if  defined(STEFANS_NEIGHBOUR_STATE)
+  numStates = 22;
   #endif
 
   #ifdef ID
@@ -89,11 +99,12 @@ int main(int argc, char *argv[])
   e["Solver"]["Type"] = "Agent / Continuous / VRACER";
   e["Solver"]["Mode"] = "Training";
   e["Solver"]["Episodes Per Generation"] = 1;
-  e["Solver"]["Concurrent Environments"] = N;
-  e["Solver"]["Experiences Between Policy Updates"] = nAgents;
+  e["Solver"]["Concurrent Workers"] = N;
+  e["Solver"]["Experiences Between Policy Updates"] = 1;
   e["Solver"]["Learning Rate"] = 1e-4;
   e["Solver"]["Discount Factor"] = 0.95;
   e["Solver"]["Mini Batch"]["Size"] =  128;
+  // e["Solver"]["Multi Agent Relationship"] = "Competition";
 
   /// Defining the configuration of replay memory
   e["Solver"]["Experience Replay"]["Start Size"] = 1024;
@@ -105,7 +116,7 @@ int main(int argc, char *argv[])
 
   //// Defining Policy distribution and scaling parameters
   e["Solver"]["Policy"]["Distribution"] = "Clipped Normal";
-  e["Solver"]["State Rescaling"]["Enabled"] = true;
+  // e["Solver"]["State Rescaling"]["Enabled"] = true;
   e["Solver"]["Reward"]["Rescaling"]["Enabled"] = true;
 
   //// Defining Neural Network
@@ -128,10 +139,10 @@ int main(int argc, char *argv[])
   e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tanh";
 
   ////// Defining Termination Criteria
-  e["Solver"]["Termination Criteria"]["Max Experiences"] = nAgents*5e5;
+  e["Solver"]["Termination Criteria"]["Max Experiences"] = 5e5;
 
   ////// Setting Korali output configuration
-  e["Console Output"]["Verbosity"] = "Detailed";
+  e["Console Output"]["Verbosity"] = "Normal";
   e["File Output"]["Enabled"] = true;
   e["File Output"]["Frequency"] = 1;
   e["File Output"]["Use Multiple Files"] = false;
@@ -147,6 +158,7 @@ int main(int argc, char *argv[])
 
   // Configuring conduit / communicator
   k["Conduit"]["Type"] = "Distributed";
+  k["Conduit"]["Ranks Per Worker"] = nRanks;
   korali::setKoraliMPIComm(MPI_COMM_WORLD);
 
   // ..and run

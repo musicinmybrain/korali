@@ -21,6 +21,8 @@ void Discrete::initialize()
   if (_possibleActions.empty())
     KORALI_LOG_ERROR("No possible actions have been defined for the discrete RL problem (empty set detected).\n");
 
+  _actionCount = _possibleActions.size();
+
   for (size_t i = 0; i < _possibleActions.size(); i++)
     if (_possibleActions[i].size() != _actionVectorSize)
       KORALI_LOG_ERROR("For possible action %lu, incorrect vector size provided. Expected: %lu, Provided: %lu.\n", i, _actionVectorSize, _possibleActions[i].size());

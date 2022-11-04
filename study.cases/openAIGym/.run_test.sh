@@ -1,46 +1,15 @@
 #!/bin/bash
+exit #TODO: reinstantiate test (DW 25.10.2023)
 
-###### Check if necessary python modules are installed ######
+# Install openAI gym
 
-python3 -m pip install gym
-exit_code=$?
-
-./install_deps.sh
-exit_code=$(( $exit_code || $? ))
-
-##### Deleting Previous Results 
-
-echo "  + Deleting previous results..."
-rm -rf _result*
-exit_code=$(( $exit_code || $? ))
-
-##### Creating test files
- 
-echo "  + Creating test files..."
-
-rm -rf __test-*
-exit_code=$(( $exit_code || $? ))
-
-for file in *.py
-do
- sed -e 's%\k.run(e)%e["Solver"]["Termination Criteria"]["Max Generations"] = 20; k.run(e)%g' ${file} > __test-${file}
- exit_code=$(( $exit_code || $? ))
-done
+python3 -m pip install gym[mujoco]
+python3 -m pip install cffi
 
 ##### Running Test
 
-file="__test-run-vracer.py"
+# delete old test
+rm -rf _result_vracer_HalfCheetah-v4_-1/
+
 echo "Running ${file} ..."
-#OMP_NUM_THREADS=4 python3 ${file} --env AntBulletEnv-v0
-exit_code=$(( $exit_code || $? ))
-
-#file="__test-genMovie.py"
-#echo "Running ${file} ..."
-#OMP_NUM_THREADS=4 python3 ${file} --env AntBulletEnv-v0 --input _result_vracer_AntBulletEnv-v0 --output movie; check_result
-
-##### Deleting Tests
-
-rm -rf __test-*; 
-exit_code=$(( $exit_code || $? ))
-  
-  
+python3 run-vracer.py --env HalfCheetah-v4 --exp 1000 --run -1

@@ -3,3 +3,4 @@ MUJOCO_LOG.TXT
 _movie
 _results
 _model/pyBulletEnvironments/
+_jobs/run.sh
