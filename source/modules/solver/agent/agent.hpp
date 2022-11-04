@@ -801,7 +801,7 @@ class Agent : public Solver
 
   /**
    * @brief Get Sample from Posterior for Bayesian RL
-   * @param Index of policy for which sample is computed
+   * @param policyIdx Index of policy for which sample is computed
    * @return The hyperparameter sample from the posterior
    */
   std::vector<float> samplePosterior(const size_t policyIdx);
