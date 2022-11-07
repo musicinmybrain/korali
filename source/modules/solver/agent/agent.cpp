@@ -106,10 +106,12 @@ void Agent::initialize()
     /* Initializing REFER information */
 
     // If cutoff scale is not defined, use a heuristic value [defaults to 4.0]
-    if (_experienceReplayOffPolicyCutoffScale < 0.0f)
+    if (_experienceReplayOffPolicyCutoffScale <= 0.0f)
       KORALI_LOG_ERROR("Experience Replay Cutoff Scale must be larger 0.0");
     _experienceReplayOffPolicyCount.resize(numAgents, 0);
     _experienceReplayOffPolicyRatio.resize(numAgents, 0.0f);
+    if (_learningRate <= 0.0f)
+      KORALI_LOG_ERROR("Learning rate must be larger 0.0");
     _currentLearningRate = _learningRate;
 
     _experienceReplayOffPolicyCurrentCutoff = _experienceReplayOffPolicyCutoffScale;
@@ -409,7 +411,7 @@ void Agent::attendWorker(size_t workerId)
       KORALI_WAIT(_workers[workerId]);
 
       // Getting the training reward of the latest episodes
-      _trainingLastReward = _workers[workerId]["Training Rewards"].get<std::vector<float>>();
+      _trainingLastReward = KORALI_GET(std::vector<float>, _workers[workerId], "Training Rewards");
 
       // Keeping training statistics. Updating if exceeded best training policy so far.
       for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
@@ -428,9 +430,9 @@ void Agent::attendWorker(size_t workerId)
       if (_workers[workerId]["Tested Policy"] == true)
       {
         _testingCandidateCount++;
-        _testingBestReward = _workers[workerId]["Best Testing Reward"].get<float>();
-        _testingWorstReward = _workers[workerId]["Worst Testing Reward"].get<float>();
-        _testingAverageReward = _workers[workerId]["Average Testing Reward"].get<float>();
+        _testingBestReward = KORALI_GET(float, _workers[workerId], "Best Testing Reward");
+        _testingWorstReward = KORALI_GET(float, _workers[workerId], "Worst Testing Reward");
+        _testingAverageReward = KORALI_GET(float, _workers[workerId], "Average Testing Reward");
         _testingAverageRewardHistory.push_back(_testingAverageReward);
 
         // If the average testing reward is better than the previous best, replace it
@@ -445,12 +447,12 @@ void Agent::attendWorker(size_t workerId)
       }
 
       // Obtaining profiling information
-      _sessionWorkerComputationTime += _workers[workerId]["Computation Time"].get<double>();
-      _sessionWorkerCommunicationTime += _workers[workerId]["Communication Time"].get<double>();
-      _sessionPolicyEvaluationTime += _workers[workerId]["Policy Evaluation Time"].get<double>();
-      _generationWorkerComputationTime += _workers[workerId]["Computation Time"].get<double>();
-      _generationWorkerCommunicationTime += _workers[workerId]["Communication Time"].get<double>();
-      _generationPolicyEvaluationTime += _workers[workerId]["Policy Evaluation Time"].get<double>();
+      _sessionWorkerComputationTime += KORALI_GET(double, _workers[workerId], "Computation Time");
+      _sessionWorkerCommunicationTime += KORALI_GET(double, _workers[workerId], "Communication Time");
+      _sessionPolicyEvaluationTime += KORALI_GET(double, _workers[workerId], "Policy Evaluation Time");
+      _generationWorkerComputationTime += KORALI_GET(double, _workers[workerId], "Computation Time");
+      _generationWorkerCommunicationTime += KORALI_GET(double, _workers[workerId], "Communication Time");
+      _generationPolicyEvaluationTime += KORALI_GET(double, _workers[workerId], "Policy Evaluation Time");
 
       // Set agent as finished
       _isWorkerRunning[workerId] = false;
@@ -1378,7 +1380,7 @@ void Agent::printGenerationAfter()
     if (_rewardRescalingEnabled)
       _k->_logger->logInfo("Normal", " + Reward Rescaling: N(0.0, %.3e)\n", _rewardRescalingSigma);
 
-    if (_testingBestEpisodeId > 0)
+    if (_problem->_testingFrequency > 0)
     {
       _k->_logger->logInfo("Normal", "Testing Statistics:\n");
       _k->_logger->logInfo("Normal", " + Best Average Reward: %f (%lu)\n", _testingBestAverageReward, _testingBestEpisodeId);

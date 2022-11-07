@@ -63,31 +63,31 @@ void __className__::initialize()
  */
 void __environmentWrapper()
 {
-  Sample *agent = __currentSample;
+  Sample *worker = __currentSample;
 
   // Setting and increasing agent's launch Id
-  (*agent)["Launch Id"] = _launchId++;
-  agent->run(__envFunctionId);
+  (*worker)["Launch Id"] = _launchId++;
+  worker->run(__envFunctionId);
 
   // If this is the leader rank within the worker group, check termination state
   if (_conduit->isWorkerLeadRank() != false)
   {
-    if ((*agent)["Termination"] == "Non Terminal") KORALI_LOG_ERROR("Environment function terminated, but agent termination status (success or truncated) was not set.\n");
+    if ((*worker)["Termination"] == "Non Terminal") KORALI_LOG_ERROR("Environment function terminated, but worker termination status (success or truncated) was not set.\n");
 
     bool terminationRecognized = false;
-    if ((*agent)["Termination"] == "Terminal") terminationRecognized = true;
-    if ((*agent)["Termination"] == "Truncated") terminationRecognized = true;
+    if ((*worker)["Termination"] == "Terminal") terminationRecognized = true;
+    if ((*worker)["Termination"] == "Truncated") terminationRecognized = true;
 
-    if (terminationRecognized == false) KORALI_LOG_ERROR("Environment function terminated, but agent termination status (%s) is neither 'Terminal' nor 'Truncated'.\n", (*agent)["Termination"].get<std::string>().c_str());
+    if (terminationRecognized == false) KORALI_LOG_ERROR("Environment function terminated, but worker termination status (%s) is neither 'Terminal' nor 'Truncated'.\n", (*worker)["Termination"].get<std::string>().c_str());
   }
 
   // Returning to worker context
-  co_switch(agent->_workerThread);
+  co_switch(worker->_workerThread);
 
-  KORALI_LOG_ERROR("Resuming a finished agent\n");
+  KORALI_LOG_ERROR("Resuming a finished worker\n");
 }
 
-void __className__::runTrainingEpisode(Sample &agent)
+void __className__::runTrainingEpisode(Sample &worker)
 {
   // Profiling information - Computation and communication time taken by the agent
   _agentPolicyEvaluationTime = 0.0;
@@ -95,13 +95,13 @@ void __className__::runTrainingEpisode(Sample &agent)
   _agentCommunicationTime = 0.0;
 
   // Initializing environment configuration
-  initializeEnvironment(agent);
+  initializeEnvironment(worker);
 
   // Counter for the total number of actions taken
   size_t actionCount = 0;
 
   // Setting mode to traing to add exploratory noise or random actions
-  agent["Mode"] = "Training";
+  worker["Mode"] = "Training";
 
   // Reserving message storage for sending back the episode
   knlohmann::json episode;
@@ -112,10 +112,10 @@ void __className__::runTrainingEpisode(Sample &agent)
   // Setting termination status of initial state (and the following ones) to non terminal.
   // The environment will change this at the last state, indicating whether the episodes was
   // "Success" or "Truncated".
-  agent["Termination"] = "Non Terminal";
+  worker["Termination"] = "Non Terminal";
 
   // Getting first state
-  runEnvironment(agent);
+  runEnvironment(worker);
 
   // If this is not the leader rank within the worker group, return immediately
   if (_k->_engine->_conduit->isWorkerLeadRank() == false)
@@ -125,73 +125,73 @@ void __className__::runTrainingEpisode(Sample &agent)
   }
 
   // Saving experiences
-  while (agent["Termination"] == "Non Terminal")
+  while (worker["Termination"] == "Non Terminal")
   {
     // Generating new action from the agent's policy
-    getAction(agent);
+    getAction(worker);
 
     // Store the current state in the experience
-    episode["Experiences"][actionCount]["State"] = agent["State"];
+    episode["Experiences"][actionCount]["State"] = worker["State"];
 
     // Storing the current action
-    episode["Experiences"][actionCount]["Action"] = agent["Action"];
+    episode["Experiences"][actionCount]["Action"] = worker["Action"];
 
     // Storing the experience's policy
-    episode["Experiences"][actionCount]["Policy"] = agent["Policy"];
+    episode["Experiences"][actionCount]["Policy"] = worker["Policy"];
 
     // If single agent, put action into a single vector
-    if (_agentsPerEnvironment == 1) agent["Action"] = agent["Action"][0].get<std::vector<float>>();
+    if (_agentsPerEnvironment == 1) worker["Action"] = worker["Action"][0].get<std::vector<float>>();
 
-    // Jumping back into the agent's environment
-    runEnvironment(agent);
+    // Jumping back into the worker's environment
+    runEnvironment(worker);
 
-    // In case of this being a single agent, rewert action format
+    // In case of this being a single agent, revert action format
     if (_agentsPerEnvironment == 1)
     {
-      auto action = KORALI_GET(std::vector<float>, agent, "Action");
-      agent._js.getJson().erase("Action");
-      agent["Action"][0] = action[0];
+      auto action = KORALI_GET(std::vector<float>, worker, "Action");
+      worker._js.getJson().erase("Action");
+      worker["Action"][0] = action;
     }
 
     // Storing experience's reward
-    episode["Experiences"][actionCount]["Reward"] = agent["Reward"];
+    episode["Experiences"][actionCount]["Reward"] = worker["Reward"];
 
     // Storing termination status
-    episode["Experiences"][actionCount]["Termination"] = agent["Termination"];
+    episode["Experiences"][actionCount]["Termination"] = worker["Termination"];
 
     // If the episode was truncated, then save the terminal state
-    if (agent["Termination"] == "Truncated")
+    if (worker["Termination"] == "Truncated")
     {
-      episode["Experiences"][actionCount]["Truncated State"] = agent["State"];
+      episode["Experiences"][actionCount]["Truncated State"] = worker["State"];
     }
 
     // Adding to cumulative training rewards
     for (size_t i = 0; i < _agentsPerEnvironment; i++)
-      trainingRewards[i] += agent["Reward"][i].get<float>();
+      trainingRewards[i] += worker["Reward"][i].get<float>();
 
     // Increasing counter for generated actions
     actionCount++;
 
     // Checking if we requested the given number of actions in between policy updates and it is not a terminal state
     if ((_actionsBetweenPolicyUpdates > 0) &&
-        (agent["Termination"] == "Non Terminal") &&
+        (worker["Termination"] == "Non Terminal") &&
         (actionCount % _actionsBetweenPolicyUpdates == 0))
     {
-      requestNewPolicy(agent);
+      requestNewPolicy(worker);
     }
   }
 
   // Setting cumulative reward
-  agent["Training Rewards"] = trainingRewards;
+  worker["Training Rewards"] = trainingRewards;
 
   // Finalizing Environment
   finalizeEnvironment();
 
   // Setting tested policy flag to false, unless we do testing
-  agent["Tested Policy"] = false;
+  worker["Tested Policy"] = false;
 
   // Get current "true" episode count
-  size_t episodeCount = agent["Sample Id"];
+  size_t episodeCount = worker["Sample Id"];
 
   // If the training reward of all the agents exceeds the threshold or meets the periodic conditions, then also run testing on it
   bool runTest = (_testingFrequency > 0) && (episodeCount % _testingFrequency == 0);
@@ -204,10 +204,10 @@ void __className__::runTrainingEpisode(Sample &agent)
 
     for (size_t i = 0; i < _policyTestingEpisodes; i++)
     {
-      runTestingEpisode(agent);
+      runTestingEpisode(worker);
 
       // Getting current testing reward
-      auto currentTestingReward = agent["Testing Reward"].get<float>();
+      auto currentTestingReward = KORALI_GET(float, worker, "Testing Reward");
 
       // Adding current testing reward to the average and keeping statistics
       averageTestingReward += currentTestingReward;
@@ -219,12 +219,12 @@ void __className__::runTrainingEpisode(Sample &agent)
     averageTestingReward /= (float)_policyTestingEpisodes;
 
     // Storing testing information
-    agent["Average Testing Reward"] = averageTestingReward;
-    agent["Best Testing Reward"] = bestTestingReward;
-    agent["Worst Testing Reward"] = worstTestingReward;
+    worker["Average Testing Reward"] = averageTestingReward;
+    worker["Best Testing Reward"] = bestTestingReward;
+    worker["Worst Testing Reward"] = worstTestingReward;
 
     // Indicate that the agent has been tested
-    agent["Tested Policy"] = true;
+    worker["Tested Policy"] = true;
   }
 
   // Sending last experience last (after testing)
@@ -232,31 +232,31 @@ void __className__::runTrainingEpisode(Sample &agent)
   // while the testing runs are being performed.
   knlohmann::json message;
   message["Action"] = "Send Episodes";
-  message["Sample Id"] = agent["Sample Id"];
+  message["Sample Id"] = worker["Sample Id"];
   message["Episodes"] = episode;
   KORALI_SEND_MSG_TO_ENGINE(message);
 
-  // Adding profiling information to agent
-  agent["Computation Time"] = _agentComputationTime;
-  agent["Communication Time"] = _agentCommunicationTime;
-  agent["Policy Evaluation Time"] = _agentPolicyEvaluationTime;
+  // Adding profiling information to worker
+  worker["Computation Time"] = _agentComputationTime;
+  worker["Communication Time"] = _agentCommunicationTime;
+  worker["Policy Evaluation Time"] = _agentPolicyEvaluationTime;
 }
 
-void __className__::runTestingEpisode(Sample &agent)
+void __className__::runTestingEpisode(Sample &worker)
 {
   std::vector<float> testingRewards(_agentsPerEnvironment, 0.0);
 
   // Initializing Environment
-  initializeEnvironment(agent);
+  initializeEnvironment(worker);
 
   // Setting mode to testing to prevent the addition of noise or random actions
-  agent["Mode"] = "Testing";
+  worker["Mode"] = "Testing";
 
   // Setting initial non terminal state
-  agent["Termination"] = "Non Terminal";
+  worker["Termination"] = "Non Terminal";
 
   // Getting first state
-  runEnvironment(agent);
+  runEnvironment(worker);
 
   // If this is not the leader rank within the worker group, return immediately
   if (_k->_engine->_conduit->isWorkerLeadRank() == false)
@@ -266,18 +266,26 @@ void __className__::runTestingEpisode(Sample &agent)
   }
 
   // Running environment using the last policy only
-  while (agent["Termination"] == "Non Terminal")
+  while (worker["Termination"] == "Non Terminal")
   {
-    getAction(agent);
+    getAction(worker);
 
     // If single agent, put action into a single vector
     // In case of this being a single agent, support returning action as only vector
-    if (_agentsPerEnvironment == 1) agent["Action"] = agent["Action"][0].get<std::vector<float>>();
+    if (_agentsPerEnvironment == 1) worker["Action"] = worker["Action"][0].get<std::vector<float>>();
 
-    runEnvironment(agent);
+    runEnvironment(worker);
+
+    // In case of this being a single agent, revert action format
+    if (_agentsPerEnvironment == 1)
+    {
+      auto action = KORALI_GET(std::vector<float>, worker, "Action");
+      worker._js.getJson().erase("Action");
+      worker["Action"][0] = action;
+    }
 
     for (size_t i = 0; i < _agentsPerEnvironment; i++)
-      testingRewards[i] += agent["Reward"][i].get<float>();
+      testingRewards[i] += worker["Reward"][i].get<float>();
   }
 
   // Calculating average reward between testing episodes
@@ -286,44 +294,44 @@ void __className__::runTestingEpisode(Sample &agent)
     rewardSum += testingRewards[i];
 
   // Storing the average cumulative reward among agents of the testing episode
-  agent["Testing Reward"] = rewardSum / _agentsPerEnvironment;
+  worker["Testing Reward"] = rewardSum / _agentsPerEnvironment;
 
   // Finalizing Environment
   finalizeEnvironment();
 }
 
-void __className__::initializeEnvironment(Sample &agent)
+void __className__::initializeEnvironment(Sample &worker)
 {
   // Getting RL-compatible solver
   _agent = dynamic_cast<solver::Agent *>(_k->_solver);
 
-  // Getting agent's conduit
+  // Getting worker's conduit
   _conduit = _agent->_k->_engine->_conduit;
 
   // First, we update the initial policy's hyperparameters
-  _agent->setPolicy(agent["Policy Hyperparameters"]);
+  _agent->setPolicy(worker["Policy Hyperparameters"]);
 
   // Then, we reset the state sequence for time-dependent learners
   _agent->resetTimeSequence();
 
   // Define state rescaling variables
-  _stateRescalingMeans = agent["State Rescaling"]["Means"].get<std::vector<std::vector<float>>>();
-  _stateRescalingSdevs = agent["State Rescaling"]["Standard Deviations"].get<std::vector<std::vector<float>>>();
+  _stateRescalingMeans = worker["State Rescaling"]["Means"].get<std::vector<std::vector<float>>>();
+  _stateRescalingSdevs = worker["State Rescaling"]["Standard Deviations"].get<std::vector<std::vector<float>>>();
 
   // Appending any user-defined settings
-  agent["Custom Settings"] = _customSettings;
+  worker["Custom Settings"] = _customSettings;
 
   // Creating agent coroutine
-  __currentSample = &agent;
+  __currentSample = &worker;
   __envFunctionId = _environmentFunction;
-  agent._workerThread = co_active();
+  worker._workerThread = co_active();
 
   // Creating coroutine
   _envThread = co_create(1 << 28, __environmentWrapper);
 
   // Initializing rewards
-  if (_agentsPerEnvironment == 1) agent["Reward"] = 0.0f;
-  if (_agentsPerEnvironment > 1) agent["Reward"] = std::vector<float>(_agentsPerEnvironment, 0.0f);
+  if (_agentsPerEnvironment == 1) worker["Reward"] = 0.0f;
+  if (_agentsPerEnvironment > 1) worker["Reward"] = std::vector<float>(_agentsPerEnvironment, 0.0f);
 }
 
 void __className__::finalizeEnvironment()
@@ -332,7 +340,7 @@ void __className__::finalizeEnvironment()
   co_delete(_envThread);
 }
 
-void __className__::requestNewPolicy(Sample &agent)
+void __className__::requestNewPolicy(Sample &worker)
 {
   auto t0 = std::chrono::steady_clock::now(); // Profiling
 
@@ -340,30 +348,30 @@ void __className__::requestNewPolicy(Sample &agent)
   knlohmann::json message;
 
   // Sending request to engine
-  message["Sample Id"] = agent["Sample Id"];
+  message["Sample Id"] = worker["Sample Id"];
   message["Action"] = "Request New Policy";
   KORALI_SEND_MSG_TO_ENGINE(message);
 
   // If requested new policy, wait for incoming message containing new hyperparameters
-  agent["Policy Hyperparameters"] = KORALI_RECV_MSG_FROM_ENGINE();
-  _agent->setPolicy(agent["Policy Hyperparameters"]);
+  worker["Policy Hyperparameters"] = KORALI_RECV_MSG_FROM_ENGINE();
+  _agent->setPolicy(worker["Policy Hyperparameters"]);
 
   auto t1 = std::chrono::steady_clock::now();                                                       // Profiling
   _agentCommunicationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count(); // Profiling
 }
 
-void __className__::getAction(Sample &agent)
+void __className__::getAction(Sample &worker)
 {
   // Generating new action from policy
   auto t0 = std::chrono::steady_clock::now(); // Profiling
 
-  _agent->getAction(agent);
+  _agent->getAction(worker);
 
   auto t1 = std::chrono::steady_clock::now();                                                          // Profiling
   _agentPolicyEvaluationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count(); // Profiling
 }
 
-void __className__::runEnvironment(Sample &agent)
+void __className__::runEnvironment(Sample &worker)
 {
   // Switching back to the environment's thread
   auto beginTime = std::chrono::steady_clock::now(); // Profiling
@@ -372,74 +380,74 @@ void __className__::runEnvironment(Sample &agent)
   auto endTime = std::chrono::steady_clock::now();                                                            // Profiling
   _agentComputationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
 
-  // In case of this being a single agent, preprocess state and reward if necessary
+  // In case of this being a single worker, preprocess state and reward if necessary
   if (_conduit->isWorkerLeadRank() == false) return;
 
   // In case of this being a single agent, support returning state as only vector
   if (_agentsPerEnvironment == 1)
   {
     // Support returning state as vector
-    auto state = KORALI_GET(std::vector<float>, agent, "State");
-    agent._js.getJson().erase("State");
-    agent["State"][0] = state;
+    auto state = KORALI_GET(std::vector<float>, worker, "State");
+    worker._js.getJson().erase("State");
+    worker["State"][0] = state;
 
     // Support returning reward as scalar
-    auto reward = KORALI_GET(float, agent, "Reward");
-    agent._js.getJson().erase("Reward");
-    agent["Reward"][0] = reward;
+    auto reward = KORALI_GET(float, worker, "Reward");
+    worker._js.getJson().erase("Reward");
+    worker["Reward"][0] = reward;
   }
 
   // Checking correct format of state
-  if (agent["State"].is_array() == false) KORALI_LOG_ERROR("Agent state variable returned by the environment is not a vector.\n");
-  if (agent["State"].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Agents state vector returned with the wrong size: %lu, expected: %lu.\n", agent["State"].size(), _agentsPerEnvironment);
+  if (worker["State"].is_array() == false) KORALI_LOG_ERROR("Agent state variable returned by the environment is not a vector.\n");
+  if (worker["State"].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Agents state vector returned with the wrong size: %lu, expected: %lu.\n", worker["State"].size(), _agentsPerEnvironment);
 
   // Sanity checks for state
   for (size_t i = 0; i < _agentsPerEnvironment; i++)
   {
-    if (agent["State"][i].is_array() == false) KORALI_LOG_ERROR("Agent state variable returned by the environment is not a vector.\n");
-    if (agent["State"][i].size() != _stateVectorSize) KORALI_LOG_ERROR("Agents state vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, agent["State"][i].size(), _stateVectorSize);
+    if (worker["State"][i].is_array() == false) KORALI_LOG_ERROR("Agent state variable returned by the environment is not a vector.\n");
+    if (worker["State"][i].size() != _stateVectorSize) KORALI_LOG_ERROR("Agents state vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["State"][i].size(), _stateVectorSize);
 
     for (size_t j = 0; j < _stateVectorSize; j++)
-      if (std::isfinite(agent["State"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu state variable %lu returned an invalid value: %f\n", i, j, agent["State"][i][j].get<float>());
+      if (std::isfinite(worker["State"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu state variable %lu returned an invalid value: %f\n", i, j, worker["State"][i][j].get<float>());
   }
 
   // Normalizing State
   for (size_t i = 0; i < _agentsPerEnvironment; i++)
   {
-    auto state = agent["State"][i].get<std::vector<float>>();
+    auto state = worker["State"][i].get<std::vector<float>>();
 
     // Scale the state
     for (size_t d = 0; d < _stateVectorSize; ++d)
       state[d] = (state[d] - _stateRescalingMeans[i][d]) / _stateRescalingSdevs[i][d];
 
-    // Re-storing state into agent
-    agent["State"][i] = state;
+    // Re-storing state into worker
+    worker["State"][i] = state;
   }
 
   // Checking correct format of reward
-  if (agent["Reward"].is_array() == false) KORALI_LOG_ERROR("Agent reward variable returned by the environment is not a vector.\n");
-  if (agent["Reward"].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Agents reward vector returned with the wrong size: %lu, expected: %lu.\n", agent["Reward"].size(), _agentsPerEnvironment);
+  if (worker["Reward"].is_array() == false) KORALI_LOG_ERROR("Agent reward variable returned by the environment is not a vector.\n");
+  if (worker["Reward"].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Agents reward vector returned with the wrong size: %lu, expected: %lu.\n", worker["Reward"].size(), _agentsPerEnvironment);
 
   // Sanity checks for reward
   for (size_t i = 0; i < _agentsPerEnvironment; i++)
-    if (std::isfinite(agent["Reward"][i].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu reward returned an invalid value: %f\n", i, agent["Reward"][i].get<float>());
+    if (std::isfinite(worker["Reward"][i].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu reward returned an invalid value: %f\n", i, worker["Reward"][i].get<float>());
 
   // If available actions not given, set all 1s
   std::vector<size_t> availableActions(_actionCount, 1);
-  if (not isDefined(agent._js.getJson(), "Available Actions"))
+  if (not isDefined(worker._js.getJson(), "Available Actions"))
   {
     for (size_t i = 0; i < _agentsPerEnvironment; i++)
     {
-      agent["Available Actions"][i] = availableActions;
+      worker["Available Actions"][i] = availableActions;
     }
   }
 
   // Check format of available action
-  if (agent["Available Actions"].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Available Actions vector returned with the wrong size: %lu, expected: %lu.\n", agent["Available Actions"].size(), _agentsPerEnvironment);
+  if (worker["Available Actions"].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Available Actions vector returned with the wrong size: %lu, expected: %lu.\n", worker["Available Actions"].size(), _agentsPerEnvironment);
 
   for (size_t i = 0; i < _agentsPerEnvironment; i++)
   {
-    if (agent["Available Actions"][i].size() != _actionCount) KORALI_LOG_ERROR("Available Actions vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, agent["Available Actions"][i].size(), _actionCount);
+    if (worker["Available Actions"][i].size() != _actionCount) KORALI_LOG_ERROR("Available Actions vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["Available Actions"][i].size(), _actionCount);
   }
 }
 
