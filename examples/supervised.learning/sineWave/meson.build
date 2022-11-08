@@ -48,6 +48,15 @@ test('supervised.learning.sineWave.fnn.adam', e,
       env: nomalloc
     )
 
+e = find_program('plot-loss.py', required: true)
+test('supervised.learning.sineWave.fnn.plot', e,
+      timeout : 3600,
+      suite: 'regression',
+      workdir: meson.current_source_dir(),
+      depends: python_extension,
+      env: nomalloc
+    )
+
 # e = find_program('run-rnn.py', required: true)
 # test('supervised.learning.sineWave.rnn.adabelief', e,
 #       args: [ '--optimizer', 'AdaBelief', '--learningRate', '0.001', '--maxGenerations', '200' ],
