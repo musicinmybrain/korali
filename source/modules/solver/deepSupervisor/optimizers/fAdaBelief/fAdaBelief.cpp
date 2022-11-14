@@ -91,7 +91,7 @@ void fAdaBelief::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "First Moment"))
  {
- try { _firstMoment = js["First Moment"].get<std::vector<double>>();
+ try { _firstMoment = js["First Moment"].get<std::vector<float>>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ fAdaBelief ] \n + Key:    ['First Moment']\n%s", e.what()); } 
    eraseValue(js, "First Moment");
@@ -99,7 +99,7 @@ void fAdaBelief::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Second Central Moment"))
  {
- try { _secondCentralMoment = js["Second Central Moment"].get<std::vector<double>>();
+ try { _secondCentralMoment = js["Second Central Moment"].get<std::vector<float>>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ fAdaBelief ] \n + Key:    ['Second Central Moment']\n%s", e.what()); } 
    eraseValue(js, "Second Central Moment");

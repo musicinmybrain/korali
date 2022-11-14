@@ -43,11 +43,11 @@ class fAdam : public fGradientBasedOptimizer
   /**
   * @brief [Internal Use] First moment of Gradient.
   */
-   std::vector<double> _firstMoment;
+   std::vector<float> _firstMoment;
   /**
   * @brief [Internal Use] Second moment of Gradient.
   */
-   std::vector<double> _secondMoment;
+   std::vector<float> _secondMoment;
   
  
   /**

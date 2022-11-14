@@ -288,7 +288,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     // Add noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
     if (_langevinDynamicsNoiseLevel > 0.0)
       for (size_t i = 0; i < 2 * _problem->_actionVectorSize + 1; i++)
-        gradientLoss[i] += std::sqrt(_langevinDynamicsNoiseLevel * _currentLearningRate) * _normalGenerator->getRandomNumber();
+        gradientLoss[i] -= std::sqrt(_langevinDynamicsNoiseLevel * 2 * _currentLearningRate) * _normalGenerator->getRandomNumber();
 
     // Set Gradient of Loss as Solution
     _criticPolicyProblem[policyIdx]->_solutionData[b] = gradientLoss;
