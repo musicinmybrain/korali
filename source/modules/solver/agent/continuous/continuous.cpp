@@ -126,6 +126,7 @@ void Continuous::getAction(korali::Sample &sample)
       size_t policyIdx = std::floor(x * (float)numPolicies);
       policyIdx = policyIdx == numPolicies ? numPolicies - 1 : policyIdx;
 
+      // If using Bayesian learning, sample posterior
       if (_bayesianLearning)
       {
         // Compute posterior sample
