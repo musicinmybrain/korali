@@ -57,7 +57,8 @@ def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservat
             returns = np.mean(returns, axis=0)
             returns = np.reshape(returns, (1,-1))
 
-        returns = np.reshape(returns, (numResults,-1))
+        if numResults == 1:
+            returns = np.reshape(returns, (1,-1))
 
         for _return in returns:
             # Load and save cumulative sum of observations
@@ -193,7 +194,7 @@ def parseResults( dir, numRuns ):
         for run in range(0,numRuns):
             configFile = p + '/latest'
             if numRuns > 1:
-                configFile = p + "/run{}".format(run+1) + '/latest'
+                configFile = p + "/run{:02d}".format(run+1) + '/latest'
             if (not os.path.isfile(configFile)):
                 print("[Korali] Error: Did not find any results in the {0} folder...".format(configFile))
                 exit(-1)
