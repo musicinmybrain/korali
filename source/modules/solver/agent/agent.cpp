@@ -111,17 +111,20 @@ void Agent::initialize()
   // Check configuration of Bayesian RL
   if (_bayesianLearning)
   {
-    if (_swag && _dropoutProbability)
+    if (_swag && (_dropoutProbability > 0.0))
       KORALI_LOG_ERROR("Choose either swag or dropout");
     if (_swag && _hmcEnabled)
       KORALI_LOG_ERROR("Choose either swag or hmc");
     if (_swag && (_langevinDynamicsNoiseLevel > 0.0))
       KORALI_LOG_ERROR("Choose either swag or langevin dynamics");
-    if (_dropoutProbability && _hmcEnabled)
+    if ((_dropoutProbability > 0.0) && _hmcEnabled)
       KORALI_LOG_ERROR("Choose either dropout or hmc");
-    if (_dropoutProbability && (_langevinDynamicsNoiseLevel > 0.0))
+    if ((_dropoutProbability > 0.0) && (_langevinDynamicsNoiseLevel > 0.0))
       KORALI_LOG_ERROR("Choose either dropout or langevin dynamics");
   }
+
+  if( (_bayesianLearning == false) && (_swag || (_dropoutProbability > 0.0) || _hmcEnabled || (_langevinDynamicsNoiseLevel > 0.0)) )
+    KORALI_LOG_ERROR("Bayesian Learning is disabled");
 
   // HMC only compatible with single policy
   if (_hmcEnabled && (_problem->_policiesPerEnvironment > 1))
@@ -129,7 +132,7 @@ void Agent::initialize()
 
   // HMC only compatible with SGD
   if (_hmcEnabled && (_neuralNetworkOptimizer != "SGD"))
-    KORALI_LOG_ERROR("[korali] WARNING: Using (%s) instead of the recommended SGD optimizer. Make sure that HMC is only used with an optimizer that has no momentum.\n", _neuralNetworkOptimizer.c_str());
+    KORALI_LOG_ERROR("[korali] Using (%s) instead of the recommended SGD optimizer. Make sure that HMC is only used with an optimizer that has no momentum.\n", _neuralNetworkOptimizer.c_str());
 
   /*********************************************************************
    * If initial generation, set initial agent configuration

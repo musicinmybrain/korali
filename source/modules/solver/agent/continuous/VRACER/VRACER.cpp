@@ -42,7 +42,7 @@ void VRACER::initializeAgent()
   // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
-    _criticPolicyExperiment[p]["Random Seed"] = _k->_randomSeed;
+    _criticPolicyExperiment[p]["Random Seed"] = _k->_randomSeed++;
 
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
     _criticPolicyExperiment[p]["Problem"]["Max Timesteps"] = _timeSequenceLength;
@@ -132,14 +132,14 @@ void VRACER::trainPolicy()
     }
 
     // Sample posterior to ensure consistency between training and testing
-    if (_bayesianLearning)
-    {
-      // Compute posterior sample
-      auto hyperparameters = samplePosterior(p);
+    // if (_dropoutProbability > 0.0)
+    // {
+    //   // Compute posterior sample
+    //   auto hyperparameters = samplePosterior(p);
 
-      // Set parameters in neural network and optimizer
-      _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
-    }
+    //   // Set parameters in neural network and optimizer
+    //   _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
+    // }
 
     // Forward NN
     std::vector<policy_t> policyInfo;

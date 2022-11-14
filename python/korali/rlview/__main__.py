@@ -126,22 +126,22 @@ def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservat
     if numResults == 1:
         if showCI > 0.0: # Plot median together with CI
             ax.plot(episodes, medianReturns[0], '-', linewidth=2.0, zorder=1, label=dir, color=color)
-            ax.fill_between(episodes, lowerCiReturns[0], upperCiReturns[0][:maxEpisodes], alpha=0.5)
+            ax.fill_between(episodes, lowerCiReturns[0], upperCiReturns[0][:maxEpisodes], alpha=0.5, color=color)
         else: # .. or mean with standard deviation
             ax.plot(episodes, meanReturns[0], '-', linewidth=2.0, zorder=1, label=dir, color=color)
-            ax.fill_between(episodes, meanReturns[0]-stdReturns[0], meanReturns[0]+stdReturns[0], alpha=0.2)
+            ax.fill_between(episodes, meanReturns[0]-stdReturns[0], meanReturns[0]+stdReturns[0], alpha=0.2, color=color)
         if showData:
-            ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=plt.gca().lines[-1].get_color())
+            ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=color)
     elif showAgents:
         for i in range(numResults):
             if showCI > 0.0:
                 ax.plot(episodes, medianReturns[i], '-', linewidth=2.0, zorder=1, label=dir, color=color)
-                ax.fill_between(episodes, lowerCiReturns[i], upperCiReturns[i], alpha=0.5)
+                ax.fill_between(episodes, lowerCiReturns[i], upperCiReturns[i], alpha=0.5, color=color)
             else:
                 ax.plot(episodes, meanReturns[i], '-', linewidth=2.0, zorder=1, label=dir, color=color)
-                ax.fill_between(episodes, meanReturns[i]-stdReturns[i], meanReturns[i]+stdReturns[i], alpha=0.5)
+                ax.fill_between(episodes, meanReturns[i]-stdReturns[i], meanReturns[i]+stdReturns[i], alpha=0.5, color=color)
             if showData:
-                ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=plt.gca().lines[-1].get_color())
+                ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=color)
     else:
         if showCI > 0.0: # Plot median over runs
             medianReturns = np.array(medianReturns)
@@ -157,8 +157,8 @@ def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservat
                 confIntervalLower.append( np.percentile(data, 50-50*showCI) )
                 confIntervalUpper.append( np.percentile(data, 50+50*showCI) )
 
-            ax.plot(episodes, median, '-', linewidth=2.0, zorder=1, label=dir)
-            ax.fill_between(episodes, confIntervalLower, confIntervalUpper, alpha=0.5)
+            ax.plot(episodes, median, '-', linewidth=2.0, zorder=1, label=dir, color=color)
+            ax.fill_between(episodes, confIntervalLower, confIntervalUpper, alpha=0.5, color=color)
         else: # .. or mean with standard deviation
             meanReturns = np.array(meanReturns)
 
@@ -174,11 +174,11 @@ def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservat
             std  = np.array(std)
 
             ax.plot(episodes, mean, '-', linewidth=2.0, zorder=1, label=dir, color=color)
-            ax.fill_between(episodes, mean-std, mean+std, alpha=0.5)
+            ax.fill_between(episodes, mean-std, mean+std, alpha=0.5, color=color)
 
         if showData:
             for i in range(len(returnsHistory)):
-                ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=plt.gca().lines[-1].get_color())
+                ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=color)
 
 ##################### Results parser
 
