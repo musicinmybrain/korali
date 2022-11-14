@@ -14,6 +14,7 @@ parser.add_argument('--lr', help='Learning Rate.', required=False, type=float, d
 parser.add_argument('--exp', help='Number of experiences to run.', required=False, type=int, default = 1000000)
 parser.add_argument('--run', help='Run tag.', required=False, type=int, default = 0)
 parser.add_argument('--test', help='Run policy evaluation.', required=False, action='store_true')
+parser.add_argument('--n', help='Number of trajectories.', required=False, type=int, default=100)
 args = parser.parse_args()
 print(args)
 
@@ -35,8 +36,8 @@ e.loadState(resultFolder + '/latest')
 
 initEnvironment(e, args.env, excludePos)
 
-e["Problem"]["Testing Frequency"] = 1
-e["Problem"]["Policy Testing Episodes"] = 10
+e["Problem"]["Testing Frequency"] = 10
+e["Problem"]["Policy Testing Episodes"] = 50
 
 ### Defining Agent Configuration 
 
@@ -92,7 +93,7 @@ e["File Output"]["Path"] = resultFolder
 
 ### Running Experiment
 if args.test:
-    e["Solver"]["Testing"]["Sample Ids"] = list(range(100))
+    e["Solver"]["Testing"]["Sample Ids"] = list(range(args.n))
     e["Problem"]["Custom Settings"]["Save State"] = "True"
     e["Problem"]["Custom Settings"]["File Name"] = f"observations_{args.env}.json"
  
