@@ -38,6 +38,8 @@ gsl_rng *Distribution::setRange(const std::string rangeString)
   if (_randomSeed == 0 || _k->_preserveRandomNumberGeneratorStates == false)
     _randomSeed = _k->_randomSeed++;
 
+  // printf("_name=%s, _randomSeed=%ld\n",_name.c_str(), _randomSeed);
+
   gsl_rng_set(rng, _randomSeed);
 
   void *state = gsl_rng_state(rng);

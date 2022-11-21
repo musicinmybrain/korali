@@ -76,7 +76,7 @@ void fSGD::getConfiguration(knlohmann::json& js)
 void fSGD::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{}";
+ std::string defaultString = "{\"Clipping Threshold\": 10000000.0}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  fGradientBasedOptimizer::applyModuleDefaults(js);
