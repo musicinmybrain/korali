@@ -131,8 +131,8 @@ void Agent::initialize()
     KORALI_LOG_ERROR("HMC only compatible with single policy!");
 
   // HMC only compatible with SGD
-  if (_hmcEnabled && (_neuralNetworkOptimizer != "SGD"))
-    KORALI_LOG_ERROR("[korali] Using (%s) instead of the recommended SGD optimizer. Make sure that HMC is only used with an optimizer that has no momentum.\n", _neuralNetworkOptimizer.c_str());
+  // if ( (_hmcEnabled || (_langevinDynamicsNoiseLevel > 0.0)) && (_neuralNetworkOptimizer != "SGD"))
+  //   _k->_logger->logWarning("Normal", "Using (%s) instead of SGD optimizer. Make sure that vanilla MCMC is only used with an optimizer that has no momentum.\n", _neuralNetworkOptimizer.c_str());
 
   /*********************************************************************
    * If initial generation, set initial agent configuration
@@ -1266,6 +1266,14 @@ std::vector<float> Agent::samplePosterior(const size_t policyIdx)
     }
   }
 
+  // Add noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
+  if (_langevinDynamicsNoiseLevel > 0.0)
+  {
+#pragma omp parallel for simd num_threads(_numberOfCPUs)
+    for (size_t n = 0; n < hyperparameterSample.size(); n++)
+      hyperparameterSample[n] += std::sqrt(_langevinDynamicsNoiseLevel * 2 * _currentLearningRate) * _normalGenerator->getRandomNumber();
+  }
+
   return hyperparameterSample;
 }
 
@@ -1496,9 +1504,9 @@ void Agent::deserializeExperienceReplay()
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
   // Loading database from file
-  _k->_logger->logInfo("Normal", "Loading previous run training state from file %s...\n", statePath.c_str());
+  _k->_logger->logInfo("Normal", "Loading experience replay from file %s...\n", statePath.c_str());
   if (loadJsonFromFile(stateJson, statePath.c_str()) == false)
-    KORALI_LOG_ERROR("Trying to resume training or test policy but could not find or deserialize agent's state from from file %s...\n", statePath.c_str());
+    KORALI_LOG_ERROR("Failed to deserialize agent's experience replay from file %s...\n", statePath.c_str());
 
   // Clearing existing database
   _stateBuffer.clear();
