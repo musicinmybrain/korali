@@ -7,7 +7,7 @@ oldEnv = parse_version(gym.__version__) < parse_version('0.26.0')
 from HumanoidWrapper import HumanoidWrapper
 from AntWrapper import AntWrapper
 
-def initEnvironment(e, envName, moviePath = ''):
+def initEnvironment(e, envName, seed, moviePath = ''):
 
  # Creating environment
 
@@ -27,6 +27,9 @@ def initEnvironment(e, envName, moviePath = ''):
  # Re-wrapping if saving a movie
  if (moviePath != ''):
   env = gym.wrappers.Monitor(env, moviePath, force=True)
+
+ # Seed environment
+ env.reset( seed = seed )
 
  ### Defining problem configuration for openAI Gym environments
  e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
@@ -65,10 +68,10 @@ def agent(s, env):
   printStep = False
 
  if oldEnv:
-  observation = env.reset( seed = 42 )
+  state = env.reset()
  else:
-  observation, _ = env.reset( seed = 42 )
- s["State"] = observation.tolist()
+  state, _ = env.reset()
+ s["State"] = state.tolist()
 
  step = 0
  done = False
@@ -82,13 +85,14 @@ def agent(s, env):
   # Getting new action
   s.update()
 
+  # Performing the action
+  action = s["Action"]
+  
   # Printing step information
   if (printStep):  print('[Korali] Frame ' + str(step), end = '')
   if (printStep):  print(' - State: ' + str(state) + ' - Action: ' + str(action))
 
-  # Performing the action
-  action = s["Action"]
-  
+  # Update state, reward
   if oldEnv:
    state, reward, done, _ = env.step(action)
   else:

@@ -10,11 +10,12 @@ from agent import *
 parser = argparse.ArgumentParser()
 parser.add_argument('--env', help='Specifies which environment to run.', required=True)
 parser.add_argument('--run', help='Run Number', required=False, type=int, default = 0)
+parser.add_argument('--optimizer', help='Optimizer', required=False, type=str, default = "Adam")
 
 parser.add_argument('--nPolicies', help='Number of Policies in Ensemble.', required=False, type=int, default = 1)
 
-parser.add_argument('--bBayesian', help='Boolean to decide whether we use Bayesian Learning.', required=False, type=bool, default = False)
-parser.add_argument('--nSGD', help='Number of Samples from Posterior that are stored.', required=False, type=int, default = 1)
+parser.add_argument('--bBayesian', help='Boolean to decide whether we use Bayesian Learning.', required=False, type=bool, default=True)
+parser.add_argument('--nSGD', help='Number of Samples from Posterior that are stored.', required=False, type=int, default = 5)
 parser.add_argument('--bSWAG', help='Boolean to decide whether we use SWAG.', required=False, type=int, default = 0)
 parser.add_argument('--langevin', help='Weighting of gradient noise for Langevin Dynamics.', required=False, type=float, default=0.0)
 parser.add_argument('--dropout', help='Dropout probability.', required=False, type=float, default=0.0)
@@ -34,14 +35,20 @@ e = korali.Experiment()
 resultFolder = 'run' + str(args.run) +'/'
 e.loadState(resultFolder + '/latest');
 
+### Fixing random seed for Korali
+
+e["Random Seed"] = 0xC0FEE
+
 ### Initializing openAI Gym environment
 
-initEnvironment(e, args.env)
+initEnvironment(e, args.env, int(e["Random Seed"]))
 
 ### Defining Agent Configuration 
 
 e["Solver"]["Type"] = "Agent / Continuous / VRACER"
 e["Solver"]["Mode"] = "Training"
+# e["Solver"]["Mode"] = "Testing"
+# e["Solver"]['Testing']['Sample Ids'] = [ 42 ]
 e["Solver"]["Episodes Per Generation"] = 10
 e["Solver"]["Experiences Between Policy Updates"] = 1
 e["Solver"]["Learning Rate"] = 1e-4
@@ -54,8 +61,13 @@ e["Solver"]["Mini Batch"]["Size"] = 256
 e["Problem"]["Policies Per Environment"] = args.nPolicies
 e["Problem"]["Ensemble Learning"] = args.nPolicies > 1
 
-# Posterior Sampling
-e["Solver"]["Bayesian Learning"] = args.nSGD > 1
+# Switch to enable / disable Bayesian learning (needed for all of the following options)
+e["Solver"]["Bayesian Learning"] = args.bBayesian
+
+# Enable Dropout (https://proceedings.mlr.press/v48/gal16.html)
+e["Solver"]["Dropout Probability"] = args.dropout
+
+# Set the number of samples that are used
 e["Solver"]["Number Of Samples"] = args.nSGD
 
 # Enable SWAG (https://arxiv.org/pdf/1902.02476.pdf)
@@ -63,9 +75,6 @@ e["Solver"]["swag"] = args.bSWAG
 
 # Enable Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
 e["Solver"]["Langevin Dynamics Noise Level"] = args.langevin
-
-# Enable Dropout (https://proceedings.mlr.press/v48/gal16.html)
-e["Solver"]["Dropout Probability"] = args.dropout
 
 # Enable Hamiltonian Monte Carlo (https://proceedings.mlr.press/v48/gal16.html)
 e["Solver"]["hmc"]["Mass"] = args.hmc
@@ -89,7 +98,7 @@ e["Solver"]["Reward"]["Rescaling"]["Enabled"] = True
 ### Configuring the neural network and its hidden layers
 
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
-e["Solver"]['Neural Network']['Optimizer'] = "Adam"
+e["Solver"]['Neural Network']['Optimizer'] = args.optimizer
 e["Solver"]["L2 Regularization"]["Enabled"] = False
 e["Solver"]["L2 Regularization"]["Importance"] = 0.0
 
@@ -107,12 +116,13 @@ e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Sof
 
 ### Setting file output configuration
 
-e["Solver"]["Termination Criteria"]["Max Experiences"] = 10e6
-e["Solver"]["Experience Replay"]["Serialize"] = False
+e["Solver"]["Termination Criteria"]["Max Experiences"] = 1e6
+e["Solver"]["Termination Criteria"]["Max Generations"] = 100
+e["Solver"]["Experience Replay"]["Serialize"] = True
 e["Console Output"]["Verbosity"] = "Detailed"
 e["File Output"]["Enabled"] = True
-e["File Output"]["Frequency"] = 1000
-# e["File Output"]["Use Multiple Files"] = False
+e["File Output"]["Frequency"] = 100
+e["File Output"]["Use Multiple Files"] = False
 e["File Output"]["Path"] = resultFolder
 
 ### Running Experiment
