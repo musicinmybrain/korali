@@ -35,6 +35,8 @@ def initEnvironment(e, envName, seed, moviePath = ''):
  e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
  e["Problem"]["Environment Function"] = lambda x : agent(x, env)
  e["Problem"]["Custom Settings"]["Print Step Information"] = "Disabled"
+ e["Problem"]["Testing Frequency"] = 20
+ e["Problem"]["Policy Testing Episodes"] = 10
 
  # Getting environment variable counts
  stateVariableCount = env.observation_space.shape[0]
