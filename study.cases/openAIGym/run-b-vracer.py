@@ -18,7 +18,7 @@ parser.add_argument('--nSGD', help='Number of Samples from Posterior that are st
 parser.add_argument('--bSWAG', help='Boolean to decide whether we use SWAG.', required=False, type=int, default = 0)
 parser.add_argument('--langevin', help='Weighting of gradient noise for Langevin Dynamics.', required=False, type=float, default=0.0)
 parser.add_argument('--dropout', help='Dropout probability.', required=False, type=float, default=0.0)
-parser.add_argument('--hmc', help='HMC Mass.', required=False, type=float, default=0.0)
+parser.add_argument('--hmc', help='HMC Number of Steps.', required=False, type=int, default=0)
 
 args = parser.parse_args()
 print(args)
@@ -31,8 +31,12 @@ e = korali.Experiment()
 
 ### Defining results folder and loading previous results, if any
 
-resultFolder = 'run' + str(args.run) +'/'
+resultFolder = '.'
 e.loadState(resultFolder + '/latest');
+
+### Set random seed
+
+e["Random Seed"] = 0xC0FEE
 
 ### Initializing openAI Gym environment
 
@@ -68,10 +72,10 @@ e["Solver"]["Langevin Dynamics Noise Level"] = args.langevin
 e["Solver"]["Dropout Probability"] = args.dropout
 
 # Enable Hamiltonian Monte Carlo (https://proceedings.mlr.press/v48/gal16.html)
-e["Solver"]["hmc"]["Mass"] = args.hmc
-e["Solver"]["hmc"]["Number Of Steps"] = 5
+e["Solver"]["hmc"]["Mass"] = 1.0
+e["Solver"]["hmc"]["Number Of Steps"] = args.hmc
 e["Solver"]["hmc"]["Step Size"] = 1e-4
-e["Solver"]["hmc"]["Enabled"] = args.hmc > 0.0
+e["Solver"]["hmc"]["Enabled"] = args.hmc > 0
 
 ### Setting Experience Replay and REFER settings
 
@@ -108,11 +112,11 @@ e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Sof
 ### Setting file output configuration
 
 e["Solver"]["Termination Criteria"]["Max Experiences"] = 10e6
-e["Solver"]["Experience Replay"]["Serialize"] = False
+e["Solver"]["Experience Replay"]["Serialize"] = True
 e["Console Output"]["Verbosity"] = "Detailed"
 e["File Output"]["Enabled"] = True
-e["File Output"]["Frequency"] = 1000
-# e["File Output"]["Use Multiple Files"] = False
+e["File Output"]["Frequency"] = 100
+e["File Output"]["Use Multiple Files"] = False
 e["File Output"]["Path"] = resultFolder
 
 ### Running Experiment
