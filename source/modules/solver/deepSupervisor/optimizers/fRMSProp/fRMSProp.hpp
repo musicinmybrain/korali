@@ -3,16 +3,15 @@
 */
 
 /** \file
-* @brief Header file for module: fAdaBelief.
+* @brief Header file for module: fRMSProp.
 */
 
-/** \dir solver/deepSupervisor/optimizers/fAdaBelief
-* @brief Contains code, documentation, and scripts for module: fAdaBelief.
+/** \dir solver/deepSupervisor/optimizers/fRMSProp
+* @brief Contains code, documentation, and scripts for module: fRMSProp.
 */
 
 #pragma once
 
-#include "modules/solver/deepSupervisor/optimizers/fAdam/fAdam.hpp"
 #include "modules/solver/deepSupervisor/optimizers/fGradientBasedOptimizer.hpp"
 
 namespace korali
@@ -20,35 +19,23 @@ namespace korali
 ;
 
 /**
-* @brief Class declaration for module: fAdaBelief.
+* @brief Class declaration for module: fRMSProp.
 */
-class fAdaBelief : public fGradientBasedOptimizer
+class fRMSProp : public fGradientBasedOptimizer
 {
   public: 
   /**
-  * @brief Term to guard agains numerical instability.
+  * @brief Decay Rate.
   */
-   float _beta1;
+   float _decay;
   /**
-  * @brief Term to guard agains numerical instability.
+  * @brief [Internal Use] Second moment of Gradient.
   */
-   float _beta2;
+   std::vector<float> _r;
   /**
-  * @brief [Internal Use] First running powers of beta_1^t.
+  * @brief [Internal Use] Scaled Gradient.
   */
-   float _beta1Pow;
-  /**
-  * @brief [Internal Use] Second running powers of beta_2^t.
-  */
-   float _beta2Pow;
-  /**
-  * @brief [Internal Use] First moment of Gradient.
-  */
-   std::vector<float> _firstMoment;
-  /**
-  * @brief [Internal Use] Second central moment.
-  */
-   std::vector<float> _secondCentralMoment;
+   std::vector<float> _v;
   
  
   /**

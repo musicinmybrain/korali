@@ -82,7 +82,7 @@ void fAdam::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "First Moment"))
  {
- try { _firstMoment = js["First Moment"].get<std::vector<double>>();
+ try { _firstMoment = js["First Moment"].get<std::vector<float>>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ fAdam ] \n + Key:    ['First Moment']\n%s", e.what()); } 
    eraseValue(js, "First Moment");
@@ -90,7 +90,7 @@ void fAdam::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Second Moment"))
  {
- try { _secondMoment = js["Second Moment"].get<std::vector<double>>();
+ try { _secondMoment = js["Second Moment"].get<std::vector<float>>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ fAdam ] \n + Key:    ['Second Moment']\n%s", e.what()); } 
    eraseValue(js, "Second Moment");

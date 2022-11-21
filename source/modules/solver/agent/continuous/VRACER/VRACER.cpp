@@ -272,23 +272,41 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     // Compute factor for KL penalization
     const float klGradMultiplier = -(1.0f - _experienceReplayOffPolicyREFERCurrentBeta[agentId]);
 
+    if ( std::isfinite(klGradMultiplier) == false )
+      KORALI_LOG_ERROR("KL multiplier has an invalid value: %f\n", klGradMultiplier);
+
     // Add KL contribution
+    bool bInvalid = false;
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)
     {
-      gradientLoss[1 + i] += klGradMultiplier * klGrad[i];
-      gradientLoss[1 + i + _problem->_actionVectorSize] += klGradMultiplier * klGrad[i + _problem->_actionVectorSize];
+      if ( std::isfinite(klGrad[i]) == false )
+      {
+        if( _bayesianLearning == false )
+          KORALI_LOG_ERROR("KL correction has an invalid value: %f\n", klGrad[i]);
+        else
+        {
+          bInvalid = true;
+          _k->_logger->logWarning("Normal", "KL correction has an invalid value: %f, skipping KL correction..\n", klGrad[i]);
+        }
+      }
 
-      if (std::isfinite(gradientLoss[i + 1]) == false)
-        KORALI_LOG_ERROR("KL correction has an invalid value: %f\n", gradientLoss[i + 1]);
+      if ( std::isfinite(klGrad[i + _problem->_actionVectorSize]) == false )
+      {
+        if( _bayesianLearning == false )
+          KORALI_LOG_ERROR("KL correction has an invalid value: %f\n", klGrad[i + _problem->_actionVectorSize]);
+        else
+        {
+          bInvalid = true;
+          _k->_logger->logWarning("Normal", "KL correction has an invalid value: %f, skipping KL correction..\n", klGrad[i + _problem->_actionVectorSize]);
+        }
+      }
 
-      if (std::isfinite(gradientLoss[i + 1 + _problem->_actionVectorSize]) == false)
-        KORALI_LOG_ERROR("KL correction has an invalid value: %f\n", gradientLoss[i + 1 + _problem->_actionVectorSize]);
+      if( bInvalid == false )
+      {
+        gradientLoss[1 + i] += klGradMultiplier * klGrad[i];
+        gradientLoss[1 + i + _problem->_actionVectorSize] += klGradMultiplier * klGrad[i + _problem->_actionVectorSize];
+      }
     }
-
-    // Add noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
-    if (_langevinDynamicsNoiseLevel > 0.0)
-      for (size_t i = 0; i < 2 * _problem->_actionVectorSize + 1; i++)
-        gradientLoss[i] += std::sqrt(_langevinDynamicsNoiseLevel * _currentLearningRate) * _normalGenerator->getRandomNumber();
 
     // Set Gradient of Loss as Solution
     _criticPolicyProblem[policyIdx]->_solutionData[b] = gradientLoss;
