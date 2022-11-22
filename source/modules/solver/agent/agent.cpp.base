@@ -107,19 +107,15 @@ void __className__::initialize()
   // Check configuration of Bayesian RL
   if (_bayesianLearning)
   {
-    if (_swag && (_dropoutProbability > 0.0))
+    if ((_dropoutProbability > 0.0) && _swag)
       KORALI_LOG_ERROR("Choose either swag or dropout");
-    if (_swag && _hmcEnabled)
-      KORALI_LOG_ERROR("Choose either swag or hmc");
-    if (_swag && (_langevinDynamicsNoiseLevel > 0.0))
-      KORALI_LOG_ERROR("Choose either swag or langevin dynamics");
     if ((_dropoutProbability > 0.0) && _hmcEnabled)
       KORALI_LOG_ERROR("Choose either dropout or hmc");
-    if ((_dropoutProbability > 0.0) && (_langevinDynamicsNoiseLevel > 0.0))
+    if ((_dropoutProbability > 0.0) && _langevinDynamics)
       KORALI_LOG_ERROR("Choose either dropout or langevin dynamics");
   }
 
-  if( (_bayesianLearning == false) && (_swag || (_dropoutProbability > 0.0) || _hmcEnabled || (_langevinDynamicsNoiseLevel > 0.0)) )
+  if( (_bayesianLearning == false) && (_swag || (_dropoutProbability > 0.0) || _hmcEnabled || _langevinDynamics) )
     KORALI_LOG_ERROR("Bayesian Learning is disabled");
 
   // HMC only compatible with single policy
@@ -127,7 +123,7 @@ void __className__::initialize()
     KORALI_LOG_ERROR("HMC only compatible with single policy!");
 
   // HMC only compatible with SGD
-  // if ( (_hmcEnabled || (_langevinDynamicsNoiseLevel > 0.0)) && (_neuralNetworkOptimizer != "SGD"))
+  // if ( (_hmcEnabled || _langevinDynamics) && (_neuralNetworkOptimizer != "SGD"))
   //   _k->_logger->logWarning("Normal", "Using (%s) instead of SGD optimizer. Make sure that vanilla MCMC is only used with an optimizer that has no momentum.\n", _neuralNetworkOptimizer.c_str());
 
   /*********************************************************************
@@ -1265,11 +1261,11 @@ std::vector<float> __className__::samplePosterior(const size_t policyIdx)
   }
 
   // Add noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
-  if (_langevinDynamicsNoiseLevel > 0.0)
+  if (_langevinDynamics > 0.0)
   {
 #pragma omp parallel for simd num_threads(_numberOfCPUs)
     for (size_t n = 0; n < hyperparameterSample.size(); n++)
-      hyperparameterSample[n] += std::sqrt(_langevinDynamicsNoiseLevel * 2 * _currentLearningRate) * _normalGenerator->getRandomNumber();
+      hyperparameterSample[n] += std::sqrt(2 * _currentLearningRate) * _normalGenerator->getRandomNumber();
   }
 
   return hyperparameterSample;

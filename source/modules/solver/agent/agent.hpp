@@ -130,9 +130,9 @@ class Agent : public Solver
   */
    int _swag;
   /**
-  * @brief Coefficient to control magnitude of noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf).
+  * @brief Enable Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf).
   */
-   float _langevinDynamicsNoiseLevel;
+   int _langevinDynamics;
   /**
   * @brief Dropout probability that is used (https://proceedings.mlr.press/v48/gal16.html).
   */

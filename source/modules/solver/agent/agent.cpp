@@ -111,19 +111,15 @@ void Agent::initialize()
   // Check configuration of Bayesian RL
   if (_bayesianLearning)
   {
-    if (_swag && (_dropoutProbability > 0.0))
+    if ((_dropoutProbability > 0.0) && _swag)
       KORALI_LOG_ERROR("Choose either swag or dropout");
-    if (_swag && _hmcEnabled)
-      KORALI_LOG_ERROR("Choose either swag or hmc");
-    if (_swag && (_langevinDynamicsNoiseLevel > 0.0))
-      KORALI_LOG_ERROR("Choose either swag or langevin dynamics");
     if ((_dropoutProbability > 0.0) && _hmcEnabled)
       KORALI_LOG_ERROR("Choose either dropout or hmc");
-    if ((_dropoutProbability > 0.0) && (_langevinDynamicsNoiseLevel > 0.0))
+    if ((_dropoutProbability > 0.0) && _langevinDynamics)
       KORALI_LOG_ERROR("Choose either dropout or langevin dynamics");
   }
 
-  if( (_bayesianLearning == false) && (_swag || (_dropoutProbability > 0.0) || _hmcEnabled || (_langevinDynamicsNoiseLevel > 0.0)) )
+  if( (_bayesianLearning == false) && (_swag || (_dropoutProbability > 0.0) || _hmcEnabled || _langevinDynamics) )
     KORALI_LOG_ERROR("Bayesian Learning is disabled");
 
   // HMC only compatible with single policy
@@ -131,7 +127,7 @@ void Agent::initialize()
     KORALI_LOG_ERROR("HMC only compatible with single policy!");
 
   // HMC only compatible with SGD
-  // if ( (_hmcEnabled || (_langevinDynamicsNoiseLevel > 0.0)) && (_neuralNetworkOptimizer != "SGD"))
+  // if ( (_hmcEnabled || _langevinDynamics) && (_neuralNetworkOptimizer != "SGD"))
   //   _k->_logger->logWarning("Normal", "Using (%s) instead of SGD optimizer. Make sure that vanilla MCMC is only used with an optimizer that has no momentum.\n", _neuralNetworkOptimizer.c_str());
 
   /*********************************************************************
@@ -1269,11 +1265,11 @@ std::vector<float> Agent::samplePosterior(const size_t policyIdx)
   }
 
   // Add noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
-  if (_langevinDynamicsNoiseLevel > 0.0)
+  if (_langevinDynamics > 0.0)
   {
 #pragma omp parallel for simd num_threads(_numberOfCPUs)
     for (size_t n = 0; n < hyperparameterSample.size(); n++)
-      hyperparameterSample[n] += std::sqrt(_langevinDynamicsNoiseLevel * 2 * _currentLearningRate) * _normalGenerator->getRandomNumber();
+      hyperparameterSample[n] += std::sqrt(2 * _currentLearningRate) * _normalGenerator->getRandomNumber();
   }
 
   return hyperparameterSample;
@@ -2063,14 +2059,14 @@ void Agent::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['swag'] required by agent.\n"); 
 
- if (isDefined(js, "Langevin Dynamics Noise Level"))
+ if (isDefined(js, "Langevin Dynamics"))
  {
- try { _langevinDynamicsNoiseLevel = js["Langevin Dynamics Noise Level"].get<float>();
+ try { _langevinDynamics = js["Langevin Dynamics"].get<int>();
 } catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Langevin Dynamics Noise Level']\n%s", e.what()); } 
-   eraseValue(js, "Langevin Dynamics Noise Level");
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Langevin Dynamics']\n%s", e.what()); } 
+   eraseValue(js, "Langevin Dynamics");
  }
-  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Langevin Dynamics Noise Level'] required by agent.\n"); 
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Langevin Dynamics'] required by agent.\n"); 
 
  if (isDefined(js, "Dropout Probability"))
  {
@@ -2389,7 +2385,7 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Bayesian Learning"] = _bayesianLearning;
    js["Number Of Samples"] = _numberOfSamples;
    js["swag"] = _swag;
-   js["Langevin Dynamics Noise Level"] = _langevinDynamicsNoiseLevel;
+   js["Langevin Dynamics"] = _langevinDynamics;
    js["Dropout Probability"] = _dropoutProbability;
    js["hmc"]["Enabled"] = _hmcEnabled;
    js["hmc"]["Mass"] = _hmcMass;
@@ -2469,7 +2465,7 @@ void Agent::getConfiguration(knlohmann::json& js)
 void Agent::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Workers\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Number Of Policy Threads\": 1, \"Bayesian Learning\": false, \"Number Of Samples\": 1, \"swag\": false, \"Langevin Dynamics Noise Level\": 0.0, \"Dropout Probability\": 0.0, \"hmc\": {\"Enabled\": false, \"Mass\": 0.0, \"Number Of Steps\": 0, \"Step Size\": 0.0}, \"Normal Generator\": {\"Name\": \"Agent / Continuous / Normal Generator\", \"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Name\": \"Agent / Uniform Generator\", \"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
+ std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Workers\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Number Of Policy Threads\": 1, \"Bayesian Learning\": false, \"Number Of Samples\": 1, \"swag\": false, \"Langevin Dynamics\": false, \"Dropout Probability\": 0.0, \"hmc\": {\"Enabled\": false, \"Mass\": 0.0, \"Number Of Steps\": 0, \"Step Size\": 0.0}, \"Normal Generator\": {\"Name\": \"Agent / Continuous / Normal Generator\", \"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Name\": \"Agent / Uniform Generator\", \"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Solver::applyModuleDefaults(js);

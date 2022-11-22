@@ -39,7 +39,7 @@ for i in range(100):
 
 	### Initializing openAI Gym environment
 
-	initEnvironment(e, args.env)
+	initEnvironment(e, args.env, int(e["Random Seed"]))
 
 	### Defining Agent Configuration 
 

@@ -16,8 +16,8 @@ parser.add_argument('--nPolicies', help='Number of Policies in Ensemble.', requi
 
 parser.add_argument('--bBayesian', help='Boolean to decide whether we use Bayesian Learning.', required=False, type=bool, default=False)
 parser.add_argument('--nSGD', help='Number of Samples from Posterior that are stored.', required=False, type=int, default = 1)
-parser.add_argument('--bSWAG', help='Boolean to decide whether we use SWAG.', required=False, type=int, default = 0)
-parser.add_argument('--langevin', help='Weighting of gradient noise for Langevin Dynamics.', required=False, type=float, default=0.0)
+parser.add_argument('--bSWAG', help='Boolean to decide whether we use SWAG.', required=False, type=bool, default=False)
+parser.add_argument('--langevin', help='Use Langevin Dynamics.', required=False, type=bool, default=False)
 parser.add_argument('--dropout', help='Dropout probability.', required=False, type=float, default=0.0)
 parser.add_argument('--hmc', help='HMC Number of Steps.', required=False, type=int, default=0)
 
@@ -74,7 +74,7 @@ e["Solver"]["Number Of Samples"] = args.nSGD
 e["Solver"]["swag"] = args.bSWAG
 
 # Enable Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
-e["Solver"]["Langevin Dynamics Noise Level"] = args.langevin
+e["Solver"]["Langevin Dynamics"] = args.langevin
 
 # Enable Hamiltonian Monte Carlo (https://proceedings.mlr.press/v48/gal16.html)
 e["Solver"]["hmc"]["Mass"] = 1.0
