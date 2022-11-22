@@ -14,8 +14,8 @@ parser.add_argument('--optimizer', help='Optimizer', required=False, type=str, d
 
 parser.add_argument('--nPolicies', help='Number of Policies in Ensemble.', required=False, type=int, default = 1)
 
-parser.add_argument('--bBayesian', help='Boolean to decide whether we use Bayesian Learning.', required=False, type=bool, default=True)
-parser.add_argument('--nSGD', help='Number of Samples from Posterior that are stored.', required=False, type=int, default = 5)
+parser.add_argument('--bBayesian', help='Boolean to decide whether we use Bayesian Learning.', required=False, type=bool, default=False)
+parser.add_argument('--nSGD', help='Number of Samples from Posterior that are stored.', required=False, type=int, default = 1)
 parser.add_argument('--bSWAG', help='Boolean to decide whether we use SWAG.', required=False, type=int, default = 0)
 parser.add_argument('--langevin', help='Weighting of gradient noise for Langevin Dynamics.', required=False, type=float, default=0.0)
 parser.add_argument('--dropout', help='Dropout probability.', required=False, type=float, default=0.0)
@@ -32,7 +32,7 @@ e = korali.Experiment()
 
 ### Defining results folder and loading previous results, if any
 
-resultFolder = '.'
+resultFolder = "run{:02d}".format(args.run)
 e.loadState(resultFolder + '/latest');
 
 ### Set random seed
