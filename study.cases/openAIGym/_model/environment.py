@@ -14,12 +14,10 @@ def initEnvironment(e, envName, excludePosition=True, moviePath = ''):
  
  # Creating environment
  if envName == "Reacher-v4":
-    env = gym.make(envName)
     excludePosition = True
- else:
-    #env = gym.make(envName, reset_noise_scale=0.3, exclude_current_positions_from_observation=excludePosition)
-    #env = gym.make(envName, exclude_current_positions_from_observation=excludePosition)
     env = gym.make(envName)
+ else:
+    env = gym.make(envName, exclude_current_positions_from_observation=excludePosition)
  
  # Handling special cases
  if (envName == 'Humanoid-v2'):

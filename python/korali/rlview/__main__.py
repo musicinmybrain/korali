@@ -17,7 +17,7 @@ import pdb
 
 import seaborn as sns
 sns.set_theme()
-sns.set_style("whitegrid")
+sns.set_style("whitegrid", {"grid.linestyle": ":"})
 sns.color_palette("tab10")
 
 from korali.rlview.utils import get_figure
@@ -257,7 +257,7 @@ if __name__ == '__main__':
         default=0.0,
         required=False)
     parser.add_argument(
-        '--showCumulativeRewards',
+        '--showReturns',
         help='Option to show the cumulative reward for each episode.',
         action='store_true',
         required=False)
@@ -305,14 +305,14 @@ if __name__ == '__main__':
 
     ### Creating plot
     for run in range(len(results)):
-        plotRewardHistory(ax, results[run], args.averageDepth, args.showCI, args.showCumulativeRewards, args.showObservations, args.showAgents, args.dir[run])
+        plotRewardHistory(ax, results[run], args.averageDepth, args.showCI, args.showReturns, args.showObservations, args.showAgents, args.dir[run])
 
     ax.set_ylabel('Cumulative Reward')
     if args.showObservations:
-        ax.set_xlabel('# Observations')
+        ax.set_xlabel('Observations')
     else:
-        ax.set_xlabel('# Episodes')
-    ax.set_title('Korali RL History Viewer')
+        ax.set_xlabel('Episodes')
+    ax.set_title('RL Training Progress')
     if args.showLegend:
         ax.legend()
 

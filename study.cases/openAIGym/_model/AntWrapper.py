@@ -8,16 +8,22 @@ import gym, numpy as np
 # network forward/backward prop faster.
 # Again, because the state vars omitted by this wrapper are always 0, the RL
 # task itself is neither harder nor easier. Just cheaper to run.
-# These are the indices of state variables actually used by OpenAI gym Humanoid:
+# These are the indices of state variables actually used by OpenAI gym Ant:
 INDS=[  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17,
        18, 19, 20, 21, 22, 23, 24, 25, 26 ] 
+INDSE=[  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15, 16, 17,
+       18, 19, 20, 21, 22, 23, 24, 25, 26, 27] 
+
 
 class AntWrapper():
   def __init__(self, env):
     self.env = env
     assert(self.env.observation_space.shape[0] == 111)
     assert(len(self.env.observation_space.shape) == 1)
-    self.env.observation_space.shape = [ 27 ]
+    if self.env.exclude_current_positions_from_observation == True:
+        self.env.observation_space.shape = [ 27 ]
+    else:
+        self.env.observation_space.shape = [ 28 ]
 
   def reset(self):
     observation = self.env.reset()
@@ -37,7 +43,11 @@ class AntWrapper():
 
   def step(self, action):
     observation, reward, done, info = self.env.step(action)
-    return observation[INDS], reward, done, info
+    if self.env.exclude_current_positions_from_observation == True:
+        return observation[INDS], reward, done, info
+    else:
+        return observation[INDSE], reward, done, info
+
 
   def render(self, mode):
     return self.env.render(mode=mode)

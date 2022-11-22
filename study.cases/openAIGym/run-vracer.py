@@ -18,7 +18,7 @@ parser.add_argument('--n', help='Number of trajectories.', required=False, type=
 args = parser.parse_args()
 print(args)
 
-excludePos = True
+excludePos = False
 
 ####### Defining Korali Problem
 
@@ -95,6 +95,6 @@ e["File Output"]["Path"] = resultFolder
 if args.test:
     e["Solver"]["Testing"]["Sample Ids"] = list(range(args.n))
     e["Problem"]["Custom Settings"]["Save State"] = "True"
-    e["Problem"]["Custom Settings"]["File Name"] = f"observations_{args.env}.json"
+    e["Problem"]["Custom Settings"]["File Name"] = f"observations_{args.env}.json" if excludePos else f"observations_position_{args.env}.json"
  
 k.run(e)
