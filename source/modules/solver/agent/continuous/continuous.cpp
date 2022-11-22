@@ -104,7 +104,6 @@ void Continuous::getAction(korali::Sample &sample)
   const size_t numPolicies = _problem->_policiesPerEnvironment;
 
   // Get action for all the agents in the environment
-  // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
   for (size_t i = 0; i < _problem->_agentsPerEnvironment; i++)
   {
     // Getting current state
@@ -119,12 +118,15 @@ void Continuous::getAction(korali::Sample &sample)
     // Forward state sequence to get the Gaussian means and sigmas from policy
     std::vector<policy_t> policy;
 
+    // Policy index for Ensemble or Bayesian learning
+    size_t policyIdx;
+
+    // Forward policy to get action
     if (_problem->_ensembleLearning || _bayesianLearning)
     {
       // Producing random number and select policy to produce the action
       const float x = _uniformGenerator->getRandomNumber();
-      size_t policyIdx = std::floor(x * (float)numPolicies);
-      policyIdx = policyIdx == numPolicies ? numPolicies - 1 : policyIdx;
+      policyIdx = std::floor(x * (float)numPolicies) == numPolicies ? numPolicies - 1 : policyIdx;
 
       // If using Bayesian learning, sample posterior
       if (_bayesianLearning)
@@ -156,6 +158,14 @@ void Continuous::getAction(korali::Sample &sample)
      ****************************************************************************/
 
     if (sample["Mode"] == "Testing") action = generateTestingAction(policy[0]);
+
+    /*****************************************************************************
+     * In Bayesian Learning, the probability is computed from the
+     * predictive posterior distribution
+     ****************************************************************************/    
+
+    if (_problem->_ensembleLearning || _bayesianLearning)
+      computePredictivePosteriorDistribution( {_stateTimeSequence[i].getVector()}, policy, policyIdx );
 
     /*****************************************************************************
      * Storing the action and its policy

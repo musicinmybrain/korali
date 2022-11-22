@@ -359,6 +359,13 @@ class __className__ : public __parentClassName__
   virtual void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) = 0;
 
   /**
+   * @brief Function to compute the predictive posterior distribution probability
+   * @param curPolicy The current policy for the given state
+   * @param policyIdx The index for the policy that was used previously
+   */
+  virtual void computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy, const size_t policyIdx) = 0;
+
+  /**
    * @brief Calculates the starting experience index of the time sequence for the selected experience
    * @param expId The index of the latest experience in the sequence
    * @return The starting time sequence index
@@ -436,16 +443,16 @@ class __className__ : public __parentClassName__
   std::vector<float> samplePosterior(const size_t policyIdx);
 
   /**
-   * @brief Run a generation of HMC to update the hyperparameters of the neural network
+   * @brief Trains the policy based on the new experiences using HMC
    */
-  void runGenerationHMC();
+  void trainPolicyHMC();
 
   /****************************************************************************************************
    * Virtual functions (responsibilities) for learning algorithms to fulfill
    ***************************************************************************************************/
 
   /**
-   * @brief Trains the policy, based on the new experiences
+   * @brief Trains the policy based on the new experiences
    */
   virtual void trainPolicy() = 0;
 

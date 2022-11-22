@@ -38,8 +38,10 @@ void VRACER::initializeAgent()
   if ((_multiAgentRelationship == "Competition") || _problem->_ensembleLearning)
     _effectiveMinibatchSize = _miniBatchSize;
 
+  if( _problem->_ensembleLearning && (_numberOfSamples != 1) )
+    KORALI_LOG_ERROR("Number Of Samples (%ld) for ensemble learning is not one!", _numberOfSamples);
+
   // Parallel initialization of neural networks (first touch!)
-  // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
     _criticPolicyExperiment[p]["Random Seed"] = _k->_randomSeed++;
@@ -77,11 +79,9 @@ void VRACER::initializeAgent()
     }
 
     // Running initialization to verify that the configuration is correct
-    // #pragma omp critical
-    {
-      _criticPolicyExperiment[p].setEngine(_k->_engine);
-      _criticPolicyExperiment[p].initialize();
-    }
+    _criticPolicyExperiment[p].setEngine(_k->_engine);
+    _criticPolicyExperiment[p].initialize();
+
     _criticPolicyProblem[p] = dynamic_cast<problem::SupervisedLearning *>(_criticPolicyExperiment[p]._problem);
     _criticPolicyLearner[p] = dynamic_cast<solver::DeepSupervisor *>(_criticPolicyExperiment[p]._solver);
 
@@ -110,7 +110,6 @@ void VRACER::trainPolicy()
   const size_t numPolicies = _problem->_policiesPerEnvironment;
 
   // Run training generation for all policies
-  // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
   for (size_t p = 0; p < numPolicies; p++)
   {
     // For "Competition" and "Ensemble Learning", the minibatch needs to be modified, create private copy
@@ -131,28 +130,19 @@ void VRACER::trainPolicy()
       stateSequenceBatchCopy = stateSequenceModified;
     }
 
-    // Sample posterior to ensure consistency between training and testing
-    // if (_dropoutProbability > 0.0)
-    // {
-    //   // Compute posterior sample
-    //   auto hyperparameters = samplePosterior(p);
-
-    //   // Set parameters in neural network and optimizer
-    //   _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
-    // }
-
     // Forward NN
     std::vector<policy_t> policyInfo;
     runPolicy(stateSequenceBatchCopy, policyInfo, p);
 
-    // #pragma omp critical
-    // {
+    // For bayesian RL, compute predictive posterior distribution
+    if (_problem->_ensembleLearning || _bayesianLearning)
+      computePredictivePosteriorDistribution( stateSequenceBatchCopy, policyInfo, p );
+
     // Using policy information to update experience's metadata
     updateExperienceMetadata(miniBatchCopy, policyInfo);
 
     // Now calculating policy gradients
     calculatePolicyGradients(miniBatchCopy, p);
-    // }
 
     // Updating learning rate for critic/policy learner guided by REFER
     _criticPolicyLearner[p]->_learningRate = _currentLearningRate;
@@ -272,40 +262,22 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     // Compute factor for KL penalization
     const float klGradMultiplier = -(1.0f - _experienceReplayOffPolicyREFERCurrentBeta[agentId]);
 
+    // Safety check
     if ( std::isfinite(klGradMultiplier) == false )
       KORALI_LOG_ERROR("KL multiplier has an invalid value: %f\n", klGradMultiplier);
 
-    // Add KL contribution
-    bool bInvalid = false;
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)
     {
+      // Safety checks
       if ( std::isfinite(klGrad[i]) == false )
-      {
-        if( _bayesianLearning == false )
-          KORALI_LOG_ERROR("KL correction has an invalid value: %f\n", klGrad[i]);
-        else
-        {
-          bInvalid = true;
-          _k->_logger->logWarning("Normal", "KL correction has an invalid value: %f, skipping KL correction..\n", klGrad[i]);
-        }
-      }
+        KORALI_LOG_ERROR("KL correction has an invalid value: %f\n", klGrad[i]);
 
       if ( std::isfinite(klGrad[i + _problem->_actionVectorSize]) == false )
-      {
-        if( _bayesianLearning == false )
-          KORALI_LOG_ERROR("KL correction has an invalid value: %f\n", klGrad[i + _problem->_actionVectorSize]);
-        else
-        {
-          bInvalid = true;
-          _k->_logger->logWarning("Normal", "KL correction has an invalid value: %f, skipping KL correction..\n", klGrad[i + _problem->_actionVectorSize]);
-        }
-      }
+        KORALI_LOG_ERROR("KL correction has an invalid value: %f\n", klGrad[i + _problem->_actionVectorSize]);
 
-      if( bInvalid == false )
-      {
-        gradientLoss[1 + i] += klGradMultiplier * klGrad[i];
-        gradientLoss[1 + i + _problem->_actionVectorSize] += klGradMultiplier * klGrad[i + _problem->_actionVectorSize];
-      }
+      // Add KL contribution
+      gradientLoss[1 + i] += klGradMultiplier * klGrad[i];
+      gradientLoss[1 + i + _problem->_actionVectorSize] += klGradMultiplier * klGrad[i + _problem->_actionVectorSize];
     }
 
     // Set Gradient of Loss as Solution
@@ -340,7 +312,7 @@ float VRACER::calculateStateValue(const std::vector<std::vector<float>> &stateSe
 void VRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policyInfo, const size_t policyIdx)
 {
   // Getting batch size
-  size_t batchSize = stateSequenceBatch.size();
+  const size_t batchSize = stateSequenceBatch.size();
 
   // Preparing storage for results
   policyInfo.resize(batchSize);
@@ -354,6 +326,59 @@ void VRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &state
   {
     policyInfo[b].stateValue = evaluation[b][0];
     policyInfo[b].distributionParameters.assign(evaluation[b].begin() + 1, evaluation[b].end());
+  }
+}
+
+void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy, const size_t policyIdx)
+{
+  // Get minibatch-size
+  const size_t batchSize = curPolicy.size();
+
+  // Initialize empty policy
+  std::vector<policy_t> policy;
+
+  // Forward all, but already forwarded policies
+  for( size_t p = 0; p<_problem->_policiesPerEnvironment; p++ )
+  if( p != policyIdx )
+  for( size_t s = 0; s<_numberOfSamples; s++ )
+  {
+    // If using Bayesian learning, sample posterior
+    if (_bayesianLearning)
+    {
+      // Compute posterior sample
+      auto hyperparameters = samplePosterior(policyIdx);
+
+      // Set parameters in neural network
+      _criticPolicyLearner[policyIdx]->_neuralNetwork->setHyperparameters(hyperparameters);
+    }
+
+    // Forward policy
+    runPolicy(stateSequenceBatch, policy, p);
+
+    // Update statistics of predictive posterior distribution [ mean = 1/N sum{ mean_i }, var = 1/N sum{ mean_i^2 + var_i^2 } - mean ]
+  #pragma omp parallel for
+    for (size_t b = 0; b < batchSize; b++)
+    {
+      curPolicy[b].stateValue += policy[b].stateValue;
+      for( size_t i = 0; i < _problem->_actionVectorSize; i++ )
+      {
+        curPolicy[b].distributionParameters[i] += policy[b].distributionParameters[i];
+        curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += ( policy[b].distributionParameters[i]*policy[b].distributionParameters[i] + policy[b].distributionParameters[_problem->_actionVectorSize + i]*policy[b].distributionParameters[_problem->_actionVectorSize + i] );
+      }
+    }
+  }
+
+  // Complete computation of predictive posterior distribution
+  #pragma omp parallel for
+  for (size_t b = 0; b < batchSize; b++)
+  {
+    curPolicy[b].stateValue /= _numberOfSamples;
+    for( size_t i = 0; i < _problem->_actionVectorSize; i++ )
+    {
+      curPolicy[b].distributionParameters[i] /= _numberOfSamples;
+      curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] -= curPolicy[b].distributionParameters[i];
+      curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] /= _numberOfSamples;
+    }
   }
 }
 

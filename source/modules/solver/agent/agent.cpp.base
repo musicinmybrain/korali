@@ -308,7 +308,7 @@ void __className__::trainingGeneration()
 
         // Calling the algorithm specific policy training algorithm
         if (_hmcEnabled) // Perform HMC step
-          runGenerationHMC();
+          trainPolicyHMC();
         else
           trainPolicy();
 
@@ -1275,7 +1275,7 @@ std::vector<float> __className__::samplePosterior(const size_t policyIdx)
   return hyperparameterSample;
 }
 
-void __className__::runGenerationHMC()
+void __className__::trainPolicyHMC()
 {
   // Increase candidate counter to track acceptance rate
   _numberOfCandidates++;

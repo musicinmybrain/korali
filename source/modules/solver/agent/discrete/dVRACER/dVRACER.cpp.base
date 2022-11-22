@@ -25,14 +25,15 @@ void __className__::initializeAgent()
 
   _effectiveMinibatchSize = _miniBatchSize * _problem->_agentsPerEnvironment;
 
+
+  // TODO: implement competition and Bayesian Learning for Discrete Environments 
   if (_multiAgentRelationship == "Competition")
     KORALI_LOG_ERROR("Multi Agent Relationship = %s is not supported for discrete reinforcement learning problems.\n", _multiAgentRelationship.c_str());
 
-  if (_bayesianLearning)
-    KORALI_LOG_ERROR("Bayesian learning is not supported for discrete reinforcement learning problems.\n");
+  if (_bayesianLearning || _problem->_ensembleLearning)
+    KORALI_LOG_ERROR("Bayesian learning and ensemble learning are not supported for discrete reinforcement learning problems.\n");
 
   // Parallel initialization of neural networks (first touch!)
-  // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
     _criticPolicyExperiment[p]["Random Seed"] = _k->_randomSeed++;
@@ -75,11 +76,9 @@ void __className__::initializeAgent()
     _criticPolicyExperiment[p]["Solver"]["Neural Network"]["Output Layer"]["Shift"][1 + _problem->_actionCount] = _initialInverseTemperature - 0.5;
 
     // Running initialization to verify that the configuration is correct
-    // #pragma omp critical
-    {
-      _criticPolicyExperiment[p].setEngine(_k->_engine);
-      _criticPolicyExperiment[p].initialize();
-    }
+    _criticPolicyExperiment[p].setEngine(_k->_engine);
+    _criticPolicyExperiment[p].initialize();
+
     _criticPolicyProblem[p] = dynamic_cast<problem::SupervisedLearning *>(_criticPolicyExperiment[p]._problem);
     _criticPolicyLearner[p] = dynamic_cast<solver::DeepSupervisor *>(_criticPolicyExperiment[p]._solver);
 
@@ -104,7 +103,6 @@ void __className__::trainPolicy()
   const size_t numPolicies = _problem->_policiesPerEnvironment;
 
   // Update all policies using all experiences
-  // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
   for (size_t p = 0; p < numPolicies; p++)
   {
     // Fill policyInfo with behavioral policy (access to availableActions)
@@ -113,14 +111,11 @@ void __className__::trainPolicy()
     // Forward NN
     runPolicy(stateSequenceBatch, policyInfo, p);
 
-    // #pragma omp critical
-    {
-      // Using policy information to update experience's metadata
-      updateExperienceMetadata(miniBatch, policyInfo);
+    // Using policy information to update experience's metadata
+    updateExperienceMetadata(miniBatch, policyInfo);
 
-      // Now calculating policy gradients
-      calculatePolicyGradients(miniBatch, p);
-    }
+    // Now calculating policy gradients
+    calculatePolicyGradients(miniBatch, p);
 
     // Updating learning rate for critic/policy learner guided by REFER
     _criticPolicyLearner[p]->_learningRate = _currentLearningRate;
@@ -319,6 +314,10 @@ void __className__::runPolicy(const std::vector<std::vector<std::vector<float>>>
     policyInfo[b].actionProbabilities = pActions;
     policyInfo[b].distributionParameters = qValAndInvTemp;
   }
+}
+
+void __className__::computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy, const size_t policyIdx)
+{ // TODO: implement Bayesian Learning for Discrete Environments 
 }
 
 std::vector<policy_t> __className__::getPolicyInfo(const std::vector<std::pair<size_t, size_t>> &miniBatch) const
