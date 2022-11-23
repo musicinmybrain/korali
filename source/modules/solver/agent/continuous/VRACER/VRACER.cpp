@@ -152,10 +152,10 @@ void VRACER::trainPolicy()
     _criticPolicyLearner[p]->runGeneration();
 
     // Add noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
-    if ( _langevinDynamics )
+    if (_langevinDynamics)
     {
       auto hyperparameters = _criticPolicyLearner[p]->_optimizer->_currentValue;
-// #pragma omp parallel for simd
+      // #pragma omp parallel for simd
       for (size_t n = 0; n < hyperparameters.size(); n++)
         hyperparameters[n] += std::sqrt(2 * _currentLearningRate) * _normalGenerator->getRandomNumber();
     }
@@ -356,29 +356,70 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
   // Create empty policy to forward samples
   std::vector<policy_t> policy(batchSize);
 
-  // Make sure we respect size of hyperparameter buffer
-  size_t numSamples = _numberOfSamples;
-  if( (_swag == false) || (_dropoutProbability == 0.0) )\
-    numSamples = std::max( numSamples, _hyperparameterBuffer.size() );
+  // Determine the number of samples
+  size_t numSamples;
+  if ((_swag == false) || (_dropoutProbability == 0.0))
+    numSamples = std::max(numSamples, _hyperparameterBuffer.size());
+  else
+    numSamples = _numberOfSamples - 1;
 
   // Compute moments for Gaussian approximation to predictive posterior distribution
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-  for (size_t s = 0; s < numSamples; s++)
+    for (size_t s = 0; s < numSamples; s++)
+    {
+      // Get sample
+      auto hyperparameters = _hyperparameterBuffer[s][p];
+
+      // ..or compute sample
+      if (_swag || (_dropoutProbability > 0.0))
+        hyperparameters = samplePosterior(p);
+
+      // Set parameters in neural network
+      _criticPolicyLearner[p]->_neuralNetwork->setHyperparameters(hyperparameters);
+
+      // Forward policy
+      runPolicy(stateSequenceBatch, policy, p);
+
+      // Update statistics of predictive posterior distribution [ mean = 1/N sum{ mean_i }, var = 1/N sum{ mean_i^2 + var_i^2 } - mean ]
+#pragma omp parallel for
+      for (size_t b = 0; b < batchSize; b++)
+      {
+        // Accumulate State Value
+        curPolicy[b].stateValue += policy[b].stateValue;
+        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+        {
+          // Get mean, squared mean, standard deviation and variance
+          const float mean = policy[b].distributionParameters[i];
+          const float meanSquared = mean * mean;
+          const float standardDeviation = policy[b].distributionParameters[_problem->_actionVectorSize + i];
+          const float variance = standardDeviation * standardDeviation;
+
+          // Accumulate Mean
+          curPolicy[b].distributionParameters[i] += mean;
+
+          // Accumulate Variance
+          curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+        }
+      }
+    }
+
+  // When training, we have to forward the policy before backwarding
+  const bool bTraining = (batchSize == _effectiveMinibatchSize);
+  if (bTraining)
   {
-    // Get sample
-    auto hyperparameters = _hyperparameterBuffer[s][p];
+    // Get latest hyperparameters
+    const auto &hyperparameters = _hyperparameterBuffer[_hyperparameterBuffer.size() - 1][policyIdx];
 
-    // ..or compute sample
-    if( _swag || (_dropoutProbability > 0.0) )
-      hyperparameters = samplePosterior(p);
-
-    // Set parameters in neural network
-    _criticPolicyLearner[p]->_neuralNetwork->setHyperparameters(hyperparameters);
+    // Set latest hyperparameters
+    _criticPolicyLearner[policyIdx]->_neuralNetwork->setHyperparameters(hyperparameters);
 
     // Forward policy
-    runPolicy(stateSequenceBatch, policy, p);
+    runPolicy(stateSequenceBatch, policy, policyIdx);
+  }
 
-    // Update statistics of predictive posterior distribution [ mean = 1/N sum{ mean_i }, var = 1/N sum{ mean_i^2 + var_i^2 } - mean ]
+  // For consistency of SWAG and dropout, add contribution from the current policy
+  if (_swag || (_dropoutProbability > 0.0))
+  {
 #pragma omp parallel for
     for (size_t b = 0; b < batchSize; b++)
     {
@@ -388,9 +429,9 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
       {
         // Get mean, squared mean, standard deviation and variance
         const float mean = policy[b].distributionParameters[i];
-        const float meanSquared = mean*mean;
+        const float meanSquared = mean * mean;
         const float standardDeviation = policy[b].distributionParameters[_problem->_actionVectorSize + i];
-        const float variance = standardDeviation*standardDeviation;
+        const float variance = standardDeviation * standardDeviation;
 
         // Accumulate Mean
         curPolicy[b].distributionParameters[i] += mean;
@@ -415,22 +456,8 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
 
       // Finalize Variance
       curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] /= _numberOfSamples;
-      curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] -=  mixtureMean*mixtureMean;
+      curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
     }
-  }
-
-  // When training, we have to forward the policy before backwarding
-  const bool bTraining = ( batchSize == _effectiveMinibatchSize );
-  if( bTraining )
-  {
-    // Get latest hyperparameters
-    const auto& hyperparameters = _hyperparameterBuffer[_hyperparameterBuffer.size() - 1][policyIdx];
-    
-    // Set latest hyperparameters
-    _criticPolicyLearner[policyIdx]->_neuralNetwork->setHyperparameters(hyperparameters);
-
-    // Forward policy
-    runPolicy(stateSequenceBatch, policy, policyIdx);
   }
 }
 
