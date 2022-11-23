@@ -15,12 +15,7 @@
 #include "modules/experiment/experiment.hpp"
 #include "modules/neuralNetwork/neuralNetwork.hpp"
 #include "modules/problem/supervisedLearning/supervisedLearning.hpp"
-#include "modules/solver/deepSupervisor/optimizers/fAdaBelief.hpp"
-#include "modules/solver/deepSupervisor/optimizers/fAdagrad.hpp"
-#include "modules/solver/deepSupervisor/optimizers/fAdam.hpp"
 #include "modules/solver/deepSupervisor/optimizers/fGradientBasedOptimizer.hpp"
-#include "modules/solver/deepSupervisor/optimizers/fMadGrad.hpp"
-#include "modules/solver/deepSupervisor/optimizers/fRMSProp.hpp"
 
 namespace korali
 {
@@ -59,10 +54,6 @@ class DeepSupervisor : public Solver
   */
    std::string _neuralNetworkOptimizer;
   /**
-  * @brief Stores the training neural network hyperparameters (weights and biases).
-  */
-   std::vector<float> _hyperparameters;
-  /**
   * @brief Function to calculate the difference (loss) between the NN inference and the exact solution and its gradients for optimization.
   */
    std::string _lossFunction;
@@ -95,6 +86,10 @@ class DeepSupervisor : public Solver
   */
    float _currentLoss;
   /**
+  * @brief [Internal Use] Current value of the loss function.
+  */
+   std::vector<float> _lossHistory;
+  /**
   * @brief [Internal Use] Stores the current neural network normalization mean parameters.
   */
    std::vector<float> _normalizationMeans;
@@ -102,6 +97,10 @@ class DeepSupervisor : public Solver
   * @brief [Internal Use] Stores the current neural network normalization variance parameters.
   */
    std::vector<float> _normalizationVariances;
+  /**
+  * @brief [Internal Use] Stores a pointer to the optimizer.
+  */
+   korali::fGradientBasedOptimizer* _optimizer;
   /**
   * @brief [Termination Criteria] Specifies the maximum number of suboptimal generations.
   */
@@ -152,11 +151,6 @@ class DeepSupervisor : public Solver
   korali::Experiment _optExperiment;
 
   /**
-   * @brief Gradient-based solver pointer to access directly (for performance).
-   */
-  korali::fGradientBasedOptimizer *_optimizer;
-
-  /**
    * @brief A neural network to be trained based on inputs and solutions.
    */
   NeuralNetwork *_neuralNetwork;
@@ -173,12 +167,6 @@ class DeepSupervisor : public Solver
    * @return The hyperparameter.
    */
   std::vector<float> getHyperparameters();
-
-  /**
-   * @brief Sets the hyperparameter of the neural network.
-   * @param hyperparameters The parameter of the neural network.
-   */
-  void setHyperparameters(const std::vector<float> &hyperparameters);
 
   void initialize() override;
   void runGeneration() override;

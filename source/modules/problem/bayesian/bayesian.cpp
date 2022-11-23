@@ -14,11 +14,14 @@ void Bayesian::initialize()
     bool foundDistribution = false;
 
     for (size_t j = 0; j < _k->_distributions.size(); j++)
+    {
+      _k->_distributions[j]->updateDistribution();
       if (_k->_variables[i]->_priorDistribution == _k->_distributions[j]->_name)
       {
         foundDistribution = true;
         _k->_variables[i]->_distributionIndex = j;
       }
+    }
 
     if (foundDistribution == false)
       KORALI_LOG_ERROR("Did not find distribution %s, specified by variable %s\n", _k->_variables[i]->_priorDistribution.c_str(), _k->_variables[i]->_name.c_str());
@@ -28,41 +31,45 @@ void Bayesian::initialize()
 void Bayesian::evaluateLogPrior(Sample &sample)
 {
   double logPrior = 0.0;
+  const auto params = KORALI_GET(std::vector<double>, sample, "Parameters");
 
-  for (size_t i = 0; i < sample["Parameters"].size(); i++)
-    logPrior += _k->_distributions[_k->_variables[i]->_distributionIndex]->getLogDensity(sample["Parameters"][i]);
+  for (size_t i = 0; i < params.size(); i++)
+    logPrior += _k->_distributions[_k->_variables[i]->_distributionIndex]->getLogDensity(params[i]);
 
   sample["logPrior"] = logPrior;
 }
 
 void Bayesian::evaluateLogPriorGradient(Sample &sample)
 {
-  size_t numParam = sample["Parameters"].size();
-  std::vector<double> logPriorGradient(numParam, 0.);
+  const auto params = KORALI_GET(std::vector<double>, sample, "Parameters");
+  std::vector<double> logPriorGradient(params.size(), 0.);
 
-  for (size_t i = 0; i < numParam; i++)
-    logPriorGradient[i] = _k->_distributions[_k->_variables[i]->_distributionIndex]->getLogDensityGradient(sample["Parameters"][i]);
+  for (size_t i = 0; i < params.size(); i++)
+    logPriorGradient[i] = _k->_distributions[_k->_variables[i]->_distributionIndex]->getLogDensityGradient(params[i]);
 
   sample["logPrior Gradient"] = logPriorGradient;
 }
 
 void Bayesian::evaluateLogPriorHessian(Sample &sample)
 {
-  size_t numParam = sample["Parameters"].size();
+  const auto params = KORALI_GET(std::vector<double>, sample, "Parameters");
+  const size_t numParam = params.size();
   std::vector<double> logPriorHessian(numParam * numParam, 0.);
 
   for (size_t i = 0; i < numParam; i++)
-    logPriorHessian[i * numParam + i] = _k->_distributions[_k->_variables[i]->_distributionIndex]->getLogDensityHessian(sample["Parameters"][i]);
+    logPriorHessian[i * numParam + i] = _k->_distributions[_k->_variables[i]->_distributionIndex]->getLogDensityHessian(params[i]);
 
   sample["logPrior Hessian"] = logPriorHessian;
 }
 
 void Bayesian::evaluateLogPosterior(Sample &sample)
 {
-  int sampleId = sample["Sample Id"];
+  const int sampleId = sample["Sample Id"];
   evaluateLogPrior(sample);
 
-  if (sample["logPrior"] == -Inf)
+  const double logPrior = KORALI_GET(double, sample, "logPrior");
+
+  if (logPrior == -Inf)
   {
     sample["logLikelihood"] = -Inf;
     sample["logPosterior"] = -Inf;
@@ -70,9 +77,8 @@ void Bayesian::evaluateLogPosterior(Sample &sample)
   else
   {
     evaluateLoglikelihood(sample);
-    double logPrior = sample["logPrior"];
-    double logLikelihood = sample["logLikelihood"];
-    double logPosterior = logPrior + logLikelihood;
+    const double logLikelihood = KORALI_GET(double, sample, "logLikelihood");
+    const double logPosterior = logPrior + logLikelihood;
 
     if (std::isnan(logLikelihood) == true) KORALI_LOG_ERROR("Sample %d returned NaN logLikelihood evaluation.\n", sampleId);
 
@@ -91,8 +97,9 @@ void Bayesian::evaluateGradient(Sample &sample)
 {
   evaluateLogPriorGradient(sample);
   evaluateLoglikelihoodGradient(sample);
-  auto logPriorGrad = sample["logPrior Gradient"].get<std::vector<double>>();
-  auto logLikGrad = sample["logLikelihood Gradient"].get<std::vector<double>>();
+  const auto logPriorGrad = KORALI_GET(std::vector<double>, sample, "logPrior Gradient");
+  auto logLikGrad = KORALI_GET(std::vector<double>, sample, "logLikelihood Gradient");
+
   for (size_t i = 0; i < logPriorGrad.size(); ++i)
     logLikGrad[i] += logPriorGrad[i];
   sample["grad(logP(x))"] = logLikGrad;
@@ -102,10 +109,10 @@ void Bayesian::evaluateHessian(Sample &sample)
 {
   evaluateLogPriorHessian(sample);
   evaluateLogLikelihoodHessian(sample);
-  auto logPriorHessian = sample["logPrior Hessian"].get<std::vector<double>>();
-  auto logLikHessian = sample["logLikelihood Hessian"].get<std::vector<double>>();
-  size_t numElement = logPriorHessian.size();
-  for (size_t i = 0; i < numElement; i++)
+  const auto logPriorHessian = KORALI_GET(std::vector<double>, sample, "logPrior Hessian");
+  auto logLikHessian = KORALI_GET(std::vector<double>, sample, "logLikelihood Hessian");
+
+  for (size_t i = 0; i < logPriorHessian.size(); i++)
     logLikHessian[i] += logPriorHessian[i];
 
   sample["H(logP(x))"] = logLikHessian;

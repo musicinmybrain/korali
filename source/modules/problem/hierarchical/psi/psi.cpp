@@ -125,25 +125,32 @@ void Psi::updateConditionalPriors(Sample &sample)
 
 void Psi::evaluateLogLikelihood(Sample &sample)
 {
-  updateConditionalPriors(sample);
-
-  double logLikelihood = 0.0;
-
-  for (size_t i = 0; i < _subProblemsCount; i++)
+  try
   {
-    std::vector<double> logValues(_subProblemsSampleLogPriors[i].size());
+    updateConditionalPriors(sample);
 
-    for (size_t j = 0; j < _subProblemsSampleLogPriors[i].size(); j++)
+    double logLikelihood = 0.0;
+
+    for (size_t i = 0; i < _subProblemsCount; i++)
     {
-      logValues[j] = -_subProblemsSampleLogPriors[i][j];
-      for (size_t k = 0; k < _conditionalPriors.size(); k++)
-        logValues[j] += _k->_distributions[_conditionalPriorIndexes[k]]->getLogDensity(_subProblemsSampleCoordinates[i][j][k]);
+      std::vector<double> logValues(_subProblemsSampleLogPriors[i].size());
+
+      for (size_t j = 0; j < _subProblemsSampleLogPriors[i].size(); j++)
+      {
+        logValues[j] = -_subProblemsSampleLogPriors[i][j];
+        for (size_t k = 0; k < _conditionalPriors.size(); k++)
+          logValues[j] += _k->_distributions[_conditionalPriorIndexes[k]]->getLogDensity(_subProblemsSampleCoordinates[i][j][k]);
+      }
+
+      logLikelihood += logSumExp(logValues);
     }
 
-    logLikelihood += logSumExp(logValues);
+    sample["logLikelihood"] = logLikelihood;
   }
-
-  sample["logLikelihood"] = logLikelihood;
+  catch (std::exception &e)
+  {
+    sample["logLikelihood"] = -Inf;
+  }
 }
 
 void Psi::setConfiguration(knlohmann::json& js) 

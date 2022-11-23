@@ -46,10 +46,6 @@ void Agent::initialize()
   // Initializing selected policy
   initializeAgent();
 
-  // Initializing random seed for the shuffle operation
-  mt = new std::mt19937(rd());
-  mt->seed(_k->_randomSeed++);
-
   // If not set, using heurisitc for maximum size
   if (_experienceReplayMaximumSize == 0)
     _experienceReplayMaximumSize = std::pow(2, 14) * std::sqrt(_problem->_stateVectorSize + _problem->_actionVectorSize);
@@ -106,10 +102,12 @@ void Agent::initialize()
     /* Initializing REFER information */
 
     // If cutoff scale is not defined, use a heuristic value [defaults to 4.0]
-    if (_experienceReplayOffPolicyCutoffScale < 0.0f)
+    if (_experienceReplayOffPolicyCutoffScale <= 0.0f)
       KORALI_LOG_ERROR("Experience Replay Cutoff Scale must be larger 0.0");
     _experienceReplayOffPolicyCount.resize(numAgents, 0);
     _experienceReplayOffPolicyRatio.resize(numAgents, 0.0f);
+    if (_learningRate <= 0.0f)
+      KORALI_LOG_ERROR("Learning rate must be larger 0.0");
     _currentLearningRate = _learningRate;
 
     _experienceReplayOffPolicyCurrentCutoff = _experienceReplayOffPolicyCutoffScale;
@@ -336,7 +334,7 @@ void Agent::testingGeneration()
   KORALI_WAITALL(testingWorkers);
 
   for (size_t workerId = 0; workerId < _testingSampleIds.size(); workerId++)
-    _testingReward[workerId] = testingWorkers[workerId]["Testing Reward"].get<float>();
+    _testingReward[workerId] = KORALI_GET(float, testingWorkers[workerId], "Testing Reward");
 }
 
 void Agent::rescaleStates()
@@ -409,7 +407,7 @@ void Agent::attendWorker(size_t workerId)
       KORALI_WAIT(_workers[workerId]);
 
       // Getting the training reward of the latest episodes
-      _trainingLastReward = _workers[workerId]["Training Rewards"].get<std::vector<float>>();
+      _trainingLastReward = KORALI_GET(std::vector<float>, _workers[workerId], "Training Rewards");
 
       // Keeping training statistics. Updating if exceeded best training policy so far.
       for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
@@ -428,9 +426,9 @@ void Agent::attendWorker(size_t workerId)
       if (_workers[workerId]["Tested Policy"] == true)
       {
         _testingCandidateCount++;
-        _testingBestReward = _workers[workerId]["Best Testing Reward"].get<float>();
-        _testingWorstReward = _workers[workerId]["Worst Testing Reward"].get<float>();
-        _testingAverageReward = _workers[workerId]["Average Testing Reward"].get<float>();
+        _testingBestReward = KORALI_GET(float, _workers[workerId], "Best Testing Reward");
+        _testingWorstReward = KORALI_GET(float, _workers[workerId], "Worst Testing Reward");
+        _testingAverageReward = KORALI_GET(float, _workers[workerId], "Average Testing Reward");
         _testingAverageRewardHistory.push_back(_testingAverageReward);
 
         // If the average testing reward is better than the previous best, replace it
@@ -445,12 +443,12 @@ void Agent::attendWorker(size_t workerId)
       }
 
       // Obtaining profiling information
-      _sessionWorkerComputationTime += _workers[workerId]["Computation Time"].get<double>();
-      _sessionWorkerCommunicationTime += _workers[workerId]["Communication Time"].get<double>();
-      _sessionPolicyEvaluationTime += _workers[workerId]["Policy Evaluation Time"].get<double>();
-      _generationWorkerComputationTime += _workers[workerId]["Computation Time"].get<double>();
-      _generationWorkerCommunicationTime += _workers[workerId]["Communication Time"].get<double>();
-      _generationPolicyEvaluationTime += _workers[workerId]["Policy Evaluation Time"].get<double>();
+      _sessionWorkerComputationTime += KORALI_GET(double, _workers[workerId], "Computation Time");
+      _sessionWorkerCommunicationTime += KORALI_GET(double, _workers[workerId], "Communication Time");
+      _sessionPolicyEvaluationTime += KORALI_GET(double, _workers[workerId], "Policy Evaluation Time");
+      _generationWorkerComputationTime += KORALI_GET(double, _workers[workerId], "Computation Time");
+      _generationWorkerCommunicationTime += KORALI_GET(double, _workers[workerId], "Communication Time");
+      _generationPolicyEvaluationTime += KORALI_GET(double, _workers[workerId], "Policy Evaluation Time");
 
       // Set agent as finished
       _isWorkerRunning[workerId] = false;
@@ -752,12 +750,13 @@ std::vector<std::pair<size_t, size_t>> Agent::generateMiniBatch()
     }
   }
 
+  // clang-format off
   // Sorting minibatch: first by expId, second by agentId
   // to quickly detect duplicates when updating metadata
-  std::sort(miniBatch.begin(), miniBatch.end(), [numAgents](const std::pair<size_t, size_t> &exp0, const std::pair<size_t, size_t> &exp1) -> bool
-            {
-              return exp0.first * numAgents + exp0.second < exp1.first * numAgents + exp1.second;
-            });
+  std::sort(miniBatch.begin(), miniBatch.end(), [numAgents](const std::pair<size_t, size_t> &exp0, const std::pair<size_t, size_t> &exp1) -> bool {
+    return exp0.first * numAgents + exp0.second < exp1.first * numAgents + exp1.second;
+  });
+  // clang-format on
 
   // Returning generated minibatch
   return miniBatch;
@@ -1237,6 +1236,10 @@ void Agent::serializeExperienceReplay()
     stateJson["Experience Replay"][i]["Current Policy"]["Available Actions"] = curAvailAct;
   }
 
+  // Serialize the optimizer
+  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+    _criticPolicyLearner[p]->_optimizer->getConfiguration(stateJson["Optimizer"][p]);
+
   // If results directory doesn't exist, create it
   if (!dirExists(_k->_fileOutputPath)) mkdir(_k->_fileOutputPath);
 
@@ -1335,6 +1338,10 @@ void Agent::deserializeExperienceReplay()
     _curPolicyBuffer.add(curPolicy);
   }
 
+  // Deserialize the optimizer
+  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+    _criticPolicyLearner[p]->_optimizer->setConfiguration(stateJson["Optimizer"][p]);
+
   auto endTime = std::chrono::steady_clock::now();                                                                         // Profiling
   double deserializationTime = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count() / 1.0e+9; // Profiling
   _k->_logger->logInfo("Normal", "Took %fs to deserialize training state.\n", deserializationTime);
@@ -1377,7 +1384,7 @@ void Agent::printGenerationAfter()
     if (_rewardRescalingEnabled)
       _k->_logger->logInfo("Normal", " + Reward Rescaling: N(0.0, %.3e)\n", _rewardRescalingSigma);
 
-    if (_testingBestEpisodeId > 0)
+    if (_problem->_testingFrequency > 0)
     {
       _k->_logger->logInfo("Normal", "Testing Statistics:\n");
       _k->_logger->logInfo("Normal", " + Best Average Reward: %f (%lu)\n", _testingBestAverageReward, _testingBestEpisodeId);
@@ -2079,7 +2086,7 @@ void Agent::getConfiguration(knlohmann::json& js)
 void Agent::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Workers\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Multi Agent Sampling\": \"Tuple\", \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
+ std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Workers\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Multi Agent Sampling\": \"Tuple\", \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Name\": \"Agent / Uniform Generator\", \"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Solver::applyModuleDefaults(js);

@@ -41,8 +41,6 @@ e["Variables"][1]["Prior Distribution"] = "Uniform 0"
 e["Variables"][2]["Name"] = "[Sigma]"
 e["Variables"][2]["Prior Distribution"] = "Uniform 0"
 
-e["Store Sample Information"] = True
-
 # Configuring output settings
 e["File Output"]["Path"] = '_korali_result_tmcmc'
 

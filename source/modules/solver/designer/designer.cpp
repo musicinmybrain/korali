@@ -68,17 +68,15 @@ void Designer::setInitialConfiguration()
     if (foundDistribution == false)
       KORALI_LOG_ERROR("Did not find distribution %s, specified by variable %s\n", _k->_variables[varIdx]->_distribution.c_str(), _k->_variables[i]->_name.c_str());
   }
-
-  if (std::any_of(_parameterDistributionIndex.begin(), _parameterDistributionIndex.end(), [](int x)
-                  {
-                    return x == -1;
-                  }))
+  // clang-format off
+  if (std::any_of(_parameterDistributionIndex.begin(), _parameterDistributionIndex.end(), [](int x) {
+        return x == -1;
+      }))
   {
     // Check consistency of parameter distribution
-    if (std::all_of(_parameterDistributionIndex.begin(), _parameterDistributionIndex.end(), [](int x)
-                    {
-                      return x == -1;
-                    }) == false)
+    if (std::all_of(_parameterDistributionIndex.begin(), _parameterDistributionIndex.end(), [](int x) {
+          return x == -1;
+        }) == false)
       KORALI_LOG_ERROR("Parameter distributions are inconsistent. You have to specify a valid distribution or Grid for all of them.\n");
 
     // Set number of parameter samples
@@ -93,10 +91,9 @@ void Designer::setInitialConfiguration()
   else
   {
     // Check consistency of number of parameter samples
-    if (std::all_of(_numberOfParameterSamples.begin(), _numberOfParameterSamples.end(), [&](size_t x)
-                    {
-                      return x == _numberOfParameterSamples[0];
-                    }) == false)
+    if (std::all_of(_numberOfParameterSamples.begin(), _numberOfParameterSamples.end(), [&](size_t x) {
+          return x == _numberOfParameterSamples[0];
+        }) == false)
       KORALI_LOG_ERROR("Parameter distributions are inconsistent. You have to specify the same number of samples for every dimension.\n");
 
     // Set number of parameter samples
@@ -105,6 +102,7 @@ void Designer::setInitialConfiguration()
     // Set integrator
     _parameterIntegrator = "Integrator/MonteCarlo";
   }
+  // clang-format on
 
   // Check design configuration
   _designLowerBounds.resize(_problem->_designVectorSize);
@@ -168,13 +166,13 @@ void Designer::setInitialConfiguration()
       KORALI_LOG_ERROR("Number Of Samples for variable %lu is not given .\n", varIdx);
   }
 
+  // clang-format off
   // Check consistency of number of likelihood samples
-  if (std::all_of(_numberOfMeasurementSamples.begin(), _numberOfMeasurementSamples.end(), [&](size_t x)
-                  {
-                    return x == _numberOfMeasurementSamples[0];
-                  }) == false)
+  if (std::all_of(_numberOfMeasurementSamples.begin(), _numberOfMeasurementSamples.end(), [&](size_t x) {
+        return x == _numberOfMeasurementSamples[0];
+      }) == false)
     KORALI_LOG_ERROR("Number of measurement samples are inconsistent. You have to specify the same number of samples for every dimension.\n");
-
+  // clang-format on
   // Set number of likelihood samples
   _numberOfLikelihoodSamples = _numberOfMeasurementSamples[0];
 

@@ -414,22 +414,17 @@ float Continuous::calculateImportanceWeight(const std::vector<float> &action, co
   return importanceWeight;
 }
 
-std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy)
+std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, const float importanceWeight)
 {
   // Storage for importance weight gradients
   std::vector<float> importanceWeightGradients(_policyParameterCount, 0.);
 
   if (_policyDistribution == "Normal")
   {
-    float logpCurPolicy = 0.f;
-    float logpOldPolicy = 0.f;
-
     // ParamsOne are the Means, ParamsTwo are the Sigmas
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)
     {
       // Getting parameters from the new and old policies
-      const float oldMean = oldPolicy.distributionParameters[i];
-      const float oldSigma = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
       const float curMean = curPolicy.distributionParameters[i];
       const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
 
@@ -444,14 +439,7 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
 
       // Gradient with respect to Sigma
       importanceWeightGradients[_problem->_actionVectorSize + i] = (curActionDif * curActionDif) * (curInvVar / curSigma) - 1.f / curSigma;
-
-      // Calculate importance weight
-      logpCurPolicy += normalLogDensity(action[i], curMean, curSigma);
-      logpOldPolicy += normalLogDensity(action[i], oldMean, oldSigma);
     }
-
-    const float logImportanceWeight = logpCurPolicy - logpOldPolicy;
-    const float importanceWeight = std::exp(logImportanceWeight); // TODO: reuse importance weight calculation from updateExperienceReplayMetadata
 
     // Scale by importance weight to get gradient
     for (size_t i = 0; i < 2 * _problem->_actionVectorSize; i++) importanceWeightGradients[i] *= importanceWeight;
@@ -459,14 +447,9 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
 
   if (_policyDistribution == "Squashed Normal")
   {
-    float logpCurPolicy = 0.f;
-    float logpOldPolicy = 0.f;
-
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)
     {
       // Getting parameters from the new and old policies
-      const float oldMu = oldPolicy.distributionParameters[i];
-      const float oldSigma = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
       const float curMu = curPolicy.distributionParameters[i];
       const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
 
@@ -483,14 +466,7 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
 
       // Gradient with respect to Sigma
       importanceWeightGradients[_problem->_actionVectorSize + i] = (curActionDif * curActionDif) * (curInvVar / curSigma) - 1.0f / curSigma;
-
-      // Importance weight of squashed normal is the importance weight of normal evaluated at unbounded action
-      logpCurPolicy += normalLogDensity(unboundedAction, curMu, curSigma);
-      logpOldPolicy += normalLogDensity(unboundedAction, oldMu, oldSigma);
     }
-
-    const float logImportanceWeight = logpCurPolicy - logpOldPolicy;
-    const float importanceWeight = std::exp(logImportanceWeight); // TODO: reuse importance weight calculation from updateExperienceReplayMetadata
 
     // Scale by importance weight to get gradient
     for (size_t i = 0; i < 2 * _problem->_actionVectorSize; i++)
@@ -499,14 +475,9 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
 
   if (_policyDistribution == "Clipped Normal")
   {
-    float logpCurPolicy = 0.f;
-    float logpOldPolicy = 0.f;
-
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)
     {
       // Getting parameters from the new and old policies
-      const float oldMu = oldPolicy.distributionParameters[i];
-      const float oldSigma = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
       const float curMu = curPolicy.distributionParameters[i];
       const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
 
@@ -526,10 +497,6 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
 
         // Grad wrt. curSigma
         importanceWeightGradients[_problem->_actionVectorSize + i] = -curActionDif * curInvSig * pdfCdfRatio;
-
-        // Calculate importance weight
-        logpCurPolicy += curNormalLogCdfLower;
-        logpOldPolicy += normalLogCDF(_actionLowerBounds[i], oldMu, oldSigma);
       }
       else if (_actionUpperBounds[i] <= action[i])
       {
@@ -542,10 +509,6 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
 
         // Grad wrt. curSigma
         importanceWeightGradients[_problem->_actionVectorSize + i] = curActionDif * curInvSig * pdfCCdfRatio;
-
-        // Calculate importance weight
-        logpCurPolicy += curNormalLogCCdfUpper;
-        logpOldPolicy += normalLogCCDF(_actionUpperBounds[i], oldMu, oldSigma);
       }
       else
       {
@@ -557,15 +520,8 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
 
         // Grad wrt. curSigma
         importanceWeightGradients[_problem->_actionVectorSize + i] = curActionDif * curActionDif * curInvSig3 - curInvSig;
-
-        // Calculate importance weight
-        logpCurPolicy += normalLogDensity(action[i], curMu, curSigma);
-        logpOldPolicy += normalLogDensity(action[i], oldMu, oldSigma);
       }
     }
-
-    const float logImportanceWeight = logpCurPolicy - logpOldPolicy;
-    const float importanceWeight = std::exp(logImportanceWeight); // TODO: reuse importance weight calculation from updateExperienceReplayMetadata
 
     // Scale by importance weight to get gradient
     for (size_t i = 0; i < _policyParameterCount; i++)
@@ -574,42 +530,28 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
 
   if (_policyDistribution == "Truncated Normal")
   {
-    float logpCurPolicy = 0.f;
-    float logpOldPolicy = 0.f;
-
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)
     {
       // Getting parameters from the new and old policies
-      const float oldMu = oldPolicy.distributionParameters[i];
-      const float oldSigma = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
       const float curMu = curPolicy.distributionParameters[i];
       const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
-
-      const float oldInvSig = 1. / oldSigma;
-      const float oldInvVar = oldInvSig * oldInvSig;
 
       const float curInvSig = 1. / curSigma;
       const float curInvVar = curInvSig * curInvSig;
 
       // Action differences to mu
       const float curActionDif = action[i] - curMu;
-      const float oldActionDif = action[i] - oldMu;
 
       // Scaled upper and lower bound distances from mu
-      const float oldAlpha = (_actionLowerBounds[i] - oldMu) * oldInvSig * M_SQRT1_2;
-      const float oldBeta = (_actionUpperBounds[i] - oldMu) * oldInvSig * M_SQRT1_2;
-
       const float curAlpha = (_actionLowerBounds[i] - curMu) * curInvSig * M_SQRT1_2;
       const float curBeta = (_actionUpperBounds[i] - curMu) * curInvSig * M_SQRT1_2;
 
       // log of normalization constantsa
       const float lCq = M_LN2 - safeLogMinus(gsl_sf_log_erfc(-curBeta), gsl_sf_log_erfc(-curAlpha));
-      const float lCp = M_LN2 - safeLogMinus(gsl_sf_log_erfc(-oldBeta), gsl_sf_log_erfc(-oldAlpha));
 
       // precomputing log values
       const float lPi2 = 0.5 * std::log(2. * M_PI);
       const float lCurSig = std::log(curSigma);
-      const float lOldSig = std::log(oldSigma);
 
       // log of normalized gradients of normalization constants
       float ldCqMu = lCq - lPi2 - lCurSig;
@@ -644,14 +586,7 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
       // Gradient with respect to Sigma
       importanceWeightGradients[_problem->_actionVectorSize + i] = curActionDif * curActionDif * curInvVar * curInvSig - curInvSig + dCqSig;
       assert(isfinite(importanceWeightGradients[_problem->_actionVectorSize + i]));
-
-      // Calculate Importance Weight
-      logpCurPolicy += lCq - lCurSig - 0.5 * curActionDif * curActionDif * curInvVar;
-      logpOldPolicy += lCp - lOldSig - 0.5 * oldActionDif * oldActionDif * oldInvVar;
     }
-
-    const float logImportanceWeight = logpCurPolicy - logpOldPolicy;
-    const float importanceWeight = std::exp(logImportanceWeight); // TODO: reuse importance weight calculation from updateExperienceReplayMetadata
 
     // Scale by importance weight to get gradient
     for (size_t i = 0; i < 2 * _problem->_actionVectorSize; i++)
@@ -1031,7 +966,7 @@ void Continuous::getConfiguration(knlohmann::json& js)
 void Continuous::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Normal Generator\": {\"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"Policy\": {\"Distribution\": \"Normal\"}}";
+ std::string defaultString = "{\"Normal Generator\": {\"Name\": \"Agent / Continuous / Normal Generator\", \"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"Policy\": {\"Distribution\": \"Normal\"}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Agent::applyModuleDefaults(js);

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+import shutil as sh
 import numpy as np
 import matplotlib.pyplot as plt
 import time
@@ -103,9 +104,15 @@ e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tan
 
 ### Configuring output
 
-e["Console Output"]["Frequency"] = 100
-e["File Output"]["Enabled"] = False
+e["Console Output"]["Frequency"] = 10
+e["File Output"]["Enabled"] = True
+e["File Output"]["Use Multiple Files"] = False
 e["Random Seed"] = 0xC0FFEE
+
+### Delete old results
+
+if os.path.exists("_korali_result"):
+ sh.rmtree("_korali_result")
 
 ### Training the neural network
 

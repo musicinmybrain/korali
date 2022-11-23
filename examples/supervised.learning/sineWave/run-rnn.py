@@ -20,7 +20,7 @@ parser.add_argument(
 parser.add_argument(
     '--maxGenerations',
      help='Maximum Number of generations to run',
-     default=10,
+     default=1000,
      required=False)   
 parser.add_argument(
     '--rnnType',
@@ -95,7 +95,7 @@ e = korali.Experiment()
 e["Problem"]["Type"] = "Supervised Learning"
 e["Problem"]["Max Timesteps"] = len(T)
 e["Problem"]["Training Batch Size"] = args.trainingBatchSize
-e["Problem"]["Inference Batch Size"] = args.testBatchSize
+e["Problem"]["Testing Batch Size"] = args.testBatchSize
 e["Problem"]["Input"]["Data"] = trainingInputSetX
 e["Problem"]["Input"]["Size"] = 1
 e["Problem"]["Solution"]["Data"] = trainingSolutionSet
@@ -106,7 +106,6 @@ e["Problem"]["Solution"]["Size"] = 1
 e["Solver"]["Type"] = "DeepSupervisor"
 e["Solver"]["Mode"] = "Training"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
-e["Solver"]["Steps Per Generation"] = 20
 e["Solver"]["Learning Rate"] = float(args.learningRate)
 
 ### Defining the shape of the neural network
@@ -141,6 +140,7 @@ if len(sys.argv) == 2:
 e["Random Seed"] = 0xC0FFEE
 k.run(e)
 
+
 ### Obtaining inferred results from the NN and comparing them to the actual solution
 
 X = np.random.uniform(0, np.pi*2, args.testBatchSize)
@@ -160,7 +160,13 @@ testSolutionSet = [ ]
 for j, x in enumerate(X):
  t = testInputSetT[j][-1][0]
  testSolutionSet.append([ y(x, t) ]) 
-testInferredSet = e.getEvaluation(testInputSetX) 
+
+e["Solver"]["Mode"] = "Testing"
+e["Problem"]["Input"]["Data"] = testInputSetX
+
+### Running Testing and getting results
+k.run(e)
+testInferredSet = [ x[0] for x in e["Solver"]["Evaluation"] ]
 
 ### Calc MSE on test set
 

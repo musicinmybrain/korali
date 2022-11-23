@@ -61,21 +61,6 @@ class VRACER : public Continuous
   
 
   /**
-   * @brief Pointer to training the actor network
-   */
-  std::vector<solver::DeepSupervisor *> _criticPolicyLearner;
-
-  /**
-   * @brief Korali experiment for obtaining the agent's action
-   */
-  std::vector<korali::Experiment> _criticPolicyExperiment;
-
-  /**
-   * @brief Pointer to actor's experiment problem
-   */
-  std::vector<problem::SupervisedLearning *> _criticPolicyProblem;
-
-  /**
    * @brief Update the V-target or current and previous experiences in the episode
    * @param expId Current Experience Id
    */

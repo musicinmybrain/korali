@@ -1004,7 +1004,7 @@ namespace
    ASSERT_NO_THROW(a->generateTrainingAction(curPolicy[0]));
    ASSERT_NO_THROW(a->generateTestingAction(curPolicy[0]));
    ASSERT_NO_THROW(a->calculateImportanceWeight(testAction[0], curPolicy[0], prevPolicy[0]));
-   ASSERT_NO_THROW(a->calculateImportanceWeightGradient(testAction[0], curPolicy[0], prevPolicy[0]));
+   ASSERT_NO_THROW(a->calculateImportanceWeightGradient(testAction[0], curPolicy[0], prevPolicy[0], 1.0));
    ASSERT_NO_THROW(a->calculateKLDivergenceGradient(curPolicy[0], prevPolicy[0]));
 
    a->_policyDistribution = "Clipped Normal";
@@ -1037,7 +1037,7 @@ namespace
 
    ASSERT_NO_THROW(a->generateTestingAction(curPolicy[0]));
    ASSERT_NO_THROW(a->calculateImportanceWeight(testAction[0], curPolicy[0], prevPolicy[0]));
-   ASSERT_NO_THROW(a->calculateImportanceWeightGradient(testAction[0], curPolicy[0], prevPolicy[0]));
+   ASSERT_NO_THROW(a->calculateImportanceWeightGradient(testAction[0], curPolicy[0], prevPolicy[0], 1.0));
    ASSERT_NO_THROW(a->calculateKLDivergenceGradient(curPolicy[0], prevPolicy[0]));
 
    pC->_actionVectorIndexes[0] = 1;
@@ -1062,7 +1062,7 @@ namespace
    ASSERT_NO_THROW(a->generateTrainingAction(curPolicy[0]));
    ASSERT_NO_THROW(a->generateTestingAction(curPolicy[0]));
    ASSERT_NO_THROW(a->calculateImportanceWeight(testAction[0], curPolicy[0], prevPolicy[0]));
-   ASSERT_NO_THROW(a->calculateImportanceWeightGradient(testAction[0], curPolicy[0], prevPolicy[0]));
+   ASSERT_NO_THROW(a->calculateImportanceWeightGradient(testAction[0], curPolicy[0], prevPolicy[0], 1.0));
    ASSERT_NO_THROW(a->calculateKLDivergenceGradient(curPolicy[0], prevPolicy[0]));
 
    pC->_actionVectorIndexes[0] = 1;

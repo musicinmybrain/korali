@@ -11,6 +11,7 @@
 #include "modules/distribution/univariate/normal/normal.hpp"
 #include "modules/distribution/univariate/truncatedNormal/truncatedNormal.hpp"
 #include "modules/distribution/univariate/uniform/uniform.hpp"
+#include "modules/distribution/univariate/uniformratio/uniformratio.hpp"
 #include "modules/distribution/univariate/poisson/poisson.hpp"
 #include "modules/distribution/univariate/weibull/weibull.hpp"
 #include "modules/distribution/multivariate/normal/normal.hpp"
@@ -2490,8 +2491,7 @@ namespace
 
   // Testing incorrect minimum/maximum
   d->_minimum = 16.0;
-  ASSERT_NO_THROW(d->updateDistribution());
-  ASSERT_ANY_THROW(d->getRandomNumber());
+  ASSERT_ANY_THROW(d->updateDistribution());
 
   // Testing correct minimum/maximum
   d->_minimum = 2.0;
@@ -2720,6 +2720,91 @@ namespace
   EXPECT_EQ(d->getLogDensityGradient( 5.0 ), 0.0);
   EXPECT_EQ(d->getLogDensityHessian( 5.0 ), 0.0);
  }
+ 
+ TEST(Distrtibutions, UniformRatioDistribution)
+ {
+  knlohmann::json distributionJs;
+  Experiment e;
+  distribution::univariate::UniformRatio* d;
+
+  // Creating distribution with an incorrect name
+  distributionJs["Type"] = "Distribution/Univariate/UniformRatio";
+  ASSERT_ANY_THROW(d = dynamic_cast<korali::distribution::univariate::UniformRatio *>(Module::getModule(distributionJs, &e)));
+
+  // Creating distribution correctly now
+  distributionJs["Type"] = "Univariate/UniformRatio";
+  ASSERT_NO_THROW(d = dynamic_cast<korali::distribution::univariate::UniformRatio *>(Module::getModule(distributionJs, &e)));
+
+  //////////////////////////////////////////////////
+
+  // Getting module defaults
+  distributionJs["Name"] = "Test";
+  ASSERT_NO_THROW(d->applyModuleDefaults(distributionJs));
+  ASSERT_NO_THROW(d->applyVariableDefaults());
+  auto baseJs = distributionJs;
+
+  // Testing correct shape
+  distributionJs["Minimum X"] = 2.0;
+  distributionJs["Maximum X"] = 8.0;
+  distributionJs["Minimum Y"] = 1.0;
+  distributionJs["Maximum Y"] = 9.0;
+  ASSERT_NO_THROW(d->setConfiguration(distributionJs));
+  ASSERT_NO_THROW(d->updateDistribution());
+
+  // Testing get configuration method
+  d->getConfiguration(distributionJs);
+  ASSERT_EQ(distributionJs["Type"].get<std::string>(), "univariate/uniformratio");
+  ASSERT_EQ(distributionJs["Minimum X"].get<double>(), 2.0);
+  ASSERT_EQ(distributionJs["Maximum X"].get<double>(), 8.0);
+  ASSERT_EQ(distributionJs["Minimum Y"].get<double>(), 1.0);
+  ASSERT_EQ(distributionJs["Maximum Y"].get<double>(), 9.0);
+
+  // Testing get property pointer
+  ASSERT_TRUE(d->getPropertyPointer("Minimum X") != NULL);
+  ASSERT_TRUE(d->getPropertyPointer("Maximum X") != NULL);
+  ASSERT_TRUE(d->getPropertyPointer("Minimum Y") != NULL);
+  ASSERT_TRUE(d->getPropertyPointer("Maximum Y") != NULL);
+  ASSERT_ANY_THROW(d->getPropertyPointer("Undefined")); // Distribution not recognized
+
+  // Testing incorrect minimum/maximum
+  d->_minimumX = 16.0;
+  ASSERT_ANY_THROW(d->updateDistribution());
+
+  // Testing correct minimum/maximum
+  d->_minimumX = 2.0;
+  ASSERT_NO_THROW(d->updateDistribution());
+  ASSERT_NO_THROW(d->getRandomNumber());
+
+  /////////////////////////////////////////////////
+
+  // Testing density
+  EXPECT_NEAR(d->getDensity( 0 ), 0000000, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_NEAR(d->getDensity( 1. ), 0.625000, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_NEAR(d->getDensity( 2. ), 0.156250, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_NEAR(d->getDensity( 4. ), 0.031250, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_NEAR(d->getDensity( 5. ), 0.016250, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_NEAR(d->getDensity( 8. ), 0.000000, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_NEAR(d->getDensity( 9. ), 0.000000, PDENSITY_ERROR_TOLERANCE);
+ 
+  // Testing log density
+  EXPECT_EQ(d->getLogDensity( 0 ), -INFINITY);
+  EXPECT_NEAR(d->getLogDensity( 2. ), -1.856298, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_NEAR(d->getLogDensity( 4. ), -3.465736, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_EQ(d->getLogDensity( 8. ), -INFINITY);
+  EXPECT_EQ(d->getLogDensity( 9. ), -INFINITY);
+
+  // Testing log density gradient
+  EXPECT_NEAR(d->getLogDensityGradient( 0 ), 0.000000, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_NEAR(d->getLogDensityGradient( 1. ), -2.000000, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_NEAR(d->getLogDensityGradient( 2. ), -1.000000, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_NEAR(d->getLogDensityGradient( 9. ), 0.000000, PDENSITY_ERROR_TOLERANCE);
+  
+  // Testing log density Hessian
+  EXPECT_NEAR(d->getLogDensityHessian( 1. ), -10.000000, PDENSITY_ERROR_TOLERANCE);
+  EXPECT_NEAR(d->getLogDensityHessian( 2. ), -2.500000, PDENSITY_ERROR_TOLERANCE);
+
+ }
+
 
  TEST(Distrtibutions, WeibullDistribution)
   {

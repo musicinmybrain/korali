@@ -185,14 +185,18 @@ void NeuralNetwork::initialize()
 
 std::vector<float> NeuralNetwork::generateInitialHyperparameters()
 {
-  // Setting initial values for hyperparameters
+  // Empty storage for hyperparameters
   std::vector<float> initialHyperparameters;
 
+  // Initialize hyperparameters layer by layer
   for (size_t i = 0; i < _pipelines[0][0]._layerVector.size(); i++)
   {
     auto layerParameters = _pipelines[0][0]._layerVector[i]->generateInitialHyperparameters();
     initialHyperparameters.insert(initialHyperparameters.end(), layerParameters.begin(), layerParameters.end());
   }
+
+  // Set hyperparameters in neural network
+  setHyperparameters(initialHyperparameters);
 
   return initialHyperparameters;
 }
@@ -410,10 +414,6 @@ std::vector<float> NeuralNetwork::getHyperparameters()
     _pipelines[0][0]._layerVector[i]->getHyperparameters(&hyperparameters[index]);
   }
 
-  for (const float h : hyperparameters)
-    if (std::isfinite(h) == false)
-      KORALI_LOG_ERROR("Returning non-finite hyperparameters"); // TODO: move check to optimizer
-
   return hyperparameters;
 }
 
@@ -421,10 +421,6 @@ void NeuralNetwork::setHyperparameters(const std::vector<float> &hyperparameters
 {
   if (hyperparameters.size() != _hyperparameterCount)
     KORALI_LOG_ERROR("Wrong number of hyperparameters passed to the neural network. Expected: %lu, provided: %lu.\n", _hyperparameterCount, hyperparameters.size());
-
-  for (const float h : hyperparameters)
-    if (std::isfinite(h) == false)
-      KORALI_LOG_ERROR("Assigning non-finite value to hyperparameters"); // TODO: move check to optimizer
 
   size_t layerCount = _pipelines[0][0]._layerVector.size();
 
@@ -536,7 +532,7 @@ void NeuralNetwork::getConfiguration(knlohmann::json& js)
 void NeuralNetwork::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Engine\": \"Korali\", \"Input Values\": [], \"Batch Sizes\": [], \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": -1.0, \"Maximum\": 1.0}}";
+ std::string defaultString = "{\"Engine\": \"Korali\", \"Input Values\": [], \"Batch Sizes\": [], \"Uniform Generator\": {\"Name\": \"Neural Network / Uniform Generator\", \"Type\": \"Univariate/Uniform\", \"Minimum\": -1.0, \"Maximum\": 1.0}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Module::applyModuleDefaults(js);

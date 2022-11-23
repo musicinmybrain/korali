@@ -21,11 +21,6 @@ Distribution::getRange(gsl_rng *range) const
 
   hexString[n * 2] = '\0';
 
-  // crcInit();
-  // uint8_t crc8 = crcFast((uint8_t*)state, n);
-  // size_t crc32 = crc8;
-  // printf("Saving CRC: 0x%X\n", crc32);
-
   std::string output = std::string(hexString);
   free(hexString);
   return output;
@@ -54,11 +49,6 @@ gsl_rng *Distribution::setRange(const std::string rangeString)
     for (size_t i = 0; i < n; i++)
       ((char *)state)[i] = (char)hexPairToByte(&rngHexString[i * 2]);
   }
-
-  // crcInit();
-  // uint8_t crc8 = crcFast((uint8_t*)state, n);
-  // size_t crc32 = crc8;
-  // printf("Loading CRC: 0x%X\n", crc32);
 
   return rng;
 }

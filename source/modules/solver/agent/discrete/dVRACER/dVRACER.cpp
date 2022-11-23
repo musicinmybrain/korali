@@ -35,6 +35,8 @@ void dVRACER::initializeAgent()
 
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
+    _criticPolicyExperiment[p]["Random Seed"] = _k->_randomSeed;
+
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
     _criticPolicyExperiment[p]["Problem"]["Max Timesteps"] = _timeSequenceLength;
     _criticPolicyExperiment[p]["Problem"]["Training Batch Size"] = _effectiveMinibatchSize;
@@ -345,7 +347,7 @@ knlohmann::json dVRACER::getPolicy()
 void dVRACER::setPolicy(const knlohmann::json &hyperparameters)
 {
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-    _criticPolicyLearner[p]->setHyperparameters(hyperparameters[p].get<std::vector<float>>());
+    _criticPolicyLearner[p]->_neuralNetwork->setHyperparameters(hyperparameters[p].get<std::vector<float>>());
 }
 
 void dVRACER::printInformation()

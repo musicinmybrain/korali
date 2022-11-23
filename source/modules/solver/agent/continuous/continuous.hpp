@@ -96,9 +96,10 @@ class Continuous : public Agent
    * @param action The action taken by the agent in the given experience
    * @param oldPolicy The policy for the given state used at the time the action was performed
    * @param curPolicy The current policy for the given state
+   * @param importanceWeight The importance weight
    * @return gradient of policy wrt curParamsOne and curParamsTwo
    */
-  std::vector<float> calculateImportanceWeightGradient(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy);
+  std::vector<float> calculateImportanceWeightGradient(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, const float importanceWeight);
 
   /**
    * @brief Calculates the gradient of KL(p_old, p_cur) wrt to the parameter of the 2nd (current) distribution.

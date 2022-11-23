@@ -432,7 +432,7 @@ void TMCMC::calculateProposals(std::vector<Sample> &samples)
     // reset
     std::fill(_chainCandidatesCovariance[finishedId].begin(), _chainCandidatesCovariance[finishedId].end(), 0.0);
 
-    std::vector<double> FIM = samples[finishedId]["Fisher Information"];
+    std::vector<double> FIM = KORALI_GET(std::vector<double>, samples[finishedId], "Fisher Information");
     gsl_matrix_view FIMview = gsl_matrix_view_array(&FIM[0], Nth, Nth);
 
     // scale FIM

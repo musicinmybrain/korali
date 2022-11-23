@@ -27,6 +27,8 @@ void __className__::initializeAgent()
 
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
+    _criticPolicyExperiment[p]["Random Seed"] = _k->_randomSeed;
+
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
     _criticPolicyExperiment[p]["Problem"]["Max Timesteps"] = _timeSequenceLength;
     _criticPolicyExperiment[p]["Problem"]["Training Batch Size"] = _effectiveMinibatchSize;
@@ -337,7 +339,7 @@ knlohmann::json __className__::getPolicy()
 void __className__::setPolicy(const knlohmann::json &hyperparameters)
 {
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-    _criticPolicyLearner[p]->setHyperparameters(hyperparameters[p].get<std::vector<float>>());
+    _criticPolicyLearner[p]->_neuralNetwork->setHyperparameters(hyperparameters[p].get<std::vector<float>>());
 }
 
 void __className__::printInformation()

@@ -16,10 +16,7 @@ void Sampling::evaluate(Sample &sample)
 {
   sample.run(_probabilityFunction);
 
-  auto evaluation = KORALI_GET(double, sample, "logP(x)");
-
-  if (std::isfinite(evaluation) == false)
-    KORALI_LOG_ERROR("Non finite value of evaluation detected: %f\n", evaluation);
+  const auto evaluation = KORALI_GET(double, sample, "logP(x)");
 
   sample["logP(x)"] = evaluation;
   sample["F(x)"] = evaluation;
@@ -27,16 +24,16 @@ void Sampling::evaluate(Sample &sample)
 
 void Sampling::evaluateGradient(korali::Sample &sample)
 {
-  size_t Nth = _k->_variables.size();
-  auto gradient = KORALI_GET(std::vector<double>, sample, "grad(logP(x))");
+  const size_t Nth = _k->_variables.size();
+  const auto gradient = KORALI_GET(std::vector<double>, sample, "grad(logP(x))");
   if (gradient.size() != Nth)
     KORALI_LOG_ERROR("Dimension of Gradient must be %zu (is %zu).\n", Nth, gradient.size());
 }
 
 void Sampling::evaluateHessian(korali::Sample &sample)
 {
-  size_t Nth = _k->_variables.size();
-  auto hessian = KORALI_GET(std::vector<std::vector<double>>, sample, "H(logP(x))");
+  const size_t Nth = _k->_variables.size();
+  const auto hessian = KORALI_GET(std::vector<std::vector<double>>, sample, "H(logP(x))");
 
   if (hessian.size() != Nth)
     KORALI_LOG_ERROR("Outer dimension of Hessian matrix must be %zu (is %zu).\n", Nth, hessian.size());
