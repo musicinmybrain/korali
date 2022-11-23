@@ -14,8 +14,9 @@ parser.add_argument('--optimizer', help='Optimizer', required=False, type=str, d
 
 parser.add_argument('--nPolicies', help='Number of Policies in Ensemble.', required=False, type=int, default = 1)
 
-parser.add_argument('--bBayesian', help='Boolean to decide whether we use Bayesian Learning.', required=False, type=bool, default=False)
-parser.add_argument('--nSGD', help='Number of Samples from Posterior that are stored.', required=False, type=int, default = 1)
+parser.add_argument('--bBayesian', help='Boolean to decide whether we use Bayesian Learning.', required=False, type=bool, default=True)
+parser.add_argument('--nSamples', help='Number of Samples from Posterior that are used to approximate posterior predicitve distribution.', required=False, type=int, default = 10)
+parser.add_argument('--nHyperparameters', help='Number of Hyperparameters that are stored.', required=False, type=int, default = 1)
 parser.add_argument('--bSWAG', help='Boolean to decide whether we use SWAG.', required=False, type=bool, default=False)
 parser.add_argument('--langevin', help='Use Langevin Dynamics.', required=False, type=bool, default=False)
 parser.add_argument('--dropout', help='Dropout probability.', required=False, type=float, default=0.0)
@@ -64,11 +65,14 @@ e["Problem"]["Ensemble Learning"] = args.nPolicies > 1
 # Switch to enable / disable Bayesian learning (needed for all of the following options)
 e["Solver"]["Bayesian Learning"] = args.bBayesian
 
+# Set the number of samples that are used
+e["Solver"]["Number Of Samples"] = args.nSamples
+
 # Enable Dropout (https://proceedings.mlr.press/v48/gal16.html)
 e["Solver"]["Dropout Probability"] = args.dropout
 
 # Set the number of samples that are used
-e["Solver"]["Number Of Samples"] = args.nSGD
+e["Solver"]["Number Of Stored Hyperparameters"] = args.nHyperparameters
 
 # Enable SWAG (https://arxiv.org/pdf/1902.02476.pdf)
 e["Solver"]["swag"] = args.bSWAG
