@@ -122,9 +122,13 @@ class Agent : public Solver
   */
    int _bayesianLearning;
   /**
-  * @brief Number of Samples stored from Posterior.
+  * @brief Number of samples to approximate predictive posterior distribution.
   */
    size_t _numberOfSamples;
+  /**
+  * @brief Number of hyperparameters stored.
+  */
+   size_t _numberOfStoredHyperparameters;
   /**
   * @brief Boolean to determine whether Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf) is used.
   */
@@ -245,14 +249,6 @@ class Agent : public Solver
   * @brief Specifies whether we take into account the dependencies of the agents or not.
   */
    int _multiAgentCorrelation;
-  /**
-  * @brief Stores the number of threads using which multiple neural networks are forwarded ([Number Of CPUs] / [OMP_NUM_THREADS]), where OMP_NUM_THREADS should be optimized for fast processing of the neural network (8 seems ideal for 128x128 network).
-  */
-   int _numberOfPolicyThreads;
-  /**
-  * @brief [Internal Use] Stores the total number of threads, computed as omp_get_max_threads()*[Number Of Policy Threads].
-  */
-   int _numberOfCPUs;
   /**
   * @brief [Internal Use] Stores the number of parameters that determine the probability distribution for the current state sequence.
   */
@@ -734,7 +730,7 @@ class Agent : public Solver
    * @param curPolicy The current policy for the given state
    * @param policyIdx The index for the policy that was used previously
    */
-  virtual void computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy, const size_t policyIdx) = 0;
+  virtual void computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy, const size_t policyIdx = 0) = 0;
 
   /**
    * @brief Calculates the starting experience index of the time sequence for the selected experience

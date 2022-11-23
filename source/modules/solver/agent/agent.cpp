@@ -20,27 +20,11 @@ namespace solver
 
 void Agent::initialize()
 {
+  // Get variable count
   _variableCount = _k->_variables.size();
-
-  // Get number of CPUs
-#ifdef _OPENMP
-  _numberOfCPUs = _numberOfPolicyThreads * omp_get_max_threads();
-#else
-  _numberOfCPUs = 1;
-#endif
-
-  // Set number of threads using which NN are forwarded in parallel
-#ifndef _OPENMP
-  _numberOfPolicyThreads = 1;
-#endif
 
   // Getting problem pointer
   _problem = dynamic_cast<problem::ReinforcementLearning *>(_k->_problem);
-
-  // Print Info
-#ifdef _OPENMP
-  _k->_logger->logInfo("Normal", "There are %d threads available. Enabling parallel forwarding of up to %d/%ld policies with %d threads each.\n", _numberOfCPUs, _numberOfPolicyThreads, _problem->_policiesPerEnvironment, omp_get_max_threads());
-#endif
 
   // Getting number of agents
   const size_t numAgents = _problem->_agentsPerEnvironment;
@@ -106,7 +90,7 @@ void Agent::initialize()
     _stateTimeSequence[a].resize(_timeSequenceLength);
 
   // hyperparameters from Stochastic Gradient Descent Trajectory
-  _hyperparameterBuffer.resize(_numberOfSamples);
+  _hyperparameterBuffer.resize(_numberOfStoredHyperparameters);
 
   // Check configuration of Bayesian RL
   if (_bayesianLearning)
@@ -119,7 +103,7 @@ void Agent::initialize()
       KORALI_LOG_ERROR("Choose either dropout or langevin dynamics");
   }
 
-  if( (_bayesianLearning == false) && (_swag || (_dropoutProbability > 0.0) || _hmcEnabled || _langevinDynamics) )
+  if ((_bayesianLearning == false) && (_swag || (_dropoutProbability > 0.0) || _hmcEnabled || _langevinDynamics))
     KORALI_LOG_ERROR("Bayesian Learning is disabled");
 
   // HMC only compatible with single policy
@@ -831,7 +815,7 @@ std::vector<std::vector<std::vector<float>>> Agent::getMiniBatchStateSequence(co
   // Allocating state sequence vector
   std::vector<std::vector<std::vector<float>>> stateSequence(numExperiences);
 
-#pragma omp parallel for num_threads(_numberOfCPUs)
+#pragma omp parallel for
   for (size_t b = 0; b < numExperiences; b++)
   {
     // Getting current expId and agentId
@@ -902,8 +886,8 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
   // Container to compute offpolicy count difference in minibatch
   std::vector<int> offPolicyCountDelta(numAgents, 0);
 
-#pragma omp parallel for schedule(guided, numAgents) num_threads(_numberOfCPUs) reduction(vec_int_plus \
-                                                                                          : offPolicyCountDelta)
+#pragma omp parallel for schedule(guided, numAgents) reduction(vec_int_plus \
+                                                               : offPolicyCountDelta)
   for (size_t i = 0; i < updateMinibatch.size(); i++)
   {
     // Get current expId and agentId
@@ -976,8 +960,8 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
 
   if (_multiAgentCorrelation)
   {
-#pragma omp parallel for num_threads(_numberOfCPUs) reduction(vec_int_plus \
-                                                              : offPolicyCountDelta)
+#pragma omp parallel for reduction(vec_int_plus \
+                                   : offPolicyCountDelta)
     for (size_t i = 0; i < updateBatch.size(); i++)
     {
       const size_t batchId = updateBatch[i];
@@ -1032,7 +1016,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
   // Average state values for cooperative MA
   if (_multiAgentRelationship == "Cooperation")
   {
-#pragma omp parallel num_threads(_numberOfCPUs)
+#pragma omp parallel
     for (size_t i = 0; i < updateBatch.size(); i++)
     {
       const size_t batchId = updateBatch[i];
@@ -1108,7 +1092,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
   }
 
 // Calculating retrace value for the oldest experiences of unique episodes
-#pragma omp parallel for schedule(guided, 1) num_threads(_numberOfCPUs)
+#pragma omp parallel for schedule(guided, 1)
   for (size_t i = 0; i < retraceMiniBatch.size(); i++)
   {
     // Determine start of the episode
@@ -1196,14 +1180,6 @@ std::vector<float> Agent::samplePosterior(const size_t policyIdx)
   // Declare vector for hyperparameters
   std::vector<float> hyperparameterSample;
 
-  // Take sample
-  const size_t numSamples = _hyperparameterBuffer.size();
-  float x = _uniformGenerator->getRandomNumber();
-
-  size_t sampleIdx = std::floor(x * numSamples);
-  sampleIdx = sampleIdx == numSamples ? numSamples - 1 : sampleIdx;
-  hyperparameterSample = _hyperparameterBuffer[sampleIdx][policyIdx];
-
   // For SWAG sample from Gaussian approximation of Posterior
   if (_swag)
   {
@@ -1219,7 +1195,7 @@ std::vector<float> Agent::samplePosterior(const size_t policyIdx)
       // Compute constant prefactor
       const float fac = 1.0 / (float)(s + 1);
 
-#pragma omp parallel for simd num_threads(_numberOfCPUs)
+#pragma omp parallel for simd
       for (size_t n = 0; n < nHyperparameters; n++)
       {
         const float oldMean = mean[n];
@@ -1234,7 +1210,7 @@ std::vector<float> Agent::samplePosterior(const size_t policyIdx)
     hyperparameterSample = mean;
 
     // Sample Hyperparameter
-#pragma omp parallel for num_threads(_numberOfCPUs)
+    // #pragma omp parallel for
     for (size_t n = 0; n < hyperparameterSample.size(); n++)
     {
       // Retreive variance
@@ -1255,21 +1231,13 @@ std::vector<float> Agent::samplePosterior(const size_t policyIdx)
     // Get current hyperparameters
     hyperparameterSample = _criticPolicyLearner[policyIdx]->getHyperparameters();
 
-#pragma omp parallel for num_threads(_numberOfCPUs)
+    // #pragma omp parallel for
     for (size_t n = 0; n < hyperparameterSample.size(); n++)
     {
       const float p = _uniformGenerator->getRandomNumber();
       if (p < _dropoutProbability)
         hyperparameterSample[n] = 0.0;
     }
-  }
-
-  // Add noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
-  if (_langevinDynamics > 0.0)
-  {
-#pragma omp parallel for simd num_threads(_numberOfCPUs)
-    for (size_t n = 0; n < hyperparameterSample.size(); n++)
-      hyperparameterSample[n] += std::sqrt(2 * _currentLearningRate) * _normalGenerator->getRandomNumber();
   }
 
   return hyperparameterSample;
@@ -1294,14 +1262,14 @@ void Agent::trainPolicyHMC()
 
   // Sample momentum
   std::vector<float> momentum(nHyperparameters);
-#pragma omp parallel for num_threads(_numberOfCPUs)
+#pragma omp parallel for
   for (size_t n = 0; n < nHyperparameters; n++)
     momentum[n] = std::sqrt(_hmcMass) * _normalGenerator->getRandomNumber();
 
   // Compute current kinetic energy
   float oldK = 0.0;
-#pragma omp parallel for simd num_threads(_numberOfCPUs) reduction(+ \
-                                                                   : oldK)
+#pragma omp parallel for simd reduction(+ \
+                                        : oldK)
   for (size_t n = 0; n < momentum.size(); ++n)
     oldK += (0.5 / _hmcMass) * momentum[n] * momentum[n];
 
@@ -1312,12 +1280,12 @@ void Agent::trainPolicyHMC()
   for (size_t t = 0; t < _hmcNumberOfSteps; t++)
   {
     // Perform first half-step integration of momentum
-#pragma omp parallel for simd num_threads(_numberOfCPUs)
+#pragma omp parallel for simd
     for (size_t n = 0; n < momentum.size(); ++n)
       momentum[n] += 0.5 * _hmcStepSize * hyperparameterGradient[n];
 
       // Perform integration of location
-#pragma omp parallel for simd num_threads(_numberOfCPUs)
+#pragma omp parallel for simd
     for (size_t n = 0; n < hyperparameters.size(); ++n)
       hyperparameters[n] += (_hmcStepSize / _hmcMass) * momentum[n];
 
@@ -1331,15 +1299,15 @@ void Agent::trainPolicyHMC()
     hyperparameterGradient = _criticPolicyLearner[0]->_hyperparameterGradients;
 
     // Perform second half-step integration of momentum
-#pragma omp parallel for simd num_threads(_numberOfCPUs)
+#pragma omp parallel for simd
     for (size_t n = 0; n < momentum.size(); ++n)
       momentum[n] += 0.5 * _hmcStepSize * hyperparameterGradient[n];
   }
 
   // Compute kinetic energy
   float newK = 0.0;
-#pragma omp parallel for simd num_threads(_numberOfCPUs) reduction(+ \
-                                                                   : newK)
+#pragma omp parallel for simd reduction(+ \
+                                        : newK)
   for (size_t n = 0; n < momentum.size(); ++n)
     newK += _hmcMass * momentum[n] * momentum[n];
 
@@ -1464,7 +1432,7 @@ void Agent::serializeExperienceReplay()
   }
 
   // Save the hyperparameter vector
-  for (size_t i = 0; i < _numberOfSamples; i++)
+  for (size_t i = 0; i < _hyperparameterBuffer.size(); i++)
     stateJson["Hyperparameter Vector"][i] = _hyperparameterBuffer[i];
 
   // Serialize the optimizer
@@ -1571,7 +1539,7 @@ void Agent::deserializeExperienceReplay()
   }
 
   // Deserialize the hyperparameter vector
-  const size_t numSamples = std::min(_policyUpdateCount, _numberOfSamples);
+  const size_t numSamples = std::min(_policyUpdateCount, _numberOfStoredHyperparameters);
   for (size_t i = 0; i < numSamples; i++)
     _hyperparameterBuffer.add(stateJson["Hyperparameter Vector"][i].get<std::vector<std::vector<float>>>());
 
@@ -1662,14 +1630,6 @@ void Agent::printGenerationAfter()
 void Agent::setConfiguration(knlohmann::json& js) 
 {
  if (isDefined(js, "Results"))  eraseValue(js, "Results");
-
- if (isDefined(js, "Number Of CPUs"))
- {
- try { _numberOfCPUs = js["Number Of CPUs"].get<int>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Number Of CPUs']\n%s", e.what()); } 
-   eraseValue(js, "Number Of CPUs");
- }
 
  if (isDefined(js, "Policy", "Parameter Count"))
  {
@@ -2050,6 +2010,15 @@ void Agent::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Number Of Samples'] required by agent.\n"); 
 
+ if (isDefined(js, "Number Of Stored Hyperparameters"))
+ {
+ try { _numberOfStoredHyperparameters = js["Number Of Stored Hyperparameters"].get<size_t>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Number Of Stored Hyperparameters']\n%s", e.what()); } 
+   eraseValue(js, "Number Of Stored Hyperparameters");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Number Of Stored Hyperparameters'] required by agent.\n"); 
+
  if (isDefined(js, "swag"))
  {
  try { _swag = js["swag"].get<int>();
@@ -2327,15 +2296,6 @@ void Agent::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Multi Agent Correlation'] required by agent.\n"); 
 
- if (isDefined(js, "Number Of Policy Threads"))
- {
- try { _numberOfPolicyThreads = js["Number Of Policy Threads"].get<int>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Number Of Policy Threads']\n%s", e.what()); } 
-   eraseValue(js, "Number Of Policy Threads");
- }
-  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Number Of Policy Threads'] required by agent.\n"); 
-
  if (isDefined(js, "Termination Criteria", "Max Episodes"))
  {
  try { _maxEpisodes = js["Termination Criteria"]["Max Episodes"].get<size_t>();
@@ -2384,6 +2344,7 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Episodes Per Generation"] = _episodesPerGeneration;
    js["Bayesian Learning"] = _bayesianLearning;
    js["Number Of Samples"] = _numberOfSamples;
+   js["Number Of Stored Hyperparameters"] = _numberOfStoredHyperparameters;
    js["swag"] = _swag;
    js["Langevin Dynamics"] = _langevinDynamics;
    js["Dropout Probability"] = _dropoutProbability;
@@ -2414,11 +2375,9 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Reward"]["Rescaling"]["Enabled"] = _rewardRescalingEnabled;
    js["Multi Agent Relationship"] = _multiAgentRelationship;
    js["Multi Agent Correlation"] = _multiAgentCorrelation;
-   js["Number Of Policy Threads"] = _numberOfPolicyThreads;
    js["Termination Criteria"]["Max Episodes"] = _maxEpisodes;
    js["Termination Criteria"]["Max Experiences"] = _maxExperiences;
    js["Termination Criteria"]["Max Policy Updates"] = _maxPolicyUpdates;
-   js["Number Of CPUs"] = _numberOfCPUs;
    js["Policy"]["Parameter Count"] = _policyParameterCount;
    js["Action Lower Bounds"] = _actionLowerBounds;
    js["Action Upper Bounds"] = _actionUpperBounds;
@@ -2465,7 +2424,7 @@ void Agent::getConfiguration(knlohmann::json& js)
 void Agent::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Workers\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Number Of Policy Threads\": 1, \"Bayesian Learning\": false, \"Number Of Samples\": 1, \"swag\": false, \"Langevin Dynamics\": false, \"Dropout Probability\": 0.0, \"hmc\": {\"Enabled\": false, \"Mass\": 0.0, \"Number Of Steps\": 0, \"Step Size\": 0.0}, \"Normal Generator\": {\"Name\": \"Agent / Continuous / Normal Generator\", \"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Name\": \"Agent / Uniform Generator\", \"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
+ std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Workers\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Bayesian Learning\": false, \"Number Of Samples\": 1, \"Number Of Stored Hyperparameters\": 1, \"swag\": false, \"Langevin Dynamics\": false, \"Dropout Probability\": 0.0, \"hmc\": {\"Enabled\": false, \"Mass\": 0.0, \"Number Of Steps\": 0, \"Step Size\": 0.0}, \"Normal Generator\": {\"Name\": \"Agent / Continuous / Normal Generator\", \"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Name\": \"Agent / Uniform Generator\", \"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Solver::applyModuleDefaults(js);

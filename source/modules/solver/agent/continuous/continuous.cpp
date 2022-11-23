@@ -118,28 +118,9 @@ void Continuous::getAction(korali::Sample &sample)
     // Forward state sequence to get the Gaussian means and sigmas from policy
     std::vector<policy_t> policy;
 
-    // Policy index for Ensemble or Bayesian learning
-    size_t policyIdx;
-
-    // Forward policy to get action
+    // Forward policy
     if (_problem->_ensembleLearning || _bayesianLearning)
-    {
-      // Producing random number and select policy to produce the action
-      const float x = _uniformGenerator->getRandomNumber();
-      policyIdx = std::floor(x * (float)numPolicies) == numPolicies ? numPolicies - 1 : policyIdx;
-
-      // If using Bayesian learning, sample posterior
-      if (_bayesianLearning)
-      {
-        // Compute posterior sample
-        auto hyperparameters = samplePosterior(policyIdx);
-
-        // Set parameters in neural network
-        _criticPolicyLearner[policyIdx]->_neuralNetwork->setHyperparameters(hyperparameters);
-      }
-
-      runPolicy({_stateTimeSequence[i].getVector()}, policy, policyIdx);
-    }
+      computePredictivePosteriorDistribution({_stateTimeSequence[i].getVector()}, policy);
     else if (_problem->_policiesPerEnvironment == 1)
       runPolicy({_stateTimeSequence[i].getVector()}, policy);
     else
@@ -158,14 +139,6 @@ void Continuous::getAction(korali::Sample &sample)
      ****************************************************************************/
 
     if (sample["Mode"] == "Testing") action = generateTestingAction(policy[0]);
-
-    /*****************************************************************************
-     * In Bayesian Learning, the probability is computed from the
-     * predictive posterior distribution
-     ****************************************************************************/    
-
-    if (_problem->_ensembleLearning || _bayesianLearning)
-      computePredictivePosteriorDistribution( {_stateTimeSequence[i].getVector()}, policy, policyIdx );
 
     /*****************************************************************************
      * Storing the action and its policy

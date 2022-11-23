@@ -33,8 +33,7 @@ void dVRACER::initializeAgent()
 
   _effectiveMinibatchSize = _miniBatchSize * _problem->_agentsPerEnvironment;
 
-
-  // TODO: implement competition and Bayesian Learning for Discrete Environments 
+  // TODO: implement competition and Bayesian Learning for Discrete Environments
   if (_multiAgentRelationship == "Competition")
     KORALI_LOG_ERROR("Multi Agent Relationship = %s is not supported for discrete reinforcement learning problems.\n", _multiAgentRelationship.c_str());
 
@@ -151,8 +150,8 @@ void dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_
   const size_t miniBatchSize = miniBatch.size();
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
-#pragma omp parallel for schedule(guided, numAgents) num_threads(_numberOfCPUs) reduction(+ \
-                                                                                          : _statisticsAverageInverseTemperature, _statisticsAverageActionUnlikeability)
+#pragma omp parallel for schedule(guided, numAgents) reduction(+ \
+                                                               : _statisticsAverageInverseTemperature, _statisticsAverageActionUnlikeability)
   for (size_t b = 0; b < miniBatchSize; b++)
   {
     // Getting index of current experiment
@@ -325,7 +324,7 @@ void dVRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &stat
 }
 
 void dVRACER::computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy, const size_t policyIdx)
-{ // TODO: implement Bayesian Learning for Discrete Environments 
+{ // TODO: implement Bayesian Learning for Discrete Environments
 }
 
 std::vector<policy_t> dVRACER::getPolicyInfo(const std::vector<std::pair<size_t, size_t>> &miniBatch) const
@@ -336,7 +335,7 @@ std::vector<policy_t> dVRACER::getPolicyInfo(const std::vector<std::pair<size_t,
   // Allocating policy sequence vector
   std::vector<policy_t> policyInfo(miniBatchSize);
 
-#pragma omp parallel for num_threads(_numberOfCPUs) schedule(guided, _problem->_agentsPerEnvironment)
+#pragma omp parallel for schedule(guided, _problem->_agentsPerEnvironment)
   for (size_t b = 0; b < miniBatchSize; b++)
   {
     // Getting current expId
