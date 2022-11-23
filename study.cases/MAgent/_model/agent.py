@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#modification: multiwalker_v7 to multiwalker_v9; Add Simple Adversary from MPE environment
+#modification: import battle environment from MAgent2 
 import math
 import pdb
 import numpy as np
@@ -11,29 +11,17 @@ import matplotlib.pyplot as plt
 def initEnvironment(e, envName, multPolicies):
 
  # Creating environment 
- if (envName ==  'Waterworld'):
-    from pettingzoo.sisl import waterworld_v3
-    env = waterworld_v3.env()
-    stateVariableCount = 242
-    actionVariableCount = 2
-    ac_upper = 0.01 
-    ac_low = -0.01 
-    numIndividuals = 5
- elif (envName == 'Multiwalker'):
-    from pettingzoo.sisl import multiwalker_v9
-    env = multiwalker_v9.env()
-    stateVariableCount = 31
-    actionVariableCount = 4
-    ac_upper = 1 
-    ac_low = -1 
-    numIndividuals = 3
- elif (envName ==  'Pursuit'):
-   from pettingzoo.sisl import pursuit_v4
-   env = pursuit_v4.env()
-   stateVariableCount = 147
-   actionVariableCount = 1
-   numIndividuals = 8
-   possibleActions = [ [0], [1], [2], [3], [4] ]
+# magent environment moved from pettingzoo to magent2 
+ if (envName == 'Battle'):
+     from magent2.environments import battle_v4
+     env = battle_v4.env()
+     stateVariableCount = 845
+     actionVariableCount = 1
+     numIndividuals = 162
+     possibleActions = [ [a] for a in range(21) ]
+     
+
+
  else:
    print("Environment '{}' not recognized! Exit..".format(envName))
    sys.exit()
@@ -51,25 +39,25 @@ def initEnvironment(e, envName, multPolicies):
    e["Variables"][stateVariableCount + i]["Name"] = "Action Variable " + str(i) 
    e["Variables"][stateVariableCount + i]["Type"] = "Action"
 
-# add the MPE to the continuous environment sets
- if (envName == 'Waterworld') or (envName == 'Multiwalker'):
-   ### Defining problem configuration for continuous environments
-   e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
-   e["Problem"]["Environment Function"] = lambda x : agent(x, env)
-   e["Problem"]["Custom Settings"]["Print Step Information"] = "Disabled"
-   e["Problem"]["Agents Per Environment"] = numIndividuals
-   if (multPolicies == 1) :
-      e["Problem"]["Policies Per Environment"] = numIndividuals
+#continuous environment sets
+ # if (envName == 'Waterworld') or (envName == 'Multiwalker'):
+ #   ### Defining problem configuration for continuous environments
+ #   e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
+ #   e["Problem"]["Environment Function"] = lambda x : agent(x, env)
+ #   e["Problem"]["Custom Settings"]["Print Step Information"] = "Disabled"
+ #   e["Problem"]["Agents Per Environment"] = numIndividuals
+ #   if (multPolicies == 1) :
+ #      e["Problem"]["Policies Per Environment"] = numIndividuals
     
-   # Defining Action Variables
-   for i in range(actionVariableCount):
-      e["Variables"][stateVariableCount + i]["Name"] = "Action Variable " + str(i)
-      e["Variables"][stateVariableCount + i]["Type"] = "Action"
-      e["Variables"][stateVariableCount + i]["Lower Bound"] = float(ac_low)
-      e["Variables"][stateVariableCount + i]["Upper Bound"] = float(ac_upper)
-      e["Variables"][stateVariableCount + i]["Initial Exploration Noise"] = math.sqrt(0.2) * (ac_upper - ac_low)
+ #   # Defining Action Variables
+ #   for i in range(actionVariableCount):
+ #      e["Variables"][stateVariableCount + i]["Name"] = "Action Variable " + str(i)
+ #      e["Variables"][stateVariableCount + i]["Type"] = "Action"
+ #      e["Variables"][stateVariableCount + i]["Lower Bound"] = float(ac_low)
+ #      e["Variables"][stateVariableCount + i]["Upper Bound"] = float(ac_upper)
+ #      e["Variables"][stateVariableCount + i]["Initial Exploration Noise"] = math.sqrt(0.2) * (ac_upper - ac_low)
 
- elif (envName ==  'Pursuit'):
+ if (envName == 'Battle'):
    ### Defining problem configuration for discrete environments
    e["Problem"]["Type"] = "Reinforcement Learning / Discrete"
    e["Problem"]["Environment Function"] = lambda x : agent(x, env)
@@ -93,14 +81,20 @@ def agent(s, env):
  states = []
 
 # add MPE here
- if (env.env.env.metadata['name']== 'waterworld_v3') or (env.env.env.metadata['name']== 'multiwalker_v9'):
-   for ag in env.agents:
-      state = env.observe(ag).tolist()
-      states.append(state)
- elif (env.env.env.metadata['name'] == 'pursuit_v4'):
+ # if (env.env.env.metadata['name']== 'waterworld_v3') or (env.env.env.metadata['name']== 'multiwalker_v9'):
+ #   for ag in env.agents:
+ #      state = env.observe(ag).tolist()
+ #      states.append(state)
+ if (env.env.env.metadata['name']=='battle_v4'):
+    for ag in env.agents:
+      state = env.observe(ag)
+      state = state.reshape(845)
+      state = state.tolist()
+      states.append(state) 
+ else:
    for ag in env.agents:
       state = env.observe(ag)
-      state = state.reshape(147)
+      state = state.reshape(1125)
       state = state.tolist()
       states.append(state)
 
@@ -126,12 +120,12 @@ def agent(s, env):
   actions = s["Action"]
   rewards = []
   for ag in env.agents:
-   if s["Mode"] == "Testing" and (env.env.env.metadata['name']== 'waterworld_v3'):
-      obs=env.env.env.env.render('rgb_array')
-      im = Image.fromarray(obs)
-      fname = os.path.join("/scratch/mzeqiri/korali/examples/study.cases/pettingZoo/images/","image_{0}.png".format(image_count))
-      im.save(fname)
-      image_count += 1
+   # if s["Mode"] == "Testing" and (env.env.env.metadata['name']== 'waterworld_v3'):
+   #    obs=env.env.env.env.render('rgb_array')
+   #    im = Image.fromarray(obs)
+   #    fname = os.path.join("/scratch/mzeqiri/korali/examples/study.cases/pettingZoo/images/","image_{0}.png".format(image_count))
+   #    im.save(fname)
+   #    image_count += 1
 
    '''
    #Doesn't work without a monitor, cannot use on panda
@@ -147,12 +141,12 @@ def agent(s, env):
    rewards.append(reward)
    action = actions.pop(0)
    
-   if done and (env.env.env.metadata['name']== 'multiwalker_v9'):
-    continue
+   # if done and (env.env.env.metadata['name']== 'multiwalker_v9'):
+   #  continue
    
    if (env.env.env.metadata['name']== 'waterworld_v3') or (env.env.env.metadata['name']== 'multiwalker_v9'):
       env.step(np.array(action,dtype= 'float32'))
-   else: # Pursuit
+   else: # Pursuit or Gather
       if done:
          #if persuit is done only action is NONE
          continue
@@ -164,14 +158,20 @@ def agent(s, env):
   # Storing New State
   states = []
  
-  if (env.env.env.metadata['name']== 'waterworld_v3') or (env.env.env.metadata['name']== 'multiwalker_v9'):
-   for ag in env.agents:
-      state = env.observe(ag).tolist()
+  # if (env.env.env.metadata['name']== 'waterworld_v3') or (env.env.env.metadata['name']== 'multiwalker_v9'):
+  #  for ag in env.agents:
+  #     state = env.observe(ag).tolist()
+  #     states.append(state)
+  if (env.env.env.metadata['name']=='battle_v4'):
+    for ag in env.agents:
+      state = env.observe(ag)
+      state = state.reshape(845)
+      state = state.tolist()
       states.append(state)
-  elif (env.env.env.metadata['name'] == 'pursuit_v4'):
+  else:
    for ag in env.agents:
       state = env.observe(ag)
-      state = state.reshape(147)
+      state = state.reshape(1125)
       state = state.tolist()
       states.append(state)
 

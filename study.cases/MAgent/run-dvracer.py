@@ -85,8 +85,8 @@ elif(args.model == '6'):
 
 ### Setting Experience Replay and REFER settings
 
-if (args.env == 'Pursuit'):
-	numAg = 8
+if (args.env == 'Battle'):
+	numAg = 162
 else:
 	print("Environment '{}' not recognized! Exit..".format(args.env))
 	sys.exit()
