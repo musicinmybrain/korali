@@ -22,7 +22,6 @@ void Discrete::initializeAgent()
 void Discrete::getAction(korali::Sample &sample)
 {
   // Get action for all the agents in the environment
-  // #pragma omp parallel for proc_bind(spread) schedule(static) num_threads(_numberOfPolicyThreads)
   for (size_t i = 0; i < _problem->_agentsPerEnvironment; i++)
   {
     // Getting current state

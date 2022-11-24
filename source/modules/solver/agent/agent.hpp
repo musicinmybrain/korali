@@ -122,17 +122,21 @@ class Agent : public Solver
   */
    int _bayesianLearning;
   /**
-  * @brief Number of Samples stored from Posterior.
+  * @brief Number of samples to approximate predictive posterior distribution.
   */
    size_t _numberOfSamples;
+  /**
+  * @brief Number of hyperparameters stored.
+  */
+   size_t _numberOfStoredHyperparameters;
   /**
   * @brief Boolean to determine whether Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf) is used.
   */
    int _swag;
   /**
-  * @brief Coefficient to control magnitude of noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf).
+  * @brief Enable Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf).
   */
-   float _langevinDynamicsNoiseLevel;
+   int _langevinDynamics;
   /**
   * @brief Dropout probability that is used (https://proceedings.mlr.press/v48/gal16.html).
   */
@@ -245,14 +249,6 @@ class Agent : public Solver
   * @brief Specifies whether we take into account the dependencies of the agents or not.
   */
    int _multiAgentCorrelation;
-  /**
-  * @brief Stores the number of threads using which multiple neural networks are forwarded ([Number Of CPUs] / [OMP_NUM_THREADS]), where OMP_NUM_THREADS should be optimized for fast processing of the neural network (8 seems ideal for 128x128 network).
-  */
-   int _numberOfPolicyThreads;
-  /**
-  * @brief [Internal Use] Stores the total number of threads, computed as omp_get_max_threads()*[Number Of Policy Threads].
-  */
-   int _numberOfCPUs;
   /**
   * @brief [Internal Use] Stores the number of parameters that determine the probability distribution for the current state sequence.
   */
@@ -730,6 +726,13 @@ class Agent : public Solver
   virtual void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) = 0;
 
   /**
+   * @brief Function to compute the predictive posterior distribution probability
+   * @param curPolicy The current policy for the given state
+   * @param policyIdx The index for the policy that was used previously
+   */
+  virtual void computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy, const size_t policyIdx = 0) = 0;
+
+  /**
    * @brief Calculates the starting experience index of the time sequence for the selected experience
    * @param expId The index of the latest experience in the sequence
    * @return The starting time sequence index
@@ -807,16 +810,16 @@ class Agent : public Solver
   std::vector<float> samplePosterior(const size_t policyIdx);
 
   /**
-   * @brief Run a generation of HMC to update the hyperparameters of the neural network
+   * @brief Trains the policy based on the new experiences using HMC
    */
-  void runGenerationHMC();
+  void trainPolicyHMC();
 
   /****************************************************************************************************
    * Virtual functions (responsibilities) for learning algorithms to fulfill
    ***************************************************************************************************/
 
   /**
-   * @brief Trains the policy, based on the new experiences
+   * @brief Trains the policy based on the new experiences
    */
   virtual void trainPolicy() = 0;
 
