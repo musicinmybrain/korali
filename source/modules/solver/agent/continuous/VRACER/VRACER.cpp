@@ -134,7 +134,7 @@ void VRACER::trainPolicy()
     std::vector<policy_t> policyInfo;
 
     // For bayesian RL, compute predictive posterior distribution
-    if (_problem->_ensembleLearning || _bayesianLearning)
+    if ( _problem->_ensembleLearning || _bayesianLearning )
       computePredictivePosteriorDistribution(stateSequenceBatchCopy, policyInfo, p);
     else // Forward Policy
       runPolicy(stateSequenceBatchCopy, policyInfo, p);
@@ -214,6 +214,10 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     if (_multiAgentRelationship == "Cooperation")
       gradientLoss[0] /= numAgents;
 
+    // Gradient has to be divided by Number of Samples in Bayesian learning
+    if ( _problem->_ensembleLearning || _bayesianLearning )
+      gradientLoss[0] /= _numberOfSamples;
+
     // Check value of gradient
     if (std::isfinite(gradientLoss[0]) == false)
       KORALI_LOG_ERROR("Value Gradient has an invalid value: %f\n", gradientLoss[0]);
@@ -256,6 +260,27 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
           polGrad[i] *= correlationFactor;
       }
 
+      // Gradient has to be corrected in Bayesian Learning
+      if ( _problem->_ensembleLearning || _bayesianLearning )
+      {
+        const float invN = 1 / _numberOfSamples;
+        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+        {
+          // Get distribution parameter from current policy
+          const float curMean = curPolicy.distributionParameters[i];
+          const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+
+          // Scaling mean gradient by number of samples
+          polGrad[i] *= invN;
+
+          // Adding contribution from standard deviation
+          polGrad[i] += 2 * invN * ( curMean - invN ) * polGrad[i + _problem->_actionVectorSize];
+
+          // Scaling standard deviation gradient by number of samples
+          polGrad[i + _problem->_actionVectorSize] *= 2 * invN * curSigma;
+        }
+      }
+
       // Set Gradient of Loss wrt Params
       for (size_t i = 0; i < _policyParameterCount; i++)
       {
@@ -267,7 +292,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     }
 
     // Compute derivative of KL divergence
-    const auto klGrad = calculateKLDivergenceGradient(expPolicy, curPolicy);
+    auto klGrad = calculateKLDivergenceGradient(expPolicy, curPolicy);
 
     // Compute factor for KL penalization
     const float klGradMultiplier = -(1.0f - _experienceReplayOffPolicyREFERCurrentBeta[agentId]);
@@ -278,6 +303,34 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
 
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)
     {
+      // Safety checks
+      if (std::isfinite(klGrad[i]) == false)
+        KORALI_LOG_ERROR("KL correction has an invalid value: klGrad[%ld]%f\n", i, klGrad[i]);
+
+      if (std::isfinite(klGrad[i + _problem->_actionVectorSize]) == false)
+        KORALI_LOG_ERROR("KL correction has an invalid value: klGrad[%ld + _problem->_actionVectorSize]%f\n", i, klGrad[i + _problem->_actionVectorSize]);
+
+      // Gradient has to be corrected in Bayesian Learning
+      if ( _problem->_ensembleLearning || _bayesianLearning )
+      {
+        const float invN = 1 / _numberOfSamples;
+        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+        {
+          // Get distribution parameter from current policy
+          const float curMean = curPolicy.distributionParameters[i];
+          const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+
+          // Scaling mean gradient by number of samples
+          klGrad[i] *= invN;
+
+          // Adding contribution from standard deviation
+          klGrad[i] += 2 * invN * ( curMean - invN ) * klGrad[i + _problem->_actionVectorSize];
+
+          // Scaling standard deviation gradient by number of samples
+          klGrad[i + _problem->_actionVectorSize] *= 2 * invN * curSigma;
+        }
+      }
+
       // Safety checks
       if (std::isfinite(klGrad[i]) == false)
         KORALI_LOG_ERROR("KL correction has an invalid value: klGrad[%ld]%f\n", i, klGrad[i]);

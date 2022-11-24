@@ -96,11 +96,15 @@ void Agent::initialize()
   if (_bayesianLearning)
   {
     if ((_dropoutProbability > 0.0) && _swag)
-      KORALI_LOG_ERROR("Choose either swag or dropout");
+      KORALI_LOG_ERROR("Choose either dropout or swag");
     if ((_dropoutProbability > 0.0) && _hmcEnabled)
       KORALI_LOG_ERROR("Choose either dropout or hmc");
     if ((_dropoutProbability > 0.0) && _langevinDynamics)
       KORALI_LOG_ERROR("Choose either dropout or langevin dynamics");
+    if (_swag && _hmcEnabled)
+      KORALI_LOG_ERROR("Choose either swag or hmc");
+    if (_swag && _langevinDynamics)
+      KORALI_LOG_ERROR("Choose either swag or langevin dynamics");
   }
 
   if ((_bayesianLearning == false) && (_swag || (_dropoutProbability > 0.0) || _hmcEnabled || _langevinDynamics))
