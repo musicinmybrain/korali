@@ -37,7 +37,7 @@ e.loadState(resultFolder + '/latest');
 
 ### Set random seed
 
-e["Random Seed"] = 0xC0FEE
+e["Random Seed"] = args.run + 1
 
 ### Initializing openAI Gym environment
 
