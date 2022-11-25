@@ -101,14 +101,19 @@ void __className__::initialize()
       KORALI_LOG_ERROR("Choose either swag or hmc");
     if (_swag && _langevinDynamics)
       KORALI_LOG_ERROR("Choose either swag or langevin dynamics");
+    if( _hmcEnabled && _langevinDynamics )
+      KORALI_LOG_ERROR("Choose either hmc or langevin dynamics");
+
   }
 
   if ((_bayesianLearning == false) && (_swag || (_dropoutProbability > 0.0) || _hmcEnabled || _langevinDynamics))
     KORALI_LOG_ERROR("Bayesian Learning is disabled");
 
-  // HMC only compatible with single policy
   if (_hmcEnabled && (_problem->_policiesPerEnvironment > 1))
     KORALI_LOG_ERROR("HMC only compatible with single policy!");
+
+  if ( (_useGaussianApproximation == false) && (_mode == "Training") )
+    KORALI_LOG_ERROR("When training a policy, you have to use the Gaussian Approximation!");
 
   // HMC only compatible with SGD
   // if ( (_hmcEnabled || _langevinDynamics) && (_neuralNetworkOptimizer != "SGD"))
@@ -205,11 +210,11 @@ void __className__::initialize()
     // Fixing termination criteria for testing mode
     _maxGenerations = _k->_currentGeneration + 1;
 
-    // Setting testing policy to best testing hyperparameters if not custom-set by the user
+    // If not given, set testing policy
     if (_testingCurrentPolicies.empty())
     {
       // Checking if testing policies have been generated
-      if (_testingBestPolicies.empty())
+      if (_testingBestPolicies.empty() || (_testingUseBestPolicies == false) )
       {
         _k->_logger->logInfo("Minimal", "Using current training policy for testing.\n");
         _testingCurrentPolicies = _trainingCurrentPolicies;

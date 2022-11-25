@@ -126,7 +126,7 @@ void __className__::trainPolicy()
     std::vector<policy_t> policyInfo;
 
     // For bayesian RL, compute predictive posterior distribution
-    if ( _problem->_ensembleLearning || _bayesianLearning )
+    if ( (_problem->_ensembleLearning || _bayesianLearning) && (_currentEpisode > _burnIn) )
       computePredictivePosteriorDistribution(stateSequenceBatchCopy, policyInfo, p);
     else // Forward Policy
       runPolicy(stateSequenceBatchCopy, policyInfo, p);
@@ -146,7 +146,7 @@ void __className__::trainPolicy()
     // Add noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
     if (_langevinDynamics)
     {
-      auto hyperparameters = _criticPolicyLearner[p]->_optimizer->_currentValue;
+      auto hyperparameters = _criticPolicyLearner[p]->getHyperparameters();;
       // #pragma omp parallel for simd
       for (size_t n = 0; n < hyperparameters.size(); n++)
         hyperparameters[n] += std::sqrt(2 * _currentLearningRate) * _normalGenerator->getRandomNumber();
@@ -399,12 +399,12 @@ void __className__::computePredictivePosteriorDistribution(const std::vector<std
   }
 
   // Create empty policy to forward samples
-  std::vector<policy_t> policy(batchSize);
+  std::vector<policy_t> policy;
 
   // Determine the number of samples
-  size_t numSamples;
-  if ((_swag == false) || (_dropoutProbability == 0.0))
-    numSamples = std::max(numSamples, _hyperparameterBuffer.size());
+  size_t numSamples = _numberOfSamples;
+  if ((_swag == false) && (_dropoutProbability == 0.0))
+    numSamples = std::max(numSamples, _hyperparameterBuffer.size()-1);
   else
     numSamples = _numberOfSamples - 1;
 
@@ -413,11 +413,11 @@ void __className__::computePredictivePosteriorDistribution(const std::vector<std
     for (size_t s = 0; s < numSamples; s++)
     {
       // Get sample
-      auto hyperparameters = _hyperparameterBuffer[s][p];
-
-      // ..or compute sample
+      std::vector<float> hyperparameters;
       if (_swag || (_dropoutProbability > 0.0))
         hyperparameters = samplePosterior(p);
+      else
+        hyperparameters = _hyperparameterBuffer[s][p];
 
       // Set parameters in neural network
       _criticPolicyLearner[p]->_neuralNetwork->setHyperparameters(hyperparameters);
@@ -448,9 +448,11 @@ void __className__::computePredictivePosteriorDistribution(const std::vector<std
       }
     }
 
-  // When training, we have to forward the policy before backwarding
+  // Check whether we are training
   const bool bTraining = (batchSize == _effectiveMinibatchSize);
-  if (bTraining)
+
+  // For consistency of SWAG and dropout, add contribution from the current policy
+  if (_swag || (_dropoutProbability > 0.0))
   {
     // Get latest hyperparameters
     const auto &hyperparameters = _hyperparameterBuffer[_hyperparameterBuffer.size() - 1][policyIdx];
@@ -460,11 +462,7 @@ void __className__::computePredictivePosteriorDistribution(const std::vector<std
 
     // Forward policy
     runPolicy(stateSequenceBatch, policy, policyIdx);
-  }
 
-  // For consistency of SWAG and dropout, add contribution from the current policy
-  if (_swag || (_dropoutProbability > 0.0))
-  {
 #pragma omp parallel for
     for (size_t b = 0; b < batchSize; b++)
     {
@@ -486,23 +484,42 @@ void __className__::computePredictivePosteriorDistribution(const std::vector<std
       }
     }
   }
+  else if (bTraining)
+  {
+    // Get latest hyperparameters
+    const auto &hyperparameters = _hyperparameterBuffer[_hyperparameterBuffer.size() - 1][policyIdx];
+
+    // Set latest hyperparameters
+    _criticPolicyLearner[policyIdx]->_neuralNetwork->setHyperparameters(hyperparameters);
+
+    // Forward policy
+    runPolicy(stateSequenceBatch, policy, policyIdx);
+  }
 
   // Complete computation of predictive posterior distribution
+  const float invTotNumSamples = 1.0 / (_numberOfSamples * _problem->_policiesPerEnvironment);
 #pragma omp parallel for
   for (size_t b = 0; b < batchSize; b++)
   {
     // Finalize State Value
-    curPolicy[b].stateValue /= _numberOfSamples;
+    curPolicy[b].stateValue *= invTotNumSamples;
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)
     {
       // Finalize Mean
-      const float mixtureMean = curPolicy[b].distributionParameters[i] / _numberOfSamples;
+      const float mixtureMean = curPolicy[b].distributionParameters[i] * invTotNumSamples;
       curPolicy[b].distributionParameters[i] = mixtureMean;
 
       // Finalize Variance
-      curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] /= _numberOfSamples;
+      curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] *= invTotNumSamples;
       curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
     }
+  }
+
+  if ( bTraining == false )
+  {
+    _k->_logger->logInfo("Normal", " + Posterior Predicitve Distribution Parameters (Mu & Sigma):\n");
+    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+      _k->_logger->logInfo("Normal", " + Action %zu: (%.3e,%.3e)\n", i, curPolicy[0].distributionParameters[i], curPolicy[0].distributionParameters[_problem->_actionVectorSize + i]);
   }
 }
 

@@ -197,7 +197,7 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
   // Get current "true" episode count
   size_t episodeCount = worker["Sample Id"];
 
-  // If the training reward of all the agents exceeds the threshold or meets the periodic conditions, then also run testing on it
+  // Run testing according to set testing frequency
   bool runTest = (_testingFrequency > 0) && (episodeCount % _testingFrequency == 0);
 
   if (runTest)

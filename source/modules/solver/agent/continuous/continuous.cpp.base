@@ -114,7 +114,63 @@ void __className__::getAction(korali::Sample &sample)
 
     // Forward policy
     if (_problem->_ensembleLearning || _bayesianLearning)
-      computePredictivePosteriorDistribution({_stateTimeSequence[i].getVector()}, policy);
+    {
+      if( _currentEpisode > _burnIn )
+      {
+        if( _useGaussianApproximation )
+          computePredictivePosteriorDistribution({_stateTimeSequence[i].getVector()}, policy);
+        else
+        {
+          // Producing random (uniform) number for the selection of the policy
+          const float x1 = _uniformGenerator->getRandomNumber();
+
+          // Selecting experience
+          const size_t numPolicies = _problem->_policiesPerEnvironment;
+          size_t policyIdx = std::floor(x1 * (float)numPolicies);
+          policyIdx = policyIdx == numPolicies ? numPolicies - 1 : policyIdx;
+
+          // Get hyperparameters
+          std::vector<float> hyperparameters;
+          if( _swag || (_dropoutProbability > 0.0) )
+          {
+            // sample posterior
+            hyperparameters = samplePosterior(policyIdx);
+          }
+          else
+          {
+            // Producing random (uniform) number for the selection of the sample
+            const float x2 = _uniformGenerator->getRandomNumber();
+
+            // Selecting sample
+            const size_t numSamples = _hyperparameterBuffer.size();
+            size_t sampleIdx = std::floor(x2 * (float)numSamples);
+            sampleIdx = sampleIdx == numSamples ? numSamples - 1 : sampleIdx;
+
+            // Load hyperparameters
+            hyperparameters = _hyperparameterBuffer[sampleIdx][policyIdx];
+          }
+
+          // Set hyperparameters
+          _criticPolicyLearner[policyIdx]->_neuralNetwork->setHyperparameters(hyperparameters);
+
+          // Forward policy
+          runPolicy({_stateTimeSequence[i].getVector()}, policy, policyIdx);
+        }
+      }
+      else
+      {
+        // Producing random (uniform) number for the selection of the policy
+        const float x = _uniformGenerator->getRandomNumber();
+
+        // Selecting experience
+        const size_t numPolicies = _problem->_policiesPerEnvironment;
+        size_t policyIdx = std::floor(x * (float)numPolicies);
+        policyIdx = policyIdx == numPolicies ? numPolicies - 1 : policyIdx;
+
+        // Forward policy
+        runPolicy({_stateTimeSequence[i].getVector()}, policy, policyIdx);
+      }
+    }
     else if (_problem->_policiesPerEnvironment == 1)
       runPolicy({_stateTimeSequence[i].getVector()}, policy);
     else

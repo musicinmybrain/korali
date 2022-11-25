@@ -126,9 +126,17 @@ class Agent : public Solver
   */
    size_t _numberOfSamples;
   /**
+  * @brief Number of episodes before starting to do bayesian learning.
+  */
+   size_t _burnIn;
+  /**
   * @brief Number of hyperparameters stored.
   */
    size_t _numberOfStoredHyperparameters;
+  /**
+  * @brief Use Gaussian Approximation of Predictive Posterior Distribution.
+  */
+   int _useGaussianApproximation;
   /**
   * @brief Boolean to determine whether Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf) is used.
   */
@@ -341,6 +349,10 @@ class Agent : public Solver
   * @brief [Internal Use] Stores the best testing policies configuration found so far.
   */
    knlohmann::json _testingBestPolicies;
+  /**
+  * @brief [Internal Use] Boolean to decide between using best testing policy or training policy.
+  */
+   int _testingUseBestPolicies;
   /**
   * @brief [Internal Use] Number of off-policy experiences in the experience replay.
   */
