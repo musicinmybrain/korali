@@ -112,7 +112,7 @@ void __className__::initialize()
   if (_hmcEnabled && (_problem->_policiesPerEnvironment > 1))
     KORALI_LOG_ERROR("HMC only compatible with single policy!");
 
-  if ( (_useGaussianApproximation == false) && (_mode == "Training") )
+  if ( _bayesianLearning && _problem->_ensembleLearning && (_useGaussianApproximation == false) && (_mode == "Training") )
     KORALI_LOG_ERROR("When training a policy, you have to use the Gaussian Approximation!");
 
   // HMC only compatible with SGD
@@ -232,6 +232,10 @@ void __className__::initialize()
 
     // Prepare storage for rewards from tested samples
     _testingReward.resize(_testingSampleIds.size());
+
+    // If we require stored posterior samples, load RM
+    if( (_numberOfStoredHyperparameters > 1) && _bayesianLearning )
+      deserializeExperienceReplay();
   }
 }
 
@@ -1190,8 +1194,8 @@ std::vector<float> __className__::samplePosterior(const size_t policyIdx)
   {
     // Compute mean and variance in a stable manner (https://dbs.ifi.uni-heidelberg.de/files/Team/eschubert/publications/SSDBM18-covariance-authorcopy.pdf)
     const size_t nHyperparameters = _hyperparameterBuffer[0][policyIdx].size();
-    std::vector<float> mean(nHyperparameters);
-    std::vector<float> variance(nHyperparameters);
+    std::vector<float> mean(nHyperparameters, 0.0);
+    std::vector<float> variance(nHyperparameters, 0.0);
     for (size_t s = 0; s < _hyperparameterBuffer.size(); s++)
     {
       // Retreive Hyperparameters
@@ -1438,7 +1442,7 @@ void __className__::serializeExperienceReplay()
 
   // Save the hyperparameter vector
   for (size_t i = 0; i < _hyperparameterBuffer.size(); i++)
-    stateJson["Hyperparameter Vector"][i] = _hyperparameterBuffer[i];
+    stateJson["Hyperparameter Buffer"][i] = _hyperparameterBuffer[i];
 
   // Serialize the optimizer
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
@@ -1546,7 +1550,7 @@ void __className__::deserializeExperienceReplay()
   // Deserialize the hyperparameter vector
   const size_t numSamples = std::min(_policyUpdateCount, _numberOfStoredHyperparameters);
   for (size_t i = 0; i < numSamples; i++)
-    _hyperparameterBuffer.add(stateJson["Hyperparameter Vector"][i].get<std::vector<std::vector<float>>>());
+    _hyperparameterBuffer.add(stateJson["Hyperparameter Buffer"][i].get<std::vector<std::vector<float>>>());
 
   // Deserialize the optimizer
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)

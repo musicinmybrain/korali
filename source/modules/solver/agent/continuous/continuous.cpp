@@ -131,7 +131,6 @@ void Continuous::getAction(korali::Sample &sample)
           const float x1 = _uniformGenerator->getRandomNumber();
 
           // Selecting experience
-          const size_t numPolicies = _problem->_policiesPerEnvironment;
           size_t policyIdx = std::floor(x1 * (float)numPolicies);
           policyIdx = policyIdx == numPolicies ? numPolicies - 1 : policyIdx;
 
@@ -169,7 +168,6 @@ void Continuous::getAction(korali::Sample &sample)
         const float x = _uniformGenerator->getRandomNumber();
 
         // Selecting experience
-        const size_t numPolicies = _problem->_policiesPerEnvironment;
         size_t policyIdx = std::floor(x * (float)numPolicies);
         policyIdx = policyIdx == numPolicies ? numPolicies - 1 : policyIdx;
 

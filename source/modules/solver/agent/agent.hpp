@@ -67,6 +67,11 @@ struct policy_t
   std::vector<float> distributionParameters;
 
   /**
+   * @brief [Bayesian] Contains the parameters for the policy with the current weights
+   */
+  std::vector<float> currentDistributionParameters;
+
+  /**
    * @brief [Discrete] Stores the index of the selected experience
    */
   size_t actionIndex;
