@@ -121,7 +121,7 @@ void Continuous::getAction(korali::Sample &sample)
     // Forward policy
     if (_problem->_ensembleLearning || _bayesianLearning)
     {
-      if( _currentEpisode > _burnIn )
+      if( _currentEpisode >= _burnIn )
       {
         if( _useGaussianApproximation )
           computePredictivePosteriorDistribution({_stateTimeSequence[i].getVector()}, policy);
@@ -164,15 +164,8 @@ void Continuous::getAction(korali::Sample &sample)
       }
       else
       {
-        // Producing random (uniform) number for the selection of the policy
-        const float x = _uniformGenerator->getRandomNumber();
-
-        // Selecting experience
-        size_t policyIdx = std::floor(x * (float)numPolicies);
-        policyIdx = policyIdx == numPolicies ? numPolicies - 1 : policyIdx;
-
-        // Forward policy
-        runPolicy({_stateTimeSequence[i].getVector()}, policy, policyIdx);
+        // Forward 0th policy
+        runPolicy({_stateTimeSequence[i].getVector()}, policy);
       }
     }
     else if (_problem->_policiesPerEnvironment == 1)

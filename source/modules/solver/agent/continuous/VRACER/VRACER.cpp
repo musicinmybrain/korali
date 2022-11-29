@@ -107,7 +107,9 @@ void VRACER::trainPolicy()
   std::vector<policy_t> policyInfoUpdateMetadata(miniBatch.size());
 
   // Get number of policies
-  const size_t numPolicies = _problem->_policiesPerEnvironment;
+  size_t numPolicies = _problem->_policiesPerEnvironment;
+  if ( _problem->_ensembleLearning && (_currentEpisode < _burnIn) )
+    numPolicies = 1;
 
   // Run training generation for all policies
   for (size_t p = 0; p < numPolicies; p++)
@@ -134,7 +136,7 @@ void VRACER::trainPolicy()
     std::vector<policy_t> policyInfo;
 
     // For bayesian RL, compute predictive posterior distribution
-    if ( (_problem->_ensembleLearning || _bayesianLearning) && (_currentEpisode > _burnIn) )
+    if ( (_problem->_ensembleLearning || _bayesianLearning) && (_currentEpisode >= _burnIn) )
       computePredictivePosteriorDistribution(stateSequenceBatchCopy, policyInfo, p);
     else // Forward Policy
       runPolicy(stateSequenceBatchCopy, policyInfo, p);
@@ -261,7 +263,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       }
 
       // Gradient has to be corrected in Bayesian Learning
-      if ( _problem->_ensembleLearning || _bayesianLearning )
+      if ( (_problem->_ensembleLearning || _bayesianLearning) && (_currentEpisode >= _burnIn) )
       {
         const float invN = 1 / _numberOfSamples;
         for (size_t i = 0; i < _problem->_actionVectorSize; i++)
@@ -315,7 +317,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
         KORALI_LOG_ERROR("KL correction has an invalid value: klGrad[%ld + _problem->_actionVectorSize]%f\n", i, klGrad[i + _problem->_actionVectorSize]);
 
       // Gradient has to be corrected in Bayesian Learning
-      if ( _problem->_ensembleLearning || _bayesianLearning )
+      if ( (_problem->_ensembleLearning || _bayesianLearning) && (_currentEpisode >= _burnIn) )
       {
         const float invN = 1 / _numberOfSamples;
         for (size_t i = 0; i < _problem->_actionVectorSize; i++)
@@ -397,6 +399,7 @@ void VRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &state
   {
     policyInfo[b].stateValue = evaluation[b][0];
     policyInfo[b].distributionParameters.assign(evaluation[b].begin() + 1, evaluation[b].end());
+    policyInfo[b].currentDistributionParameters.assign(evaluation[b].begin() + 1, evaluation[b].end());
   }
 }
 
@@ -412,6 +415,7 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
   {
     curPolicy[b].stateValue = 0.0f;
     curPolicy[b].distributionParameters.resize(_policyParameterCount, 0.0);
+    curPolicy[b].currentDistributionParameters.resize(_policyParameterCount, 0.0);
   }
 
   // Create empty policy to forward samples
@@ -478,7 +482,7 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
     const auto &hyperparameters = _hyperparameterBuffer[_hyperparameterBuffer.size() - 1][policyIdx];
 
     // Set latest hyperparameters
-    _criticPolicyLearner[policyIdx]->_neuralNetwork->setHyperparameters(hyperparameters);
+    _criticPolicyLearner[policyIdx]->setHyperparameters(hyperparameters);
 
     // Forward policy
     runPolicy(stateSequenceBatch, policy, policyIdx);
@@ -514,7 +518,7 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
     const auto &hyperparameters = _hyperparameterBuffer[_hyperparameterBuffer.size() - 1][policyIdx];
 
     // Set latest hyperparameters
-    _criticPolicyLearner[policyIdx]->_neuralNetwork->setHyperparameters(hyperparameters);
+    _criticPolicyLearner[policyIdx]->setHyperparameters(hyperparameters);
 
     // Forward policy
     runPolicy(stateSequenceBatch, policy, policyIdx);

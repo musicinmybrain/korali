@@ -303,6 +303,14 @@ void Agent::trainingGeneration()
       {
         auto beginTime = std::chrono::steady_clock::now(); // Profiling
 
+        // Before starting ensemble learning, synchronize policies
+        if( _problem->_ensembleLearning && ( _currentEpisode == _burnIn))
+        {
+          const auto & hyperparameters = _criticPolicyLearner[0]->getHyperparameters();
+          for( size_t p = 1; p < _problem->_policiesPerEnvironment; p++ )
+            _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
+        }
+
         // Calling the algorithm specific policy training algorithm
         if (_hmcEnabled) // Perform HMC step
           trainPolicyHMC();
