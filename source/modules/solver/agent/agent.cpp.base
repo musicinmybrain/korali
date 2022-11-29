@@ -773,12 +773,17 @@ std::vector<std::pair<size_t, size_t>> __className__::generateMiniBatch()
   // Get number of agents
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
+  // Get number of policies
+  size_t numPolicies =  _problem->_policiesPerEnvironment;
+  if ( _problem->_ensembleLearning && (_currentEpisode < _burnIn) )
+    numPolicies = 1;
+
   // Allocating storage for mini batch experiecne indexes
   std::vector<std::pair<size_t, size_t>> miniBatch(_miniBatchSize * numAgents);
 
   // When using an ensemble of policies we sample one minibatch for every policy
   if (_problem->_ensembleLearning)
-    miniBatch = std::vector<std::pair<size_t, size_t>>(_miniBatchSize * _problem->_policiesPerEnvironment);
+    miniBatch = std::vector<std::pair<size_t, size_t>>(_miniBatchSize * numPolicies);
 
   // Fill minibatch
   for (size_t b = 0; b < _miniBatchSize; b++)
@@ -799,7 +804,8 @@ std::vector<std::pair<size_t, size_t>> __className__::generateMiniBatch()
   }
 
   // Sample other minibatches for Bayesian reinforcement learning
-  for (size_t p = 1; (p < _problem->_policiesPerEnvironment) && _problem->_ensembleLearning; p++)
+  if( _problem->_ensembleLearning )
+  for (size_t p = 1; p < numPolicies; p++)
   {
     for (size_t b = 0; b < _miniBatchSize; b++)
     {
