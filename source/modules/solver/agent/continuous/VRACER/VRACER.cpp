@@ -301,7 +301,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
         gradientLoss[1 + i] = _experienceReplayOffPolicyREFERCurrentBeta[agentId] * lossOffPolicy * polGrad[i];
 
         if (std::isfinite(gradientLoss[i + 1]) == false)
-          KORALI_LOG_ERROR("Policy Gradient has an invalid value: %f\n", gradientLoss[i + 1]);
+          KORALI_LOG_ERROR("Policy Gradient i=%ld has an invalid value: %f\n", i, gradientLoss[i + 1]);
       }
     }
 
@@ -572,6 +572,7 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
       // Finalize Variance
       curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] *= invTotNumSamples;
       curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
+      curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy[b].distributionParameters[_problem->_actionVectorSize + i]);
     }
   }
 }
