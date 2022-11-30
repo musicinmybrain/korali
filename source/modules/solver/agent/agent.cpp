@@ -105,9 +105,8 @@ void Agent::initialize()
       KORALI_LOG_ERROR("Choose either swag or hmc");
     if (_swag && _langevinDynamics)
       KORALI_LOG_ERROR("Choose either swag or langevin dynamics");
-    if( _hmcEnabled && _langevinDynamics )
+    if (_hmcEnabled && _langevinDynamics)
       KORALI_LOG_ERROR("Choose either hmc or langevin dynamics");
-
   }
 
   if ((_bayesianLearning == false) && (_swag || (_dropoutProbability > 0.0) || _hmcEnabled || _langevinDynamics))
@@ -116,8 +115,8 @@ void Agent::initialize()
   if (_hmcEnabled && (_problem->_policiesPerEnvironment > 1))
     KORALI_LOG_ERROR("HMC only compatible with single policy!");
 
-  if ( _bayesianLearning && _problem->_ensembleLearning && (_useGaussianApproximation == false) && (_mode == "Training") )
-    KORALI_LOG_ERROR("When training a policy, you have to use the Gaussian Approximation!");
+  if ((_bayesianLearning || _problem->_ensembleLearning) && (_useGaussianApproximation == false) && (_mode == "Training"))
+    _k->_logger->logWarning("Normal", "Training a policy with Bayesian Learning / Ensembles is inconsistent without a Gaussian Approximation - use it at your own risk!\n");
 
   // HMC only compatible with SGD
   // if ( (_hmcEnabled || _langevinDynamics) && (_neuralNetworkOptimizer != "SGD"))
@@ -218,7 +217,7 @@ void Agent::initialize()
     if (_testingCurrentPolicies.empty())
     {
       // Checking if testing policies have been generated
-      if (_testingBestPolicies.empty() || (_testingUseBestPolicies == false) )
+      if (_testingBestPolicies.empty() || (_testingUseBestPolicies == false))
       {
         _k->_logger->logInfo("Minimal", "Using current training policy for testing.\n");
         _testingCurrentPolicies = _trainingCurrentPolicies;
@@ -238,7 +237,7 @@ void Agent::initialize()
     _testingReward.resize(_testingSampleIds.size());
 
     // If we require stored posterior samples, load RM
-    if( (_numberOfStoredHyperparameters > 1) && _bayesianLearning )
+    if ((_numberOfStoredHyperparameters > 1) && _bayesianLearning)
       deserializeExperienceReplay();
   }
 }
@@ -304,10 +303,10 @@ void Agent::trainingGeneration()
         auto beginTime = std::chrono::steady_clock::now(); // Profiling
 
         // Before starting ensemble learning, synchronize policies
-        if( _problem->_ensembleLearning && ( _currentEpisode == _burnIn))
+        if (_problem->_ensembleLearning && (_currentEpisode == _burnIn))
         {
-          const auto & hyperparameters = _criticPolicyLearner[0]->getHyperparameters();
-          for( size_t p = 1; p < _problem->_policiesPerEnvironment; p++ )
+          const auto &hyperparameters = _criticPolicyLearner[0]->getHyperparameters();
+          for (size_t p = 1; p < _problem->_policiesPerEnvironment; p++)
             _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
         }
 
@@ -778,8 +777,8 @@ std::vector<std::pair<size_t, size_t>> Agent::generateMiniBatch()
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
   // Get number of policies
-  size_t numPolicies =  _problem->_policiesPerEnvironment;
-  if ( _problem->_ensembleLearning && (_currentEpisode < _burnIn) )
+  size_t numPolicies = _problem->_policiesPerEnvironment;
+  if (_problem->_ensembleLearning && (_currentEpisode < _burnIn))
     numPolicies = 1;
 
   // Allocating storage for mini batch experiecne indexes
@@ -808,23 +807,23 @@ std::vector<std::pair<size_t, size_t>> Agent::generateMiniBatch()
   }
 
   // Sample other minibatches for Bayesian reinforcement learning
-  if( _problem->_ensembleLearning )
-  for (size_t p = 1; p < numPolicies; p++)
-  {
-    for (size_t b = 0; b < _miniBatchSize; b++)
+  if (_problem->_ensembleLearning)
+    for (size_t p = 1; p < numPolicies; p++)
     {
-      // Producing random (uniform) number for the selection of the experience
-      float x = _uniformGenerator->getRandomNumber();
+      for (size_t b = 0; b < _miniBatchSize; b++)
+      {
+        // Producing random (uniform) number for the selection of the experience
+        float x = _uniformGenerator->getRandomNumber();
 
-      // Selecting experience
-      size_t expId = std::floor(x * (float)_stateBuffer.size());
-      expId = expId == _stateBuffer.size() ? _stateBuffer.size() - 1 : expId;
+        // Selecting experience
+        size_t expId = std::floor(x * (float)_stateBuffer.size());
+        expId = expId == _stateBuffer.size() ? _stateBuffer.size() - 1 : expId;
 
-      // Setting experience
-      miniBatch[p * _miniBatchSize + b].first = expId;
-      miniBatch[p * _miniBatchSize + b].second = 0;
+        // Setting experience
+        miniBatch[p * _miniBatchSize + b].first = expId;
+        miniBatch[p * _miniBatchSize + b].second = 0;
+      }
     }
-  }
 
   // Sorting minibatch: first by expId, second by agentId
   // to quickly detect duplicates when updating metadata

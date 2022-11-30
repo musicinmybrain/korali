@@ -36,7 +36,7 @@ void __className__::initializeAgent()
   // Parallel initialization of neural networks (first touch!)
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
-    _criticPolicyExperiment[p]["Random Seed"] = _k->_randomSeed;
+    _criticPolicyExperiment[p]["Random Seed"] = _k->_randomSeed++;
 
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
     _criticPolicyExperiment[p]["Problem"]["Max Timesteps"] = _timeSequenceLength;
@@ -100,7 +100,7 @@ void __className__::trainPolicy()
 
   // Get number of policies
   size_t numPolicies = _problem->_policiesPerEnvironment;
-  if ( _problem->_ensembleLearning && (_currentEpisode < _burnIn) )
+  if (_problem->_ensembleLearning && (_currentEpisode < _burnIn))
     numPolicies = 1;
 
   // Run training generation for all policies
@@ -128,7 +128,9 @@ void __className__::trainPolicy()
     std::vector<policy_t> policyInfo;
 
     // For bayesian RL, compute predictive posterior distribution
-    if ( (_problem->_ensembleLearning || _bayesianLearning) && (_currentEpisode >= _burnIn) )
+    if ((_problem->_ensembleLearning || _bayesianLearning) &&
+        (_currentEpisode >= _burnIn) &&
+        _useGaussianApproximation)
       computePredictivePosteriorDistribution(stateSequenceBatchCopy, policyInfo, p);
     else // Forward Policy
       runPolicy(stateSequenceBatchCopy, policyInfo, p);
@@ -148,7 +150,8 @@ void __className__::trainPolicy()
     // Add noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
     if (_langevinDynamics)
     {
-      auto hyperparameters = _criticPolicyLearner[p]->getHyperparameters();;
+      auto hyperparameters = _criticPolicyLearner[p]->getHyperparameters();
+
       // #pragma omp parallel for simd
       for (size_t n = 0; n < hyperparameters.size(); n++)
         hyperparameters[n] += std::sqrt(2 * _currentLearningRate) * _normalGenerator->getRandomNumber();
@@ -209,7 +212,7 @@ void __className__::calculatePolicyGradients(const std::vector<std::pair<size_t,
       gradientLoss[0] /= numAgents;
 
     // Gradient has to be divided by Number of Samples in Bayesian learning
-    if ( _problem->_ensembleLearning || _bayesianLearning )
+    if (_problem->_ensembleLearning || _bayesianLearning)
       gradientLoss[0] /= _numberOfSamples;
 
     // Check value of gradient
@@ -254,28 +257,32 @@ void __className__::calculatePolicyGradients(const std::vector<std::pair<size_t,
           polGrad[i] *= correlationFactor;
       }
 
-      // Gradient has to be corrected in Bayesian Learning
-      if ( (_problem->_ensembleLearning || _bayesianLearning) && (_currentEpisode >= _burnIn) )
+      // Modifications of Gradient for  Bayesian Learning
+      if ((_problem->_ensembleLearning || _bayesianLearning) && (_currentEpisode >= _burnIn))
       {
-        const float invN = 1 / _numberOfSamples;
-        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+        // Additional factors from Gaussian approximation
+        if (_useGaussianApproximation)
         {
-          // Get distribution parameter from predictive posterior policy
-          const float mean = curPolicy.distributionParameters[i];
-          const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
-          
-          // Get sigma for current hyperparameters
-          const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];          
-          const float invCurSigma = 1 / curSigma;
+          const float invN = 1 / _numberOfSamples;
+          for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+          {
+            // Get distribution parameter from predictive posterior policy
+            const float mean = curPolicy.distributionParameters[i];
+            const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
 
-          // Scaling mean gradient by number of samples
-          polGrad[i] *= invN;
+            // Get sigma for current hyperparameters
+            const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
+            const float invCurSigma = 1 / curSigma;
 
-          // Adding contribution from standard deviation
-          polGrad[i] += invN * invCurSigma * ( mean - invN ) * polGrad[i + _problem->_actionVectorSize];
+            // Scaling mean gradient by number of samples
+            polGrad[i] *= invN;
 
-          // Scaling standard deviation gradient by number of samples
-          polGrad[i + _problem->_actionVectorSize] *= 2 * invN * invCurSigma * sigma;
+            // Adding contribution from standard deviation
+            polGrad[i] += invN * invCurSigma * (mean - invN) * polGrad[i + _problem->_actionVectorSize];
+
+            // Scaling standard deviation gradient by number of samples
+            polGrad[i + _problem->_actionVectorSize] *= 2 * invN * invCurSigma * sigma;
+          }
         }
       }
 
@@ -299,46 +306,55 @@ void __className__::calculatePolicyGradients(const std::vector<std::pair<size_t,
     if (std::isfinite(klGradMultiplier) == false)
       KORALI_LOG_ERROR("KL multiplier has an invalid value: %f\n", klGradMultiplier);
 
+    // When not using Gaussian approximation, clipp KL correction
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)
     {
-      // Safety checks
-      if (std::isfinite(klGrad[i]) == false)
-        KORALI_LOG_ERROR("KL correction has an invalid value: klGrad[%ld]%f\n", i, klGrad[i]);
+      // Clip large values of the KL grad
+      if (klGrad[i] > 1e7)
+        klGrad[i] = 1e7;
+      else if (-klGrad[i] > 1e7)
+        klGrad[i] = -1e7;
 
-      if (std::isfinite(klGrad[i + _problem->_actionVectorSize]) == false)
-        KORALI_LOG_ERROR("KL correction has an invalid value: klGrad[%ld + _problem->_actionVectorSize]%f\n", i, klGrad[i + _problem->_actionVectorSize]);
+      if (klGrad[i + _problem->_actionVectorSize] > 1e7)
+        klGrad[i + _problem->_actionVectorSize] = 1e7;
+      else if (-klGrad[i + _problem->_actionVectorSize] > 1e7)
+        klGrad[i + _problem->_actionVectorSize] = -1e7;
 
-      // Gradient has to be corrected in Bayesian Learning
-      if ( (_problem->_ensembleLearning || _bayesianLearning) && (_currentEpisode >= _burnIn) )
+      // Modifications of Gradient for  Bayesian Learning
+      if ((_problem->_ensembleLearning || _bayesianLearning) && (_currentEpisode >= _burnIn))
       {
-        const float invN = 1 / _numberOfSamples;
-        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+        // Additional factors from Gaussian approximation
+        if (_useGaussianApproximation)
         {
-          // Get distribution parameter from predictive posterior policy
-          const float mean = curPolicy.distributionParameters[i];
-          const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
-          
-          // Get sigma for current hyperparameters
-          const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];          
-          const float invCurSigma = 1 / curSigma;
+          const float invN = 1 / _numberOfSamples;
+          for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+          {
+            // Get distribution parameter from predictive posterior policy
+            const float mean = curPolicy.distributionParameters[i];
+            const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
 
-          // Scaling mean gradient by number of samples
-          klGrad[i] *= invN;
+            // Get sigma for current hyperparameters
+            const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
+            const float invCurSigma = 1 / curSigma;
 
-          // Adding contribution from standard deviation
-          klGrad[i] += invN * invCurSigma * ( mean - invN ) * klGrad[i + _problem->_actionVectorSize];
+            // Scaling mean gradient by number of samples
+            klGrad[i] *= invN;
 
-          // Scaling standard deviation gradient by number of samples
-          klGrad[i + _problem->_actionVectorSize] *= 2 * invN * invCurSigma * sigma;
+            // Adding contribution from standard deviation
+            klGrad[i] += invN * invCurSigma * (mean - invN) * klGrad[i + _problem->_actionVectorSize];
+
+            // Scaling standard deviation gradient by number of samples
+            klGrad[i + _problem->_actionVectorSize] *= 2 * invN * invCurSigma * sigma;
+          }
         }
       }
 
       // Safety checks
-      if (std::isfinite(klGrad[i]) == false)
-        KORALI_LOG_ERROR("KL correction has an invalid value: klGrad[%ld]%f\n", i, klGrad[i]);
+      if (std::isfinite(gradientLoss[1 + i]) == false)
+        KORALI_LOG_ERROR("Gradient invalid (%f) after KL correction.\n", gradientLoss[i]);
 
-      if (std::isfinite(klGrad[i + _problem->_actionVectorSize]) == false)
-        KORALI_LOG_ERROR("KL correction has an invalid value: klGrad[%ld + _problem->_actionVectorSize]%f\n", i, klGrad[i + _problem->_actionVectorSize]);
+      if (std::isfinite(gradientLoss[1 + i + _problem->_actionVectorSize]) == false)
+        KORALI_LOG_ERROR("Gradient invalid (%f) after KL correction.\n", gradientLoss[i + _problem->_actionVectorSize]);
 
       // Add KL contribution
       gradientLoss[1 + i] += klGradMultiplier * klGrad[i];
@@ -417,8 +433,8 @@ void __className__::computePredictivePosteriorDistribution(const std::vector<std
   size_t numSamples = _numberOfSamples;
 
   // Take care of situation where not enough hyperparameters are in buffer
-  if ( _numberOfStoredHyperparameters > 1 )
-    numSamples = std::max(numSamples, _hyperparameterBuffer.size()-1);
+  if (_numberOfStoredHyperparameters > 1)
+    numSamples = std::max(numSamples, _hyperparameterBuffer.size() - 1);
 
   // For swag and dropout we have to include current hyperparameters at the end
   if (_swag || (_dropoutProbability > 0.0))
