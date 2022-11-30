@@ -135,7 +135,7 @@ void VRACER::trainPolicy()
     // Container for parameters
     std::vector<policy_t> policyInfo;
 
-    // For bayesian RL, compute predictive posterior distribution
+    // For bayesian RL, compute predictive posterior distribution // TODO: the predictive posterior should only be computed once!
     if ((_problem->_ensembleLearning || _bayesianLearning) &&
         (_currentEpisode >= _burnIn) &&
         _useGaussianApproximation)
@@ -279,6 +279,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
             const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
 
             // Get sigma for current hyperparameters
+            const float curMean  = curPolicy.currentDistributionParameters[i];
             const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
             const float invCurSigma = 1 / curSigma;
 
@@ -286,7 +287,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
             polGrad[i] *= invN;
 
             // Adding contribution from standard deviation
-            polGrad[i] += invN * invCurSigma * (mean - invN) * polGrad[i + _problem->_actionVectorSize];
+            polGrad[i] += invN * invCurSigma * (mean - curMean) * polGrad[i + _problem->_actionVectorSize];
 
             // Scaling standard deviation gradient by number of samples
             polGrad[i + _problem->_actionVectorSize] *= 2 * invN * invCurSigma * sigma;
@@ -342,6 +343,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
             const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
 
             // Get sigma for current hyperparameters
+            const float curMean  = curPolicy.currentDistributionParameters[i];
             const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
             const float invCurSigma = 1 / curSigma;
 
@@ -349,7 +351,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
             klGrad[i] *= invN;
 
             // Adding contribution from standard deviation
-            klGrad[i] += invN * invCurSigma * (mean - invN) * klGrad[i + _problem->_actionVectorSize];
+            klGrad[i] += invN * invCurSigma * (mean - curMean) * klGrad[i + _problem->_actionVectorSize];
 
             // Scaling standard deviation gradient by number of samples
             klGrad[i + _problem->_actionVectorSize] *= 2 * invN * invCurSigma * sigma;
@@ -465,7 +467,8 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
       // Forward policy
       runPolicy(stateSequenceBatch, policy, p);
 
-      // Update statistics of predictive posterior distribution [ mean = 1/N sum{ mean_i }, var = 1/N sum{ mean_i^2 + var_i^2 } - mean ]
+      // Update statistics of predictive posterior distribution 
+      // mean = 1/N sum{ mean_i }, var = 1/N sum{ mean_i^2 + var_i^2 } - mean
 #pragma omp parallel for
       for (size_t b = 0; b < batchSize; b++)
       {
@@ -571,13 +574,6 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
       curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
     }
   }
-
-  // if ( bTraining == false )
-  // {
-  //   _k->_logger->logInfo("Normal", " + Posterior Predicitve Distribution Parameters (Mu & Sigma):\n");
-  //   for (size_t i = 0; i < _problem->_actionVectorSize; i++)
-  //     _k->_logger->logInfo("Normal", " + Action %zu: (%.3e,%.3e)\n", i, curPolicy[0].distributionParameters[i], curPolicy[0].distributionParameters[_problem->_actionVectorSize + i]);
-  // }
 }
 
 knlohmann::json VRACER::getPolicy()
