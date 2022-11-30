@@ -279,7 +279,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
             const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
 
             // Get sigma for current hyperparameters
-            const float curMean  = curPolicy.currentDistributionParameters[i];
+            const float curMean = curPolicy.currentDistributionParameters[i];
             const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
             const float invCurSigma = 1 / curSigma;
 
@@ -343,7 +343,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
             const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
 
             // Get sigma for current hyperparameters
-            const float curMean  = curPolicy.currentDistributionParameters[i];
+            const float curMean = curPolicy.currentDistributionParameters[i];
             const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
             const float invCurSigma = 1 / curSigma;
 
@@ -467,7 +467,7 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
       // Forward policy
       runPolicy(stateSequenceBatch, policy, p);
 
-      // Update statistics of predictive posterior distribution 
+      // Update statistics of predictive posterior distribution
       // mean = 1/N sum{ mean_i }, var = 1/N sum{ mean_i^2 + var_i^2 } - mean
 #pragma omp parallel for
       for (size_t b = 0; b < batchSize; b++)
