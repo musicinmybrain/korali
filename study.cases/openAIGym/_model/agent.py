@@ -7,11 +7,27 @@ oldEnv = parse_version(gym.__version__) < parse_version('0.26.0')
 from HumanoidWrapper import HumanoidWrapper
 from AntWrapper import AntWrapper
 
-def initEnvironment(e, envName, seed, moviePath = ''):
+def save_frames_as_gif(frames, path='./', filename='gym_animation.gif'):
+
+    #Mess with this to change frame size
+    plt.figure(figsize=(frames[0].shape[1] / 72.0, frames[0].shape[0] / 72.0), dpi=72)
+
+    patch = plt.imshow(frames[0])
+    plt.axis('off')
+
+    def animate(i):
+        patch.set_data(frames[i])
+
+    anim = animation.FuncAnimation(plt.gcf(), animate, frames = len(frames), interval=50)
+    anim.save(path + filename, writer='imagemagick', fps=60)
+
+def initEnvironment(e, envName, seed, render):
 
  # Creating environment
-
- env = gym.make(envName)
+ if render:
+  env = gym.make(envName, render_mode="single_rgb_array")
+ else:
+  env = gym.make(envName)
 
  # Handling special cases
 
@@ -24,19 +40,11 @@ def initEnvironment(e, envName, seed, moviePath = ''):
  if (envName == 'Ant-v2'):
   env = AntWrapper(env)
 
- # Re-wrapping if saving a movie
- if (moviePath != ''):
-  env = gym.wrappers.Monitor(env, moviePath, force=True)
-
  # Seed environment
  env.reset( seed = seed )
 
- ### Defining problem configuration for openAI Gym environments
- e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
+ ### Defining environment function
  e["Problem"]["Environment Function"] = lambda x : agent(x, env)
- e["Problem"]["Custom Settings"]["Print Step Information"] = "Disabled"
- e["Problem"]["Testing Frequency"] = 20
- e["Problem"]["Policy Testing Episodes"] = 10
 
  # Getting environment variable counts
  stateVariableCount = env.observation_space.shape[0]
@@ -89,7 +97,7 @@ def agent(s, env):
 
   # Performing the action
   action = s["Action"]
-  
+
   # Printing step information
   if (printStep):  print('[Korali] Frame ' + str(step), end = '')
   if (printStep):  print(' - State: ' + str(state) + ' - Action: ' + str(action))
@@ -111,6 +119,11 @@ def agent(s, env):
 
   # Advancing step counter
   step = step + 1
+ 
+   # Render
+ if(s["Custom Settings"]["Rendering"] == "Enabled"):
+  frames = env.render()
+  save_frames_as_gif(frames)
 
  # Setting termination status
  if (done):

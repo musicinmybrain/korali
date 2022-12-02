@@ -12,10 +12,10 @@ parser.add_argument('--env', help='Specifies which environment to run.', require
 parser.add_argument('--run', help='Run Number', required=False, type=int, default = 0)
 parser.add_argument('--optimizer', help='Optimizer', required=False, type=str, default = "Adam")
 
-parser.add_argument('--nPolicies', help='Number of Policies in Ensemble.', required=False, type=int, default = 1)
-
-parser.add_argument('--bBayesian', help='Boolean to decide whether we use Bayesian Learning.', required=False, type=bool, default=True)
-parser.add_argument('--nSamples', help='Number of Samples from Posterior that are used to approximate posterior predicitve distribution.', required=False, type=int, default = 10)
+parser.add_argument('--nPolicies', help='Number of Policies in Ensemble.', required=False, type=int, default = 5)
+parser.add_argument('--bGaussian', help='Boolean to decide whether we use Gaussian approximation.', required=False, type=bool, default=True)
+parser.add_argument('--bBayesian', help='Boolean to decide whether we use Bayesian Learning.', required=False, type=bool, default=False)
+parser.add_argument('--nSamples', help='Number of Samples from Posterior that are used to approximate posterior predicitve distribution.', required=False, type=int, default = 1)
 parser.add_argument('--nHyperparameters', help='Number of Hyperparameters that are stored.', required=False, type=int, default = 1)
 parser.add_argument('--bSWAG', help='Boolean to decide whether we use SWAG.', required=False, type=bool, default=False)
 parser.add_argument('--langevin', help='Use Langevin Dynamics.', required=False, type=bool, default=False)
@@ -34,15 +34,39 @@ e = korali.Experiment()
 ### Defining results folder and loading previous results, if any
 
 resultFolder = "run{:02d}".format(args.run)
-e.loadState(resultFolder + '/latest');
+found = e.loadState(resultFolder + '/latest');
+if found:
+ print("Loading data from previous run..")
+# for testing ensemble
+# allHyperparameters = []
+# for i in range(args.nPolicies):
+# 	eOld = korali.Experiment()
+# 	found = eOld.loadState("baseline/run{:02d}/latest".format(i))
+# 	hyperparameters = eOld["Solver"]["Training"]["Current Policies"]["Policy Hyperparameters"][0]
+# 	allHyperparameters.append(hyperparameters)
+# e["Solver"]["Training"]["Current Policies"]["Policy Hyperparameters"] = allHyperparameters
 
 ### Set random seed
 
 e["Random Seed"] = args.run + 1
+# for testing
+# e["Random Seed"] = e["Current Generation"]
+# for testing ensemble
+# e["Random Seed"] = 500
 
-### Initializing openAI Gym environment
+## Defining probelem configurations
+e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
+e["Problem"]["Environment Function"] = lambda x : agent(x, env)
+e["Problem"]["Custom Settings"]["Print Step Information"] = "Disabled"
+e["Problem"]["Custom Settings"]["Rendering"] = "Disabled"
+e["Problem"]["Testing Frequency"] = 20
+e["Problem"]["Policy Testing Episodes"] = 10
 
-initEnvironment(e, args.env, int(e["Random Seed"]))
+### Initializing openAI Gym environment and setting environment function
+
+initEnvironment(e, args.env, e["Random Seed"], e["Problem"]["Custom Settings"]["Rendering"] == "Enabled")
+# for testing
+# initEnvironment(e, args.env, 42)
 
 ### Defining Agent Configuration 
 
@@ -57,6 +81,9 @@ e["Solver"]["Discount Factor"] = 0.995
 e["Solver"]["Mini Batch"]["Size"] = 256
 
 ### Settings to enable Bayesian Reinforcement Learning
+
+e["Solver"]["Use Gaussian Approximation"] = args.bGaussian
+e["Solver"]["Burn In"] = 0
 
 # Ensemble Learning
 e["Problem"]["Policies Per Environment"] = args.nPolicies
@@ -120,12 +147,12 @@ e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Sof
 
 ### Setting file output configuration
 
-e["Solver"]["Termination Criteria"]["Max Experiences"] = 1e6
-e["Solver"]["Termination Criteria"]["Max Generations"] = 100
+e["Solver"]["Termination Criteria"]["Max Experiences"] = 5e6
+e["Solver"]["Termination Criteria"]["Max Generations"] = 500
 e["Solver"]["Experience Replay"]["Serialize"] = True
 e["Console Output"]["Verbosity"] = "Detailed"
 e["File Output"]["Enabled"] = True
-e["File Output"]["Frequency"] = 100
+e["File Output"]["Frequency"] = 1
 e["File Output"]["Use Multiple Files"] = False
 e["File Output"]["Path"] = resultFolder
 
