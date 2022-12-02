@@ -32,6 +32,37 @@ class __className__ : public __parentClassName__
    */
   std::vector<float> _miniBatchPolicyStdDev;
 
+  /**
+   * @brief [Statistics] Keeps track of the mu of the current minibatch for each action variable
+   */
+  std::vector<float> _miniBatchCurrentPolicyMean;
+
+  /**
+   * @brief [Statistics] Keeps track of the sigma of the individual policies in Bayesian learning current minibatch for each action variable
+   */
+  std::vector<float> _miniBatchCurrentPolicyStdDev;
+
+  /**
+   * @brief [Statistics] Keeps track of the mean of the policy gradients
+   */
+  std::vector<float> _miniBatchPolicyGradientMean;
+
+  /**
+   * @brief [Statistics] Keeps track of the sigma of the policy gradients
+   */
+  std::vector<float> _miniBatchPolicyGradientStdDev;
+
+  /**
+   * @brief [Statistics] Keeps track of the mean of the policy gradients
+   */
+  std::vector<float> _miniBatchKLGradientMean;
+
+  /**
+   * @brief [Statistics] Keeps track of the sigma of the policy gradients
+   */
+  std::vector<float> _miniBatchKLGradientStdDev;
+
+
   knlohmann::json getPolicy() override;
   void setPolicy(const knlohmann::json &hyperparameters) override;
   float calculateStateValue(const std::vector<std::vector<float>> &stateSequence, const size_t policyIdx = 0) override;

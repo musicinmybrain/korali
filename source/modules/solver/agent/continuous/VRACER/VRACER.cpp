@@ -93,6 +93,12 @@ void VRACER::initializeAgent()
   // Minibatch statistics
   _miniBatchPolicyMean.resize(_problem->_actionVectorSize);
   _miniBatchPolicyStdDev.resize(_problem->_actionVectorSize);
+  _miniBatchCurrentPolicyMean.resize(_problem->_actionVectorSize);
+  _miniBatchCurrentPolicyStdDev.resize(_problem->_actionVectorSize);
+  _miniBatchPolicyGradientMean.resize(_problem->_actionVectorSize);
+  _miniBatchPolicyGradientStdDev.resize(_problem->_actionVectorSize);
+  _miniBatchKLGradientMean.resize(_problem->_actionVectorSize);
+  _miniBatchKLGradientStdDev.resize(_problem->_actionVectorSize);
 }
 
 void VRACER::trainPolicy()
@@ -111,8 +117,33 @@ void VRACER::trainPolicy()
   if (_problem->_ensembleLearning && (_currentEpisode < _burnIn))
     numPolicies = 1;
 
+  // Create vector with policy indices
+  std::vector<size_t> policyIndices;
+  for( size_t p = 0; p<numPolicies; p++)
+    policyIndices.push_back(p);
+
+  if( _problem->_ensembleLearning )
+  {
+    // Shuffle vector with policy indices [https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle]
+    for( size_t p = 0; p<numPolicies-1; p++)
+    {
+      // Producing random (uniform) number for the selection of the index
+      const float x1 = _uniformGenerator->getRandomNumber();
+
+      // Sample increment and compute j
+      size_t increment = std::floor(x1 * (float)(numPolicies-p));
+      increment = (p + increment == numPolicies) ? increment - 1 : increment;
+      const size_t j = p + increment;
+
+      // Shuffle value
+      const size_t tmp = policyIndices[j];
+      policyIndices[j] = policyIndices[p];
+      policyIndices[p] = tmp;
+    }
+  }
+
   // Run training generation for all policies
-  for (size_t p = 0; p < numPolicies; p++)
+  for (size_t p : policyIndices)
   {
     // For "Competition" and "Ensemble Learning", the minibatch needs to be modified, create private copy
     auto miniBatchCopy = miniBatch;
@@ -135,7 +166,7 @@ void VRACER::trainPolicy()
     // Container for parameters
     std::vector<policy_t> policyInfo;
 
-    // For bayesian RL, compute predictive posterior distribution // TODO: the predictive posterior should only be computed once!
+    // For bayesian RL, compute predictive posterior distribution
     if ((_problem->_ensembleLearning || _bayesianLearning) &&
         (_currentEpisode >= _burnIn) &&
         _useGaussianApproximation)
@@ -181,6 +212,12 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
   // Resetting statistics
   std::fill(_miniBatchPolicyMean.begin(), _miniBatchPolicyMean.end(), 0.0);
   std::fill(_miniBatchPolicyStdDev.begin(), _miniBatchPolicyStdDev.end(), 0.0);
+  std::fill(_miniBatchCurrentPolicyMean.begin(), _miniBatchCurrentPolicyMean.end(), 0.0);
+  std::fill(_miniBatchCurrentPolicyStdDev.begin(), _miniBatchCurrentPolicyStdDev.end(), 0.0);
+  std::fill(_miniBatchPolicyGradientMean.begin(), _miniBatchPolicyGradientMean.end(), 0.0);
+  std::fill(_miniBatchPolicyGradientStdDev.begin(), _miniBatchPolicyGradientStdDev.end(), 0.0);
+  std::fill(_miniBatchKLGradientMean.begin(), _miniBatchKLGradientMean.end(), 0.0);
+  std::fill(_miniBatchKLGradientStdDev.begin(), _miniBatchKLGradientStdDev.end(), 0.0);
   _valueLoss = 0.0;
   _policyLoss = 0.0;
 
@@ -188,7 +225,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
 #pragma omp parallel for schedule(guided, numAgents) reduction(vec_float_plus                                  \
-                                                               : _miniBatchPolicyMean, _miniBatchPolicyStdDev) \
+                                                               : _miniBatchPolicyMean, _miniBatchPolicyStdDev, _miniBatchPolicyGradientMean, _miniBatchPolicyGradientStdDev, _miniBatchKLGradientMean, _miniBatchKLGradientStdDev, _miniBatchCurrentPolicyMean, _miniBatchCurrentPolicyStdDev) \
   reduction(+                                                                                                  \
             : _valueLoss, _policyLoss)
   for (size_t b = 0; b < miniBatchSize; b++)
@@ -228,6 +265,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       KORALI_LOG_ERROR("Value Gradient has an invalid value: %f\n", gradientLoss[0]);
 
     // Compute policy gradient inside trust region
+    std::vector<float> polGrad(_policyParameterCount, 0.0);
     if (_isOnPolicyBuffer[expId][agentId])
     {
       // Qret for terminal state is just reward
@@ -255,7 +293,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       _policyLoss += importanceWeight * (Qret - stateValue);
 
       // Compute Off-Policy Gradient
-      auto polGrad = calculateImportanceWeightGradient(expAction, curPolicy, expPolicy, importanceWeight);
+      polGrad = calculateImportanceWeightGradient(expAction, curPolicy, expPolicy, importanceWeight);
 
       // Multi-agent correlation implies additional factor
       if (_multiAgentCorrelation)
@@ -319,15 +357,11 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)
     {
       // Clip large values of the KL grad
-      if (klGrad[i] > 1e7)
-        klGrad[i] = 1e7;
-      else if (-klGrad[i] > 1e7)
-        klGrad[i] = -1e7;
+      if ( std::abs(klGrad[i]) > 1e7)
+        klGrad[i] = klGrad[i] < 0 ? -1e7 : 1e7;
 
-      if (klGrad[i + _problem->_actionVectorSize] > 1e7)
-        klGrad[i + _problem->_actionVectorSize] = 1e7;
-      else if (-klGrad[i + _problem->_actionVectorSize] > 1e7)
-        klGrad[i + _problem->_actionVectorSize] = -1e7;
+      if ( std::abs(klGrad[i + _problem->_actionVectorSize]) > 1e7)
+        klGrad[i + _problem->_actionVectorSize] = klGrad[i + _problem->_actionVectorSize] < 0 ? -1e7 : 1e7;
 
       // Modifications of Gradient for  Bayesian Learning
       if ((_problem->_ensembleLearning || _bayesianLearning) && (_currentEpisode >= _burnIn))
@@ -369,6 +403,13 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       // Add KL contribution
       gradientLoss[1 + i] += klGradMultiplier * klGrad[i];
       gradientLoss[1 + i + _problem->_actionVectorSize] += klGradMultiplier * klGrad[i + _problem->_actionVectorSize];
+
+      // Safety checks
+      if (std::isfinite(gradientLoss[1 + i]) == false)
+        KORALI_LOG_ERROR("Gradient has an invalid value %f\n", gradientLoss[1 + i]);
+
+      if (std::isfinite(gradientLoss[1 + i + _problem->_actionVectorSize]) == false)
+        KORALI_LOG_ERROR("Gradient has an invalid value %f\n", gradientLoss[1 + i + _problem->_actionVectorSize]);
     }
 
     // Set Gradient of Loss as Solution
@@ -379,6 +420,12 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     {
       _miniBatchPolicyMean[i] += curPolicy.distributionParameters[i];
       _miniBatchPolicyStdDev[i] += curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+      _miniBatchCurrentPolicyMean[i] += curPolicy.currentDistributionParameters[i];
+      _miniBatchCurrentPolicyStdDev[i] += curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
+      _miniBatchPolicyGradientMean[i] += polGrad[i];
+      _miniBatchPolicyGradientStdDev[i] += polGrad[i + _problem->_actionVectorSize];
+      _miniBatchKLGradientMean[i] += klGrad[i];
+      _miniBatchKLGradientStdDev[i] += klGrad[i + _problem->_actionVectorSize];
     }
   }
 
@@ -387,6 +434,12 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
   {
     _miniBatchPolicyMean[i] /= (float)miniBatchSize;
     _miniBatchPolicyStdDev[i] /= (float)miniBatchSize;
+    _miniBatchCurrentPolicyMean[i] /= (float)miniBatchSize;
+    _miniBatchCurrentPolicyStdDev[i] /= (float)miniBatchSize;
+    _miniBatchPolicyGradientMean[i] /= (float)miniBatchSize;
+    _miniBatchPolicyGradientStdDev[i] /= (float)miniBatchSize;
+    _miniBatchKLGradientMean[i] /= (float)miniBatchSize;
+    _miniBatchKLGradientStdDev[i] /= (float)miniBatchSize;
   }
 
   _valueLoss /= (float)miniBatchSize;
@@ -497,7 +550,7 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
   // Set current hyperparameters
   _criticPolicyLearner[policyIdx]->setHyperparameters(hyperparameters);
 
-  // Forward policy for current hyperparameters // TODO: avoid forwarding twice forward it once in above loop
+  // Forward policy for current hyperparameters // TODO: avoid forwarding current policy twice
   runPolicy(stateSequenceBatch, policy, policyIdx);
 
   for (size_t b = 0; b < batchSize; b++)
@@ -505,15 +558,11 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
     {
       // Get mean and standard deviation
       const float mean = policy[b].distributionParameters[i];
-      const float standardDeviation = policy[b].distributionParameters[_problem->_actionVectorSize + i];
+      float standardDeviation = policy[b].distributionParameters[_problem->_actionVectorSize + i];
 
       // Save mean and standard deviation for current hyperparameters
       curPolicy[b].currentDistributionParameters[i] = mean;
       curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] = standardDeviation;
-
-      // Safety Check
-      if( standardDeviation <= 0.0 )
-        KORALI_LOG_ERROR("The current standard deviation is null (%.7e)!", standardDeviation);
     }
 
   // For consistency of SWAG and dropout, add contribution from the current policy
@@ -558,10 +607,6 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
       curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] *= invTotNumSamples;
       curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
       curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy[b].distributionParameters[_problem->_actionVectorSize + i]);
-
-      // Safety Check
-      if( curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] <= 0.0 )
-        KORALI_LOG_ERROR("The standard deviation for the Gaussian approximation of the predictive posterior distribution is null (%.7e)!", curPolicy[b].distributionParameters[_problem->_actionVectorSize + i]);
     }
   }
 }
@@ -583,9 +628,23 @@ void VRACER::setPolicy(const knlohmann::json &hyperparameters)
 void VRACER::printInformation()
 {
   _k->_logger->logInfo("Normal", " + [VRACER] Policy Learning Rate: %.3e\n", _currentLearningRate);
-  _k->_logger->logInfo("Detailed", " + [VRACER] Policy Parameters (Mu & Sigma):\n");
+  if ( _useGaussianApproximation )
+  {
+    _k->_logger->logInfo("Detailed", " + [VRACER] Policy Parameters (Mu & Sigma - Gaussian) - (Mu & Sigma - Individual):\n");
+    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+      _k->_logger->logInfo("Detailed", " + [VRACER] Action %zu: (%.3e,%.3e) - (%.3e,%.3e)\n", i, _miniBatchPolicyMean[i], _miniBatchPolicyStdDev[i], _miniBatchCurrentPolicyMean[i], _miniBatchCurrentPolicyStdDev[i]);
+  }
+  else
+  {
+    _k->_logger->logInfo("Detailed", " + [VRACER] Policy Parameters (Mu & Sigma):\n");
+    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+      _k->_logger->logInfo("Detailed", " + [VRACER] Action %zu: (%.3e,%.3e)\n", i, _miniBatchPolicyMean[i], _miniBatchPolicyStdDev[i]);
+  }
+  _k->_logger->logInfo("Detailed", " + [VRACER] Policy Gradients (Mu & Sigma - IW) - (Mu & Sigma - KL):\n");
   for (size_t i = 0; i < _problem->_actionVectorSize; i++)
-    _k->_logger->logInfo("Detailed", " + [VRACER] Action %zu: (%.3e,%.3e)\n", i, _miniBatchPolicyMean[i], _miniBatchPolicyStdDev[i]);
+  {
+    _k->_logger->logInfo("Detailed", " + [VRACER] Action %zu: (%.3e,%.3e) - (%.3e,%.3e)\n", i, _miniBatchPolicyGradientMean[i], _miniBatchPolicyGradientStdDev[i], _miniBatchKLGradientMean[i], _miniBatchKLGradientStdDev[i]);
+  }
 }
 
 void VRACER::setConfiguration(knlohmann::json& js) 

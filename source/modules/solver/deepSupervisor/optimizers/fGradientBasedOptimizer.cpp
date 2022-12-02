@@ -12,18 +12,18 @@ void fGradientBasedOptimizer::initialize()
 void fGradientBasedOptimizer::preProcessResult(std::vector<float> &gradient)
 {
   if (gradient.size() != _nVars)
-    KORALI_LOG_ERROR("Number of gradient values (%ld) is different from the number of parameters (%ld)", gradient.size(), _nVars);
+    KORALI_LOG_ERROR("Number of gradient values (%ld) is different from the number of parameters (%ld)\n", gradient.size(), _nVars);
 
-  for (const float v : gradient)
-    if (!std::isfinite(v))
-      KORALI_LOG_ERROR("\nOptimizer recieved non-finite gradient");
+  for (size_t i = 0; i < gradient.size(); i++)
+    if (!std::isfinite(gradient[i]))
+      KORALI_LOG_ERROR("Optimizer recieved non-finite gradient %ld (%f)\n", i, gradient[i]);
 };
 
 void fGradientBasedOptimizer::postProcessResult(std::vector<float> &parameters)
 {
-  for (const float v : parameters)
-    if (!std::isfinite(v))
-      KORALI_LOG_ERROR("Optimizer calculated non-finite hyperparameters");
+  for (size_t i = 0; i < parameters.size(); i++)
+    if (!std::isfinite(parameters[i]))
+      KORALI_LOG_ERROR("Optimizer calculated non-finite hyperparameters %ld (%f)\n", i, parameters[i]);
 };
 
 void fGradientBasedOptimizer::setConfiguration(knlohmann::json& js) 

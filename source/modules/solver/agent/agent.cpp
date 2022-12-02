@@ -118,6 +118,9 @@ void Agent::initialize()
   if ((_bayesianLearning || _problem->_ensembleLearning) && (_useGaussianApproximation == false) && (_mode == "Training"))
     _k->_logger->logWarning("Normal", "Training a policy with Bayesian Learning / Ensembles is inconsistent without a Gaussian Approximation - use it at your own risk!\n");
 
+  if( (_bayesianLearning || _problem->_ensembleLearning) && _problem->_agentsPerEnvironment > 1 )
+    KORALI_LOG_ERROR("Bayesian Learning is not supported for MARL!");
+
   // HMC only compatible with SGD
   // if ( (_hmcEnabled || _langevinDynamics) && (_neuralNetworkOptimizer != "SGD"))
   //   _k->_logger->logWarning("Normal", "Using (%s) instead of SGD optimizer. Make sure that vanilla MCMC is only used with an optimizer that has no momentum.\n", _neuralNetworkOptimizer.c_str());
@@ -297,6 +300,13 @@ void Agent::trainingGeneration()
         if (_policyUpdateCount == 0)
           rescaleStates();
 
+      // if (_policyUpdateCount == 0)
+      // {
+      //   printf("Initial");
+      //   for( size_t p = 0; p<_problem->_policiesPerEnvironment; p++ )
+      //     _criticPolicyLearner[p]->_optimizer->printInternals();
+      // }
+
       // If we accumulated enough experiences between updates in this session, update now
       while (_sessionExperienceCount > (_experiencesBetweenPolicyUpdates * _sessionPolicyUpdateCount + _sessionExperiencesUntilStartSize))
       {
@@ -315,6 +325,16 @@ void Agent::trainingGeneration()
           trainPolicyHMC();
         else
           trainPolicy();
+
+        // {
+        //   for( size_t p = 0; p<_problem->_policiesPerEnvironment; p++ )
+        //   {
+        //     printf("p=%ld\n",p);
+        //     _criticPolicyLearner[p]->_optimizer->printInternals();
+        //   }
+        //   printf(" %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ");
+        //   getchar();
+        // }
 
         auto endTime = std::chrono::steady_clock::now();                                                                  // Profiling
         _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling

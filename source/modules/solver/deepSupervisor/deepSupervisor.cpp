@@ -291,6 +291,22 @@ void DeepSupervisor::runTrainingGeneration()
   // If the solution represents the gradients, just pass them on
   if (_lossFunction == "Direct Gradient") _hyperparameterGradients = backwardGradients(_problem->_solutionData);
 
+  // Safety Check
+  if( std::any_of(_hyperparameterGradients.begin(), _hyperparameterGradients.end(), [](float x) {
+        return std::isfinite(x) == false;
+      }) )
+  {
+    for (size_t b = 0; b < _problem->_solutionData.size(); b++)
+    {
+      _k->_logger->logInfo("Minimal", "Solution Data %ld: [",b);
+      for (size_t i = 0; i < _problem->_solutionData[0].size(); i++)
+        printf(" %.3e ", _problem->_solutionData[b][i]);
+      printf("].\n");
+    }
+    _optimizer->printInternals();
+    KORALI_LOG_ERROR("Invalid gradient.\n");
+  }
+
   // Passing hyperparameter gradients through a gradient descent update
   _optimizer->processResult(_hyperparameterGradients);
 
