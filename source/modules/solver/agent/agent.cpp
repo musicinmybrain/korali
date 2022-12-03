@@ -300,13 +300,6 @@ void Agent::trainingGeneration()
         if (_policyUpdateCount == 0)
           rescaleStates();
 
-      // if (_policyUpdateCount == 0)
-      // {
-      //   printf("Initial");
-      //   for( size_t p = 0; p<_problem->_policiesPerEnvironment; p++ )
-      //     _criticPolicyLearner[p]->_optimizer->printInternals();
-      // }
-
       // If we accumulated enough experiences between updates in this session, update now
       while (_sessionExperienceCount > (_experiencesBetweenPolicyUpdates * _sessionPolicyUpdateCount + _sessionExperiencesUntilStartSize))
       {
@@ -325,16 +318,6 @@ void Agent::trainingGeneration()
           trainPolicyHMC();
         else
           trainPolicy();
-
-        // {
-        //   for( size_t p = 0; p<_problem->_policiesPerEnvironment; p++ )
-        //   {
-        //     printf("p=%ld\n",p);
-        //     _criticPolicyLearner[p]->_optimizer->printInternals();
-        //   }
-        //   printf(" %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% ");
-        //   getchar();
-        // }
 
         auto endTime = std::chrono::steady_clock::now();                                                                  // Profiling
         _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling

@@ -152,7 +152,7 @@ e["Solver"]["Termination Criteria"]["Max Generations"] = 500
 e["Solver"]["Experience Replay"]["Serialize"] = True
 e["Console Output"]["Verbosity"] = "Detailed"
 e["File Output"]["Enabled"] = True
-e["File Output"]["Frequency"] = 1
+e["File Output"]["Frequency"] = 10
 e["File Output"]["Use Multiple Files"] = False
 e["File Output"]["Path"] = resultFolder
 

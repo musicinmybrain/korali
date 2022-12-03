@@ -118,32 +118,33 @@ void VRACER::trainPolicy()
     numPolicies = 1;
 
   // Create vector with policy indices
-  std::vector<size_t> policyIndices;
+  // std::vector<size_t> policyIndices;
+  // for( size_t p = 0; p<numPolicies; p++)
+  //   policyIndices.push_back(p);
+
+  // if( _problem->_ensembleLearning )
+  // {
+  //   // Shuffle vector with policy indices [https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle]
+  //   for( size_t p = 0; p<numPolicies-1; p++)
+  //   {
+  //     // Producing random (uniform) number for the selection of the index
+  //     const float x1 = _uniformGenerator->getRandomNumber();
+
+  //     // Sample increment and compute j
+  //     size_t increment = std::floor(x1 * (float)(numPolicies-p));
+  //     increment = (p + increment == numPolicies) ? increment - 1 : increment;
+  //     const size_t j = p + increment;
+
+  //     // Shuffle value
+  //     const size_t tmp = policyIndices[j];
+  //     policyIndices[j] = policyIndices[p];
+  //     policyIndices[p] = tmp;
+  //   }
+  // }
+
+  // // Run training generation for all policies
+  // for (size_t p : policyIndices)
   for( size_t p = 0; p<numPolicies; p++)
-    policyIndices.push_back(p);
-
-  if( _problem->_ensembleLearning )
-  {
-    // Shuffle vector with policy indices [https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle]
-    for( size_t p = 0; p<numPolicies-1; p++)
-    {
-      // Producing random (uniform) number for the selection of the index
-      const float x1 = _uniformGenerator->getRandomNumber();
-
-      // Sample increment and compute j
-      size_t increment = std::floor(x1 * (float)(numPolicies-p));
-      increment = (p + increment == numPolicies) ? increment - 1 : increment;
-      const size_t j = p + increment;
-
-      // Shuffle value
-      const size_t tmp = policyIndices[j];
-      policyIndices[j] = policyIndices[p];
-      policyIndices[p] = tmp;
-    }
-  }
-
-  // Run training generation for all policies
-  for (size_t p : policyIndices)
   {
     // For "Competition" and "Ensemble Learning", the minibatch needs to be modified, create private copy
     auto miniBatchCopy = miniBatch;
@@ -258,7 +259,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
 
     // Gradient has to be divided by Number of Samples in Bayesian learning
     if (_problem->_ensembleLearning || _bayesianLearning)
-      gradientLoss[0] /= _numberOfSamples;
+      gradientLoss[0] /= (float)(_numberOfSamples*_problem->_policiesPerEnvironment);;
 
     // Check value of gradient
     if (std::isfinite(gradientLoss[0]) == false)
@@ -309,7 +310,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
         // Additional factors from Gaussian approximation
         if (_useGaussianApproximation)
         {
-          const float invN = 1 / _numberOfSamples;
+          const float invN = 1.0 / (_numberOfSamples*_problem->_policiesPerEnvironment);
           for (size_t i = 0; i < _problem->_actionVectorSize; i++)
           {
             // Get distribution parameter from predictive posterior policy
@@ -369,7 +370,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
         // Additional factors from Gaussian approximation
         if (_useGaussianApproximation)
         {
-          const float invN = 1 / _numberOfSamples;
+          const float invN = 1.0 / (_numberOfSamples*_problem->_policiesPerEnvironment);
           for (size_t i = 0; i < _problem->_actionVectorSize; i++)
           {
             // Get distribution parameter from predictive posterior policy
