@@ -104,46 +104,23 @@ void __className__::trainPolicy()
   // Buffer for policy info to update experience metadata
   std::vector<policy_t> policyInfoUpdateMetadata(miniBatch.size());
 
+  // Container for parameters
+  std::vector<policy_t> policyInfo;
+
   // Get number of policies
   size_t numPolicies = _problem->_policiesPerEnvironment;
   if (_problem->_ensembleLearning && (_currentEpisode < _burnIn))
     numPolicies = 1;
 
-  // Create vector with policy indices
-  // std::vector<size_t> policyIndices;
-  // for( size_t p = 0; p<numPolicies; p++)
-  //   policyIndices.push_back(p);
-
-  // if( _problem->_ensembleLearning )
-  // {
-  //   // Shuffle vector with policy indices [https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle]
-  //   for( size_t p = 0; p<numPolicies-1; p++)
-  //   {
-  //     // Producing random (uniform) number for the selection of the index
-  //     const float x1 = _uniformGenerator->getRandomNumber();
-
-  //     // Sample increment and compute j
-  //     size_t increment = std::floor(x1 * (float)(numPolicies-p));
-  //     increment = (p + increment == numPolicies) ? increment - 1 : increment;
-  //     const size_t j = p + increment;
-
-  //     // Shuffle value
-  //     const size_t tmp = policyIndices[j];
-  //     policyIndices[j] = policyIndices[p];
-  //     policyIndices[p] = tmp;
-  //   }
-  // }
-
-  // // Run training generation for all policies
-  // for (size_t p : policyIndices)
+  // Update policies
   for( size_t p = 0; p<numPolicies; p++)
   {
-    // For "Competition" and "Ensemble Learning", the minibatch needs to be modified, create private copy
+    // Create private copy of minibatch
     auto miniBatchCopy = miniBatch;
     auto stateSequenceBatchCopy = stateSequenceBatch;
 
-    // Disable experience sharing for competing agents or Bayesian reinforcement learning
-    if ((_multiAgentRelationship == "Competition") || _problem->_ensembleLearning)
+    // Disable experience sharing for competing agents
+    if (_multiAgentRelationship == "Competition")
     {
       std::vector<std::pair<size_t, size_t>> miniBatchModified(_miniBatchSize);
       std::vector<std::vector<std::vector<float>>> stateSequenceModified(_miniBatchSize);
@@ -156,14 +133,18 @@ void __className__::trainPolicy()
       stateSequenceBatchCopy = stateSequenceModified;
     }
 
-    // Container for parameters
-    std::vector<policy_t> policyInfo;
-
-    // For bayesian RL, compute predictive posterior distribution
+    // For Gaussian approximation in Bayesian RL, work with predictive posterior distribution
     if ((_problem->_ensembleLearning || _bayesianLearning) &&
         (_currentEpisode >= _burnIn) &&
         _useGaussianApproximation)
-      computePredictivePosteriorDistribution(stateSequenceBatchCopy, policyInfo, p);
+    { 
+      // compute predictive posterior distribution in first iteration
+      if( p == 0 )
+        computePredictivePosteriorDistribution(stateSequenceBatchCopy, policyInfo);
+      
+      // Forward policy
+      finalizePredictivePosterior(stateSequenceBatchCopy, policyInfo, p);
+    }
     else // Forward Policy
       runPolicy(stateSequenceBatchCopy, policyInfo, p);
 
@@ -467,7 +448,7 @@ void __className__::runPolicy(const std::vector<std::vector<std::vector<float>>>
   }
 }
 
-void __className__::computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy, const size_t policyIdx)
+void __className__::computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
 {
   // Get minibatch-size
   const size_t batchSize = stateSequenceBatch.size();
@@ -537,48 +518,40 @@ void __className__::computePredictivePosteriorDistribution(const std::vector<std
       }
     }
 
-  // Get current hyperparameters
-  const auto &hyperparameters = _hyperparameterBuffer[_hyperparameterBuffer.size() - 1][policyIdx];
-
-  // Set current hyperparameters
-  _criticPolicyLearner[policyIdx]->setHyperparameters(hyperparameters);
-
-  // Forward policy for current hyperparameters // TODO: avoid forwarding current policy twice
-  runPolicy(stateSequenceBatch, policy, policyIdx);
-
-  for (size_t b = 0; b < batchSize; b++)
-    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
-    {
-      // Get mean and standard deviation
-      const float mean = policy[b].distributionParameters[i];
-      float standardDeviation = policy[b].distributionParameters[_problem->_actionVectorSize + i];
-
-      // Save mean and standard deviation for current hyperparameters
-      curPolicy[b].currentDistributionParameters[i] = mean;
-      curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] = standardDeviation;
-    }
-
   // For consistency of SWAG and dropout, add contribution from the current policy
   if (_swag || (_dropoutProbability > 0.0))
   {
-#pragma omp parallel for
-    for (size_t b = 0; b < batchSize; b++)
+    for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
     {
-      // Accumulate State Value
-      curPolicy[b].stateValue += policy[b].stateValue;
-      for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+      // Get current hyperparameters
+      const auto &hyperparameters = _hyperparameterBuffer[_hyperparameterBuffer.size() - 1][p];
+
+      // Set current hyperparameters
+      _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
+
+      // Forward policy for current hyperparameters // TODO: avoid forwarding current policy twice
+      runPolicy(stateSequenceBatch, policy, p);
+
+      // Update policy
+#pragma omp parallel for
+      for (size_t b = 0; b < batchSize; b++)
       {
-        // Get mean, squared mean, standard deviation and variance
-        const float mean = policy[b].distributionParameters[i];
-        const float meanSquared = mean * mean;
-        const float standardDeviation = policy[b].distributionParameters[_problem->_actionVectorSize + i];
-        const float variance = standardDeviation * standardDeviation;
+        // Accumulate State Value
+        curPolicy[b].stateValue += policy[b].stateValue;
+        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+        {
+          // Get mean, squared mean, standard deviation and variance
+          const float mean = policy[b].distributionParameters[i];
+          const float meanSquared = mean * mean;
+          const float standardDeviation = policy[b].distributionParameters[_problem->_actionVectorSize + i];
+          const float variance = standardDeviation * standardDeviation;
 
-        // Accumulate Mean
-        curPolicy[b].distributionParameters[i] += mean;
+          // Accumulate Mean
+          curPolicy[b].distributionParameters[i] += mean;
 
-        // Accumulate Variance
-        curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+          // Accumulate Variance
+          curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+        }
       }
     }
   }
@@ -602,6 +575,38 @@ void __className__::computePredictivePosteriorDistribution(const std::vector<std
       curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy[b].distributionParameters[_problem->_actionVectorSize + i]);
     }
   }
+}
+
+void __className__::finalizePredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx)
+{
+  // Getting batch size
+  const size_t batchSize = stateSequenceBatch.size();
+  
+  // Get current hyperparameters
+  const auto &hyperparameters = _hyperparameterBuffer[_hyperparameterBuffer.size() - 1][policyIdx];
+
+  // Set current hyperparameters
+  _criticPolicyLearner[policyIdx]->setHyperparameters(hyperparameters);
+
+  // Create policy to forward samples
+  std::vector<policy_t> policy;
+
+  // Forward policy for current hyperparameters
+  runPolicy(stateSequenceBatch, policy, policyIdx);
+
+  // Update currentDistributionParameters
+#pragma omp parallel for
+  for (size_t b = 0; b < batchSize; b++)
+    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    {
+      // Get mean and standard deviation
+      const float mean = policy[b].distributionParameters[i];
+      float standardDeviation = policy[b].distributionParameters[_problem->_actionVectorSize + i];
+
+      // Save mean and standard deviation for current hyperparameters
+      predictivePosteriorDistribution[b].currentDistributionParameters[i] = mean;
+      predictivePosteriorDistribution[b].currentDistributionParameters[_problem->_actionVectorSize + i] = standardDeviation;
+    }
 }
 
 knlohmann::json __className__::getPolicy()

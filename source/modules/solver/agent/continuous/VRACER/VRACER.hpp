@@ -118,7 +118,8 @@ class VRACER : public Continuous
   void setPolicy(const knlohmann::json &hyperparameters) override;
   float calculateStateValue(const std::vector<std::vector<float>> &stateSequence, const size_t policyIdx = 0) override;
   void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, const size_t policyIdx = 0) override;
-  void computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy, const size_t policyIdx = 0) override;
+  void computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) override;
+  void finalizePredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx) override;
   void trainPolicy() override;
   void printInformation() override;
   void initializeAgent() override;

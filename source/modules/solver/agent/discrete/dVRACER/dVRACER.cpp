@@ -323,8 +323,12 @@ void dVRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &stat
   }
 }
 
-void dVRACER::computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy, const size_t policyIdx)
+void dVRACER::computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
 { // TODO: implement Bayesian Learning for Discrete Environments
+}
+
+void dVRACER::finalizePredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx)
+{// TODO: implement Bayesian Learning for Discrete Environments
 }
 
 std::vector<policy_t> dVRACER::getPolicyInfo(const std::vector<std::pair<size_t, size_t>> &miniBatch) const

@@ -745,9 +745,15 @@ class Agent : public Solver
   /**
    * @brief Function to compute the predictive posterior distribution probability
    * @param curPolicy The current policy for the given state
-   * @param policyIdx The index for the policy that was used previously
    */
-  virtual void computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy, const size_t policyIdx = 0) = 0;
+  virtual void computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) = 0;
+
+  /**
+   * @brief Function to foward current policy and update currentDistributionParameters
+   * @param predictivePosteriorDistribution The predictive posterior distribution
+   * @param policyIdx Index of the current policy
+   */
+  virtual void finalizePredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx) = 0;
 
   /**
    * @brief Calculates the starting experience index of the time sequence for the selected experience
