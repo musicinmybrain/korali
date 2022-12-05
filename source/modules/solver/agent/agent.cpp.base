@@ -733,16 +733,61 @@ void __className__::processEpisode(knlohmann::json &episode)
       auto expTruncatedStateSequence = getTruncatedStateSequence(endId, a);
 
       // Forward tuncated state
-      if ((_problem->_ensembleLearning || _bayesianLearning) &&
-          (_currentEpisode >= _burnIn) &&
-          _useGaussianApproximation)
-      {
-        // Compute predictive posterior distribution
-        std::vector<policy_t> policy;
-        computePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
+      if (_problem->_ensembleLearning || _bayesianLearning)
+      { 
+        const size_t numPolicies = _problem->_policiesPerEnvironment;
+        if(_currentEpisode >= _burnIn)
+        { 
+          if(_useGaussianApproximation)
+          {
+            // Compute predictive posterior distribution
+            std::vector<policy_t> policy;
+            computePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
 
-        // Get value
-        retV[a] = policy[0].stateValue;
+            // Get value
+            retV[a] = policy[0].stateValue;
+          }
+          else
+          {
+            // Producing random (uniform) number for the selection of the policy
+            const float x1 = _uniformGenerator->getRandomNumber();
+
+            // Selecting policy
+            size_t policyIdx = std::floor(x1 * (float)numPolicies);
+            policyIdx = policyIdx == numPolicies ? numPolicies - 1 : policyIdx;
+
+            // Get hyperparameters
+            std::vector<float> hyperparameters;
+            if (_swag || (_dropoutProbability > 0.0))
+            {
+              // sample posterior
+              hyperparameters = samplePosterior(policyIdx);
+            }
+            else
+            {
+              // Producing random (uniform) number for the selection of the sample
+              const float x2 = _uniformGenerator->getRandomNumber();
+
+              // Selecting sample
+              const size_t numSamples = _hyperparameterBuffer.size();
+              size_t sampleIdx = std::floor(x2 * (float)numSamples);
+              sampleIdx = sampleIdx == numSamples ? numSamples - 1 : sampleIdx;
+
+              // Load hyperparameters
+              hyperparameters = _hyperparameterBuffer[sampleIdx][policyIdx];
+            }
+
+            // Set hyperparameters
+            _criticPolicyLearner[policyIdx]->_neuralNetwork->setHyperparameters(hyperparameters);
+
+            // Forward policy
+            retV[a] = calculateStateValue(expTruncatedStateSequence, policyIdx);
+          }
+        }
+        else
+        {
+          retV[a] = calculateStateValue(expTruncatedStateSequence);
+        }
       }
       else if (_problem->_policiesPerEnvironment == 1)
         retV[a] = calculateStateValue(expTruncatedStateSequence);
@@ -949,16 +994,62 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
       // Forward tuncated state
       // TODO: other policy for exp-sharing in multi-policy case??
       float truncatedStateValue;
-      if ((_problem->_ensembleLearning || _bayesianLearning) &&
-          (_currentEpisode >= _burnIn) &&
-          _useGaussianApproximation)
+            // Forward tuncated state
+      if (_problem->_ensembleLearning || _bayesianLearning)
       {
-        // Compute predictive posterior distribution
-        std::vector<policy_t> policy;
-        computePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
+        const size_t numPolicies = _problem->_policiesPerEnvironment;
+        if(_currentEpisode >= _burnIn)
+        { 
+          if(_useGaussianApproximation)
+          {
+            // Compute predictive posterior distribution
+            std::vector<policy_t> policy;
+            computePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
 
-        // Get value
-        truncatedStateValue = policy[0].stateValue;
+            // Get value
+            truncatedStateValue = policy[0].stateValue;
+          }
+          else
+          {
+            // Producing random (uniform) number for the selection of the policy
+            const float x1 = _uniformGenerator->getRandomNumber();
+
+            // Selecting policy
+            size_t policyIdx = std::floor(x1 * (float)numPolicies);
+            policyIdx = policyIdx == numPolicies ? numPolicies - 1 : policyIdx;
+
+            // Get hyperparameters
+            std::vector<float> hyperparameters;
+            if (_swag || (_dropoutProbability > 0.0))
+            {
+              // sample posterior
+              hyperparameters = samplePosterior(policyIdx);
+            }
+            else
+            {
+              // Producing random (uniform) number for the selection of the sample
+              const float x2 = _uniformGenerator->getRandomNumber();
+
+              // Selecting sample
+              const size_t numSamples = _hyperparameterBuffer.size();
+              size_t sampleIdx = std::floor(x2 * (float)numSamples);
+              sampleIdx = sampleIdx == numSamples ? numSamples - 1 : sampleIdx;
+
+              // Load hyperparameters
+              hyperparameters = _hyperparameterBuffer[sampleIdx][policyIdx];
+            }
+
+            // Set hyperparameters
+            _criticPolicyLearner[policyIdx]->_neuralNetwork->setHyperparameters(hyperparameters);
+
+            // Forward policy
+            truncatedStateValue = calculateStateValue(expTruncatedStateSequence, policyIdx);
+          }
+        }
+        else
+        {
+          truncatedStateValue = calculateStateValue(expTruncatedStateSequence);
+        }
       }
       else if (_problem->_policiesPerEnvironment == 1)
         truncatedStateValue = calculateStateValue(expTruncatedStateSequence);
