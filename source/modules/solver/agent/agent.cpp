@@ -736,9 +736,19 @@ void Agent::processEpisode(knlohmann::json &episode)
       // Get truncated state
       auto expTruncatedStateSequence = getTruncatedStateSequence(endId, a);
 
-      // Forward tuncated state. Take policy d if there is multiple policies, otherwise policy 0
-      std::vector<policy_t> truncatedPolicy;
-      if (_problem->_policiesPerEnvironment == 1)
+      // Forward tuncated state
+      if ((_problem->_ensembleLearning || _bayesianLearning) &&
+          (_currentEpisode >= _burnIn) &&
+          _useGaussianApproximation)
+      {
+        // Compute predictive posterior distribution
+        std::vector<policy_t> policy;
+        computePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
+
+        // Get value
+        retV[a] = policy[0].stateValue;
+      }
+      else if (_problem->_policiesPerEnvironment == 1)
         retV[a] = calculateStateValue(expTruncatedStateSequence);
       else
         retV[a] = calculateStateValue(expTruncatedStateSequence, a);
@@ -943,7 +953,18 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
       // Forward tuncated state
       // TODO: other policy for exp-sharing in multi-policy case??
       float truncatedStateValue;
-      if (_problem->_policiesPerEnvironment == 1)
+      if ((_problem->_ensembleLearning || _bayesianLearning) &&
+          (_currentEpisode >= _burnIn) &&
+          _useGaussianApproximation)
+      {
+        // Compute predictive posterior distribution
+        std::vector<policy_t> policy;
+        computePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
+
+        // Get value
+        truncatedStateValue = policy[0].stateValue;
+      }
+      else if (_problem->_policiesPerEnvironment == 1)
         truncatedStateValue = calculateStateValue(expTruncatedStateSequence);
       else
         truncatedStateValue = calculateStateValue(expTruncatedStateSequence, agentId);
