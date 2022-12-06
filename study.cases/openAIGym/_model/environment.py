@@ -10,6 +10,11 @@ if (parse_version(gym.__version__) < parse_version('0.26.0')):
     print("[environment] install new version (>=0.26.0) of gym (is {gym.__version__})")
     sys.exit()
 
+
+obsstates = []
+obsactions = []
+obsrewards = []
+
 def initEnvironment(e, envName, excludePosition=True, moviePath = ''):
  
  # Creating environment
@@ -65,26 +70,9 @@ def initEnvironment(e, envName, excludePosition=True, moviePath = ''):
 
 def environment(s, env, excludePosition):
  
+ saveState = False
  if (s["Custom Settings"]["Save State"] == "True"):
-   fname = s["Custom Settings"]["File Name"]
    saveState = True
-   if os.path.isfile(fname):
-     with open(fname, 'r') as infile:
-       obsjson = json.load(infile)
-       obsstates = obsjson["States"]
-       obsactions = obsjson["Actions"]
-       obsrewards = obsjson["Rewards"]
-   else:
-       obsjson = {}
-       obsstates = []
-       obsactions = []
-       obsrewards = []
- 
- else:
-   saveState = False
-   obsjson = {}
-   obsstates = []
-   obsactions = []
   
  if excludePosition == False:
     s["State"] = env.reset()[0].tolist()[1:]
@@ -128,15 +116,27 @@ def environment(s, env, excludePosition):
   # Advancing step counter
   step = step + 1
  
- if (saveState): 
+ if (saveState):
+
+   numSaveTrajectories = s["Custom Settings"]["Num Save Trajectories"]
+   global obsstates
+   global obsactions
+   global obsrewards
+
    obsstates.append(states)
    obsactions.append(actions)
    obsrewards.append(cumulativeReward)
-   obsjson["States"] = obsstates
-   obsjson["Actions"] = obsactions
-   obsjson["Rewards"] = obsrewards
-   with open(fname, 'w') as f:
-     json.dump(obsjson, f)
+
+   if len(obsstates) == numSaveTrajectories:
+     fname = s["Custom Settings"]["File Name"]
+    
+     obsjson = {
+       "States" : obsstates,
+       "Actions" : obsactions,
+       "Rewards" : obsrewards
+     }
+     with open(fname, 'w') as f:
+       json.dump(obsjson, f)
  
  # Setting termination status
  if (done):
