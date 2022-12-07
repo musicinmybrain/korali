@@ -144,7 +144,7 @@ void VRACER::trainPolicy()
     // For Gaussian approximation in Bayesian RL, work with predictive posterior distribution
     if ((_problem->_ensembleLearning || _bayesianLearning) &&
         (_currentEpisode >= _burnIn) &&
-        _useGaussianApproximation)
+        _gaussianApproximationEnabled)
     { 
       // compute predictive posterior distribution in first iteration
       if( p == 0 )
@@ -289,7 +289,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       if ((_problem->_ensembleLearning || _bayesianLearning) && (_currentEpisode >= _burnIn))
       {
         // Additional factors from Gaussian approximation
-        if (_useGaussianApproximation)
+        if (_gaussianApproximationEnabled)
         {
           const float invN = 1.0 / (_numberOfSamples*_problem->_policiesPerEnvironment);
           for (size_t i = 0; i < _problem->_actionVectorSize; i++)
@@ -307,10 +307,16 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
             polGrad[i] *= invN;
 
             // Adding contribution from standard deviation
-            polGrad[i] += invN * invSigma * (curMean - mean) * polGrad[i + _problem->_actionVectorSize];
+            if(_gaussianApproximationType == "Mixture")
+              polGrad[i] += invN * invSigma * (curMean - mean) * polGrad[i + _problem->_actionVectorSize];
 
             // Scaling standard deviation gradient by number of samples
-            polGrad[i + _problem->_actionVectorSize] *= invN * invSigma * curSigma;
+            float sigmaFactor = 1.0;
+            if(_gaussianApproximationType == "Average")
+              sigmaFactor = invN;
+            if(_gaussianApproximationType == "Mixture")
+              sigmaFactor = curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma;
+            polGrad[i + _problem->_actionVectorSize] *= sigmaFactor;
           }
         }
       }
@@ -349,7 +355,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       if ((_problem->_ensembleLearning || _bayesianLearning) && (_currentEpisode >= _burnIn))
       {
         // Additional factors from Gaussian approximation
-        if (_useGaussianApproximation)
+        if (_gaussianApproximationEnabled)
         {
           const float invN = 1.0 / (_numberOfSamples*_problem->_policiesPerEnvironment);
           for (size_t i = 0; i < _problem->_actionVectorSize; i++)
@@ -367,10 +373,16 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
             klGrad[i] *= invN;
 
             // Adding contribution from standard deviation
-            klGrad[i] += invN * invSigma * (curMean - mean) * klGrad[i + _problem->_actionVectorSize];
+            if(_gaussianApproximationType == "Mixture")
+              klGrad[i] += invN * invSigma * (curMean - mean) * klGrad[i + _problem->_actionVectorSize];
 
             // Scaling standard deviation gradient by number of samples
-            klGrad[i + _problem->_actionVectorSize] *= invN * invSigma * curSigma;
+            float sigmaFactor = 1.0;
+            if(_gaussianApproximationType == "Average")
+              sigmaFactor = invN;
+            if(_gaussianApproximationType == "Mixture")
+              sigmaFactor = curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma;
+            klGrad[i + _problem->_actionVectorSize] *= sigmaFactor;
           }
         }
       }
@@ -521,7 +533,10 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
           curPolicy[b].distributionParameters[i] += mean;
 
           // Accumulate Variance
-          curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+          if(_gaussianApproximationType == "Average")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
+          if(_gaussianApproximationType == "Mixture")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
         }
       }
     }
@@ -558,7 +573,10 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
           curPolicy[b].distributionParameters[i] += mean;
 
           // Accumulate Variance
-          curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+          if(_gaussianApproximationType == "Average")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
+          if(_gaussianApproximationType == "Mixture")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
         }
       }
     }
@@ -579,8 +597,11 @@ void VRACER::computePredictivePosteriorDistribution(const std::vector<std::vecto
 
       // Finalize Variance
       curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] *= invTotNumSamples;
-      curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
-      curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy[b].distributionParameters[_problem->_actionVectorSize + i]);
+      if(_gaussianApproximationType == "Mixture")
+      {
+        curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
+        curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy[b].distributionParameters[_problem->_actionVectorSize + i]);
+      }
     }
   }
 }
@@ -634,7 +655,7 @@ void VRACER::setPolicy(const knlohmann::json &hyperparameters)
 void VRACER::printInformation()
 {
   _k->_logger->logInfo("Normal", " + [VRACER] Policy Learning Rate: %.3e\n", _currentLearningRate);
-  if ( _useGaussianApproximation )
+  if ( _gaussianApproximationEnabled )
   {
     _k->_logger->logInfo("Detailed", " + [VRACER] Policy Parameters (Mu & Sigma - Gaussian) - (Mu & Sigma - Individual):\n");
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)

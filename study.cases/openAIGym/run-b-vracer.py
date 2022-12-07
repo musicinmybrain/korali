@@ -80,10 +80,14 @@ e["Solver"]["Learning Rate"] = 1e-4
 e["Solver"]["Discount Factor"] = 0.995
 e["Solver"]["Mini Batch"]["Size"] = 256
 
-### Settings to enable Bayesian Reinforcement Learning
+### Settings for Bayesian Reinforcement Learning
 
-e["Solver"]["Use Gaussian Approximation"] = args.bGaussian
+# Number of episodes to run normal training before starting BRL
 e["Solver"]["Burn In"] = 0
+
+# Settings for Gaussian approximation of policy
+e["Solver"]["Gaussian Approximation"]["Enabled"] = args.bGaussian
+e["Solver"]["Gaussian Approximation"]["Type"] = "Mixture"
 
 # Ensemble Learning
 e["Problem"]["Policies Per Environment"] = args.nPolicies

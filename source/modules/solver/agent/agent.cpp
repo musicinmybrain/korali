@@ -115,7 +115,7 @@ void Agent::initialize()
   if (_hmcEnabled && (_problem->_policiesPerEnvironment > 1))
     KORALI_LOG_ERROR("HMC only compatible with single policy!");
 
-  if ((_bayesianLearning || _problem->_ensembleLearning) && (_useGaussianApproximation == false) && (_mode == "Training"))
+  if ((_bayesianLearning || _problem->_ensembleLearning) && (_gaussianApproximationEnabled == false) && (_mode == "Training"))
     _k->_logger->logWarning("Normal", "Training a policy with Bayesian Learning / Ensembles is inconsistent without a Gaussian Approximation - use it at your own risk!\n");
 
   if( (_bayesianLearning || _problem->_ensembleLearning) && _problem->_agentsPerEnvironment > 1 )
@@ -742,7 +742,7 @@ void Agent::processEpisode(knlohmann::json &episode)
         const size_t numPolicies = _problem->_policiesPerEnvironment;
         if(_currentEpisode >= _burnIn)
         { 
-          if(_useGaussianApproximation)
+          if(_gaussianApproximationEnabled)
           {
             // Compute predictive posterior distribution
             std::vector<policy_t> policy;
@@ -995,16 +995,16 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
       // Get truncated state
       auto expTruncatedStateSequence = getTruncatedStateSequence(expId, agentId);
 
-      // Forward tuncated state
-      // TODO: other policy for exp-sharing in multi-policy case??
+      // Create variable for truncated state-value
       float truncatedStateValue;
-            // Forward tuncated state
+
+      // Forward tuncated state
       if (_problem->_ensembleLearning || _bayesianLearning)
       {
         const size_t numPolicies = _problem->_policiesPerEnvironment;
         if(_currentEpisode >= _burnIn)
         { 
-          if(_useGaussianApproximation)
+          if(_gaussianApproximationEnabled)
           {
             // Compute predictive posterior distribution
             std::vector<policy_t> policy;
@@ -2149,14 +2149,29 @@ void Agent::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Number Of Stored Hyperparameters'] required by agent.\n"); 
 
- if (isDefined(js, "Use Gaussian Approximation"))
+ if (isDefined(js, "Gaussian Approximation", "Enabled"))
  {
- try { _useGaussianApproximation = js["Use Gaussian Approximation"].get<int>();
+ try { _gaussianApproximationEnabled = js["Gaussian Approximation"]["Enabled"].get<int>();
 } catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Use Gaussian Approximation']\n%s", e.what()); } 
-   eraseValue(js, "Use Gaussian Approximation");
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Gaussian Approximation']['Enabled']\n%s", e.what()); } 
+   eraseValue(js, "Gaussian Approximation", "Enabled");
  }
-  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Use Gaussian Approximation'] required by agent.\n"); 
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Gaussian Approximation']['Enabled'] required by agent.\n"); 
+
+ if (isDefined(js, "Gaussian Approximation", "Type"))
+ {
+ try { _gaussianApproximationType = js["Gaussian Approximation"]["Type"].get<std::string>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Gaussian Approximation']['Type']\n%s", e.what()); } 
+{
+ bool validOption = false; 
+ if (_gaussianApproximationType == "Mixture") validOption = true; 
+ if (_gaussianApproximationType == "Average") validOption = true; 
+ if (validOption == false) KORALI_LOG_ERROR(" + Unrecognized value (%s) provided for mandatory setting: ['Gaussian Approximation']['Type'] required by agent.\n", _gaussianApproximationType.c_str()); 
+}
+   eraseValue(js, "Gaussian Approximation", "Type");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Gaussian Approximation']['Type'] required by agent.\n"); 
 
  if (isDefined(js, "swag"))
  {
@@ -2485,7 +2500,8 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Number Of Samples"] = _numberOfSamples;
    js["Burn In"] = _burnIn;
    js["Number Of Stored Hyperparameters"] = _numberOfStoredHyperparameters;
-   js["Use Gaussian Approximation"] = _useGaussianApproximation;
+   js["Gaussian Approximation"]["Enabled"] = _gaussianApproximationEnabled;
+   js["Gaussian Approximation"]["Type"] = _gaussianApproximationType;
    js["swag"] = _swag;
    js["Langevin Dynamics"] = _langevinDynamics;
    js["Dropout Probability"] = _dropoutProbability;
@@ -2566,7 +2582,7 @@ void Agent::getConfiguration(knlohmann::json& js)
 void Agent::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Workers\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Bayesian Learning\": false, \"Number Of Samples\": 1, \"Number Of Stored Hyperparameters\": 1, \"Burn In\": 0, \"Use Gaussian Approximation\": true, \"swag\": false, \"Langevin Dynamics\": false, \"Dropout Probability\": 0.0, \"hmc\": {\"Enabled\": false, \"Mass\": 0.0, \"Number Of Steps\": 0, \"Step Size\": 0.0}, \"Normal Generator\": {\"Name\": \"Agent / Continuous / Normal Generator\", \"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}, \"Use Best Policies\": false}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Name\": \"Agent / Uniform Generator\", \"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
+ std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Workers\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Bayesian Learning\": false, \"Number Of Samples\": 1, \"Number Of Stored Hyperparameters\": 1, \"Burn In\": 0, \"swag\": false, \"Gaussian Approximation\": {\"Enabled\": false, \"Type\": \"Average\"}, \"Langevin Dynamics\": false, \"Dropout Probability\": 0.0, \"hmc\": {\"Enabled\": false, \"Mass\": 0.0, \"Number Of Steps\": 0, \"Step Size\": 0.0}, \"Normal Generator\": {\"Name\": \"Agent / Continuous / Normal Generator\", \"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}, \"Use Best Policies\": false}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Name\": \"Agent / Uniform Generator\", \"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Solver::applyModuleDefaults(js);

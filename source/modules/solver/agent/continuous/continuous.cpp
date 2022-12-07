@@ -123,7 +123,7 @@ void Continuous::getAction(korali::Sample &sample)
     {
       if (_currentEpisode >= _burnIn)
       {
-        if (_useGaussianApproximation)
+        if (_gaussianApproximationEnabled)
           computePredictivePosteriorDistribution({_stateTimeSequence[i].getVector()}, policy);
         else
         {

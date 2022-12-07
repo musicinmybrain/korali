@@ -141,7 +141,11 @@ class Agent : public Solver
   /**
   * @brief Use Gaussian Approximation of Predictive Posterior Distribution.
   */
-   int _useGaussianApproximation;
+   int _gaussianApproximationEnabled;
+  /**
+  * @brief Descibes method to compute moments for Gaussian Approximation of Predictive Posterior Distribution.
+  */
+   std::string _gaussianApproximationType;
   /**
   * @brief Boolean to determine whether Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf) is used.
   */

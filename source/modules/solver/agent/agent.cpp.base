@@ -111,7 +111,7 @@ void __className__::initialize()
   if (_hmcEnabled && (_problem->_policiesPerEnvironment > 1))
     KORALI_LOG_ERROR("HMC only compatible with single policy!");
 
-  if ((_bayesianLearning || _problem->_ensembleLearning) && (_useGaussianApproximation == false) && (_mode == "Training"))
+  if ((_bayesianLearning || _problem->_ensembleLearning) && (_gaussianApproximationEnabled == false) && (_mode == "Training"))
     _k->_logger->logWarning("Normal", "Training a policy with Bayesian Learning / Ensembles is inconsistent without a Gaussian Approximation - use it at your own risk!\n");
 
   if( (_bayesianLearning || _problem->_ensembleLearning) && _problem->_agentsPerEnvironment > 1 )
@@ -738,7 +738,7 @@ void __className__::processEpisode(knlohmann::json &episode)
         const size_t numPolicies = _problem->_policiesPerEnvironment;
         if(_currentEpisode >= _burnIn)
         { 
-          if(_useGaussianApproximation)
+          if(_gaussianApproximationEnabled)
           {
             // Compute predictive posterior distribution
             std::vector<policy_t> policy;
@@ -991,16 +991,16 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
       // Get truncated state
       auto expTruncatedStateSequence = getTruncatedStateSequence(expId, agentId);
 
-      // Forward tuncated state
-      // TODO: other policy for exp-sharing in multi-policy case??
+      // Create variable for truncated state-value
       float truncatedStateValue;
-            // Forward tuncated state
+
+      // Forward tuncated state
       if (_problem->_ensembleLearning || _bayesianLearning)
       {
         const size_t numPolicies = _problem->_policiesPerEnvironment;
         if(_currentEpisode >= _burnIn)
         { 
-          if(_useGaussianApproximation)
+          if(_gaussianApproximationEnabled)
           {
             // Compute predictive posterior distribution
             std::vector<policy_t> policy;
