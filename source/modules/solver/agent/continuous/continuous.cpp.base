@@ -118,7 +118,7 @@ void __className__::getAction(korali::Sample &sample)
       if (_currentEpisode >= _burnIn)
       {
         if (_gaussianApproximationEnabled)
-          computePredictivePosteriorDistribution({_stateTimeSequence[i].getVector()}, policy);
+          approximatePredictivePosteriorDistribution({_stateTimeSequence[i].getVector()}, policy);
         else
         {
           // Producing random (uniform) number for the selection of the policy
@@ -154,6 +154,17 @@ void __className__::getAction(korali::Sample &sample)
 
           // Forward policy
           runPolicy({_stateTimeSequence[i].getVector()}, policy, policyIdx);
+
+          // Handle minimal approximation
+          if( _minimalApproximation )
+          {
+            // Compute Gaussian approximation predictive posterior distribution
+            std::vector<policy_t> tmpPolicy;
+            approximatePredictivePosteriorDistribution({_stateTimeSequence[i].getVector()}, tmpPolicy);
+
+            // Assign Parameters from Gaussian approximation to currentDistributionParameters
+            policy[0].currentDistributionParameters = tmpPolicy[0].distributionParameters;
+          }
         }
       }
       else
@@ -182,6 +193,13 @@ void __className__::getAction(korali::Sample &sample)
     if (sample["Mode"] == "Testing") action = generateTestingAction(policy[0]);
 
     /*****************************************************************************
+     * In the minimal approximation, we need to compute the probability of the 
+     * action under the predictive posterior distribution
+     ****************************************************************************/
+
+    calculatePredictivePosteriorProbability( action, {_stateTimeSequence[i].getVector()}, policy[0] );
+
+    /*****************************************************************************
      * Storing the action and its policy
      ****************************************************************************/
 
@@ -194,6 +212,7 @@ void __className__::getAction(korali::Sample &sample)
     sample["Policy"]["State Value"][i] = policy[0].stateValue;
     sample["Policy"]["Unbounded Action"][i] = policy[0].unboundedAction;
     sample["Policy"]["Distribution Parameters"][i] = policy[0].distributionParameters;
+    sample["Policy"]["Action Probabilities"][i] = policy[0].distributionParameters;
   }
 }
 
@@ -340,6 +359,9 @@ std::vector<float> __className__::generateTestingAction(const policy_t &curPolic
 
 float __className__::calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy)
 {
+  if( _minimalApproximation )
+    return curPolicy.actionProbabilities[0] / oldPolicy.actionProbabilities[0];
+
   float logpCurPolicy = 0.0f;
   float logpOldPolicy = 0.0f;
 
@@ -459,6 +481,80 @@ float __className__::calculateImportanceWeight(const std::vector<float> &action,
   return importanceWeight;
 }
 
+float __className__::calculateActionProbability(const std::vector<float> &action, const policy_t policy) const
+{
+  // Compute probability of action
+  float logpCurPolicy = 0.0f;
+  if (_policyDistribution == "Normal")
+  {
+    for (size_t i = 0; i < action.size(); i++)
+    {
+      // Getting parameters from policy
+      const float curMean = policy.distributionParameters[i];
+      const float curSigma = policy.distributionParameters[_problem->_actionVectorSize + i];
+
+      logpCurPolicy += normalLogDensity(action[i], curMean, curSigma);
+    }
+  }
+
+  if (_policyDistribution == "Squashed Normal")
+  {
+    KORALI_LOG_ERROR("Squashed Normal is not supported with _minimalApproximation.\n");
+  }
+
+  if (_policyDistribution == "Clipped Normal")
+  {
+    for (size_t i = 0; i < action.size(); i++)
+    {
+      // Getting parameters from policy
+      const float curMu = policy.distributionParameters[i];
+      const float curSigma = policy.distributionParameters[_problem->_actionVectorSize + i];
+
+      if (action[i] <= _actionLowerBounds[i])
+        logpCurPolicy += normalLogCDF(_actionLowerBounds[i], curMu, curSigma);
+      else if (_actionUpperBounds[i] <= action[i])
+        logpCurPolicy += normalLogCCDF(_actionUpperBounds[i], curMu, curSigma);
+      else
+        logpCurPolicy += normalLogDensity(action[i], curMu, curSigma);
+    }
+  }
+
+  if (_policyDistribution == "Truncated Normal")
+  {
+    for (size_t i = 0; i < action.size(); i++)
+    {
+      // Getting parameters from policy
+      const float curMu = policy.distributionParameters[i];
+      const float curSigma = policy.distributionParameters[_problem->_actionVectorSize + i];
+
+      const float curInvSig = 1.f / curSigma;
+
+      const float curAlpha = (_actionLowerBounds[i] - curMu) * curInvSig * M_SQRT1_2;
+      const float curBeta = (_actionUpperBounds[i] - curMu) * curInvSig * M_SQRT1_2;
+
+      // log of normalization constants
+      const float lCq = M_LN2 - safeLogMinus(gsl_sf_log_erfc(-curBeta), gsl_sf_log_erfc(-curAlpha));
+
+      logpCurPolicy += lCq - std::log(curSigma) - 0.5 * (action[i] - curMu) * (action[i] - curMu) * curInvSig * curInvSig;
+    }
+  }
+
+  if (_policyDistribution == "Beta")
+  {
+    for (size_t i = 0; i < action.size(); i++)
+    {
+      // Getting parameters from policy
+      const float curMu = policy.distributionParameters[i];
+      const float curVariance = policy.distributionParameters[_problem->_actionVectorSize + i];
+
+      logpCurPolicy += betaLogDensityAlt(action[i], curMu, curVariance, _actionLowerBounds[i], _actionUpperBounds[i]);
+    }
+  }
+
+  // Sum probability
+  return std::exp(logpCurPolicy);
+}
+
 std::vector<float> __className__::calculateImportanceWeightGradient(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, const float importanceWeight)
 {
   // Storage for importance weight gradients
@@ -568,7 +664,17 @@ std::vector<float> __className__::calculateImportanceWeightGradient(const std::v
       }
     }
 
-    // Scale by importance weight to get gradient
+    // In "nomal" RL, factor is importance weight to get gradient
+    float factor = importanceWeight;
+
+    // Use modified importance weight for minimal approximation
+    if( _minimalApproximation )
+    {
+      const float curProbability = calculateActionProbability(action, curPolicy);
+      factor = curProbability / oldPolicy.actionProbabilities[0];
+    }
+
+    // Scale gradient
     for (size_t i = 0; i < _policyParameterCount; i++)
       importanceWeightGradients[i] *= importanceWeight;
   }

@@ -111,7 +111,7 @@ void __className__::trainPolicy()
     runPolicy(stateSequenceBatch, policyInfo, p);
 
     // Using policy information to update experience's metadata
-    updateExperienceMetadata(miniBatch, policyInfo);
+    updateExperienceMetadata(miniBatch, stateSequenceBatch, policyInfo);
 
     // Now calculating policy gradients
     calculatePolicyGradients(miniBatch, p);
@@ -130,7 +130,7 @@ void __className__::trainPolicy()
 
   // Correct experience metadata
   if (numPolicies > 1)
-    updateExperienceMetadata(miniBatch, policyInfoUpdateMetadata);
+    updateExperienceMetadata(miniBatch, stateSequenceBatch, policyInfoUpdateMetadata);
 }
 
 void __className__::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx)
@@ -315,12 +315,16 @@ void __className__::runPolicy(const std::vector<std::vector<std::vector<float>>>
   }
 }
 
-void __className__::computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
+void __className__::approximatePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
 { // TODO: implement Bayesian Learning for Discrete Environments
 }
 
 void __className__::finalizePredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx)
 {// TODO: implement Bayesian Learning for Discrete Environments
+}
+
+void __className__::calculatePredictivePosteriorProbability(const std::vector<float> &action, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, policy_t &curPolicy)
+{//TODO: implement Bayesian Learning for Discrete Environments
 }
 
 std::vector<policy_t> __className__::getPolicyInfo(const std::vector<std::pair<size_t, size_t>> &miniBatch) const

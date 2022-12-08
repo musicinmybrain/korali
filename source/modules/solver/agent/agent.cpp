@@ -746,7 +746,7 @@ void Agent::processEpisode(knlohmann::json &episode)
           {
             // Compute predictive posterior distribution
             std::vector<policy_t> policy;
-            computePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
+            approximatePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
 
             // Get value
             retV[a] = policy[0].stateValue;
@@ -898,7 +898,7 @@ std::vector<std::vector<std::vector<float>>> Agent::getMiniBatchStateSequence(co
   return stateSequence;
 }
 
-void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<policy_t> &policyData)
+void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, const std::vector<policy_t> &policyData)
 {
   const size_t miniBatchSize = miniBatch.size();
   const size_t numAgents = _problem->_agentsPerEnvironment;
@@ -951,7 +951,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     const size_t agentId = updateMinibatch[i].second;
 
     // Get and set current policy
-    const auto &curPolicy = updatePolicyData[i];
+    auto &curPolicy = updatePolicyData[i];
     _curPolicyBuffer[expId][agentId] = curPolicy;
 
     // Get state value
@@ -962,6 +962,10 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     // Get action and policy for this experience
     const auto &expAction = _actionBuffer[expId][agentId];
     const auto &expPolicy = _expPolicyBuffer[expId][agentId];
+
+    // Compute probability under predictive posterior distribution
+    if( _minimalApproximation )
+      calculatePredictivePosteriorProbability( expAction, {stateSequenceBatch[updateBatch[i]]}, curPolicy );
 
     // Compute importance weight
     const float importanceWeight = calculateImportanceWeight(expAction, curPolicy, expPolicy);
@@ -1008,7 +1012,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
           {
             // Compute predictive posterior distribution
             std::vector<policy_t> policy;
-            computePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
+            approximatePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
 
             // Get value
             truncatedStateValue = policy[0].stateValue;
@@ -2158,6 +2162,15 @@ void Agent::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Gaussian Approximation']['Enabled'] required by agent.\n"); 
 
+ if (isDefined(js, "Minimal Approximation"))
+ {
+ try { _minimalApproximation = js["Minimal Approximation"].get<int>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Minimal Approximation']\n%s", e.what()); } 
+   eraseValue(js, "Minimal Approximation");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Minimal Approximation'] required by agent.\n"); 
+
  if (isDefined(js, "Gaussian Approximation", "Type"))
  {
  try { _gaussianApproximationType = js["Gaussian Approximation"]["Type"].get<std::string>();
@@ -2501,6 +2514,7 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Burn In"] = _burnIn;
    js["Number Of Stored Hyperparameters"] = _numberOfStoredHyperparameters;
    js["Gaussian Approximation"]["Enabled"] = _gaussianApproximationEnabled;
+   js["Minimal Approximation"] = _minimalApproximation;
    js["Gaussian Approximation"]["Type"] = _gaussianApproximationType;
    js["swag"] = _swag;
    js["Langevin Dynamics"] = _langevinDynamics;
@@ -2582,7 +2596,7 @@ void Agent::getConfiguration(knlohmann::json& js)
 void Agent::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Workers\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Bayesian Learning\": false, \"Number Of Samples\": 1, \"Number Of Stored Hyperparameters\": 1, \"Burn In\": 0, \"swag\": false, \"Gaussian Approximation\": {\"Enabled\": false, \"Type\": \"Average\"}, \"Langevin Dynamics\": false, \"Dropout Probability\": 0.0, \"hmc\": {\"Enabled\": false, \"Mass\": 0.0, \"Number Of Steps\": 0, \"Step Size\": 0.0}, \"Normal Generator\": {\"Name\": \"Agent / Continuous / Normal Generator\", \"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}, \"Use Best Policies\": false}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Name\": \"Agent / Uniform Generator\", \"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
+ std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Workers\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Bayesian Learning\": false, \"Number Of Samples\": 1, \"Number Of Stored Hyperparameters\": 1, \"Burn In\": 0, \"swag\": false, \"Minimal Approximation\": false, \"Gaussian Approximation\": {\"Enabled\": false, \"Type\": \"Average\"}, \"Langevin Dynamics\": false, \"Dropout Probability\": 0.0, \"hmc\": {\"Enabled\": false, \"Mass\": 0.0, \"Number Of Steps\": 0, \"Step Size\": 0.0}, \"Normal Generator\": {\"Name\": \"Agent / Continuous / Normal Generator\", \"Type\": \"Univariate/Normal\", \"Mean\": 0.0, \"Standard Deviation\": 1.0}, \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}, \"Use Best Policies\": false}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Name\": \"Agent / Uniform Generator\", \"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Solver::applyModuleDefaults(js);

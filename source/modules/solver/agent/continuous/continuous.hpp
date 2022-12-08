@@ -119,6 +119,14 @@ class Continuous : public Agent
    */
   std::vector<float> generateTestingAction(const policy_t &curPolicy);
 
+  /**
+   * @brief Computes probability of an action for given policy
+   * @param action The action
+   * @param policy The policy
+   * @return The probability of the action
+   */
+  float calculateActionProbability(const std::vector<float> &action, const policy_t policy) const;
+
   float calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy) override;
   virtual void getAction(korali::Sample &sample) override;
   virtual void initializeAgent() override;

@@ -94,8 +94,9 @@ class dVRACER : public Discrete
 
   float calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx = 0) override;
   void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) override;
-  void computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) override;
+  void approximatePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) override;
   void finalizePredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx) override;
+  void calculatePredictivePosteriorProbability(const std::vector<float> &action, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, policy_t &curPolicy) override;
   knlohmann::json getPolicy() override;
   void setPolicy(const knlohmann::json &hyperparameters) override;
   void trainPolicy() override;

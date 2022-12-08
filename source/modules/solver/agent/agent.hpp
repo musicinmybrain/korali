@@ -77,12 +77,12 @@ struct policy_t
   size_t actionIndex;
 
   /**
-   * @brief [Discrete] Stores the action probabilities of the categorial distribution.
+   * @brief [Discrete/Bayesian] Stores the action probabilities
    */
   std::vector<float> actionProbabilities;
 
   /**
-   * @brief [Discrete] Flags the actions that are available at the current state.
+   * @brief [Discrete] Flags the actions that are available at the current state
    */
   std::vector<size_t> availableActions;
 
@@ -142,6 +142,10 @@ class Agent : public Solver
   * @brief Use Gaussian Approximation of Predictive Posterior Distribution.
   */
    int _gaussianApproximationEnabled;
+  /**
+  * @brief Use minimal approximation, which uses the full predictive distribution and only approximates the distribution for the KL divergence.
+  */
+   int _minimalApproximation;
   /**
   * @brief Descibes method to compute moments for Gaussian Approximation of Predictive Posterior Distribution.
   */
@@ -723,7 +727,7 @@ class Agent : public Solver
    * @param miniBatch The mini batch of experience ids to update
    * @param policyData The policy to use to evaluate the experiences
    */
-  void updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<policy_t> &policyData);
+  void updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, const std::vector<policy_t> &policyData);
 
   /**
    * @brief Resets time sequence within the agent, to forget past actions from other episodes
@@ -747,17 +751,26 @@ class Agent : public Solver
   virtual void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) = 0;
 
   /**
-   * @brief Function to compute the predictive posterior distribution probability
+   * @brief Function to compute an approximation of the predictive posterior distribution probability
+   * @param stateSequenceBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
    * @param curPolicy The current policy for the given state
    */
-  virtual void computePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) = 0;
+  virtual void approximatePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) = 0;
 
   /**
    * @brief Function to foward current policy and update currentDistributionParameters
-   * @param predictivePosteriorDistribution The predictive posterior distribution
+   * @param stateSequenceBatch  The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
+   * @param predictivePosteriorDistribution The approximate predictive posterior distribution
    * @param policyIdx Index of the current policy
    */
   virtual void finalizePredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx) = 0;
+
+  /**
+   * @brief Function to compute the probability under the full predictive posterior distribution
+   * @param action The samples action
+   * @param curPolicy The policy
+   */
+  virtual void calculatePredictivePosteriorProbability(const std::vector<float> &action, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, policy_t &curPolicy) = 0;
 
   /**
    * @brief Calculates the starting experience index of the time sequence for the selected experience

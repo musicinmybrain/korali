@@ -47,10 +47,8 @@ void Discrete::getAction(korali::Sample &sample)
     size_t actionIdx = 0;
 
     /*****************************************************************************
-     * During training, we follow the Epsilon-greedy strategy. Choose, given a
-     * probability (pEpsilon), one from the following:
-     *  - Uniformly random action among all possible actions
-     *  - Sample action guided by the policy's probability distribution
+     * During training, we sample action guided by 
+     * the policy's probability distribution
      ****************************************************************************/
 
     if (sample["Mode"] == "Training")

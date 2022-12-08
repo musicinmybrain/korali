@@ -742,7 +742,7 @@ void __className__::processEpisode(knlohmann::json &episode)
           {
             // Compute predictive posterior distribution
             std::vector<policy_t> policy;
-            computePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
+            approximatePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
 
             // Get value
             retV[a] = policy[0].stateValue;
@@ -894,7 +894,7 @@ std::vector<std::vector<std::vector<float>>> __className__::getMiniBatchStateSeq
   return stateSequence;
 }
 
-void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<policy_t> &policyData)
+void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, const std::vector<policy_t> &policyData)
 {
   const size_t miniBatchSize = miniBatch.size();
   const size_t numAgents = _problem->_agentsPerEnvironment;
@@ -947,7 +947,7 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
     const size_t agentId = updateMinibatch[i].second;
 
     // Get and set current policy
-    const auto &curPolicy = updatePolicyData[i];
+    auto &curPolicy = updatePolicyData[i];
     _curPolicyBuffer[expId][agentId] = curPolicy;
 
     // Get state value
@@ -958,6 +958,10 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
     // Get action and policy for this experience
     const auto &expAction = _actionBuffer[expId][agentId];
     const auto &expPolicy = _expPolicyBuffer[expId][agentId];
+
+    // Compute probability under predictive posterior distribution
+    if( _minimalApproximation )
+      calculatePredictivePosteriorProbability( expAction, {stateSequenceBatch[updateBatch[i]]}, curPolicy );
 
     // Compute importance weight
     const float importanceWeight = calculateImportanceWeight(expAction, curPolicy, expPolicy);
@@ -1004,7 +1008,7 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
           {
             // Compute predictive posterior distribution
             std::vector<policy_t> policy;
-            computePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
+            approximatePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
 
             // Get value
             truncatedStateValue = policy[0].stateValue;
