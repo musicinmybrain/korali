@@ -153,8 +153,23 @@ void VRACER::trainPolicy()
       // Forward policy / update currentDistributionParameters
       finalizePredictivePosterior(stateSequenceBatchCopy, policyInfo, p);
     }
-    else // Forward Policy
+    else
+    {
+      // Forward Policy
       runPolicy(stateSequenceBatchCopy, policyInfo, p);
+
+      // Compute Gaussian approximation for minimal approximation
+      if( _minimalApproximation )
+      {
+        // Compute Gaussian approximation predictive posterior distribution
+        std::vector<policy_t> tmpPolicy;
+        approximatePredictivePosteriorDistribution(stateSequenceBatchCopy, tmpPolicy);
+
+        // Assign Parameters from Gaussian approximation to currentDistributionParameters
+        for( size_t b = 0; b<tmpPolicy.size(); b++ )
+         policyInfo[b].currentDistributionParameters = tmpPolicy[b].distributionParameters;
+      }
+    }
 
     // Using policy information to update experience's metadata
     updateExperienceMetadata(miniBatchCopy, stateSequenceBatchCopy, policyInfo);
