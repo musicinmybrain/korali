@@ -330,7 +330,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
             if(_gaussianApproximationType == "Average")
               sigmaFactor = invN;
             if(_gaussianApproximationType == "Mixture")
-              sigmaFactor = curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma;
+              sigmaFactor = 0.0; //curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma;
             polGrad[i + _problem->_actionVectorSize] *= sigmaFactor;
           }
         }
@@ -410,7 +410,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
             if(_gaussianApproximationType == "Average")
               sigmaFactor = invN;
             if(_gaussianApproximationType == "Mixture")
-              sigmaFactor = curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma;
+              sigmaFactor = 0.0; //curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma;
             klGrad[i + _problem->_actionVectorSize] *= sigmaFactor;
           }
         }
