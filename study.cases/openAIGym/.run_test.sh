@@ -1,8 +1,6 @@
 #!/bin/bash
-exit #TODO: reinstantiate test (DW 25.10.2023)
 
 # Install openAI gym
-
 python3 -m pip install gym[mujoco]
 python3 -m pip install cffi
 

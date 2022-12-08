@@ -47,7 +47,7 @@ void GridSearch::runGeneration()
 {
   if (_k->_currentGeneration == 1) setInitialConfiguration();
 
-  // Example: Evaluating a sample
+  // Create Sample
   std::vector<Sample> samples(_numberOfValues);
   std::vector<double> sampleData(_variableCount);
 

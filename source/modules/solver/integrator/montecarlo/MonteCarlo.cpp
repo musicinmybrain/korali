@@ -16,7 +16,9 @@ void MonteCarlo::setInitialConfiguration()
   // Calculate weight
   _weight = 1. / (double)_numberOfSamples;
   for (size_t d = 0; d < _variableCount; ++d)
+  {
     _weight *= (_k->_variables[d]->_upperBound - _k->_variables[d]->_lowerBound);
+  }
 
   // Init max model evaluations
   _maxModelEvaluations = std::min(_maxModelEvaluations, _numberOfSamples);

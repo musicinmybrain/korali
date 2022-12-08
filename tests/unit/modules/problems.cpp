@@ -469,7 +469,7 @@ namespace
   _functionVector.clear();
   _functionVector.push_back(&modelFc);
 
-  ASSERT_ANY_THROW(pObj->evaluate(s));
+  ASSERT_NO_THROW(pObj->evaluate(s));
   ASSERT_NO_THROW(pObj->evaluateGradient(s));
   ASSERT_NO_THROW(pObj->evaluateHessian(s));
 
@@ -931,6 +931,7 @@ namespace
   // Trying to run unknown operation
   Sample s;
   s["Sample Id"] = 0;
+  s["Parameters"] = std::vector<double>({0.5});
   ASSERT_ANY_THROW(pObj->runOperation("Unknown", s));
 
   // Backup the correct base configuration
@@ -1166,15 +1167,16 @@ namespace
   };
 
   pObj->_likelihoodModel = "Normal";
+  ASSERT_NO_THROW(pObj->evaluateLogPrior(s));
   ASSERT_NO_THROW(pObj->evaluateLoglikelihood(s));
   ASSERT_NO_THROW(pObj->evaluateLoglikelihoodGradient(s));
   ASSERT_NO_THROW(pObj->evaluateLogLikelihoodHessian(s));
 
   // Running operations
-  ASSERT_NO_THROW(pObj->runOperation("Evaluate", s));
   ASSERT_NO_THROW(pObj->runOperation("Evaluate logPrior", s));
   ASSERT_NO_THROW(pObj->runOperation("Evaluate logLikelihood", s));
   ASSERT_NO_THROW(pObj->runOperation("Evaluate logPosterior", s));
+  ASSERT_NO_THROW(pObj->runOperation("Evaluate", s));
   ASSERT_NO_THROW(pObj->runOperation("Evaluate Gradient", s));
   ASSERT_NO_THROW(pObj->runOperation("Evaluate Hessian", s));
 

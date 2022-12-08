@@ -72,6 +72,11 @@ double __className__::getLogDensityHessian(const double z) const
 
 double __className__::getRandomNumber()
 {
+  return gsl_ran_flat(_range, _minimumX, _maximumX) / gsl_ran_flat(_range, _minimumY, _maximumY);
+}
+
+void __className__::updateDistribution()
+{
   if (_maximumX - _minimumX <= 0.0)
     KORALI_LOG_ERROR("Maximum (%f) bound must be higher than Minimum (%f) bound of the first (dividend) Uniform distribution in order to draw a random number.\n", _maximumX, _minimumX);
   if (_maximumY - _minimumY <= 0.0)
@@ -82,11 +87,6 @@ double __className__::getRandomNumber()
   if (_minimumY <= 0.)
     KORALI_LOG_ERROR("Minimum (%f) bound of the second (divisor) Uniform distribution must be larger 0.\n", _minimumY);
 
-  return gsl_ran_flat(_range, _minimumX, _maximumX) / gsl_ran_flat(_range, _minimumY, _maximumY);
-}
-
-void __className__::updateDistribution()
-{
   const double b0 = _minimumX / _maximumY;
   const double b1 = _minimumX / _minimumY;
   const double b2 = _maximumX / _maximumY;

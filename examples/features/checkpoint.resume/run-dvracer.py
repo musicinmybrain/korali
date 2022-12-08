@@ -55,7 +55,7 @@ e["Solver"]["Mode"] = "Training"
 e["Solver"]["Episodes Per Generation"] = 1
 e["Solver"]["Experiences Between Policy Updates"] = 10
 e["Solver"]["Learning Rate"] = 0.0001
-e["Solver"]["Experience Replay"]["Start Size"] = 1000
+e["Solver"]["Experience Replay"]["Start Size"] = 100
 e["Solver"]["Experience Replay"]["Maximum Size"] = 10000
 e["Solver"]["Mini Batch"]["Size"] = 32
 

@@ -203,8 +203,8 @@ class HamiltonianRiemannianConstDense : public HamiltonianRiemannian
       bayesianProblemPtr->evaluateHessian(sample);
     }
 
-    _currentGradient = sample["grad(logP(x))"].get<std::vector<double>>();
-    _currentHessian = sample["H(logP(x))"].get<std::vector<double>>();
+    _currentGradient = KORALI_GET(std::vector<double>, sample, "grad(logP(x))");
+    _currentHessian = KORALI_GET(std::vector<double>, sample, "H(logP(x))");
   }
 
   /**

@@ -42,10 +42,6 @@ void __className__::initialize()
   // Initializing selected policy
   initializeAgent();
 
-  // Initializing random seed for the shuffle operation
-  mt = new std::mt19937(rd());
-  mt->seed(_k->_randomSeed++);
-
   // If not set, using heurisitc for maximum size
   if (_experienceReplayMaximumSize == 0)
     _experienceReplayMaximumSize = std::pow(2, 14) * std::sqrt(_problem->_stateVectorSize + _problem->_actionVectorSize);
@@ -334,7 +330,7 @@ void __className__::testingGeneration()
   KORALI_WAITALL(testingWorkers);
 
   for (size_t workerId = 0; workerId < _testingSampleIds.size(); workerId++)
-    _testingReward[workerId] = testingWorkers[workerId]["Testing Reward"].get<float>();
+    _testingReward[workerId] = KORALI_GET(float, testingWorkers[workerId], "Testing Reward");
 }
 
 void __className__::rescaleStates()
@@ -1236,6 +1232,10 @@ void __className__::serializeExperienceReplay()
     stateJson["Experience Replay"][i]["Current Policy"]["Available Actions"] = curAvailAct;
   }
 
+  // Serialize the optimizer
+  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+    _criticPolicyLearner[p]->_optimizer->getConfiguration(stateJson["Optimizer"][p]);
+
   // If results directory doesn't exist, create it
   if (!dirExists(_k->_fileOutputPath)) mkdir(_k->_fileOutputPath);
 
@@ -1333,6 +1333,10 @@ void __className__::deserializeExperienceReplay()
     _expPolicyBuffer.add(expPolicy);
     _curPolicyBuffer.add(curPolicy);
   }
+
+  // Deserialize the optimizer
+  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+    _criticPolicyLearner[p]->_optimizer->setConfiguration(stateJson["Optimizer"][p]);
 
   auto endTime = std::chrono::steady_clock::now();                                                                         // Profiling
   double deserializationTime = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count() / 1.0e+9; // Profiling

@@ -164,21 +164,6 @@ namespace
 
    supervisorJs = baseOptJs;
    experimentJs = baseExpJs;
-   supervisorJs.erase("Hyperparameters");
-   ASSERT_ANY_THROW(supervisor->setConfiguration(supervisorJs));
-
-   supervisorJs = baseOptJs;
-   experimentJs = baseExpJs;
-   supervisorJs["Hyperparameters"] = "Not a Number";
-   ASSERT_ANY_THROW(supervisor->setConfiguration(supervisorJs));
-
-   supervisorJs = baseOptJs;
-   experimentJs = baseExpJs;
-   supervisorJs["Hyperparameters"] = std::vector<float>({0.0});
-   ASSERT_NO_THROW(supervisor->setConfiguration(supervisorJs));
-
-   supervisorJs = baseOptJs;
-   experimentJs = baseExpJs;
    supervisorJs.erase("Loss Function");
    ASSERT_ANY_THROW(supervisor->setConfiguration(supervisorJs));
 

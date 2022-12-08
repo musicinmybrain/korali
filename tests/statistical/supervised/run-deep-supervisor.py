@@ -72,7 +72,7 @@ e["Random Seed"] = 0xC0FFEE
 
 ### Training the neural network
 
-e["Solver"]["Termination Criteria"]["Max Generations"] = 1000
+e["Solver"]["Termination Criteria"]["Max Generations"] = 5000
 k.run(e)
 
 ### Obtaining inferred results from the NN and comparing them to the actual solution
@@ -83,11 +83,11 @@ testOutputSet = [ x[0][0] for x in np.tanh(np.exp(np.sin(testInputSet))) * scali
 
 e["Solver"]["Mode"] = "Testing"
 e["Problem"]["Input"]["Data"] = testInputSet
+e["Solver"]["Termination Criteria"]["Target Loss"] = 0
 
 ### Running Testing and getting results
 k.run(e)
 testInferredSet = [ x[0] for x in e["Solver"]["Evaluation"] ]
-
     
 ### Calc MSE on test set
 mse = np.mean((np.array(testInferredSet) - np.array(testOutputSet))**2)

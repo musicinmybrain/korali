@@ -41,6 +41,8 @@ void VRACER::initializeAgent()
 
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
+    _criticPolicyExperiment[p]["Random Seed"] = _k->_randomSeed;
+
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
     _criticPolicyExperiment[p]["Problem"]["Max Timesteps"] = _timeSequenceLength;
     _criticPolicyExperiment[p]["Problem"]["Training Batch Size"] = _effectiveMinibatchSize;
@@ -209,8 +211,11 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       // Compute Off-Policy Objective (eq. 5)
       const float lossOffPolicy = Qret - stateValue;
 
+      // Get importance weight
+      const auto importanceWeight = _importanceWeightBuffer[expId][agentId];
+
       // Compute Off-Policy Gradient
-      auto polGrad = calculateImportanceWeightGradient(expAction, curPolicy, expPolicy);
+      auto polGrad = calculateImportanceWeightGradient(expAction, curPolicy, expPolicy, importanceWeight);
 
       // Multi-agent correlation implies additional factor
       if (_multiAgentCorrelation)
@@ -301,7 +306,7 @@ knlohmann::json VRACER::getPolicy()
 void VRACER::setPolicy(const knlohmann::json &hyperparameters)
 {
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-    _criticPolicyLearner[p]->setHyperparameters(hyperparameters[p].get<std::vector<float>>());
+    _criticPolicyLearner[p]->_neuralNetwork->setHyperparameters(hyperparameters[p].get<std::vector<float>>());
 }
 
 void VRACER::printInformation()
