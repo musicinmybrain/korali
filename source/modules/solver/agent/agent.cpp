@@ -967,10 +967,6 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     const auto &expAction = _actionBuffer[expId][agentId];
     const auto &expPolicy = _expPolicyBuffer[expId][agentId];
 
-    // Compute probability under predictive posterior distribution
-    if( _minimalApproximation )
-      calculatePredictivePosteriorProbability( expAction, {stateSequenceBatch[updateBatch[i]]}, curPolicy );
-
     // Compute importance weight
     const float importanceWeight = calculateImportanceWeight(expAction, curPolicy, expPolicy);
     if (std::isfinite(importanceWeight) == false)

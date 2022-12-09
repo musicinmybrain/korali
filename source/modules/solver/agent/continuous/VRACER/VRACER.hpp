@@ -120,7 +120,8 @@ class VRACER : public Continuous
   void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, const size_t policyIdx = 0) override;
   void approximatePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) override;
   void finalizePredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx) override;
-  void calculatePredictivePosteriorProbability(const std::vector<float> &action, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, policy_t &curPolicy) override;
+  void calculatePredictivePosteriorProbabilityInference(const std::vector<float> &action, const std::vector<std::vector<float>> &stateSequence, policy_t &curPolicy) override;
+  void calculatePredictivePosteriorProbabilityTraining(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) override;
   void trainPolicy() override;
   void printInformation() override;
   void initializeAgent() override;

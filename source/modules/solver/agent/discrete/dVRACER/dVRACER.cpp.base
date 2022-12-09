@@ -323,8 +323,12 @@ void __className__::finalizePredictivePosterior(const std::vector<std::vector<st
 {// TODO: implement Bayesian Learning for Discrete Environments
 }
 
-void __className__::calculatePredictivePosteriorProbability(const std::vector<float> &action, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, policy_t &curPolicy)
-{//TODO: implement Bayesian Learning for Discrete Environments
+void __className__::calculatePredictivePosteriorProbabilityInference(const std::vector<float> &action, const std::vector<std::vector<float>> &stateSequence, policy_t &curPolicy)
+{// TODO: implement Bayesian Learning for Discrete Environments
+}
+
+void __className__::calculatePredictivePosteriorProbabilityTraining(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
+{// TODO: implement Bayesian Learning for Discrete Environments
 }
 
 std::vector<policy_t> __className__::getPolicyInfo(const std::vector<std::pair<size_t, size_t>> &miniBatch) const

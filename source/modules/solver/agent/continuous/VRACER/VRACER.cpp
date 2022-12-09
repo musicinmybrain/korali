@@ -158,17 +158,9 @@ void VRACER::trainPolicy()
       // Forward Policy
       runPolicy(stateSequenceBatchCopy, policyInfo, p);
 
-      // Compute Gaussian approximation for minimal approximation
-      if( _minimalApproximation )
-      {
-        // Compute Gaussian approximation predictive posterior distribution
-        std::vector<policy_t> tmpPolicy;
-        approximatePredictivePosteriorDistribution(stateSequenceBatchCopy, tmpPolicy);
-
-        // Assign Parameters from Gaussian approximation to currentDistributionParameters
-        for( size_t b = 0; b<tmpPolicy.size(); b++ )
-         policyInfo[b].currentDistributionParameters = tmpPolicy[b].distributionParameters;
-      }
+      // Compute predictive posterior distribution in first iteration
+      if( _minimalApproximation && (p == 0) )
+        calculatePredictivePosteriorProbabilityTraining( miniBatchCopy, stateSequenceBatchCopy, policyInfo );
     }
 
     // Using policy information to update experience's metadata
@@ -667,7 +659,7 @@ void VRACER::finalizePredictivePosterior(const std::vector<std::vector<std::vect
     }
 }
 
-void VRACER::calculatePredictivePosteriorProbability(const std::vector<float> &action, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, policy_t &curPolicy)
+void VRACER::calculatePredictivePosteriorProbabilityInference(const std::vector<float> &action, const std::vector<std::vector<float>> &stateSequence, policy_t &curPolicy)
 {
   // Create empty policy to forward samples
   std::vector<policy_t> policy;
@@ -701,13 +693,33 @@ void VRACER::calculatePredictivePosteriorProbability(const std::vector<float> &a
       _criticPolicyLearner[p]->_neuralNetwork->setHyperparameters(hyperparameters);
 
       // Forward policy
-      runPolicy(stateSequenceBatch, policy, p);
+      runPolicy({stateSequence}, policy, p);
 
       // Compute probability of action
       const float probability = calculateActionProbability(action, policy[0]);
 
       // Sum probability
       curPolicy.actionProbabilities[0] += probability;
+
+      // Accumulate State Value
+      curPolicy.stateValue += policy[0].stateValue;
+      for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+      {
+        // Get mean, squared mean, standard deviation and variance
+        const float mean = policy[0].distributionParameters[i];
+        const float meanSquared = mean * mean;
+        const float standardDeviation = policy[0].distributionParameters[_problem->_actionVectorSize + i];
+        const float variance = standardDeviation * standardDeviation;
+
+        // Accumulate Mean
+        curPolicy.distributionParameters[i] += mean;
+
+        // Accumulate Variance
+        if(_gaussianApproximationType == "Average")
+          curPolicy.distributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
+        if(_gaussianApproximationType == "Mixture")
+          curPolicy.distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+      }
     }
 
   // For consistency of SWAG and dropout, add contribution from the current policies
@@ -722,19 +734,224 @@ void VRACER::calculatePredictivePosteriorProbability(const std::vector<float> &a
       _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
 
       // Forward policy for current hyperparameters // TODO: avoid forwarding current policy twice
-      runPolicy(stateSequenceBatch, policy, p);
+      runPolicy({stateSequence}, policy, p);
 
       // Compute probability of action
       const float probability = calculateActionProbability(action, policy[0]);
 
       // Sum probability
       curPolicy.actionProbabilities[0] += probability;
+
+            // Accumulate State Value
+      curPolicy.stateValue += policy[0].stateValue;
+      for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+      {
+        // Get mean, squared mean, standard deviation and variance
+        const float mean = policy[0].distributionParameters[i];
+        const float meanSquared = mean * mean;
+        const float standardDeviation = policy[0].distributionParameters[_problem->_actionVectorSize + i];
+        const float variance = standardDeviation * standardDeviation;
+
+        // Accumulate Mean
+        curPolicy.distributionParameters[i] += mean;
+
+        // Accumulate Variance
+        if(_gaussianApproximationType == "Average")
+          curPolicy.distributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
+        if(_gaussianApproximationType == "Mixture")
+          curPolicy.distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+      }
     }
   }
 
-  // Complete computation of predictive posterior probability
+  // Get total number of samples
   const float invTotNumSamples = 1.0 / (_numberOfSamples * _problem->_policiesPerEnvironment);
+
+  // Complete computation of predictive posterior probability
   curPolicy.actionProbabilities[0] *= invTotNumSamples;
+
+  // Finalize State Value
+  curPolicy.stateValue *= invTotNumSamples;
+  for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+  {
+    // Finalize Mean
+    const float mixtureMean = curPolicy.distributionParameters[i] * invTotNumSamples;
+    curPolicy.distributionParameters[i] = mixtureMean;
+
+    // Finalize Variance
+    curPolicy.distributionParameters[_problem->_actionVectorSize + i] *= invTotNumSamples;
+    if(_gaussianApproximationType == "Mixture")
+    {
+      curPolicy.distributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
+      curPolicy.distributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy.distributionParameters[_problem->_actionVectorSize + i]);
+    }
+  }
+}
+
+void VRACER::calculatePredictivePosteriorProbabilityTraining(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
+{
+  // Create empty policy to forward samples
+  std::vector<policy_t> policy;
+
+  // Determine the number of samples
+  size_t numSamples = _numberOfSamples;
+
+  // Take care of situation where not enough hyperparameters are in buffer
+  if (_numberOfStoredHyperparameters > 1)
+    numSamples = std::max(numSamples, _hyperparameterBuffer.size());
+
+  // For swag and dropout we have to include current hyperparameters at the end
+  if (_swag || (_dropoutProbability > 0.0))
+    numSamples--;
+
+  // Get batchSize
+  const size_t batchSize = miniBatch.size();
+
+  // Intitialize curPolicy
+  curPolicy.resize(batchSize);
+#pragma omp parallel for
+  for (size_t b = 0; b < batchSize; b++)
+  {
+    curPolicy[b].stateValue = 0.0f;
+    curPolicy[b].distributionParameters.resize(_policyParameterCount, 0.0);
+    curPolicy[b].currentDistributionParameters.resize(_policyParameterCount, 0.0);
+    curPolicy[b].actionProbabilities.resize(1, 0.0);
+  }
+
+  // Sample predictive posterior distribution
+  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+    for (size_t s = 0; s < numSamples; s++)
+    {
+      // Get sample
+      std::vector<float> hyperparameters;
+      if (_swag || (_dropoutProbability > 0.0))
+        hyperparameters = samplePosterior(p);
+      else
+        hyperparameters = _hyperparameterBuffer[s][p];
+
+      // Set parameters in neural network
+      _criticPolicyLearner[p]->_neuralNetwork->setHyperparameters(hyperparameters);
+
+      // Forward policy
+      runPolicy(stateSequenceBatch, policy, p);
+
+#pragma omp parallel for
+      for (size_t b = 0; b < batchSize; b++)
+      {
+        // Get current expId and agentId
+        const size_t expId = miniBatch[b].first;
+        const size_t agentId = miniBatch[b].second;
+
+        // Get action
+        const auto action = _actionBuffer[expId][agentId];
+
+        // Compute probability of action
+        const float probability = calculateActionProbability(action, policy[b]);
+
+        // Sum probability
+        curPolicy[b].actionProbabilities[0] += probability;
+
+        // Accumulate State Value
+        curPolicy[b].stateValue += policy[b].stateValue;
+        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+        {
+          // Get mean, squared mean, standard deviation and variance
+          const float mean = policy[b].distributionParameters[i];
+          const float meanSquared = mean * mean;
+          const float standardDeviation = policy[b].distributionParameters[_problem->_actionVectorSize + i];
+          const float variance = standardDeviation * standardDeviation;
+
+          // Accumulate Mean
+          curPolicy[b].distributionParameters[i] += mean;
+
+          // Accumulate Variance
+          if(_gaussianApproximationType == "Average")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
+          if(_gaussianApproximationType == "Mixture")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+        }
+      }
+    }
+
+  // For consistency of SWAG and dropout, add contribution from the current policies
+  if (_swag || (_dropoutProbability > 0.0))
+  {
+    for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+    {
+      // Get current hyperparameters
+      const auto &hyperparameters = _hyperparameterBuffer[_hyperparameterBuffer.size() - 1][p];
+
+      // Set current hyperparameters
+      _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
+
+      // Forward policy for current hyperparameters // TODO: avoid forwarding current policy twice
+      runPolicy({stateSequenceBatch}, policy, p);
+
+#pragma omp parallel for
+      for (size_t b = 0; b < batchSize; b++)
+      {
+        // Get current expId and agentId
+        const size_t expId = miniBatch[b].first;
+        const size_t agentId = miniBatch[b].second;
+
+        // Get action
+        const auto action = _actionBuffer[expId][agentId];
+
+        // Compute probability of action
+        const float probability = calculateActionProbability(action, policy[b]);
+
+        // Sum probability
+        curPolicy[b].actionProbabilities[0] += probability;
+
+        // Accumulate State Value
+        curPolicy[b].stateValue += policy[b].stateValue;
+        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+        {
+          // Get mean, squared mean, standard deviation and variance
+          const float mean = policy[b].distributionParameters[i];
+          const float meanSquared = mean * mean;
+          const float standardDeviation = policy[b].distributionParameters[_problem->_actionVectorSize + i];
+          const float variance = standardDeviation * standardDeviation;
+
+          // Accumulate Mean
+          curPolicy[b].distributionParameters[i] += mean;
+
+          // Accumulate Variance
+          if(_gaussianApproximationType == "Average")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
+          if(_gaussianApproximationType == "Mixture")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+        }
+      }
+    }
+  }
+
+  // Get total number of samples
+  const float invTotNumSamples = 1.0 / (_numberOfSamples * _problem->_policiesPerEnvironment);
+
+#pragma omp parallel for
+  for (size_t b = 0; b < batchSize; b++)
+  {
+    // Complete computation of predictive posterior probability
+    curPolicy[b].actionProbabilities[0] *= invTotNumSamples;
+
+    // Finalize State Value
+    curPolicy[b].stateValue *= invTotNumSamples;
+    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    {
+      // Finalize Mean
+      const float mixtureMean = curPolicy[b].distributionParameters[i] * invTotNumSamples;
+      curPolicy[b].distributionParameters[i] = mixtureMean;
+
+      // Finalize Variance
+      curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] *= invTotNumSamples;
+      if(_gaussianApproximationType == "Mixture")
+      {
+        curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
+        curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy[b].distributionParameters[_problem->_actionVectorSize + i]);
+      }
+    }
+  }
 }
 
 knlohmann::json VRACER::getPolicy()

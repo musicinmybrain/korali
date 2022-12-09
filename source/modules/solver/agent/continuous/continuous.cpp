@@ -160,17 +160,6 @@ void Continuous::getAction(korali::Sample &sample)
 
           // Forward policy
           runPolicy({_stateTimeSequence[i].getVector()}, policy, policyIdx);
-
-          // Handle minimal approximation
-          if( _minimalApproximation )
-          {
-            // Compute Gaussian approximation predictive posterior distribution
-            std::vector<policy_t> tmpPolicy;
-            approximatePredictivePosteriorDistribution({_stateTimeSequence[i].getVector()}, tmpPolicy);
-
-            // Assign Parameters from Gaussian approximation to currentDistributionParameters
-            policy[0].currentDistributionParameters = tmpPolicy[0].distributionParameters;
-          }
         }
       }
       else
@@ -204,7 +193,7 @@ void Continuous::getAction(korali::Sample &sample)
      ****************************************************************************/
 
     if( _minimalApproximation )
-      calculatePredictivePosteriorProbability( action, {_stateTimeSequence[i].getVector()}, policy[0] );
+      calculatePredictivePosteriorProbabilityInference( action, _stateTimeSequence[i].getVector(), policy[0] );
 
     /*****************************************************************************
      * Storing the action and its policy
