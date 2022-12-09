@@ -712,13 +712,13 @@ void VRACER::calculatePredictivePosteriorProbabilityInference(const std::vector<
         const float variance = standardDeviation * standardDeviation;
 
         // Accumulate Mean
-        curPolicy.distributionParameters[i] += mean;
+        curPolicy.currentDistributionParameters[i] += mean;
 
         // Accumulate Variance
         if(_gaussianApproximationType == "Average")
-          curPolicy.distributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
+          curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
         if(_gaussianApproximationType == "Mixture")
-          curPolicy.distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+          curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
       }
     }
 
@@ -753,13 +753,13 @@ void VRACER::calculatePredictivePosteriorProbabilityInference(const std::vector<
         const float variance = standardDeviation * standardDeviation;
 
         // Accumulate Mean
-        curPolicy.distributionParameters[i] += mean;
+        curPolicy.currentDistributionParameters[i] += mean;
 
         // Accumulate Variance
         if(_gaussianApproximationType == "Average")
-          curPolicy.distributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
+          curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
         if(_gaussianApproximationType == "Mixture")
-          curPolicy.distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+          curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
       }
     }
   }
@@ -775,15 +775,15 @@ void VRACER::calculatePredictivePosteriorProbabilityInference(const std::vector<
   for (size_t i = 0; i < _problem->_actionVectorSize; i++)
   {
     // Finalize Mean
-    const float mixtureMean = curPolicy.distributionParameters[i] * invTotNumSamples;
-    curPolicy.distributionParameters[i] = mixtureMean;
+    const float mixtureMean = curPolicy.currentDistributionParameters[i] * invTotNumSamples;
+    curPolicy.currentDistributionParameters[i] = mixtureMean;
 
     // Finalize Variance
-    curPolicy.distributionParameters[_problem->_actionVectorSize + i] *= invTotNumSamples;
+    curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] *= invTotNumSamples;
     if(_gaussianApproximationType == "Mixture")
     {
-      curPolicy.distributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
-      curPolicy.distributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy.distributionParameters[_problem->_actionVectorSize + i]);
+      curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
+      curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy.distributionParameters[_problem->_actionVectorSize + i]);
     }
   }
 }
@@ -813,7 +813,6 @@ void VRACER::calculatePredictivePosteriorProbabilityTraining(const std::vector<s
   for (size_t b = 0; b < batchSize; b++)
   {
     curPolicy[b].stateValue = 0.0f;
-    curPolicy[b].distributionParameters.resize(_policyParameterCount, 0.0);
     curPolicy[b].currentDistributionParameters.resize(_policyParameterCount, 0.0);
     curPolicy[b].actionProbabilities.resize(1, 0.0);
   }
@@ -862,13 +861,13 @@ void VRACER::calculatePredictivePosteriorProbabilityTraining(const std::vector<s
           const float variance = standardDeviation * standardDeviation;
 
           // Accumulate Mean
-          curPolicy[b].distributionParameters[i] += mean;
+          curPolicy[b].currentDistributionParameters[i] += mean;
 
           // Accumulate Variance
           if(_gaussianApproximationType == "Average")
-            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
+            curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
           if(_gaussianApproximationType == "Mixture")
-            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+            curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
         }
       }
     }
@@ -914,13 +913,13 @@ void VRACER::calculatePredictivePosteriorProbabilityTraining(const std::vector<s
           const float variance = standardDeviation * standardDeviation;
 
           // Accumulate Mean
-          curPolicy[b].distributionParameters[i] += mean;
+          curPolicy[b].currentDistributionParameters[i] += mean;
 
           // Accumulate Variance
           if(_gaussianApproximationType == "Average")
-            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
+            curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
           if(_gaussianApproximationType == "Mixture")
-            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+            curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
         }
       }
     }
@@ -941,14 +940,14 @@ void VRACER::calculatePredictivePosteriorProbabilityTraining(const std::vector<s
     {
       // Finalize Mean
       const float mixtureMean = curPolicy[b].distributionParameters[i] * invTotNumSamples;
-      curPolicy[b].distributionParameters[i] = mixtureMean;
+      curPolicy[b].currentDistributionParameters[i] = mixtureMean;
 
       // Finalize Variance
-      curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] *= invTotNumSamples;
+      curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] *= invTotNumSamples;
       if(_gaussianApproximationType == "Mixture")
       {
-        curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
-        curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy[b].distributionParameters[_problem->_actionVectorSize + i]);
+        curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
+        curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy[b].distributionParameters[_problem->_actionVectorSize + i]);
       }
     }
   }
