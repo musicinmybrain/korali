@@ -675,7 +675,9 @@ void VRACER::calculatePredictivePosteriorProbabilityInference(const std::vector<
   if (_swag || (_dropoutProbability > 0.0))
     numSamples--;
 
-  // Initialize value for probability
+  // Initialize values
+  curPolicy.stateValue = 0.0f;
+  curPolicy.currentDistributionParameters.resize(_policyParameterCount, 0.0);
   curPolicy.actionProbabilities.resize(1, 0.0);
 
   // Sample predictive posterior distribution
