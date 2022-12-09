@@ -203,7 +203,8 @@ void Continuous::getAction(korali::Sample &sample)
      * action under the predictive posterior distribution
      ****************************************************************************/
 
-    calculatePredictivePosteriorProbability( action, {_stateTimeSequence[i].getVector()}, policy[0] );
+    if( _minimalApproximation )
+      calculatePredictivePosteriorProbability( action, {_stateTimeSequence[i].getVector()}, policy[0] );
 
     /*****************************************************************************
      * Storing the action and its policy
@@ -213,12 +214,13 @@ void Continuous::getAction(korali::Sample &sample)
     for (size_t j = 0; j < _problem->_actionVectorSize; j++)
       if (std::isfinite(action[j]) == false) KORALI_LOG_ERROR("Agent %lu action %lu returned an invalid value: %f\n", i, j, action[j]);
 
-    // Write action to sample
+    // Write action and policy parameters to sample
     sample["Action"][i] = action;
     sample["Policy"]["State Value"][i] = policy[0].stateValue;
     sample["Policy"]["Unbounded Action"][i] = policy[0].unboundedAction;
     sample["Policy"]["Distribution Parameters"][i] = policy[0].distributionParameters;
-    sample["Policy"]["Action Probabilities"][i] = policy[0].distributionParameters;
+    sample["Policy"]["Current Distribution Parameters"][i] = policy[0].currentDistributionParameters;
+    sample["Policy"]["Action Probabilities"][i] = policy[0].actionProbabilities;
   }
 }
 
@@ -682,7 +684,7 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
 
     // Scale gradient
     for (size_t i = 0; i < _policyParameterCount; i++)
-      importanceWeightGradients[i] *= importanceWeight;
+      importanceWeightGradients[i] *= factor;
   }
 
   if (_policyDistribution == "Truncated Normal")
