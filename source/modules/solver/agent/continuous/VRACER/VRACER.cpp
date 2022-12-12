@@ -344,8 +344,15 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     // Switch distributionParameters and currentDistributionParameters (containing approximate predictive posterior)
     if( _minimalApproximation )
     {
-      expPolicy.distributionParameters.swap(expPolicy.currentDistributionParameters);
-      curPolicy.distributionParameters.swap(curPolicy.currentDistributionParameters);
+        auto tmp1 = expPolicy.distributionParameters;
+        expPolicy.distributionParameters = expPolicy.currentDistributionParameters;
+        expPolicy.currentDistributionParameters = tmp1;
+
+        auto tmp2 = curPolicy.distributionParameters;
+        curPolicy.distributionParameters = curPolicy.currentDistributionParameters;
+        curPolicy.currentDistributionParameters = tmp2;
+    //   expPolicy.distributionParameters.swap(expPolicy.currentDistributionParameters);
+    //   curPolicy.distributionParameters.swap(curPolicy.currentDistributionParameters);
     }
 
     // Compute derivative of KL divergence
@@ -354,8 +361,15 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     // Switch back distributionParameters and currentDistributionParameters
     if( _minimalApproximation )
     {
-      expPolicy.distributionParameters.swap(expPolicy.currentDistributionParameters);
-      curPolicy.distributionParameters.swap(curPolicy.currentDistributionParameters);
+        auto tmp1 = expPolicy.distributionParameters;
+        expPolicy.distributionParameters = expPolicy.currentDistributionParameters;
+        expPolicy.currentDistributionParameters = tmp1;
+
+        auto tmp2 = curPolicy.distributionParameters;
+        curPolicy.distributionParameters = curPolicy.currentDistributionParameters;
+        curPolicy.currentDistributionParameters = tmp2;
+    //   expPolicy.distributionParameters.swap(expPolicy.currentDistributionParameters);
+    //   curPolicy.distributionParameters.swap(curPolicy.currentDistributionParameters);
     }
 
     // Compute factor for KL penalization

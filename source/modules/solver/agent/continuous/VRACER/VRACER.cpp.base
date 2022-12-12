@@ -333,11 +333,16 @@ void __className__::calculatePolicyGradients(const std::vector<std::pair<size_t,
       }
     }
 
-    // Switch distributionParameters and currentDistributionParameters (containing approximate predictive posterior)
+    // Switch distributionParameters and currentDistributionParameters (containing Gaussian approximation of predictive posterior)
     if( _minimalApproximation )
     {
-      expPolicy.distributionParameters.swap(expPolicy.currentDistributionParameters);
-      curPolicy.distributionParameters.swap(curPolicy.currentDistributionParameters);
+        auto tmp1 = expPolicy.distributionParameters;
+        expPolicy.distributionParameters = expPolicy.currentDistributionParameters;
+        expPolicy.currentDistributionParameters = tmp1;
+
+        auto tmp2 = curPolicy.distributionParameters;
+        curPolicy.distributionParameters = curPolicy.currentDistributionParameters;
+        curPolicy.currentDistributionParameters = tmp2;
     }
 
     // Compute derivative of KL divergence
@@ -346,8 +351,13 @@ void __className__::calculatePolicyGradients(const std::vector<std::pair<size_t,
     // Switch back distributionParameters and currentDistributionParameters
     if( _minimalApproximation )
     {
-      expPolicy.distributionParameters.swap(expPolicy.currentDistributionParameters);
-      curPolicy.distributionParameters.swap(curPolicy.currentDistributionParameters);
+        auto tmp1 = expPolicy.distributionParameters;
+        expPolicy.distributionParameters = expPolicy.currentDistributionParameters;
+        expPolicy.currentDistributionParameters = tmp1;
+
+        auto tmp2 = curPolicy.distributionParameters;
+        curPolicy.distributionParameters = curPolicy.currentDistributionParameters;
+        curPolicy.currentDistributionParameters = tmp2;
     }
 
     // Compute factor for KL penalization
