@@ -162,7 +162,7 @@ void VRACER::trainPolicy()
       if( _minimalApproximation && (p == 0) )
       { 
         std::vector<float> dummy;
-        calculatePredictivePosteriorProbabilities(dummy, miniBatchCopy, stateSequenceBatchCopy, policyInfo );
+        calculatePredictivePosteriorProbabilities(dummy, miniBatchCopy, stateSequenceBatchCopy, policyInfo);
       }
     }
 
@@ -311,7 +311,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
 
             // Get sigma for current hyperparameters
             const float curMean = curPolicy.currentDistributionParameters[i];
-            const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
+            // const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
 
             // Scaling mean gradient by number of samples
             polGrad[i] *= invN;
@@ -391,7 +391,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
 
             // Get sigma for current hyperparameters
             const float curMean = curPolicy.currentDistributionParameters[i];
-            const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
+            // const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
 
             // Scaling mean gradient by number of samples
             klGrad[i] *= invN;
@@ -665,12 +665,12 @@ void VRACER::finalizeGaussianPredictivePosterior(const std::vector<std::vector<s
 void VRACER::calculatePredictivePosteriorProbabilities(std::vector<float> &action, const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
 {
   // Get batchSize
-  const size_t batchSize = miniBatch.size();
+  const size_t batchSize = stateSequenceBatch.size();
 
   // Determine whether we are infering or training
   const bool bTraining = (batchSize == _effectiveMinibatchSize);
 
-  // Determine the number of samples
+  // Set the number of samples
   size_t numSamples = _numberOfSamples;
 
   // Take care of situation where not enough hyperparameters are in buffer
@@ -714,6 +714,9 @@ void VRACER::calculatePredictivePosteriorProbabilities(std::vector<float> &actio
 #pragma omp parallel for
       for (size_t b = 0; b < batchSize; b++)
       {
+        // Create local copy for action
+        std::vector<float> _action = action;
+
         // If training, no action is given, need to read from Buffer
         if( bTraining )
         {
@@ -722,11 +725,11 @@ void VRACER::calculatePredictivePosteriorProbabilities(std::vector<float> &actio
           const size_t agentId = miniBatch[b].second;
 
           // Get action
-          action = _actionBuffer[expId][agentId];
+          _action = _actionBuffer[expId][agentId];
         }
 
         // Compute probability of action
-        const float probability = calculateActionProbability(action, policy[b]);
+        const float probability = calculateActionProbability(_action, policy[b]);
 
         // Sum probability
         curPolicy[b].actionProbabilities[0] += probability;
@@ -770,6 +773,9 @@ void VRACER::calculatePredictivePosteriorProbabilities(std::vector<float> &actio
 #pragma omp parallel for
       for (size_t b = 0; b < batchSize; b++)
       {
+        // Create local copy for action
+        std::vector<float> _action = action;
+
         // If training, no action is given, need to read from Buffer
         if( bTraining )
         {
@@ -778,11 +784,11 @@ void VRACER::calculatePredictivePosteriorProbabilities(std::vector<float> &actio
           const size_t agentId = miniBatch[b].second;
 
           // Get action
-          action = _actionBuffer[expId][agentId];
+          _action = _actionBuffer[expId][agentId];
         }
 
         // Compute probability of action
-        const float probability = calculateActionProbability(action, policy[b]);
+        const float probability = calculateActionProbability(_action, policy[b]);
 
         // Sum probability
         curPolicy[b].actionProbabilities[0] += probability;

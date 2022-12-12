@@ -193,7 +193,7 @@ void Continuous::getAction(korali::Sample &sample)
      ****************************************************************************/
 
     if( _minimalApproximation )
-      calculatePredictivePosteriorProbabilities( action, std::vector<std::pair<size_t, size_t>>(), {_stateTimeSequence[i].getVector()}, policy );
+      calculatePredictivePosteriorProbabilities(action, std::vector<std::pair<size_t, size_t>>(), {_stateTimeSequence[i].getVector()}, policy);
 
     /*****************************************************************************
      * Storing the action and its policy
@@ -548,12 +548,25 @@ float Continuous::calculateActionProbability(const std::vector<float> &action, c
     }
   }
 
+  // Exponentiate log-probability
+  const float probability = std::exp(logpCurPolicy);
+
   // Return probability
-  return std::exp(logpCurPolicy);
+  return probability;
 }
 
 std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, const float importanceWeight)
 {
+  // In "nomal" RL, factor is importance weight to get gradient
+  float factor = importanceWeight;
+
+  // Use modified importance weight for minimal approximation
+  if( _minimalApproximation )
+  {
+    const float curProbability = calculateActionProbability(action, curPolicy);
+    factor = curProbability / oldPolicy.actionProbabilities[0];
+  }
+
   // Storage for importance weight gradients
   std::vector<float> importanceWeightGradients(_policyParameterCount, 0.);
 
@@ -580,7 +593,8 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
     }
 
     // Scale by importance weight to get gradient
-    for (size_t i = 0; i < 2 * _problem->_actionVectorSize; i++) importanceWeightGradients[i] *= importanceWeight;
+    for (size_t i = 0; i < 2 * _problem->_actionVectorSize; i++) 
+      importanceWeightGradients[i] *= factor;
   }
 
   if (_policyDistribution == "Squashed Normal")
@@ -608,7 +622,7 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
 
     // Scale by importance weight to get gradient
     for (size_t i = 0; i < 2 * _problem->_actionVectorSize; i++)
-      importanceWeightGradients[i] *= importanceWeight;
+      importanceWeightGradients[i] *= factor;
   }
 
   if (_policyDistribution == "Clipped Normal")
@@ -659,16 +673,6 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
         // Grad wrt. curSigma
         importanceWeightGradients[_problem->_actionVectorSize + i] = curActionDif * curActionDif * curInvSig3 - curInvSig;
       }
-    }
-
-    // In "nomal" RL, factor is importance weight to get gradient
-    float factor = importanceWeight;
-
-    // Use modified importance weight for minimal approximation
-    if( _minimalApproximation )
-    {
-      const float curProbability = calculateActionProbability(action, curPolicy);
-      factor = curProbability / oldPolicy.actionProbabilities[0];
     }
 
     // Scale gradient
@@ -738,10 +742,7 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
 
     // Scale by importance weight to get gradient
     for (size_t i = 0; i < 2 * _problem->_actionVectorSize; i++)
-    {
-      importanceWeightGradients[i] *= importanceWeight;
-      assert(isfinite(importanceWeightGradients[i]));
-    }
+      importanceWeightGradients[i] *= factor;
   }
 
   if (_policyDistribution == "Beta")
