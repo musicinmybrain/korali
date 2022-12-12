@@ -52,7 +52,7 @@ class __className__ : public __parentClassName__
    * @param policy The policy
    * @return The probability of the action
    */
-  float calculateActionProbability(const std::vector<float> &action, const policy_t policy) const;
+  float calculateActionProbability(const std::vector<float> &action, const policy_t &policy) const;
 
   float calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy) override;
   virtual void getAction(korali::Sample &sample) override;

@@ -472,7 +472,7 @@ float __className__::calculateImportanceWeight(const std::vector<float> &action,
   return importanceWeight;
 }
 
-float __className__::calculateActionProbability(const std::vector<float> &action, const policy_t policy) const
+float __className__::calculateActionProbability(const std::vector<float> &action, const policy_t& policy) const
 {
   // Compute probability of action
   float logpCurPolicy = 0.0f;
@@ -542,7 +542,7 @@ float __className__::calculateActionProbability(const std::vector<float> &action
     }
   }
 
-  // Sum probability
+  // Return probability
   return std::exp(logpCurPolicy);
 }
 

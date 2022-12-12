@@ -928,7 +928,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     size_t a = 1;
 
     // Iterate over experiences with same expId
-    while ((miniBatch[b + a].first == miniBatch[b + a - 1].first) && (b + a < miniBatchSize))
+    while ((b + a < miniBatchSize) && (miniBatch[b + a].first == miniBatch[b + a - 1].first))
     {
       // Add unique experiences from agents
       if (miniBatch[b + a].second != miniBatch[b + a - 1].second)

@@ -478,7 +478,7 @@ float Continuous::calculateImportanceWeight(const std::vector<float> &action, co
   return importanceWeight;
 }
 
-float Continuous::calculateActionProbability(const std::vector<float> &action, const policy_t policy) const
+float Continuous::calculateActionProbability(const std::vector<float> &action, const policy_t& policy) const
 {
   // Compute probability of action
   float logpCurPolicy = 0.0f;
@@ -548,7 +548,7 @@ float Continuous::calculateActionProbability(const std::vector<float> &action, c
     }
   }
 
-  // Sum probability
+  // Return probability
   return std::exp(logpCurPolicy);
 }
 
