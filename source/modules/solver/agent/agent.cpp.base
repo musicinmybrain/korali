@@ -746,7 +746,7 @@ void __className__::processEpisode(knlohmann::json &episode)
           {
             // Compute predictive posterior distribution
             std::vector<policy_t> policy;
-            approximatePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
+            gaussianPredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
 
             // Get value
             retV[a] = policy[0].stateValue;
@@ -1008,7 +1008,7 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
           {
             // Compute predictive posterior distribution
             std::vector<policy_t> policy;
-            approximatePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
+            gaussianPredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
 
             // Get value
             truncatedStateValue = policy[0].stateValue;

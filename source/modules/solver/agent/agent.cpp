@@ -750,7 +750,7 @@ void Agent::processEpisode(knlohmann::json &episode)
           {
             // Compute predictive posterior distribution
             std::vector<policy_t> policy;
-            approximatePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
+            gaussianPredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
 
             // Get value
             retV[a] = policy[0].stateValue;
@@ -1012,7 +1012,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
           {
             // Compute predictive posterior distribution
             std::vector<policy_t> policy;
-            approximatePredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
+            gaussianPredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
 
             // Get value
             truncatedStateValue = policy[0].stateValue;

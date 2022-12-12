@@ -148,10 +148,10 @@ void VRACER::trainPolicy()
     { 
       // compute predictive posterior distribution in first iteration
       if( p == 0 )
-        approximatePredictivePosteriorDistribution(stateSequenceBatchCopy, policyInfo);
+        gaussianPredictivePosteriorDistribution(stateSequenceBatchCopy, policyInfo);
       
       // Forward policy / update currentDistributionParameters
-      finalizePredictivePosterior(stateSequenceBatchCopy, policyInfo, p);
+      finalizeGaussianPredictivePosterior(stateSequenceBatchCopy, policyInfo, p);
     }
     else
     {
@@ -160,7 +160,10 @@ void VRACER::trainPolicy()
 
       // Compute predictive posterior distribution in first iteration
       if( _minimalApproximation && (p == 0) )
-        calculatePredictivePosteriorProbabilityTraining( miniBatchCopy, stateSequenceBatchCopy, policyInfo );
+      { 
+        std::vector<float> dummy;
+        calculatePredictivePosteriorProbabilities(dummy, miniBatchCopy, stateSequenceBatchCopy, policyInfo );
+      }
     }
 
     // Using policy information to update experience's metadata
@@ -489,7 +492,7 @@ void VRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &state
   }
 }
 
-void VRACER::approximatePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
+void VRACER::gaussianPredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
 {
   // Get minibatch-size
   const size_t batchSize = stateSequenceBatch.size();
@@ -627,7 +630,7 @@ void VRACER::approximatePredictivePosteriorDistribution(const std::vector<std::v
   }
 }
 
-void VRACER::finalizePredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx)
+void VRACER::finalizeGaussianPredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx)
 {
   // Getting batch size
   const size_t batchSize = stateSequenceBatch.size();
@@ -659,155 +662,24 @@ void VRACER::finalizePredictivePosterior(const std::vector<std::vector<std::vect
     }
 }
 
-void VRACER::calculatePredictivePosteriorProbabilityInference(const std::vector<float> &action, const std::vector<std::vector<float>> &stateSequence, policy_t &curPolicy)
+void VRACER::calculatePredictivePosteriorProbabilities(std::vector<float> &action, const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
 {
-  // Create empty policy to forward samples
-  std::vector<policy_t> policy;
-
-  // Determine the number of samples
-  size_t numSamples = _numberOfSamples;
-
-  // Take care of situation where not enough hyperparameters are in buffer
-  if (_numberOfStoredHyperparameters > 1)
-    numSamples = std::max(numSamples, _hyperparameterBuffer.size());
-
-  // For swag and dropout we have to include current hyperparameters at the end
-  if (_swag || (_dropoutProbability > 0.0))
-    numSamples--;
-
-  // Initialize values
-  curPolicy.stateValue = 0.0f;
-  curPolicy.currentDistributionParameters.resize(_policyParameterCount, 0.0);
-  curPolicy.actionProbabilities.resize(1, 0.0);
-
-  // Sample predictive posterior distribution
-  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-    for (size_t s = 0; s < numSamples; s++)
-    {
-      // Get sample
-      std::vector<float> hyperparameters;
-      if (_swag || (_dropoutProbability > 0.0))
-        hyperparameters = samplePosterior(p);
-      else
-        hyperparameters = _hyperparameterBuffer[s][p];
-
-      // Set parameters in neural network
-      _criticPolicyLearner[p]->_neuralNetwork->setHyperparameters(hyperparameters);
-
-      // Forward policy
-      runPolicy({stateSequence}, policy, p);
-
-      // Compute probability of action
-      const float probability = calculateActionProbability(action, policy[0]);
-
-      // Sum probability
-      curPolicy.actionProbabilities[0] += probability;
-
-      // Accumulate State Value
-      curPolicy.stateValue += policy[0].stateValue;
-      for (size_t i = 0; i < _problem->_actionVectorSize; i++)
-      {
-        // Get mean, squared mean, standard deviation and variance
-        const float mean = policy[0].distributionParameters[i];
-        const float meanSquared = mean * mean;
-        const float standardDeviation = policy[0].distributionParameters[_problem->_actionVectorSize + i];
-        const float variance = standardDeviation * standardDeviation;
-
-        // Accumulate Mean
-        curPolicy.currentDistributionParameters[i] += mean;
-
-        // Accumulate Variance
-        if(_gaussianApproximationType == "Average")
-          curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
-        if(_gaussianApproximationType == "Mixture")
-          curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
-      }
-    }
-
-  // For consistency of SWAG and dropout, add contribution from the current policies
-  if (_swag || (_dropoutProbability > 0.0))
-  {
-    for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-    {
-      // Get current hyperparameters
-      const auto &hyperparameters = _hyperparameterBuffer[_hyperparameterBuffer.size() - 1][p];
-
-      // Set current hyperparameters
-      _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
-
-      // Forward policy for current hyperparameters // TODO: avoid forwarding current policy twice
-      runPolicy({stateSequence}, policy, p);
-
-      // Compute probability of action
-      const float probability = calculateActionProbability(action, policy[0]);
-
-      // Sum probability
-      curPolicy.actionProbabilities[0] += probability;
-
-            // Accumulate State Value
-      curPolicy.stateValue += policy[0].stateValue;
-      for (size_t i = 0; i < _problem->_actionVectorSize; i++)
-      {
-        // Get mean, squared mean, standard deviation and variance
-        const float mean = policy[0].distributionParameters[i];
-        const float meanSquared = mean * mean;
-        const float standardDeviation = policy[0].distributionParameters[_problem->_actionVectorSize + i];
-        const float variance = standardDeviation * standardDeviation;
-
-        // Accumulate Mean
-        curPolicy.currentDistributionParameters[i] += mean;
-
-        // Accumulate Variance
-        if(_gaussianApproximationType == "Average")
-          curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
-        if(_gaussianApproximationType == "Mixture")
-          curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
-      }
-    }
-  }
-
-  // Get total number of samples
-  const float invTotNumSamples = 1.0 / (_numberOfSamples * _problem->_policiesPerEnvironment);
-
-  // Complete computation of predictive posterior probability
-  curPolicy.actionProbabilities[0] *= invTotNumSamples;
-
-  // Finalize State Value
-  curPolicy.stateValue *= invTotNumSamples;
-  for (size_t i = 0; i < _problem->_actionVectorSize; i++)
-  {
-    // Finalize Mean
-    const float mixtureMean = curPolicy.currentDistributionParameters[i] * invTotNumSamples;
-    curPolicy.currentDistributionParameters[i] = mixtureMean;
-
-    // Finalize Variance
-    curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] *= invTotNumSamples;
-    if(_gaussianApproximationType == "Mixture")
-    {
-      curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
-      curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy.distributionParameters[_problem->_actionVectorSize + i]);
-    }
-  }
-}
-
-void VRACER::calculatePredictivePosteriorProbabilityTraining(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
-{
-  // Create empty policy to forward samples
-  std::vector<policy_t> policy;
-
-  // Determine the number of samples
-  size_t numSamples = _numberOfSamples;
-
-  // Take care of situation where not enough hyperparameters are in buffer
-  if (_numberOfStoredHyperparameters > 1)
-    numSamples = std::max(numSamples, _hyperparameterBuffer.size());
-
-  // For swag and dropout we have to include current hyperparameters at the end
-  if (_swag || (_dropoutProbability > 0.0))
-    numSamples--;
-
   // Get batchSize
   const size_t batchSize = miniBatch.size();
+
+  // Determine whether we are infering or training
+  const bool bTraining = (batchSize == _effectiveMinibatchSize);
+
+  // Determine the number of samples
+  size_t numSamples = _numberOfSamples;
+
+  // Take care of situation where not enough hyperparameters are in buffer
+  if (_numberOfStoredHyperparameters > 1)
+    numSamples = std::max(numSamples, _hyperparameterBuffer.size());
+
+  // For swag and dropout we have to include current hyperparameters at the end
+  if (_swag || (_dropoutProbability > 0.0))
+    numSamples--;
 
   // Intitialize curPolicy
   curPolicy.resize(batchSize);
@@ -819,7 +691,10 @@ void VRACER::calculatePredictivePosteriorProbabilityTraining(const std::vector<s
     curPolicy[b].actionProbabilities.resize(1, 0.0);
   }
 
-  // Sample predictive posterior distribution
+  // Create empty policy to forward samples
+  std::vector<policy_t> policy;
+
+  // Forward policy for samples of predictive posterior distribution
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
     for (size_t s = 0; s < numSamples; s++)
     {
@@ -839,12 +714,16 @@ void VRACER::calculatePredictivePosteriorProbabilityTraining(const std::vector<s
 #pragma omp parallel for
       for (size_t b = 0; b < batchSize; b++)
       {
-        // Get current expId and agentId
-        const size_t expId = miniBatch[b].first;
-        const size_t agentId = miniBatch[b].second;
+        // If training, no action is given, need to read from Buffer
+        if( bTraining )
+        {
+          // Get current expId and agentId
+          const size_t expId = miniBatch[b].first;
+          const size_t agentId = miniBatch[b].second;
 
-        // Get action
-        const auto action = _actionBuffer[expId][agentId];
+          // Get action
+          action = _actionBuffer[expId][agentId];
+        }
 
         // Compute probability of action
         const float probability = calculateActionProbability(action, policy[b]);
@@ -885,18 +764,22 @@ void VRACER::calculatePredictivePosteriorProbabilityTraining(const std::vector<s
       // Set current hyperparameters
       _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
 
-      // Forward policy for current hyperparameters // TODO: avoid forwarding current policy twice
+      // Forward policy for current hyperparameters
       runPolicy({stateSequenceBatch}, policy, p);
 
 #pragma omp parallel for
       for (size_t b = 0; b < batchSize; b++)
       {
-        // Get current expId and agentId
-        const size_t expId = miniBatch[b].first;
-        const size_t agentId = miniBatch[b].second;
+        // If training, no action is given, need to read from Buffer
+        if( bTraining )
+        {
+          // Get current expId and agentId
+          const size_t expId = miniBatch[b].first;
+          const size_t agentId = miniBatch[b].second;
 
-        // Get action
-        const auto action = _actionBuffer[expId][agentId];
+          // Get action
+          action = _actionBuffer[expId][agentId];
+        }
 
         // Compute probability of action
         const float probability = calculateActionProbability(action, policy[b]);

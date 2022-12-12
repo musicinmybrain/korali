@@ -323,19 +323,15 @@ void dVRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &stat
   }
 }
 
-void dVRACER::approximatePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
+void dVRACER::gaussianPredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
 { // TODO: implement Bayesian Learning for Discrete Environments
 }
 
-void dVRACER::finalizePredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx)
+void dVRACER::finalizeGaussianPredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx)
 {// TODO: implement Bayesian Learning for Discrete Environments
 }
 
-void dVRACER::calculatePredictivePosteriorProbabilityInference(const std::vector<float> &action, const std::vector<std::vector<float>> &stateSequence, policy_t &curPolicy)
-{// TODO: implement Bayesian Learning for Discrete Environments
-}
-
-void dVRACER::calculatePredictivePosteriorProbabilityTraining(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
+void dVRACER::calculatePredictivePosteriorProbabilities(std::vector<float> &action, const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
 {// TODO: implement Bayesian Learning for Discrete Environments
 }
 

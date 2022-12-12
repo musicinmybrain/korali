@@ -751,11 +751,11 @@ class Agent : public Solver
   virtual void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) = 0;
 
   /**
-   * @brief Function to compute an approximation of the predictive posterior distribution
+   * @brief Function to compute the Gaussian approximation of the predictive posterior distribution
    * @param stateSequenceBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
    * @param curPolicy The current policy for the given state
    */
-  virtual void approximatePredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) = 0;
+  virtual void gaussianPredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) = 0;
 
   /**
    * @brief Function to foward current policy and update currentDistributionParameters
@@ -763,23 +763,16 @@ class Agent : public Solver
    * @param predictivePosteriorDistribution The approximate predictive posterior distribution
    * @param policyIdx Index of the current policy
    */
-  virtual void finalizePredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx) = 0;
+  virtual void finalizeGaussianPredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx) = 0;
 
   /**
-   * @brief Function to compute the probability under the full predictive posterior distribution and the approximation of the predictive posterior distribution during Inference
-   * @param action The action
-   * @param stateSequence The state sequence
-   * @param curPolicy The policy
+   * @brief Function to compute the probability under the full predictive posterior distribution and the Gaussian approximation of the predictive posterior distribution during Inference
+   * @param action The action [during inference]
+   * @param miniBatch The minibatch indices [during training]
+   * @param stateSequence The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
+   * @param policy Vector with policy objects that is filled after forwarding the policy
    */
-  virtual void calculatePredictivePosteriorProbabilityInference(const std::vector<float> &action, const std::vector<std::vector<float>> &stateSequence, policy_t &curPolicy) = 0;
-
-  /**
-   * @brief Function to compute the probability under the full predictive posterior distribution and the approximation of the predictive posterior distribution during training
-   * @param miniBatch The sampled minibatch indices
-   * @param stateSequenceBatch The minibatch of state sequences
-   * @param curPolicies The policies
-   */
-  virtual void calculatePredictivePosteriorProbabilityTraining(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) = 0;
+  virtual void calculatePredictivePosteriorProbabilities(std::vector<float> &action, const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) = 0;
 
   /**
    * @brief Calculates the starting experience index of the time sequence for the selected experience

@@ -124,7 +124,7 @@ void Continuous::getAction(korali::Sample &sample)
       if (_currentEpisode >= _burnIn)
       {
         if (_gaussianApproximationEnabled)
-          approximatePredictivePosteriorDistribution({_stateTimeSequence[i].getVector()}, policy);
+          gaussianPredictivePosteriorDistribution({_stateTimeSequence[i].getVector()}, policy);
         else
         {
           // Producing random (uniform) number for the selection of the policy
@@ -193,7 +193,7 @@ void Continuous::getAction(korali::Sample &sample)
      ****************************************************************************/
 
     if( _minimalApproximation )
-      calculatePredictivePosteriorProbabilityInference( action, _stateTimeSequence[i].getVector(), policy[0] );
+      calculatePredictivePosteriorProbabilities( action, std::vector<std::pair<size_t, size_t>>(), {_stateTimeSequence[i].getVector()}, policy );
 
     /*****************************************************************************
      * Storing the action and its policy
