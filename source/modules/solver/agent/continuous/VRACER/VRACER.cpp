@@ -227,12 +227,12 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     const size_t agentId = miniBatch[b].second;
 
     // Get policy and action for this experience
-    auto &expPolicy = _expPolicyBuffer[expId][agentId];
+    auto expPolicy = _expPolicyBuffer[expId][agentId];
     const auto &expAction = _actionBuffer[expId][agentId];
 
     // Gathering metadata
     const auto stateValue = _stateValueBufferContiguous[expId * numAgents + agentId];
-    auto &curPolicy = _curPolicyBuffer[expId][agentId];
+    auto curPolicy = _curPolicyBuffer[expId][agentId];
     const auto expVtbc = _retraceValueBufferContiguous[expId * numAgents + agentId];
 
     // Storage for the update gradient
@@ -341,18 +341,11 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       }
     }
 
-    // Switch distributionParameters and currentDistributionParameters (containing approximate predictive posterior)
+    // Switch distributionParameters and currentDistributionParameters (containing Gaussian approximation of predictive posterior)
     if( _minimalApproximation )
     {
-        auto tmp1 = expPolicy.distributionParameters;
-        expPolicy.distributionParameters = expPolicy.currentDistributionParameters;
-        expPolicy.currentDistributionParameters = tmp1;
-
-        auto tmp2 = curPolicy.distributionParameters;
-        curPolicy.distributionParameters = curPolicy.currentDistributionParameters;
-        curPolicy.currentDistributionParameters = tmp2;
-    //   expPolicy.distributionParameters.swap(expPolicy.currentDistributionParameters);
-    //   curPolicy.distributionParameters.swap(curPolicy.currentDistributionParameters);
+      expPolicy.distributionParameters.swap(expPolicy.currentDistributionParameters);
+      curPolicy.distributionParameters.swap(curPolicy.currentDistributionParameters);
     }
 
     // Compute derivative of KL divergence
@@ -361,15 +354,8 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     // Switch back distributionParameters and currentDistributionParameters
     if( _minimalApproximation )
     {
-        auto tmp1 = expPolicy.distributionParameters;
-        expPolicy.distributionParameters = expPolicy.currentDistributionParameters;
-        expPolicy.currentDistributionParameters = tmp1;
-
-        auto tmp2 = curPolicy.distributionParameters;
-        curPolicy.distributionParameters = curPolicy.currentDistributionParameters;
-        curPolicy.currentDistributionParameters = tmp2;
-    //   expPolicy.distributionParameters.swap(expPolicy.currentDistributionParameters);
-    //   curPolicy.distributionParameters.swap(curPolicy.currentDistributionParameters);
+      expPolicy.distributionParameters.swap(expPolicy.currentDistributionParameters);
+      curPolicy.distributionParameters.swap(curPolicy.currentDistributionParameters);
     }
 
     // Compute factor for KL penalization
