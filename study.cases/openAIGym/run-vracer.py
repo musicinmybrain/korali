@@ -18,7 +18,7 @@ parser.add_argument('--n', help='Number of testing episodes to run.', required=F
 args = parser.parse_args()
 print(args)
 
-excludePos = False
+excludePos = True
 
 ####### Defining Korali Problem
 

@@ -21,6 +21,9 @@ def initEnvironment(e, envName, excludePosition=True, moviePath = ''):
  if envName == "Reacher-v4":
     excludePosition = True
     env = gym.make(envName)
+ elif envName == "Ant-v4":
+    excludePosition = True
+    env = gym.make(envName)
  else:
     env = gym.make(envName, exclude_current_positions_from_observation=excludePosition)
  
