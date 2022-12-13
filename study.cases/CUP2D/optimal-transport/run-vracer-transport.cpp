@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
   /// Defining Agent Configuration
   e["Solver"]["Type"] = "Agent / Continuous / VRACER";
   e["Solver"]["Mode"] = "Training";
-  e["Solver"]["Concurrent Environments"] = N;
+  e["Solver"]["Concurrent Workers"] = N;
   e["Solver"]["Episodes Per Generation"] = 1;
   e["Solver"]["Experiences Between Policy Updates"] = 1;
   e["Solver"]["Learning Rate"] = 1e-4;

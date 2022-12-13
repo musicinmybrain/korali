@@ -21,6 +21,7 @@ parser.add_argument(
     '--optimizer',
     help='Optimizer to use for NN parameter updates',
     default='Adam',
+    type=str,
     required=False)
 parser.add_argument(
     '--learningRate',
@@ -44,7 +45,8 @@ e = korali.Experiment()
 e["Problem"]["Type"] = "Reinforcement Learning / Discrete"
 e["Problem"]["Possible Actions"] = [ [ -10.0 ], [  10.0 ] ]
 e["Problem"]["Environment Function"] = env
-e["Problem"]["Testing Frequency"] = 100
+e["Problem"]["Actions Between Policy Updates"] = 1
+e["Problem"]["Testing Frequency"] = 10
 
 e["Variables"][0]["Name"] = "Cart Position"
 e["Variables"][0]["Type"] = "State"
@@ -111,8 +113,9 @@ e["Solver"]["Termination Criteria"]["Max Generations"] = args.maxGenerations
 
 ### Setting file output configuration
 
-e["File Output"]["Enabled"] = False
-e["Console Output"]["Verbosity"] = "Detailed"
+e["File Output"]["Enabled"] = True
+e["File Output"]["Use Multiple Files"] = False
+e["File Output"]["Frequency"] = 5
 
 ### Running Experiment
 

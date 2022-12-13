@@ -37,7 +37,7 @@ if (found == False):
 # If found, we continue with the next 5 generations.
 if (found == True):
   print('------------------------------------------------------')
-  print('Running last 10 generations...')
+  print('Running last 5 generations...')
   print('------------------------------------------------------')
   e["Solver"]["Termination Criteria"]["Max Generations"] = 10
 
@@ -46,7 +46,7 @@ if (found == True):
 e["Problem"]["Type"] = "Supervised Learning"
 e["Problem"]["Max Timesteps"] = 1
 e["Problem"]["Training Batch Size"] = trainingBatchSize
-e["Problem"]["Inference Batch Size"] = inferenceBatchSize
+e["Problem"]["Testing Batch Size"] = inferenceBatchSize
 
 e["Problem"]["Input"]["Data"] = trainingInputSet
 e["Problem"]["Input"]["Size"] = 1
@@ -56,8 +56,8 @@ e["Problem"]["Solution"]["Size"] = 1
 ### Using a neural network solver (deep learning) for inference
 
 e["Solver"]["Type"] = "DeepSupervisor"
+e["Solver"]["Mode"] = "Training"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
-e["Solver"]["Steps Per Generation"] = 1
 e["Solver"]["Learning Rate"] = 0.005
 
 ### Defining the shape of the neural network

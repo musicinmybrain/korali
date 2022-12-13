@@ -19,6 +19,7 @@
 #include "distribution/univariate/poisson/poisson.hpp"
 #include "distribution/univariate/truncatedNormal/truncatedNormal.hpp"
 #include "distribution/univariate/uniform/uniform.hpp"
+#include "distribution/univariate/uniformratio/uniformratio.hpp"
 #include "distribution/univariate/weibull/weibull.hpp"
 #include "experiment/experiment.hpp"
 #include "neuralNetwork/layer/activation/activation.hpp"
@@ -34,6 +35,7 @@
 #include "neuralNetwork/neuralNetwork.hpp"
 #include "problem/bayesian/custom/custom.hpp"
 #include "problem/bayesian/reference/reference.hpp"
+#include "problem/design/design.hpp"
 #include "problem/hierarchical/psi/psi.hpp"
 #include "problem/hierarchical/theta/theta.hpp"
 #include "problem/hierarchical/thetaNew/thetaNew.hpp"
@@ -50,11 +52,16 @@
 #include "solver/agent/continuous/continuous.hpp"
 #include "solver/agent/discrete/dVRACER/dVRACER.hpp"
 #include "solver/agent/discrete/discrete.hpp"
+#include "solver/designer/designer.hpp"
 #include "solver/executor/executor.hpp"
 #include "solver/integrator/integrator.hpp"
 #include "solver/integrator/montecarlo/MonteCarlo.hpp"
 #include "solver/integrator/quadrature/Quadrature.hpp"
 #include "solver/deepSupervisor/deepSupervisor.hpp"
+#include "solver/deepSupervisor/optimizers/fAdam/fAdam.hpp"
+#include "solver/deepSupervisor/optimizers/fAdaBelief/fAdaBelief.hpp"
+#include "solver/deepSupervisor/optimizers/fMadGrad/fMadGrad.hpp"
+#include "solver/deepSupervisor/optimizers/fAdaGrad/fAdaGrad.hpp"
 #include "solver/optimizer/AdaBelief/AdaBelief.hpp"
 #include "solver/optimizer/Adam/Adam.hpp"
 #include "solver/optimizer/CMAES/CMAES.hpp"
@@ -81,6 +88,7 @@ std::chrono::time_point<std::chrono::high_resolution_clock> _endTime;
 double _cumulativeTime;
 
 void Module::initialize() {};
+void Module::setEngine(korali::Engine* engine) {_k->_engine = engine;};
 void Module::finalize() {};
 std::string Module::getType() { return _type; };
 bool Module::checkTermination() { return false; };
@@ -138,11 +146,13 @@ Module *Module::getModule(knlohmann::json &js, Experiment *e)
   if (iCompare(moduleType, "Univariate/Poisson")) module = new korali::distribution::univariate::Poisson();
   if (iCompare(moduleType, "Univariate/TruncatedNormal")) module = new korali::distribution::univariate::TruncatedNormal();
   if (iCompare(moduleType, "Univariate/Uniform")) module = new korali::distribution::univariate::Uniform();
+  if (iCompare(moduleType, "Univariate/UniformRatio")) module = new korali::distribution::univariate::UniformRatio();
   if (iCompare(moduleType, "Univariate/Weibull")) module = new korali::distribution::univariate::Weibull();
 
   // Problem types
   if (iCompare(moduleType, "Bayesian/Custom")) module = new korali::problem::bayesian::Custom();
   if (iCompare(moduleType, "Bayesian/Reference")) module = new korali::problem::bayesian::Reference();
+  if (iCompare(moduleType, "Design")) module = new korali::problem::Design();
   if (iCompare(moduleType, "Hierarchical/Psi")) module = new korali::problem::hierarchical::Psi();
   if (iCompare(moduleType, "Hierarchical/Theta")) module = new korali::problem::hierarchical::Theta();
   if (iCompare(moduleType, "Hierarchical/ThetaNew")) module = new korali::problem::hierarchical::ThetaNew();
@@ -156,10 +166,15 @@ Module *Module::getModule(knlohmann::json &js, Experiment *e)
   if (iCompare(moduleType, "SupervisedLearning")) module = new korali::problem::SupervisedLearning();
   
   // Solver modules
+  if (iCompare(moduleType, "Designer")) module = new korali::solver::Designer();
   if (iCompare(moduleType, "Executor")) module = new korali::solver::Executor();
   if (iCompare(moduleType, "Integrator/MonteCarlo")) module = new korali::solver::integrator::MonteCarlo();
   if (iCompare(moduleType, "Integrator/Quadrature")) module = new korali::solver::integrator::Quadrature();
   if (iCompare(moduleType, "DeepSupervisor")) module = new korali::solver::DeepSupervisor();
+  if (iCompare(moduleType, "DeepSupervisor/optimizers/fAdam")) module = new korali::fAdam();
+  if (iCompare(moduleType, "DeepSupervisor/optimizers/fAdaBelief")) module = new korali::fAdaBelief();
+  if (iCompare(moduleType, "DeepSupervisor/optimizers/fMadGrad")) module = new korali::fMadGrad();
+  if (iCompare(moduleType, "DeepSupervisor/optimizers/fAdaGrad")) module = new korali::fAdaGrad();
   if (iCompare(moduleType, "Agent/Continuous/VRACER")) module = new korali::solver::agent::continuous::VRACER();
   if (iCompare(moduleType, "Agent/Discrete/dVRACER")) module = new korali::solver::agent::discrete::dVRACER();
   if (iCompare(moduleType, "Optimizer/CMAES")) module = new korali::solver::optimizer::CMAES();

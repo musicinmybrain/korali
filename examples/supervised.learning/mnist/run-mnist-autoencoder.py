@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+import shutil as sh
 import numpy as np
 import matplotlib.pyplot as plt
 import time
@@ -50,16 +51,16 @@ if len(sys.argv) == 2:
 e["Problem"]["Type"] = "Supervised Learning"
 e["Problem"]["Max Timesteps"] = 1
 e["Problem"]["Training Batch Size"] = trainingBatchSize
-e["Problem"]["Inference Batch Size"] = testingBatchSize
+e["Problem"]["Testing Batch Size"] = testingBatchSize
 e["Problem"]["Input"]["Size"] = len(trainingImages[0])
 e["Problem"]["Solution"]["Size"] = len(trainingImages[0])
 
 ### Using a neural network solver (deep learning) for inference
 
-e["Solver"]["Termination Criteria"]["Max Generations"] = 1
+e["Solver"]["Termination Criteria"]["Max Generations"] = 0
 e["Solver"]["Type"] = "DeepSupervisor"
+e["Solver"]["Mode"] = "Training"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
-e["Solver"]["Steps Per Generation"] = 1
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
 e["Solver"]["Neural Network"]["Optimizer"] = "Adam"
 
@@ -215,8 +216,8 @@ e["Solver"]["Neural Network"]["Hidden Layers"][11]["Output Channels"]   = 1*28*2
 
 ### Configuring output
 
-e["Console Output"]["Verbosity"] = "Silent"
-e["File Output"]["Enabled"] = False
+e["Console Output"]["Verbosity"] = "Normal"
+e["File Output"]["Enabled"] = True
 e["Random Seed"] = 0xC0FFEE
 
 ### Printing Configuration
@@ -229,6 +230,11 @@ print("[Korali] Epochs: " + str(epochs))
 print("[Korali] Initial Learning Rate: " + str(learningRate))
 print("[Korali] Decay: " + str(decay))
 
+### Delete old results
+
+if os.path.exists("_korali_result"):
+ sh.rmtree("_korali_result")
+
 ### Running SGD loop
 
 for epoch in range(epochs):
@@ -237,6 +243,9 @@ for epoch in range(epochs):
   # Creating minibatch
   miniBatchInput = trainingImageVector[step * trainingBatchSize : (step+1) * trainingBatchSize] # N x T x C
   miniBatchSolution = [ x[0] for x in miniBatchInput ] # N x C
+
+  # Load state
+  e.loadState('_korali_result/latest')
   
   # Passing minibatch to Korali
   e["Problem"]["Input"]["Data"] = miniBatchInput
@@ -256,17 +265,17 @@ for epoch in range(epochs):
  print('[Korali] Current Training Loss: ' + str(e["Solver"]["Current Loss"])) 
     
  # Evaluating testing set
- testingInferredVector = testInferredSet = e.getEvaluation(testingImageVector)
+ # testingInferredVector = testInferredSet = e.getEvaluation(testingImageVector)
  
  # Getting MSE loss for testing set
- squaredMeanError = 0.0
- for i, res in enumerate(testingInferredVector):
-  sol = testingImageVector[i][0]
-  for j, s in enumerate(sol):
-   diff = res[j] - s
-   squaredMeanError += diff * diff 
- squaredMeanError = squaredMeanError / (float(testingBatchSize) * 2.0)
- print('[Korali] Current Testing Loss:  ' + str(squaredMeanError))
+ # squaredMeanError = 0.0
+ # for i, res in enumerate(testingInferredVector):
+ #  sol = testingImageVector[i][0]
+ #  for j, s in enumerate(sol):
+ #   diff = res[j] - s
+ #   squaredMeanError += diff * diff 
+ # squaredMeanError = squaredMeanError / (float(testingBatchSize) * 2.0)
+ # print('[Korali] Current Testing Loss:  ' + str(squaredMeanError))
  
  # Adjusting learning rate via decay
  learningRate = learningRate * (1.0 / (1.0 + decay * (epoch+1)));

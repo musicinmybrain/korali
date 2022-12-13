@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from cartpole import *
-
+import pdb
+import numpy as np
 ######## Defining Environment Storage
 
 cart = CartPole()
@@ -48,20 +49,21 @@ def multienv(s):
  else:
     envId = 0
  cart.reset(sampleId * 1024 + launchId)
- s["Environment Id"] = envId
  s["State"] = cart.getState().tolist()
  step = 0
  done = False
 
  while not done and step < maxSteps:
-
-  # Getting new action
+  
   s.update()
   
   # Performing the action
   done = cart.advance(s["Action"])
   
   # Getting Reward
+  
+  s["Reward"] = cart.getReward()
+  
   reward = cart.getReward()
   if (envId == 0):
     s["Reward"] = cart.getReward()

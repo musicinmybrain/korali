@@ -33,9 +33,17 @@ class dVRACER : public Discrete
 {
   public: 
   /**
-  * @brief [Internal Use] Standard deviation of the actions in the minibatch.
+  * @brief Initial inverse temperature of the softmax distribution. Large values lead to a distribution that is more concentrated around the action with highes Q-value estimate.
   */
-   std::vector<float> _statisticsAverageActionSigmas;
+   float _initialInverseTemperature;
+  /**
+  * @brief [Internal Use] Measure of unlikeability for categorial data, approaches 1.0 for uniform behavior and 0. for deterministic case.
+  */
+   float _statisticsAverageInverseTemperature;
+  /**
+  * @brief [Internal Use] Measure of unlikeability for categorial data, approaches 1.0 for uniform behavior and 0. for deterministic case.
+  */
+   float _statisticsAverageActionUnlikeability;
   
  
   /**
@@ -65,21 +73,6 @@ class dVRACER : public Discrete
   
 
   /**
-   * @brief Pointer to training the actor network
-   */
-  DeepSupervisor *_criticPolicyLearner;
-
-  /**
-   * @brief Korali experiment for obtaining the agent's action
-   */
-  korali::Experiment _criticPolicyExperiment;
-
-  /**
-   * @brief Pointer to actor's experiment problem
-   */
-  problem::SupervisedLearning *_criticPolicyProblem;
-
-  /**
    * @brief Update the V-target or current and previous experiences in the episode
    * @param expId Current Experience Id
    */
@@ -88,11 +81,19 @@ class dVRACER : public Discrete
   /**
    * @brief Calculates the gradients for the policy/critic neural network
    * @param miniBatch The indexes of the experience mini batch
+   * @param policyIdx The indexes of the policy to compute the gradient for
    */
-  void calculatePolicyGradients(const std::vector<size_t> &miniBatch);
+  void calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx);
 
-  std::vector<policy_t> runPolicy(const std::vector<std::vector<std::vector<float>>> &stateBatch) override;
+  /**
+   * @brief Retreives the policy infos for the samples in the minibatch
+   * @param miniBatch The indexes of the experience mini batch
+   * @return A vector containing the policy infos in the order they are given in the miniBatch
+   */
+  std::vector<policy_t> getPolicyInfo(const std::vector<std::pair<size_t, size_t>> &miniBatch) const;
 
+  float calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx = 0) override;
+  void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) override;
   knlohmann::json getPolicy() override;
   void setPolicy(const knlohmann::json &hyperparameters) override;
   void trainPolicy() override;

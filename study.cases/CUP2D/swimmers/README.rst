@@ -17,14 +17,18 @@ The setup is described in the setting.sh file.
 Running the code
 ----------------
 
+In order to configure the run you have to go go to _model/config.hpp and make sure the correct simulation settings and initialPositions vector is uncommented. Furthermore you have to set the correct number of AGENTS in the runscript.
+
 The application is launched locally (or on an interactive node on Piz Daint) using 
 
 .. code-block:: bash
-	./run-vracer-swimmer.sh
+
+	./run-vracer-swimmer.sh RUNNAME TASK
 
 If you are ready for production you can submitt a job to the batch-system using
 
 .. code-block:: bash
-	./sbatch-run-vracer-swimmer.sh
+
+	./sbatch-run-vracer-swimmer.sh RUNNAME TASK
 
 Here you can change the number of parallel agents by changing the NNODES variable.

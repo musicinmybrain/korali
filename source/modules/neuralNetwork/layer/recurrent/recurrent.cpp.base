@@ -273,7 +273,7 @@ void __className__::backwardHyperparameters(const size_t t)
 #endif
 }
 
-void __className__::setHyperparameters(float *hyperparameters)
+void __className__::setHyperparameters(const float *hyperparameters)
 {
 #ifdef _KORALI_USE_ONEDNN
   if (_nn->_engine == "OneDNN")

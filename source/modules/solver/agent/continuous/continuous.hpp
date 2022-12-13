@@ -106,9 +106,10 @@ class Continuous : public Agent
    * @param action The action taken by the agent in the given experience
    * @param oldPolicy The policy for the given state used at the time the action was performed
    * @param curPolicy The current policy for the given state
+   * @param importanceWeight The importance weight
    * @return gradient of policy wrt curParamsOne and curParamsTwo
    */
-  std::vector<float> calculateImportanceWeightGradient(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy);
+  std::vector<float> calculateImportanceWeightGradient(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, const float importanceWeight);
 
   /**
    * @brief Calculates the gradient of KL(p_old, p_cur) wrt to the parameter of the 2nd (current) distribution.
@@ -139,7 +140,7 @@ class Continuous : public Agent
   * @param policyHyperparameter The neural network policy hyperparameter.
   * @return The log probability of the trajectory.
   */
-  virtual float evaluateTrajectoryLogProbability(const std::vector<std::vector<float>> &states, const std::vector<std::vector<float>> &actions, const std::vector<float> &policyHyperparameter) override;
+  virtual float evaluateTrajectoryLogProbability(const std::vector<std::vector<std::vector<float>>> &states, const std::vector<std::vector<std::vector<float>>> &actions, const std::vector<float> &policyHyperparameter) override;
 
   /**
   * @brief Evaluates the log probability of a trajectory given linear policy and standad deviations of gaussian errors.
@@ -147,7 +148,7 @@ class Continuous : public Agent
   * @param actions Vector of actions in the trajectory.
   * @return The log probability of the trajectory.
   */
-  virtual float evaluateTrajectoryLogProbabilityWithObservedPolicy(const std::vector<std::vector<float>> &states, const std::vector<std::vector<float>> &actions) override;
+  virtual float evaluateTrajectoryLogProbabilityWithObservedPolicy(const std::vector<std::vector<std::vector<float>>> &states, const std::vector<std::vector<std::vector<float>>> &actions) override;
 
   virtual void getAction(korali::Sample &sample) override;
 

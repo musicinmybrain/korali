@@ -67,14 +67,14 @@ class Integrator : public Solver
   
 
   /**
- * @brief Container for samples to be evaluated per generation
- */
+   * @brief Container for samples to be evaluated per generation
+   */
   std::vector<Sample> _samples;
 
   /**
- * @brief Prepares and launches a sample to be evaluated
- * @param sampleIndex index of sample to be launched
- */
+   * @brief Prepares and launches a sample to be evaluated
+   * @param sampleIndex index of sample to be launched
+   */
   virtual void launchSample(size_t sampleIndex) = 0;
   virtual void setInitialConfiguration() override;
   void runGeneration() override;

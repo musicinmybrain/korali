@@ -35,6 +35,10 @@ class SupervisedLearning : public Problem
   */
    size_t _inferenceBatchSize;
   /**
+  * @brief Stores the batch size of the testing dataset.
+  */
+   size_t _testingBatchSize;
+  /**
   * @brief Stores the length of the sequence for recurrent neural networks.
   */
    size_t _maxTimesteps;

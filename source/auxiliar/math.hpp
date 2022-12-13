@@ -27,6 +27,7 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <algorithm>
 
 namespace korali
 {
@@ -106,6 +107,16 @@ bool approximatelyEqual(T a, T b, T epsilon)
 {
         return fabs(a - b) <= ( (fabs(a) < fabs(b) ? fabs(b) : fabs(a)) * epsilon);
 }
+
+
+/**
+* @brief Check if second element of tuple is smaller
+* @param a Tuple to check if second element is smaller than b
+* @param b Value b
+* @return boolean indicating if a.second < b.second
+*/
+bool secondSmaller(const std::pair<size_t, size_t>& a, 
+                   const std::pair<size_t, size_t>& b);
 
 /**
 * @brief Check if the first argument is surely greater than the second argument up to given precision
@@ -204,10 +215,7 @@ T safeLogMinus(T x, T y)
 template <typename T>
 T logSumExp(const T *logValues, const size_t &n)
 {
-  T maxLogValue = -Inf;
-  for (size_t i = 0; i < n; i++)
-    if (logValues[i] > maxLogValue)
-      maxLogValue = logValues[i];
+  T maxLogValue = *std::max_element(logValues, logValues + n);
 
   if (std::isinf(maxLogValue) == true)
   {

@@ -28,9 +28,13 @@ class ReinforcementLearning : public Problem
 {
   public: 
   /**
-  * @brief Number of agents in a given environment. All agents share the same policy .
+  * @brief Number of agents in a given environment .
   */
    size_t _agentsPerEnvironment;
+  /**
+  * @brief Number of policies in a given environment. All agents share the same policy or all have individual policy.
+  */
+   size_t _policiesPerEnvironment;
   /**
   * @brief Maximum number of different types of environments.
   */
@@ -58,15 +62,15 @@ class ReinforcementLearning : public Problem
   /**
   * @brief Vector containing the states of the observed trajectories.
   */
-   std::vector<std::vector<std::vector<float>>> _observationsStates;
+   std::vector<std::vector<std::vector<std::vector<float>>>> _observationsStates;
   /**
   * @brief Vector containing the actions of the observed trajectories.
   */
-   std::vector<std::vector<std::vector<float>>> _observationsActions;
+   std::vector<std::vector<std::vector<std::vector<float>>>> _observationsActions;
   /**
   * @brief Vector containing the features corresponding to the observed state action pairs.
   */
-   std::vector<std::vector<std::vector<float>>> _observationsFeatures;
+   std::vector<std::vector<std::vector<std::vector<float>>>> _observationsFeatures;
   /**
   * @brief [Internal Use] Stores the dimension of the action space.
   */
@@ -95,6 +99,10 @@ class ReinforcementLearning : public Problem
   * @brief [Internal Use] The total number of observed state action pairs.
   */
    size_t _totalObservedStateActionPairs;
+  /**
+  * @brief [Internal Use] The maximum number of actions an agent can take (only relevant for discrete).
+  */
+   size_t _actionCount;
   
  
   /**
@@ -171,12 +179,12 @@ class ReinforcementLearning : public Problem
   /**
    * @brief Contains the state rescaling means
    */
-  std::vector<float> _stateRescalingMeans;
+  std::vector<std::vector<float>> _stateRescalingMeans;
 
   /**
    * @brief Contains the state rescaling sigmas
    */
-  std::vector<float> _stateRescalingSdevs;
+  std::vector<std::vector<float>> _stateRescalingSdevs;
 
   /**
    * @brief Contains the feature rescaling means

@@ -165,7 +165,7 @@ class Hamiltonian
     else
       bayesianProblemPtr->evaluateGradient(sample);
 
-    _currentGradient = sample["grad(logP(x))"].get<std::vector<double>>();
+    _currentGradient = KORALI_GET(std::vector<double>, sample, "grad(logP(x))");
   }
 
   /**

@@ -14,8 +14,8 @@ On Piz Daint:
 
 .. code-block:: bash
 
-	module load module load daint-gpu GSL cray-hdf5-parallel cray-fftw cray-python
-	export GSL_ROOT=/apps/dom/UES/jenkins/7.0.UP02/gpu/easybuild/software/GSL/2.5-CrayGNU-20.11
+        module load daint-gpu GSL/2.7-CrayGNU-21.09 cray-hdf5-parallel cray-fftw cray-python
+	export GSL_ROOT=/apps/dom/UES/jenkins/7.0.UP03/21.09/dom-gpu/software/GSL/2.7-CrayGNU-21.09
 	export MPICXX=CC
 	export CC=cc
 	export CXX=CC
@@ -25,7 +25,7 @@ On Panda/Falcon:
 
 .. code-block:: bash
 
-  	module load gsl gnu mpich python hdf5
+  	module load gnu mpich python hdf5
   	export GSL_ROOT=/usr
 
 Setup

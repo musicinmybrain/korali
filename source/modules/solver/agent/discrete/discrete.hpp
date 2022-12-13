@@ -91,7 +91,7 @@ class Discrete : public Agent
   * @param policyHyperparameter The neural network policy hyperparameter.
   * @return The log probability of the trajectory.
   */
-  virtual float evaluateTrajectoryLogProbability(const std::vector<std::vector<float>> &states, const std::vector<std::vector<float>> &actions, const std::vector<float> &policyHyperparameter) override;
+  virtual float evaluateTrajectoryLogProbability(const std::vector<std::vector<std::vector<float>>> &states, const std::vector<std::vector<std::vector<float>>> &actions, const std::vector<float> &policyHyperparameter) override;
 
   /**
   * @brief Evaluates the log probability of a trajectory given observed action frequencies.
@@ -99,7 +99,7 @@ class Discrete : public Agent
   * @param actions Vector of actions in the trajectory.
   * @return The log probability of the trajectory.
   */
-  virtual float evaluateTrajectoryLogProbabilityWithObservedPolicy(const std::vector<std::vector<float>> &states, const std::vector<std::vector<float>> &actions) override;
+  virtual float evaluateTrajectoryLogProbabilityWithObservedPolicy(const std::vector<std::vector<std::vector<float>>> &states, const std::vector<std::vector<std::vector<float>>> &actions) override;
 
   void getAction(korali::Sample &sample) override;
 

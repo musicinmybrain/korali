@@ -25,7 +25,7 @@ e = korali.Experiment()
 e["Problem"]["Type"] = "Supervised Learning"
 e["Problem"]["Max Timesteps"] = 1
 e["Problem"]["Training Batch Size"] = trainingBatchSize
-e["Problem"]["Inference Batch Size"] = testBatchSize
+e["Problem"]["Testing Batch Size"] = testBatchSize
 
 e["Problem"]["Input"]["Data"] = trainingInputSet
 e["Problem"]["Input"]["Size"] = 1
@@ -35,8 +35,8 @@ e["Problem"]["Solution"]["Size"] = 1
 ### Using a neural network solver (deep learning) for inference
 
 e["Solver"]["Type"] = "DeepSupervisor"
+e["Solver"]["Mode"] = "Training"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
-e["Solver"]["Steps Per Generation"] = 200
 e["Solver"]["Learning Rate"] = 0.005
 e["Solver"]["L2 Regularization"]["Enabled"] = True
 e["Solver"]["L2 Regularization"]["Importance"] = 0.05
@@ -72,22 +72,34 @@ e["Random Seed"] = 0xC0FFEE
 
 ### Training the neural network
 
-e["Solver"]["Termination Criteria"]["Max Generations"] = 1000
+e["Solver"]["Termination Criteria"]["Max Generations"] = 5000
 k.run(e)
 
 ### Obtaining inferred results from the NN and comparing them to the actual solution
 
 testInputSet = np.random.uniform(0, 2 * np.pi, testBatchSize)
-testOutputSet = np.tanh(np.exp(np.sin(testInputSet))) * scaling
-testInferredSet = e.getEvaluation([ [ [ x ] ] for x in testInputSet.tolist() ])
+testInputSet = [ [ [ i ] ] for i in testInputSet.tolist() ]
+testOutputSet = [ x[0][0] for x in np.tanh(np.exp(np.sin(testInputSet))) * scaling ]
 
+e["Solver"]["Mode"] = "Testing"
+e["Problem"]["Input"]["Data"] = testInputSet
+e["Solver"]["Termination Criteria"]["Target Loss"] = 0
+
+### Running Testing and getting results
+k.run(e)
+testInferredSet = [ x[0] for x in e["Solver"]["Evaluation"] ]
+    
 ### Calc MSE on test set
-
-testInferredSet = [ x[0] for x in testInferredSet ]
 mse = np.mean((np.array(testInferredSet) - np.array(testOutputSet))**2)
 print("MSE on test set: {}".format(mse))
 
-if (mse > testMSEThreshold):
- print("Fail: MSE does not satisfy threshold: " + str(testMSEThreshold))
+if (mse > 0.1):
+ print("Fail: MSE does not satisfy threshold: " + str(0.1))
  exit(-1)
 
+ ### Plotting Results
+
+ #if (args.plot):
+ # plt.plot(testInputSet, testOutputSet, "o")
+ # plt.plot(testInputSet, testInferredSet, "x")
+ # plt.show()

@@ -41,6 +41,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: install dependencies
+          command: pip install seaborn
+      - run:
           name: config
           command: CC=<< parameters.CC >> CXX=<< parameters.CXX >> meson setup build --prefix=~/test_install -Donednn_path=/usr/local -Dmpi=<< parameters.useMPI >>  -Dmpi4py=<< parameters.useMPI4Py >> --buildtype=<< parameters.buildtype >> -Db_coverage=<< parameters.runCoverage >> -Dtest=<< parameters.runTests >>
       - run:
@@ -48,7 +51,7 @@ jobs:
           command: ninja -C build
       - run:
           name: test
-          command: source tools/env/set_env.sh build; if [ "<< parameters.runTests >>" == "true" ]; then MESON_TESTTHREADS=`nproc` OMP_NUM_THREADS=2 meson test -C build; fi
+          command: if [ "<< parameters.runTests >>" == "true" ]; then source tools/env/set_env.sh build; MESON_TESTTHREADS=`nproc` OMP_NUM_THREADS=2 meson test -C build; fi;
       - run:
           name: install
           command: meson install -C build
@@ -68,6 +71,7 @@ workflows:
           image: ubuntu_openmpi_onednn
           buildtype: release
           runCoverage: 'true'
+          runTests: 'false'
           useMPI: 'true'
           useMPI4Py: 'true'
       - build:
@@ -75,6 +79,7 @@ workflows:
           image: fedora_openmpi_onednn
           buildtype: release
           runCoverage: 'false'
+          runTests: 'true'
           useMPI: 'true'
           useMPI4Py: 'false'
       - build:
@@ -82,6 +87,7 @@ workflows:
           image: ubuntu_openmpi_onednn
           buildtype: release
           runCoverage: 'false'
+          runTests: 'true'
           CC: 'clang'
           CXX: 'clang++'
           useMPI: 'true'
@@ -91,5 +97,6 @@ workflows:
           image: fedora_openmpi_onednn
           buildtype: release
           runCoverage: 'false'
+          runTests: 'true'
           useMPI: 'true'
           useMPI4Py: 'false'

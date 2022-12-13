@@ -34,6 +34,7 @@ void threadWrapper()
 {
   auto e = __expPointer;
   e->run();
+
   co_switch(e->_engine->_thread);
   KORALI_LOG_ERROR("Trying to continue finished Experiment thread.\n");
 }
@@ -216,18 +217,6 @@ void Experiment::finalize()
   if (_isInitialized == true) co_delete(_thread);
   delete _logger;
   delete _problem;
-}
-
-std::vector<std::vector<float>> Experiment::getEvaluation(const std::vector<std::vector<std::vector<float>>> &inputBatch)
-{
-  // First check that the experiment has been initialized.
-  if (_isInitialized == false) initialize();
-
-  auto supervisor = dynamic_cast<solver::DeepSupervisor *>(_k->_solver);
-  if (supervisor != NULL)
-    return supervisor->getEvaluation(inputBatch);
-  else
-    KORALI_LOG_ERROR("This solver does not support evaluation operations.\n");
 }
 
 knlohmann::json &Experiment::operator[](const std::string &key) { return _js[key]; }

@@ -13,10 +13,6 @@ void SupervisedLearning::initialize()
   if (_maxTimesteps == 0) KORALI_LOG_ERROR("Incorrect max timesteps provided: %lu.\n", _maxTimesteps);
   if (_inputSize == 0) KORALI_LOG_ERROR("Empty input vector size provided.\n");
   if (_solutionSize == 0) KORALI_LOG_ERROR("Empty solution vector size provided.\n");
-
-  // Preallocating training batch inputs
-  _inputData.resize(_trainingBatchSize);
-  _solutionData.resize(_trainingBatchSize);
 }
 
 void SupervisedLearning::verifyData()
@@ -72,6 +68,15 @@ void SupervisedLearning::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Inference Batch Size");
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Inference Batch Size'] required by supervisedLearning.\n"); 
+
+ if (isDefined(js, "Testing Batch Size"))
+ {
+ try { _testingBatchSize = js["Testing Batch Size"].get<size_t>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ supervisedLearning ] \n + Key:    ['Testing Batch Size']\n%s", e.what()); } 
+   eraseValue(js, "Testing Batch Size");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Testing Batch Size'] required by supervisedLearning.\n"); 
 
  if (isDefined(js, "Max Timesteps"))
  {
@@ -139,6 +144,7 @@ void SupervisedLearning::getConfiguration(knlohmann::json& js)
  js["Type"] = _type;
    js["Training Batch Size"] = _trainingBatchSize;
    js["Inference Batch Size"] = _inferenceBatchSize;
+   js["Testing Batch Size"] = _testingBatchSize;
    js["Max Timesteps"] = _maxTimesteps;
    js["Input"]["Data"] = _inputData;
    js["Input"]["Size"] = _inputSize;

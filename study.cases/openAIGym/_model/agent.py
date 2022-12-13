@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import sys
 import gym
 import numpy as np
@@ -12,29 +11,41 @@ if (gym.__version__ != "0.26.2"):
     sys.exit()
 
 def initEnvironment(e, envName, excludePositions, moviePath = ''):
-
+ 
  # Creating environment 
  
  if (envName == 'Reacher-v4'):
   env = gym.make(envName)
  else:
   env = gym.make(envName, exclude_current_positions_from_observation=excludePositions)
- 
+
+from packaging.version import parse as parse_version
+oldEnv = parse_version(gym.__version__) < parse_version('0.26.0')
+
+from HumanoidWrapper import HumanoidWrapper
+from AntWrapper import AntWrapper
+
+def initEnvironment(e, envName, moviePath = ''):
+
+ # Creating environment
+
+ env = gym.make(envName)
+
  # Handling special cases
- 
+
  if (envName == 'Humanoid-v2'):
   env = HumanoidWrapper(env)
-  
+
  if (envName == 'HumanoidStandup-v2'):
   env = HumanoidWrapper(env)
-  
+
  if (envName == 'Ant-v2'):
   env = AntWrapper(env)
-  
+
  # Re-wrapping if saving a movie
  if (moviePath != ''):
   env = gym.wrappers.Monitor(env, moviePath, force=True)
- 
+
  ### Defining problem configuration for openAI Gym environments
  e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
  e["Problem"]["Environment Function"] = lambda x : agent(x, env, excludePositions)

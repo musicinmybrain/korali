@@ -136,7 +136,7 @@ class cBuffer
   * @param pos The access position
   * @return The element corresponding to the position
   */
-  T &operator[](size_t pos)
+  T &operator[](size_t pos) const
   {
     return _data[(_start + pos) % _maxSize];
   }

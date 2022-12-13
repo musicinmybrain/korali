@@ -120,6 +120,7 @@ void CMAES::setInitialConfiguration()
     {
       if (std::isfinite(_k->_variables[i]->_lowerBound) == false) KORALI_LOG_ERROR("'Initial Value' of variable \'%s\' not defined, and cannot be inferred because variable lower bound is not finite.\n", _k->_variables[i]->_name.c_str());
       if (std::isfinite(_k->_variables[i]->_upperBound) == false) KORALI_LOG_ERROR("'Initial Value' of variable \'%s\' not defined, and cannot be inferred because variable upper bound is not finite.\n", _k->_variables[i]->_name.c_str());
+      if (_k->_variables[i]->_lowerBound >= _k->_variables[i]->_upperBound) KORALI_LOG_ERROR("Lower bound of variable \'%s\' is not strictly smaller than upper bound.\n", _k->_variables[i]->_name.c_str());
       _k->_variables[i]->_initialValue = (_k->_variables[i]->_upperBound + _k->_variables[i]->_lowerBound) * 0.5;
     }
 
@@ -127,6 +128,7 @@ void CMAES::setInitialConfiguration()
     {
       if (std::isfinite(_k->_variables[i]->_lowerBound) == false) KORALI_LOG_ERROR("Initial (Mean) Value of variable \'%s\' not defined, and cannot be inferred because variable lower bound is not finite.\n", _k->_variables[i]->_name.c_str());
       if (std::isfinite(_k->_variables[i]->_upperBound) == false) KORALI_LOG_ERROR("Initial Standard Deviation \'%s\' not defined, and cannot be inferred because variable upper bound is not finite.\n", _k->_variables[i]->_name.c_str());
+      if (_k->_variables[i]->_lowerBound >= _k->_variables[i]->_upperBound) KORALI_LOG_ERROR("Lower bound of variable \'%s\' is not strictly smaller than upper bound.\n", _k->_variables[i]->_name.c_str());
       _k->_variables[i]->_initialStandardDeviation = (_k->_variables[i]->_upperBound - _k->_variables[i]->_lowerBound) * 0.3;
     }
   }
@@ -553,7 +555,11 @@ void CMAES::updateDistribution()
   {
     _bestValidSample = -1;
     for (size_t i = 0; i < _currentPopulationSize; i++)
-      if (_sampleConstraintViolationCounts[_sortingIndex[i]] == 0) _bestValidSample = _sortingIndex[i];
+      if (_sampleConstraintViolationCounts[_sortingIndex[i]] == 0)
+      {
+        _bestValidSample = _sortingIndex[i];
+        break;
+      }
   }
 
   /* update function value history */
@@ -756,7 +762,7 @@ void CMAES::updateSigma()
 
 void CMAES::numericalErrorTreatment()
 {
-  //treat minimal standard deviations
+  // treat minimal standard deviations
   for (size_t d = 0; d < _variableCount; ++d)
     if (_sigma * sqrt(_covarianceMatrix[d * _variableCount + d]) < _k->_variables[d]->_minimumStandardDeviationUpdate)
     {
@@ -800,7 +806,7 @@ void CMAES::handleConstraints()
 
     updateEigensystem(_auxiliarCovarianceMatrix);
 
-    //resample invalid points
+    // resample invalid points
     for (size_t i = 0; i < _currentPopulationSize; ++i)
       if (_sampleConstraintViolationCounts[i] > 0)
       {

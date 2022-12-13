@@ -279,7 +279,7 @@ void Recurrent::backwardHyperparameters(const size_t t)
 #endif
 }
 
-void Recurrent::setHyperparameters(float *hyperparameters)
+void Recurrent::setHyperparameters(const float *hyperparameters)
 {
 #ifdef _KORALI_USE_ONEDNN
   if (_nn->_engine == "OneDNN")

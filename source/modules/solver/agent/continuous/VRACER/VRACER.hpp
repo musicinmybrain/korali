@@ -32,10 +32,6 @@ namespace continuous
 class VRACER : public Continuous
 {
   public: 
-  /**
-  * @brief [Internal Use] Standard deviation of the actions in the minibatch.
-  */
-   std::vector<float> _statisticsAverageActionSigmas;
   
  
   /**
@@ -65,21 +61,6 @@ class VRACER : public Continuous
   
 
   /**
-   * @brief Pointer to training the actor network
-   */
-  DeepSupervisor *_criticPolicyLearner;
-
-  /**
-   * @brief Korali experiment for obtaining the agent's action
-   */
-  korali::Experiment _criticPolicyExperiment;
-
-  /**
-   * @brief Pointer to actor's experiment problem
-   */
-  problem::SupervisedLearning *_criticPolicyProblem;
-
-  /**
    * @brief Update the V-target or current and previous experiences in the episode
    * @param expId Current Experience Id
    */
@@ -88,30 +69,23 @@ class VRACER : public Continuous
   /**
    * @brief Calculates the gradients for the policy/critic neural network
    * @param miniBatch The indexes of the experience mini batch
+   * @param policyIdx The indexes of the policy to compute the gradient for
    */
-  void calculatePolicyGradients(const std::vector<size_t> &miniBatch);
+  void calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx);
 
-  std::vector<policy_t> runPolicy(const std::vector<std::vector<std::vector<float>>> &stateBatch) override;
+  float calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx = 0) override;
 
-  /**
-   * @brief [Statistics] Keeps track of the max policy mu of the current minibatch for each action variable
-   */
-  std::vector<float> _maxMiniBatchPolicyMean;
+  void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) override;
 
   /**
-   * @brief [Statistics] Keeps track of the max policy sigma of the current minibatch for each action variable
+   * @brief [Statistics] Keeps track of the mu of the current minibatch for each action variable
    */
-  std::vector<float> _maxMiniBatchPolicyStdDev;
+  std::vector<float> _miniBatchPolicyMean;
 
   /**
-   * @brief [Statistics] Keeps track of the min policy mu of the current minibatch for each action variable
+   * @brief [Statistics] Keeps track of the sigma of the current minibatch for each action variable
    */
-  std::vector<float> _minMiniBatchPolicyMean;
-
-  /**
-   * @brief [Statistics] Keeps track of the min policy sigma of the current minibatch for each action variable
-   */
-  std::vector<float> _minMiniBatchPolicyStdDev;
+  std::vector<float> _miniBatchPolicyStdDev;
 
   knlohmann::json getPolicy() override;
   void setPolicy(const knlohmann::json &hyperparameters) override;

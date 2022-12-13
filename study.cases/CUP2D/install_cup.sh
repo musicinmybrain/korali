@@ -2,8 +2,10 @@
 
 rm -rf _deps
 
-# clone CUP
-git clone -b amr2 --recursive git@gitlab.ethz.ch:mavt-cse/CubismUP_2D.git _deps/CUP-2D
+# clone / compile CUP2D
+git clone -b amr-mpi --recursive git@github.com:cselab/CUP2D.git _deps/CUP-2D
+make gpu=true -C _deps/CUP-2D/makefiles -j
 
-make -C _deps/CUP-2D/makefiles -j
-
+# clone / compile CUP3D
+# git clone -b AMR --recursive git@github.com:cselab/CUP3D.git _deps/CUP-3D
+# make -C _deps/CUP-3D/makefiles -j

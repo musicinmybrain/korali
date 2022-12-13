@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os
 import sys
+import shutil as sh
 import numpy as np
 import matplotlib.pyplot as plt
 import time
@@ -17,7 +18,7 @@ parser.add_argument(
 parser.add_argument(
     '--maxGenerations',
     help='Maximum Number of generations to run',
-    default=10,
+    default=2000,
     required=False)    
 parser.add_argument(
     '--optimizer',
@@ -70,18 +71,18 @@ e = korali.Experiment()
 e["Problem"]["Type"] = "Supervised Learning"
 e["Problem"]["Max Timesteps"] = 1
 e["Problem"]["Training Batch Size"] = args.trainingBatchSize
-e["Problem"]["Inference Batch Size"] = args.testBatchSize
+e["Problem"]["Testing Batch Size"] = args.testBatchSize
 
 e["Problem"]["Input"]["Data"] = trainingInputSet
 e["Problem"]["Input"]["Size"] = 1
 e["Problem"]["Solution"]["Data"] = trainingSolutionSet
 e["Problem"]["Solution"]["Size"] = 1
 
-### Using a neural network solver (deep learning) for inference
+### Using a neural network solver (deep learning) for training
 
 e["Solver"]["Type"] = "DeepSupervisor"
+e["Solver"]["Mode"] = "Training"
 e["Solver"]["Loss Function"] = "Mean Squared Error"
-e["Solver"]["Steps Per Generation"] = 200
 e["Solver"]["Learning Rate"] = float(args.learningRate)
 
 ### Defining the shape of the neural network
@@ -103,9 +104,15 @@ e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tan
 
 ### Configuring output
 
-e["Console Output"]["Frequency"] = 1
-e["File Output"]["Enabled"] = False
+e["Console Output"]["Frequency"] = 10
+e["File Output"]["Enabled"] = True
+e["File Output"]["Use Multiple Files"] = False
 e["Random Seed"] = 0xC0FFEE
+
+### Delete old results
+
+if os.path.exists("_korali_result"):
+ sh.rmtree("_korali_result")
 
 ### Training the neural network
 
@@ -115,22 +122,24 @@ k.run(e)
 ### Obtaining inferred results from the NN and comparing them to the actual solution
 
 testInputSet = np.random.uniform(0, 2 * np.pi, args.testBatchSize)
-testOutputSet = np.tanh(np.exp(np.sin(testInputSet))) * scaling
-testInferredSet = e.getEvaluation([ [ [ x ] ] for x in testInputSet.tolist() ])
+testInputSet = [ [ [ i ] ] for i in testInputSet.tolist() ]
+testOutputSet = [ x[0][0] for x in np.tanh(np.exp(np.sin(testInputSet))) * scaling ]
 
+e["Solver"]["Mode"] = "Testing"
+e["Problem"]["Input"]["Data"] = testInputSet
+
+### Running Testing and getting results
+k.run(e)
+testInferredSet = [ x[0] for x in e["Solver"]["Evaluation"] ]
+
+    
 ### Calc MSE on test set
-
-testInferredSet = [ x[0] for x in testInferredSet ]
 mse = np.mean((np.array(testInferredSet) - np.array(testOutputSet))**2)
 print("MSE on test set: {}".format(mse))
 
-if (mse > args.testMSEThreshold):
- print("Fail: MSE does not satisfy threshold: " + str(args.testMSEThreshold))
- exit(-1)
+ ### Plotting Results
 
-### Plotting Results
-
-if (args.plot):
- plt.plot(testInputSet, testOutputSet, "o")
- plt.plot(testInputSet, testInferredSet, "x")
- plt.show()
+ #if (args.plot):
+ # plt.plot(testInputSet, testOutputSet, "o")
+ # plt.plot(testInputSet, testInferredSet, "x")
+ # plt.show()

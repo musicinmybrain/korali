@@ -86,9 +86,9 @@ struct reaction_t
 */
 class Reaction : public Problem
 {
-  /** 
- * Class for the reaction problem type based on the implementation by Luca Amoudruz https://github.com/amlucas/SSM
- */
+  /**
+   * Class for the reaction problem type based on the implementation by Luca Amoudruz https://github.com/amlucas/SSM
+   */
 
   public: 
   /**

@@ -225,7 +225,7 @@ class Layer : public Module
    * @brief Updates layer's hyperparameters (e.g., weights and biases)
    * @param hyperparameters (Input) Pointer to read the hyperparameters from.
    */
-  virtual void setHyperparameters(float *hyperparameters){};
+  virtual void setHyperparameters(const float *hyperparameters){};
 
   /**
    * @brief Gets layer's hyperparameters (e.g., weights and biases)

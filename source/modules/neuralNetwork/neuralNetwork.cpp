@@ -185,14 +185,18 @@ void NeuralNetwork::initialize()
 
 std::vector<float> NeuralNetwork::generateInitialHyperparameters()
 {
-  // Setting initial values for hyperparameters
+  // Empty storage for hyperparameters
   std::vector<float> initialHyperparameters;
 
+  // Initialize hyperparameters layer by layer
   for (size_t i = 0; i < _pipelines[0][0]._layerVector.size(); i++)
   {
     auto layerParameters = _pipelines[0][0]._layerVector[i]->generateInitialHyperparameters();
     initialHyperparameters.insert(initialHyperparameters.end(), layerParameters.begin(), layerParameters.end());
   }
+
+  // Set hyperparameters in neural network
+  setHyperparameters(initialHyperparameters);
 
   return initialHyperparameters;
 }
@@ -288,12 +292,13 @@ void NeuralNetwork::backward(const std::vector<std::vector<float>> &outputGradie
 
   // First, re-setting all output gradients to zero
   std::fill(p->_rawOutputGradients.begin(), p->_rawOutputGradients.end(), 0.0f);
-
 // To store the gradients in the NN we place them on the last input timestep
 #pragma omp parallel for
   for (size_t b = 0; b < N; b++)
     for (size_t i = 0; i < OC; i++)
+    {
       p->_rawOutputGradients[p->_inputBatchLastStep[b] * N * OC + b * OC + i] = outputGradients[b][i];
+    }
 
   // Resetting cumulative hyperparameter gradients
   std::fill(p->_hyperparameterGradients.begin(), p->_hyperparameterGradients.end(), 0.0f);
@@ -399,17 +404,17 @@ std::vector<float> &NeuralNetwork::getHyperparameterGradients(const size_t batch
 
 std::vector<float> NeuralNetwork::getHyperparameters()
 {
-  auto params = std::vector<float>(_hyperparameterCount);
+  auto hyperparameters = std::vector<float>(_hyperparameterCount);
 
   size_t layerCount = _pipelines[0][0]._layerVector.size();
 
   for (size_t i = 0; i < layerCount; i++)
   {
     auto index = _pipelines[0][0]._layerVector[i]->_hyperparameterIndex;
-    _pipelines[0][0]._layerVector[i]->getHyperparameters(&params[index]);
+    _pipelines[0][0]._layerVector[i]->getHyperparameters(&hyperparameters[index]);
   }
 
-  return params;
+  return hyperparameters;
 }
 
 void NeuralNetwork::setHyperparameters(const std::vector<float> &hyperparameters)
@@ -417,14 +422,12 @@ void NeuralNetwork::setHyperparameters(const std::vector<float> &hyperparameters
   if (hyperparameters.size() != _hyperparameterCount)
     KORALI_LOG_ERROR("Wrong number of hyperparameters passed to the neural network. Expected: %lu, provided: %lu.\n", _hyperparameterCount, hyperparameters.size());
 
-  auto params = std::vector<float>(hyperparameters.begin(), hyperparameters.end());
-
   size_t layerCount = _pipelines[0][0]._layerVector.size();
 
   for (size_t i = 0; i < layerCount; i++)
   {
     auto index = _pipelines[0][0]._layerVector[i]->_hyperparameterIndex;
-    _pipelines[0][0]._layerVector[i]->setHyperparameters(&params[index]);
+    _pipelines[0][0]._layerVector[i]->setHyperparameters(&hyperparameters[index]);
   }
 }
 
@@ -529,7 +532,7 @@ void NeuralNetwork::getConfiguration(knlohmann::json& js)
 void NeuralNetwork::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Engine\": \"Korali\", \"Input Values\": [], \"Batch Sizes\": [], \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": -1.0, \"Maximum\": 1.0}}";
+ std::string defaultString = "{\"Engine\": \"Korali\", \"Input Values\": [], \"Batch Sizes\": [], \"Uniform Generator\": {\"Name\": \"Neural Network / Uniform Generator\", \"Type\": \"Univariate/Uniform\", \"Minimum\": -1.0, \"Maximum\": 1.0}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Module::applyModuleDefaults(js);

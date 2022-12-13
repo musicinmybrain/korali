@@ -26,8 +26,8 @@ namespace
    // Using a neural network solver (deep learning) for inference
 
    supervisorJs["Type"] = "DeepSupervisor";
+   supervisorJs["Mode"] = "Training";
    supervisorJs["Loss Function"] = "Mean Squared Error";
-   supervisorJs["Steps Per Generation"] = 200;
    supervisorJs["Learning Rate"] = 0.0001;
 
    // Defining the shape of the neural network
@@ -164,21 +164,6 @@ namespace
 
    supervisorJs = baseOptJs;
    experimentJs = baseExpJs;
-   supervisorJs.erase("Hyperparameters");
-   ASSERT_ANY_THROW(supervisor->setConfiguration(supervisorJs));
-
-   supervisorJs = baseOptJs;
-   experimentJs = baseExpJs;
-   supervisorJs["Hyperparameters"] = "Not a Number";
-   ASSERT_ANY_THROW(supervisor->setConfiguration(supervisorJs));
-
-   supervisorJs = baseOptJs;
-   experimentJs = baseExpJs;
-   supervisorJs["Hyperparameters"] = std::vector<float>({0.0});
-   ASSERT_NO_THROW(supervisor->setConfiguration(supervisorJs));
-
-   supervisorJs = baseOptJs;
-   experimentJs = baseExpJs;
    supervisorJs.erase("Loss Function");
    ASSERT_ANY_THROW(supervisor->setConfiguration(supervisorJs));
 
@@ -190,21 +175,6 @@ namespace
    supervisorJs = baseOptJs;
    experimentJs = baseExpJs;
    supervisorJs["Loss Function"] = "Direct Gradient";
-   ASSERT_NO_THROW(supervisor->setConfiguration(supervisorJs));
-
-   supervisorJs = baseOptJs;
-   experimentJs = baseExpJs;
-   supervisorJs.erase("Steps Per Generation");
-   ASSERT_ANY_THROW(supervisor->setConfiguration(supervisorJs));
-
-   supervisorJs = baseOptJs;
-   experimentJs = baseExpJs;
-   supervisorJs["Steps Per Generation"] = "Not a Number";
-   ASSERT_ANY_THROW(supervisor->setConfiguration(supervisorJs));
-
-   supervisorJs = baseOptJs;
-   experimentJs = baseExpJs;
-   supervisorJs["Steps Per Generation"] = 10;
    ASSERT_NO_THROW(supervisor->setConfiguration(supervisorJs));
 
    supervisorJs = baseOptJs;

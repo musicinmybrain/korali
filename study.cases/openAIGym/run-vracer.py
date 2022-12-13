@@ -23,6 +23,7 @@ excludePos = False
 ####### Defining Korali Problem
 
 import korali
+
 k = korali.Engine()
 e = korali.Experiment()
 
@@ -31,6 +32,10 @@ e = korali.Experiment()
 dis_dir = args.dis.replace(" ","_")
 resultFolder = f'_result_vracer_{args.env}_{args.run}/'
 e.loadState(resultFolder + '/latest')
+
+### Set random seed
+
+e["Random Seed"] = 0xC0FEE
 
 ### Initializing openAI Gym environment
 
@@ -58,16 +63,16 @@ e["Solver"]["Experience Replay"]["Off Policy"]["Cutoff Scale"] = 4.0
 e["Solver"]["Experience Replay"]["Off Policy"]["REFER Beta"] = 0.3
 e["Solver"]["Experience Replay"]["Off Policy"]["Target"] = args.opt
 
+e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
+e["Solver"]['Neural Network']['Optimizer'] = "Adam"
+e["Solver"]["L2 Regularization"]["Enabled"] = args.l2 > 0.
+e["Solver"]["L2 Regularization"]["Importance"] = args.l2
+
 e["Solver"]["Policy"]["Distribution"] = args.dis
 e["Solver"]["State Rescaling"]["Enabled"] = True
 e["Solver"]["Reward"]["Rescaling"]["Enabled"] = True
   
 ### Configuring the neural network and its hidden layers
-
-e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
-e["Solver"]['Neural Network']['Optimizer'] = "Adam"
-e["Solver"]["L2 Regularization"]["Enabled"] = args.l2 > 0.
-e["Solver"]["L2 Regularization"]["Importance"] = args.l2
 
 e["Solver"]["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear"
 e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 128
