@@ -223,17 +223,17 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
   for (size_t b = 0; b < miniBatchSize; b++)
   {
     // Getting index of current experiment
-    const size_t expId = miniBatch[b].first;
-    const size_t agentId = miniBatch[b].second;
+    const size_t &expId = miniBatch[b].first;
+    const size_t &agentId = miniBatch[b].second;
 
     // Get policy and action for this experience
-    auto expPolicy = _expPolicyBuffer[expId][agentId];
+    const auto &expPolicy = _expPolicyBuffer[expId][agentId];
     const auto &expAction = _actionBuffer[expId][agentId];
 
     // Gathering metadata
-    const auto stateValue = _stateValueBufferContiguous[expId * numAgents + agentId];
-    auto curPolicy = _curPolicyBuffer[expId][agentId];
-    const auto expVtbc = _retraceValueBufferContiguous[expId * numAgents + agentId];
+    const auto &stateValue = _stateValueBufferContiguous[expId * numAgents + agentId];
+    const auto &curPolicy = _curPolicyBuffer[expId][agentId];
+    const auto &expVtbc = _retraceValueBufferContiguous[expId * numAgents + agentId];
 
     // Storage for the update gradient
     std::vector<float> gradientLoss(1 + _policyParameterCount, 0.0f);
@@ -273,7 +273,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       // If experience is truncated, add truncated state value
       if (_terminationBuffer[expId] == e_truncated)
       {
-        const float nextExpVtbc = _truncatedStateValueBuffer[expId][agentId];
+        const float &nextExpVtbc = _truncatedStateValueBuffer[expId][agentId];
         Qret += _discountFactor * nextExpVtbc;
       }
 
@@ -281,7 +281,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       const float lossOffPolicy = Qret - stateValue;
 
       // Cumulate policy loss
-      const float importanceWeight = _importanceWeightBuffer[expId][agentId];
+      const float &importanceWeight = _importanceWeightBuffer[expId][agentId];
       _policyLoss += importanceWeight * (Qret - stateValue);
 
       // Compute Off-Policy Gradient
@@ -305,8 +305,8 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
           for (size_t i = 0; i < _problem->_actionVectorSize; i++)
           {
             // Get distribution parameter from predictive posterior policy
-            const float mean = curPolicy.distributionParameters[i];
-            const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+            const float &mean = curPolicy.distributionParameters[i];
+            const float &sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
             const float invSigma = 1 / sigma;
 
             // Get sigma for current hyperparameters
@@ -341,22 +341,8 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       }
     }
 
-    // Switch distributionParameters and currentDistributionParameters (containing Gaussian approximation of predictive posterior)
-    if( _minimalApproximation )
-    {
-      expPolicy.distributionParameters.swap(expPolicy.currentDistributionParameters);
-      curPolicy.distributionParameters.swap(curPolicy.currentDistributionParameters);
-    }
-
     // Compute derivative of KL divergence
     auto klGrad = calculateKLDivergenceGradient(expPolicy, curPolicy);
-
-    // Switch back distributionParameters and currentDistributionParameters
-    if( _minimalApproximation )
-    {
-      expPolicy.distributionParameters.swap(expPolicy.currentDistributionParameters);
-      curPolicy.distributionParameters.swap(curPolicy.currentDistributionParameters);
-    }
 
     // Compute factor for KL penalization
     const float klGradMultiplier = -(1.0f - _experienceReplayOffPolicyREFERCurrentBeta[agentId]);
@@ -385,8 +371,8 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
           for (size_t i = 0; i < _problem->_actionVectorSize; i++)
           {
             // Get distribution parameter from predictive posterior policy
-            const float mean = curPolicy.distributionParameters[i];
-            const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+            const float &mean = curPolicy.distributionParameters[i];
+            const float &sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
             const float invSigma = 1 / sigma;
 
             // Get sigma for current hyperparameters

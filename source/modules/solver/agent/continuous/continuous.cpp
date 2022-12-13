@@ -798,6 +798,15 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
 
 std::vector<float> Continuous::calculateKLDivergenceGradient(const policy_t &oldPolicy, const policy_t &curPolicy)
 {
+  // Get distribution parameters
+  auto curDistributionParameters = curPolicy.distributionParameters;
+  auto oldDistributionParameters = oldPolicy.distributionParameters;
+  if( _minimalApproximation )
+  {
+    curDistributionParameters = curPolicy.currentDistributionParameters;
+    oldDistributionParameters = oldPolicy.currentDistributionParameters;
+  }
+
   // Storage for KL Divergence Gradients
   std::vector<float> KLDivergenceGradients(_policyParameterCount, 0.0);
 
@@ -806,10 +815,10 @@ std::vector<float> Continuous::calculateKLDivergenceGradient(const policy_t &old
     for (size_t i = 0; i < _problem->_actionVectorSize; ++i)
     {
       // Getting parameters from the new and old policies
-      const float oldMean = oldPolicy.distributionParameters[i];
-      const float oldSigma = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
-      const float curMean = curPolicy.distributionParameters[i];
-      const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+      const float oldMean = oldDistributionParameters[i];
+      const float oldSigma = oldDistributionParameters[_problem->_actionVectorSize + i];
+      const float curMean = curDistributionParameters[i];
+      const float curSigma = curDistributionParameters[_problem->_actionVectorSize + i];
 
       const float curInvSig = 1. / curSigma;
       const float curInvVar = 1. / (curSigma * curSigma);
@@ -838,10 +847,10 @@ std::vector<float> Continuous::calculateKLDivergenceGradient(const policy_t &old
     for (size_t i = 0; i < _problem->_actionVectorSize; ++i)
     {
       // Getting parameters from the new and old policies
-      const float oldMu = oldPolicy.distributionParameters[i];
-      const float oldSigma = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
-      const float curMu = curPolicy.distributionParameters[i];
-      const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+      const float oldMu = oldDistributionParameters[i];
+      const float oldSigma = oldDistributionParameters[_problem->_actionVectorSize + i];
+      const float curMu = curDistributionParameters[i];
+      const float curSigma = curDistributionParameters[_problem->_actionVectorSize + i];
 
       // Precompute often used constant terms
       const float oldVar = oldSigma * oldSigma;
@@ -888,10 +897,10 @@ std::vector<float> Continuous::calculateKLDivergenceGradient(const policy_t &old
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)
     {
       // Getting parameters from the new and old policies
-      const float oldMu = oldPolicy.distributionParameters[i];
-      const float oldSigma = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
-      const float curMu = curPolicy.distributionParameters[i];
-      const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+      const float oldMu = oldDistributionParameters[i];
+      const float oldSigma = oldDistributionParameters[_problem->_actionVectorSize + i];
+      const float curMu = curDistributionParameters[i];
+      const float curSigma = curDistributionParameters[_problem->_actionVectorSize + i];
 
       // Precompute often used constant terms
       const float oldVar = oldSigma * oldSigma;
@@ -978,10 +987,10 @@ std::vector<float> Continuous::calculateKLDivergenceGradient(const policy_t &old
     for (size_t i = 0; i < _problem->_actionVectorSize; ++i)
     {
       // Getting parameters from the new and old policies
-      const float oldMu = oldPolicy.distributionParameters[i];
-      const float oldVariance = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
-      const float curMu = curPolicy.distributionParameters[i];
-      const float curVariance = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+      const float oldMu = oldDistributionParameters[i];
+      const float oldVariance = oldDistributionParameters[_problem->_actionVectorSize + i];
+      const float curMu = curDistributionParameters[i];
+      const float curVariance = curDistributionParameters[_problem->_actionVectorSize + i];
 
       float alphaCur;
       float betaCur;
