@@ -799,13 +799,8 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
 std::vector<float> Continuous::calculateKLDivergenceGradient(const policy_t &oldPolicy, const policy_t &curPolicy)
 {
   // Get distribution parameters
-  auto curDistributionParameters = curPolicy.distributionParameters;
-  auto oldDistributionParameters = oldPolicy.distributionParameters;
-  if( _minimalApproximation )
-  {
-    curDistributionParameters = curPolicy.currentDistributionParameters;
-    oldDistributionParameters = oldPolicy.currentDistributionParameters;
-  }
+  const auto &curDistributionParameters = _minimalApproximation ? curPolicy.currentDistributionParameters : curPolicy.distributionParameters;
+  const auto &oldDistributionParameters = _minimalApproximation ? oldPolicy.currentDistributionParameters : oldPolicy.distributionParameters;
 
   // Storage for KL Divergence Gradients
   std::vector<float> KLDivergenceGradients(_policyParameterCount, 0.0);
