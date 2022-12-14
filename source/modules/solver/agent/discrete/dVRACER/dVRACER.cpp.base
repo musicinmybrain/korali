@@ -319,11 +319,11 @@ void __className__::gaussianPredictivePosteriorDistribution(const std::vector<st
 { // TODO: implement Bayesian Learning for Discrete Environments
 }
 
-void __className__::finalizeGaussianPredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx)
+void __className__::calculatePredictivePosteriorProbabilities(std::vector<float> &action, const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
 {// TODO: implement Bayesian Learning for Discrete Environments
 }
 
-void __className__::calculatePredictivePosteriorProbabilities(std::vector<float> &action, const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
+void __className__::finalizePredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy, const size_t policyIdx)
 {// TODO: implement Bayesian Learning for Discrete Environments
 }
 

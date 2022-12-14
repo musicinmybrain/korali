@@ -96,6 +96,15 @@ const double Min = std::numeric_limits<double>::min();
 const double Eps = std::numeric_limits<double>::epsilon();
 
 /**
+* @brief Returns the sign of a number
+* @param val The number
+* @return The signum of val
+*/
+template <typename T> int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
+}
+
+/**
 * @brief Check if both arguments are approximately equal up to given precision
 * @param a Value a
 * @param b Value b

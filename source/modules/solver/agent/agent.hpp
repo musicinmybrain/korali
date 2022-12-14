@@ -758,14 +758,6 @@ class Agent : public Solver
   virtual void gaussianPredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) = 0;
 
   /**
-   * @brief Function to foward current policy and update currentDistributionParameters
-   * @param stateSequenceBatch  The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
-   * @param predictivePosteriorDistribution The approximate predictive posterior distribution
-   * @param policyIdx Index of the current policy
-   */
-  virtual void finalizeGaussianPredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &predictivePosteriorDistribution, const size_t policyIdx) = 0;
-
-  /**
    * @brief Function to compute the probability under the full predictive posterior distribution and the Gaussian approximation of the predictive posterior distribution during Inference
    * @param action The action [during inference]
    * @param miniBatch The minibatch indices [during training]
@@ -773,6 +765,14 @@ class Agent : public Solver
    * @param policy Vector with policy objects that is filled after forwarding the policy
    */
   virtual void calculatePredictivePosteriorProbabilities(std::vector<float> &action, const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) = 0;
+
+  /**
+   * @brief Function to foward current policy and update currentDistributionParameters
+   * @param stateSequenceBatch  The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
+   * @param curPolicy The approximate predictive posterior distribution
+   * @param policyIdx Index of the current policy
+   */
+  virtual void finalizePredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy, const size_t policyIdx) = 0;
 
   /**
    * @brief Calculates the starting experience index of the time sequence for the selected experience

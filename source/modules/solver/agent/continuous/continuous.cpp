@@ -107,13 +107,10 @@ void Continuous::getAction(korali::Sample &sample)
   for (size_t i = 0; i < _problem->_agentsPerEnvironment; i++)
   {
     // Getting current state
-    auto state = sample["State"][i];
+    const auto &state = sample["State"][i];
 
     // Adding state to the state time sequence
     _stateTimeSequence[i].add(state);
-
-    // Storage for the action to select
-    std::vector<float> action(_problem->_actionVectorSize);
 
     // Forward state sequence to get the Gaussian means and sigmas from policy
     std::vector<policy_t> policy;
@@ -173,6 +170,9 @@ void Continuous::getAction(korali::Sample &sample)
     else
       runPolicy({_stateTimeSequence[i].getVector()}, policy, i);
 
+    // Storage for the action
+    std::vector<float> action;
+
     /*****************************************************************************
      * During Training we select action according to policy's probability
      * distribution
@@ -188,8 +188,8 @@ void Continuous::getAction(korali::Sample &sample)
     if (sample["Mode"] == "Testing") action = generateTestingAction(policy[0]);
 
     /*****************************************************************************
-     * In the minimal approximation, we need to compute the probability of the 
-     * action under the predictive posterior distribution
+     * Compute the probability of the action under 
+     * the predictive posterior distribution
      ****************************************************************************/
 
     if( _minimalApproximation )
@@ -357,7 +357,21 @@ std::vector<float> Continuous::generateTestingAction(const policy_t &curPolicy)
 float Continuous::calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy)
 {
   if( _minimalApproximation )
-    return curPolicy.actionProbabilities[0] / oldPolicy.actionProbabilities[0];
+  {
+    // Read old/current probabilities
+    const float oldProbability = oldPolicy.actionProbabilities[0];
+    const float curProbability = curPolicy.actionProbabilities[0];
+
+    // Compute importance weights
+    float importanceWeight = curProbability / oldProbability;
+
+    // Normalizing extreme values to prevent loss of precision
+    if (std::abs(importanceWeight) > std::exp(+7.f)) importanceWeight = sgn(importanceWeight)*std::exp(+7.f);
+    if (std::abs(importanceWeight) < std::exp(-7.f)) importanceWeight = sgn(importanceWeight)*std::exp(-7.f);
+
+    // Return importance weight
+    return importanceWeight;
+  }
 
   float logpCurPolicy = 0.0f;
   float logpOldPolicy = 0.0f;
@@ -560,11 +574,15 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
   // In "nomal" RL, factor is importance weight to get gradient
   float factor = importanceWeight;
 
-  // Use modified importance weight for minimal approximation
+  // Use modified factor for minimal approximation
   if( _minimalApproximation )
   {
+    // Read old/current probabilities
+    const float oldProbability = oldPolicy.actionProbabilities[0];
     const float curProbability = calculateActionProbability(action, curPolicy);
-    factor = curProbability / oldPolicy.actionProbabilities[0];
+
+    // Compute factor
+    factor = curProbability / oldProbability;
   }
 
   // Storage for importance weight gradients
