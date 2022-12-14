@@ -55,12 +55,12 @@ void ReinforcementLearning::initialize()
 
   if (_actionVectorSize == 0) KORALI_LOG_ERROR("No action variables have been defined.\n");
   if (_stateVectorSize == 0) KORALI_LOG_ERROR("No state variables have been defined.\n");
-  if ((_policiesPerEnvironment != _agentsPerEnvironment) && (_policiesPerEnvironment != 1))
-    KORALI_LOG_ERROR("Number of Policies: %lu is neither 1 nor %lu.\n", _policiesPerEnvironment, _agentsPerEnvironment);
+  if (_policiesPerEnvironment != 1)
+    KORALI_LOG_ERROR("Number of policies %zu is not 1.\n", _policiesPerEnvironment);
 
   // Validating observations
   _numberObservedTrajectories = _observationsStates.size();
-  if (_numberObservedTrajectories == 0) KORALI_LOG_ERROR("No states have been recorded.\n");
+  if (_observationsStates.size() == 0) KORALI_LOG_ERROR("No states have been recorded.\n");
   if (_observationsActions.size() == 0) KORALI_LOG_ERROR("No actions have been recorded.\n");
   if (_observationsFeatures.size() == 0) KORALI_LOG_ERROR("No features have been recorded.\n");
   if (_observationsStates[0].size() == 0) KORALI_LOG_ERROR("Observed states empty.\n");
@@ -68,15 +68,12 @@ void ReinforcementLearning::initialize()
   if (_observationsFeatures[0].size() == 0) KORALI_LOG_ERROR("Observed features empty.\n");
   
 
-  if (_observationsFeatures[0][0].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Mismatch observed agents vs number of agents per environment.\n");
+  if (_observationsStates[0][0].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Mismatch observed agent states vs number of agents per environment.\n");
+  if (_observationsActions[0][0].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Mismatch observed agent actions vs number of agents per environment.\n");
+  if (_observationsFeatures[0][0].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Mismatch observed agent features vs number of agents per environment.\n");
+
   _featureVectorSize = _observationsFeatures[0][0][0].size();
   if (_featureVectorSize == 0) KORALI_LOG_ERROR("No features have been defined.\n");
-
-  if (_observationsActions.size() != _numberObservedTrajectories)
-    KORALI_LOG_ERROR("Number of trajectories mismatch between observed states and observed actions.\n");
-
-  if (_observationsFeatures.size() != _numberObservedTrajectories)
-    KORALI_LOG_ERROR("Number of trajectories mismacht between observed states and observed features.\n");
 
   _totalObservedStateActionPairs = 0;
   for (size_t t = 0; t < _numberObservedTrajectories; ++t)
@@ -181,6 +178,10 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
     finalizeEnvironment();
     return;
   }
+    
+  // Store episode policy
+  auto policy = _agent->getPolicy();
+  episode["Policy Hyperparameters"] = policy["Policy Hyperparameters"];
 
   // Saving experiences
   while (worker["Termination"] == "Non Terminal")
@@ -239,9 +240,6 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
     {
       episode["Experiences"][actionCount]["Truncated State"] = worker["State"];
     }
-
-    // Store episode policy
-    episode["Policy Hyperparameters"] = _agent->getPolicy();
 
     // Increasing counter for generated actions
     actionCount++;
@@ -471,6 +469,10 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
     auto features = KORALI_GET(std::vector<float>, worker, "Features");
     worker._js.getJson().erase("Features");
     worker["Features"][0] = features;
+
+    auto reward = KORALI_GET(float, worker, "Reward");
+    worker._js.getJson().erase("Reward");
+    worker["Reward"][0] = reward;
   }
 
   // Checking correct format of state
@@ -491,6 +493,10 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
 
     for (size_t j = 0; j < _stateVectorSize; j++)
       if (std::isfinite(worker["State"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu state variable %lu returned an invalid value: %f\n", i, j, worker["State"][i][j].get<float>());
+    
+    for (size_t j = 0; j < _stateVectorSize; j++)
+      if (std::isfinite(worker["Features"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu feature variable %lu returned an invalid value: %f\n", i, j, worker["Features"][i][j].get<float>());
+
   }
 
   // Normalizing State

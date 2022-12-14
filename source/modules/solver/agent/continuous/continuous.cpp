@@ -215,19 +215,19 @@ void Continuous::initializeAgent()
       gsl_matrix_free(cov);
     }
 
-  printf("calc sigmas..\n");
   // Calculate squared error over all predictions
   std::vector<float> squaredErrors(_problem->_actionVectorSize, 0.);
   if (_demonstrationPolicy == "Linear")
   {
     for (size_t i = 0; i < _problem->_numberObservedTrajectories; ++i)
-      for (size_t t = 0; t < _problem->_observationsStates[i].size(); ++i)
+    {
+      for (size_t t = 0; t < _problem->_observationsStates[i].size(); ++t)
       {
+        for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
+        {
         for (size_t k = 0; k < _problem->_actionVectorSize; ++k)
         {
           float approx = _observationsApproximatorWeights[k][0]; // intercept
-          for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
-          {
           for (size_t j = 0; j < _problem->_stateVectorSize; j++)
           {
             approx += _observationsApproximatorWeights[k][j + 1] * _problem->_observationsStates[i][t][a][j];
@@ -236,6 +236,7 @@ void Continuous::initializeAgent()
           }
         }
       }
+    }
 
     gsl_matrix_free(X);
     gsl_matrix_free(Y);
@@ -245,11 +246,12 @@ void Continuous::initializeAgent()
     for (size_t i = 0; i < _problem->_numberObservedTrajectories; ++i)
       for (size_t t = 0; t < _problem->_observationsStates[i].size(); ++t)
       {
+          for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
+          {
+
         for (size_t k = 0; k < _problem->_actionVectorSize; ++k)
         {
           float approx = _observationsApproximatorWeights[k][0]; // intercept
-          for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
-          {
           for (size_t j = 0; j < _problem->_stateVectorSize; j++)
           {
             approx += _observationsApproximatorWeights[k][2 * j + 1] * _problem->_observationsStates[i][t][a][j];
@@ -259,7 +261,6 @@ void Continuous::initializeAgent()
           }
         }
       }
-
     gsl_matrix_free(X);
     gsl_matrix_free(Y);
   }

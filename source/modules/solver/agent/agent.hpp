@@ -981,8 +981,7 @@ class Agent : public Solver
    */
   inline float getScaledReward(const float reward)
   {
-    KORALI_LOG_ERROR("Reward Rescaling not allowed in IRL");
-    return -1.;
+    return reward;
   }
 
   /**

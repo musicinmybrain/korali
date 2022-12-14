@@ -31,10 +31,6 @@ class SupervisedLearning : public Problem
   */
    size_t _trainingBatchSize;
   /**
-  * @brief Stores the batch size of the inference dataset.
-  */
-   size_t _inferenceBatchSize;
-  /**
   * @brief Stores the batch size of the testing dataset.
   */
    size_t _testingBatchSize;

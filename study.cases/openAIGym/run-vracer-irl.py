@@ -24,32 +24,41 @@ print(args)
 
 ####### Load observations
 excludePositions = True
+if (args.env == 'Reacher-v4'):
+  excludePositions = True
+elif (args.env == 'Ant-v4'):
+  excludePositions = True
+ 
 obsfile = f"observations_{args.env}.json" if excludePositions else f"observations_position_{args.env}.json"
 rawstates = []
-obsactions = []
+rawactions = []
 with open(obsfile, 'r') as infile:
     obsjson = json.load(infile)
     rawstates = obsjson["States"]
-    obsactions = obsjson["Actions"]
+    rawactions = obsjson["Actions"]
+
+print(f"Number of raw states {len(rawstates)}")
+print(f"Number of raw actions {len(rawactions)}")
 
 ### Compute Feauters from states
 obsstates = []
 obsfeatures = []
-for trajectory, actions in zip(rawstates, obsactions):
+obsactions = []
+for tstates, tactions in zip(rawstates, rawactions):
     states = []
     features = []
-    for idx in range(len(trajectory)):
-        states.append(list(trajectory[idx])) if excludePositions else states.append(list(trajectory[idx][1:]))
-        features.append(list(trajectory[idx]))
+    actions = []
+    for idx in range(len(tstates)):
+        states.append([list(tstates[idx])]) if excludePositions else states.append([list(tstates[idx][1:])])
+        features.append([list(tstates[idx])])
+        actions.append([list(tactions[idx])])
 
-    obsstates.append(list(states))
-    obsfeatures.append(list(features))
+    obsstates.append(states)
+    obsfeatures.append(features)
+    obsactions.append(actions)
 
 print("Total observed trajectories: {}/{}".format(len(obsstates), len(obsactions)))
-print("Max feature values found in observations:")
-#print(np.max(np.array(obsfeatures), axis=1))
-print("Min feature values found in observations:")
-#print(np.min(np.array(obsfeatures), axis=1))
+
 ####### Defining Korali Problem
 
 import korali

@@ -249,26 +249,21 @@ void Agent::initialize()
 
   _rewardFunctionExperiment["Problem"]["Type"] = "Supervised Learning";
   _rewardFunctionExperiment["Problem"]["Max Timesteps"] = 1;
-  _rewardFunctionExperiment["Problem"]["Inference Batch Size"] = 1;
   _rewardFunctionExperiment["Problem"]["Training Batch Size"] = _rewardFunctionBatchSize;
+  _rewardFunctionExperiment["Problem"]["Testing Batch Size"] = 1;
   _rewardFunctionExperiment["Problem"]["Input"]["Size"] = _problem->_featureVectorSize;
   _rewardFunctionExperiment["Problem"]["Solution"]["Size"] = 1;
 
   _rewardFunctionExperiment["Solver"]["Type"] = "DeepSupervisor";
+  _rewardFunctionExperiment["Solver"]["Mode"] = "Training";
   _rewardFunctionExperiment["Solver"]["L2 Regularization"]["Enabled"] = _rewardFunctionL2RegularizationEnabled;
   _rewardFunctionExperiment["Solver"]["L2 Regularization"]["Importance"] = _rewardFunctionL2RegularizationImportance;
   _rewardFunctionExperiment["Solver"]["Loss Function"] = "Direct Gradient";
   _rewardFunctionExperiment["Solver"]["Learning Rate"] = _rewardFunctionLearningRate;
-  _rewardFunctionExperiment["Solver"]["Steps Per Generation"] = 1;
   _rewardFunctionExperiment["Solver"]["Neural Network"]["Engine"] = _neuralNetworkEngine;
   _rewardFunctionExperiment["Solver"]["Neural Network"]["Optimizer"] = _neuralNetworkOptimizer;
   _rewardFunctionExperiment["Solver"]["Neural Network"]["Hidden Layers"] = _rewardFunctionNeuralNetworkHiddenLayers;
   _rewardFunctionExperiment["Solver"]["Output Weights Scaling"] = 0.001;
-
-  // No transformations for the state value output (doesn't work)
-  //_rewardFunctionExperiment["Solver"]["Neural Network"]["Output Layer"]["Scale"][0] = 0.0;
-  //_rewardFunctionExperiment["Solver"]["Neural Network"]["Output Layer"]["Shift"][0] = 1.0;
-  //_rewardFunctionExperiment["Solver"]["Neural Network"]["Output Layer"]["Transformation Mask"][0] = "Identity";
 
   _rewardFunctionExperiment["Solver"]["Neural Network"]["Output Layer"]["Scale"][0] = 1.0f;
   _rewardFunctionExperiment["Solver"]["Neural Network"]["Output Layer"]["Shift"][0] = -0.5f;
@@ -1269,9 +1264,14 @@ void Agent::processEpisode(knlohmann::json &episode)
 
     // Storing policy on episode start
     if (expId == 0)
-      _policyBuffer.add(episode["Policy Hyperparameters"]["Policy"].get<std::vector<float>>());
+    {
+      _policyBuffer.add(episode["Policy Hyperparameters"][0].get<std::vector<float>>());
+      assert(_problem->_policiesPerEnvironment == 1); // TODO: this works only for unique policy
+    }
     else
+    {
       _policyBuffer.add({}); // Placeholder
+    }
 
     // Getting policy information and state value
     std::vector<policy_t> expPolicy(numAgents);

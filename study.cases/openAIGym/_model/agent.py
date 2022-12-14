@@ -16,36 +16,30 @@ def initEnvironment(e, envName, excludePositions, moviePath = ''):
  
  if (envName == 'Reacher-v4'):
   env = gym.make(envName)
+ elif (envName == 'Ant-v4'):
+  env = gym.make(envName)
  else:
   env = gym.make(envName, exclude_current_positions_from_observation=excludePositions)
 
-from packaging.version import parse as parse_version
-oldEnv = parse_version(gym.__version__) < parse_version('0.26.0')
+ from packaging.version import parse as parse_version
+ oldEnv = parse_version(gym.__version__) < parse_version('0.26.0')
 
-from HumanoidWrapper import HumanoidWrapper
-from AntWrapper import AntWrapper
-
-def initEnvironment(e, envName, moviePath = ''):
-
- # Creating environment
-
- env = gym.make(envName)
-
- # Handling special cases
-
- if (envName == 'Humanoid-v2'):
+ from HumanoidWrapper import HumanoidWrapper
+ from AntWrapper import AntWrapper
+ 
+ if (envName == 'Humanoid-v4'):
   env = HumanoidWrapper(env)
-
- if (envName == 'HumanoidStandup-v2'):
+ 
+ if (envName == 'HumanoidStandup-v4'):
   env = HumanoidWrapper(env)
-
- if (envName == 'Ant-v2'):
+ 
+ if (envName == 'Ant-v4'):
   env = AntWrapper(env)
-
+ 
  # Re-wrapping if saving a movie
  if (moviePath != ''):
   env = gym.wrappers.Monitor(env, moviePath, force=True)
-
+ 
  ### Defining problem configuration for openAI Gym environments
  e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
  e["Problem"]["Environment Function"] = lambda x : agent(x, env, excludePositions)
@@ -60,7 +54,6 @@ def initEnvironment(e, envName, moviePath = ''):
  stateVariablesIndexes = range(stateVariableCount)
  
  # Defining State Variables
- 
  for i in stateVariablesIndexes:
   e["Variables"][i]["Name"] = "State Variable " + str(i)
   e["Variables"][i]["Type"] = "State"
