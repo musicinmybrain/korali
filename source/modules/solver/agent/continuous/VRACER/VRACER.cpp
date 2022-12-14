@@ -369,7 +369,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
         const float invN = 1.0 / (_numberOfSamples*_problem->_policiesPerEnvironment);
         for (size_t i = 0; i < _problem->_actionVectorSize; i++)
         {
-          // Get distribution parameter from predictive posterior policy
+          // Get distribution parameter from approximation of predictive posterior policy
           const float &mean = _minimalApproximation ? curPolicy.currentDistributionParameters[i] : curPolicy.distributionParameters[i];
           const float &sigma = _minimalApproximation ? curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] : curPolicy.distributionParameters[_problem->_actionVectorSize + i];
           const float invSigma = 1 / sigma;
@@ -422,8 +422,11 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     {
       _miniBatchPolicyMean[i] += curPolicy.distributionParameters[i];
       _miniBatchPolicyStdDev[i] += curPolicy.distributionParameters[_problem->_actionVectorSize + i];
-      _miniBatchCurrentPolicyMean[i] += curPolicy.currentDistributionParameters[i];
-      _miniBatchCurrentPolicyStdDev[i] += curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
+      if(_gaussianApproximationEnabled)
+      {
+        _miniBatchCurrentPolicyMean[i] += curPolicy.currentDistributionParameters[i];
+        _miniBatchCurrentPolicyStdDev[i] += curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
+      }
       _miniBatchPolicyGradientMean[i] += polGrad[i];
       _miniBatchPolicyGradientStdDev[i] += polGrad[i + _problem->_actionVectorSize];
       _miniBatchKLGradientMean[i] += klGrad[i];
@@ -436,8 +439,11 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
   {
     _miniBatchPolicyMean[i] /= (float)miniBatchSize;
     _miniBatchPolicyStdDev[i] /= (float)miniBatchSize;
-    _miniBatchCurrentPolicyMean[i] /= (float)miniBatchSize;
-    _miniBatchCurrentPolicyStdDev[i] /= (float)miniBatchSize;
+    if(_gaussianApproximationEnabled)
+    {
+      _miniBatchCurrentPolicyMean[i] /= (float)miniBatchSize;
+      _miniBatchCurrentPolicyStdDev[i] /= (float)miniBatchSize;
+    }
     _miniBatchPolicyGradientMean[i] /= (float)miniBatchSize;
     _miniBatchPolicyGradientStdDev[i] /= (float)miniBatchSize;
     _miniBatchKLGradientMean[i] /= (float)miniBatchSize;
