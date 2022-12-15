@@ -320,11 +320,7 @@ void Continuous::getAction(korali::Sample &sample)
 
     // Forward state sequence to get the Gaussian means and sigmas from policy
     // in case of multiple polices it runs the i-th policy otherwise standard
-<<<<<<< HEAD
     std::vector<policy_t> policy(1);
-=======
-    std::vector<policy_t> policy;
->>>>>>> master
     if (_problem->_policiesPerEnvironment == 1)
       runPolicy({_stateTimeSequence[i].getVector()}, policy);
     else

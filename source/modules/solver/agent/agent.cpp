@@ -25,9 +25,6 @@ void Agent::initialize()
   // Getting number of agents
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
-  // Formatting reward history for each agent
-  _trainingRewardHistory.resize(numAgents);
-
   // Allocating and obtaining action bounds information
   _actionLowerBounds.resize(_problem->_actionVectorSize);
   _actionUpperBounds.resize(_problem->_actionVectorSize);
@@ -47,13 +44,10 @@ void Agent::initialize()
   // Initializing selected policy
   initializeAgent();
 
-<<<<<<< HEAD
   // Initializing random seed for the shuffle operation
   mt = new std::mt19937(rd());
   mt->seed(_k->_randomSeed++);
   
-=======
->>>>>>> master
   // If not set, using heurisitc for maximum size
   if (_experienceReplayMaximumSize == 0)
     _experienceReplayMaximumSize = std::pow(2, 14) * std::sqrt(_problem->_stateVectorSize + _problem->_actionVectorSize);
@@ -64,15 +58,15 @@ void Agent::initialize()
 
   // Initialize current beta for all agents
   _experienceReplayOffPolicyREFERCurrentBeta = std::vector<float>(numAgents, _experienceReplayOffPolicyREFERBeta);
+  
+  // Formatting reward history for each agent
+  _trainingRewardHistory.resize(numAgents);
 
   //  Pre-allocating space for the experience replay memory
   _stateBuffer.resize(_experienceReplayMaximumSize);
   _featureBuffer.resize(_experienceReplayMaximumSize);
   _actionBuffer.resize(_experienceReplayMaximumSize);
-<<<<<<< HEAD
   _rewardUpdateBuffer.resize(_experienceReplayMaximumSize);
-=======
->>>>>>> master
   _retraceValueBufferContiguous.resize(_experienceReplayMaximumSize * numAgents);
   _rewardBufferContiguous.resize(_experienceReplayMaximumSize * numAgents);
   _stateValueBufferContiguous.resize(_experienceReplayMaximumSize * numAgents);
@@ -91,8 +85,6 @@ void Agent::initialize()
   // Pre-allocate space for policies
   _policyBuffer.resize(_experienceReplayMaximumSize);
 
-  // Initialize Histories
-  _trainingRewardHistory.resize(0);
   _experienceReplayOffPolicyHistory.resize(0);
 
   // Initialize background samples
@@ -117,66 +109,44 @@ void Agent::initialize()
   {
     _currentEpisode = 0;
     _policyUpdateCount = 0;
-<<<<<<< HEAD
     _rewardUpdateCount = 0;
     _experienceCount = 0;
 
     // Initializing training statistics
-    _trainingBestReward.resize(numAgents, -korali::Inf);
-    _trainingBestEpisodeId.resize(numAgents, 0);
-    _trainingAverageReward.resize(numAgents, 0.0);
     _trainingAverageFeatureReward.resize(numAgents, 0.0);
 
-    // Initializing testing statistics
-    _experienceCount = 0;
 
-    // Initializing training and episode statistics //TODO go through all
+    // Initializing training and episode statistics
     /*
     _testingAverageReward.resize(numAgents, -korali::Inf);
     _testingBestReward.resize(numAgents,-korali::Inf);
     _testingWorstReward.resize(numAgents,-korali::Inf);
     _testingBestAverageReward.resize(numAgents, -korali::Inf);
-=======
+    */
     _experienceCount = 0;
 
-    // Initializing training and episode statistics //TODO go through all
-    _testingAverageReward = -korali::Inf;
-    _testingBestReward = -korali::Inf;
-    _testingWorstReward = -korali::Inf;
-    _testingBestAverageReward = -korali::Inf;
->>>>>>> master
+
     _testingBestEpisodeId = 0;
     _trainingBestReward.resize(numAgents, -korali::Inf);
     _trainingBestEpisodeId.resize(numAgents, 0);
     _trainingAverageReward.resize(numAgents, -korali::Inf);
-<<<<<<< HEAD
-    */
-=======
->>>>>>> master
 
     /* Initializing REFER information */
 
     // If cutoff scale is not defined, use a heuristic value [defaults to 4.0]
     if (_experienceReplayOffPolicyCutoffScale <= 0.0f)
       KORALI_LOG_ERROR("Experience Replay Cutoff Scale must be larger 0.0");
-<<<<<<< HEAD
-
-=======
->>>>>>> master
+    
     _experienceReplayOffPolicyCount.resize(numAgents, 0);
     _experienceReplayOffPolicyRatio.resize(numAgents, 0.0f);
     if (_learningRate <= 0.0f)
       KORALI_LOG_ERROR("Learning rate must be larger 0.0");
-<<<<<<< HEAD
     
-=======
->>>>>>> master
     _currentLearningRate = _learningRate;
     _experienceReplayOffPolicyCurrentCutoff = _experienceReplayOffPolicyCutoffScale;
 
     _experienceReplayOffPolicyCurrentCutoff = _experienceReplayOffPolicyCutoffScale;
 
-<<<<<<< HEAD
     // State & Feature Rescaling information
     _featureRescalingMeans = std::vector<std::vector<float>>(numAgents, std::vector<float>(_problem->_featureVectorSize, 0.0));
     _featureRescalingSigmas = std::vector<std::vector<float>>(numAgents, std::vector<float>(_problem->_featureVectorSize, 1.0));
@@ -187,14 +157,6 @@ void Agent::initialize()
     _rewardRescalingSigma = 1.;
     _rewardRescalingSumSquaredRewards = 0.;
     
-=======
-    // Rescaling information
-    _stateRescalingMeans = std::vector<std::vector<float>>(numAgents, std::vector<float>(_problem->_stateVectorSize, 0.0f));
-    _stateRescalingSigmas = std::vector<std::vector<float>>(numAgents, std::vector<float>(_problem->_stateVectorSize, 1.0f));
-    _rewardRescalingSigma = 1.;
-    _rewardRescalingSumSquaredRewards = 0.;
-
->>>>>>> master
     // If not given, get agent's initial policy
     if (not isDefined(_trainingCurrentPolicies, "Policy Hyperparameters"))
       _trainingCurrentPolicies = getPolicy();
@@ -486,31 +448,22 @@ void Agent::trainingGeneration()
 
   // Updating average cumulative reward statistics
   _trainingAverageReward = std::vector<float>(_problem->_agentsPerEnvironment, 0.0f);
-<<<<<<< HEAD
   _trainingAverageFeatureReward = std::vector<float>(_problem->_agentsPerEnvironment, 0.0f);
 
-=======
->>>>>>> master
   for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
   {
     ssize_t startEpisodeId = _trainingRewardHistory[a].size() - _trainingAverageDepth;
     ssize_t endEpisodeId = _trainingRewardHistory[a].size() - 1;
-<<<<<<< HEAD
 
-=======
->>>>>>> master
     if (startEpisodeId < 0) startEpisodeId = 0;
     for (ssize_t e = startEpisodeId; e <= endEpisodeId; e++)
       _trainingAverageReward[a] += _trainingRewardHistory[a][e];
     _trainingAverageReward[a] /= (float)(endEpisodeId - startEpisodeId + 1);
-<<<<<<< HEAD
 
     for (ssize_t e = startEpisodeId; e < endEpisodeId; e++)
       _trainingAverageFeatureReward[a] += _trainingFeatureRewardHistory[a][e];
     _trainingAverageFeatureReward[a] /= (float)(endEpisodeId - startEpisodeId);
 
-=======
->>>>>>> master
   }
 
   // Increasing session's generation count
@@ -528,19 +481,13 @@ void Agent::testingGeneration()
     testingWorkers[workerId]["Sample Id"] = _testingSampleIds[workerId];
     testingWorkers[workerId]["Module"] = "Problem";
     testingWorkers[workerId]["Operation"] = "Run Testing Episode";
-<<<<<<< HEAD
-    testingWorkers[workerId]["Operation"] = "Run Testing Episode";
-=======
->>>>>>> master
+    
     for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
       testingWorkers[workerId]["Policy Hyperparameters"][p] = _testingCurrentPolicies["Policy Hyperparameters"][p];
     testingWorkers[workerId]["State Rescaling"]["Means"] = _stateRescalingMeans;
     testingWorkers[workerId]["State Rescaling"]["Standard Deviations"] = _stateRescalingSigmas;
-<<<<<<< HEAD
     testingWorkers[workerId]["Feature Rescaling"]["Means"] = _featureRescalingMeans;
     testingWorkers[workerId]["Feature Rescaling"]["Standard Deviations"] = _featureRescalingSigmas;
-=======
->>>>>>> master
 
     KORALI_START(testingWorkers[workerId]);
   }
@@ -549,7 +496,6 @@ void Agent::testingGeneration()
 
   for (size_t workerId = 0; workerId < _testingSampleIds.size(); workerId++)
     _testingReward[workerId] = KORALI_GET(float, testingWorkers[workerId], "Testing Reward");
-<<<<<<< HEAD
 }
 
 void Agent::updateBackgroundBatch(const size_t replacementIdx)
@@ -1074,8 +1020,6 @@ void Agent::updateRewardFunction()
     _rewardFunctionLearner->_neuralNetwork->setHyperparameters(_rewardFunctionLearner->_optimizer->_currentValue);
   }
   _k->_logger->logInfo("Detailed", "Done!\n");
-=======
->>>>>>> master
 }
 
 void Agent::rescaleStates()
@@ -1091,7 +1035,6 @@ void Agent::rescaleStates()
         sumStates[a][d] += _stateBuffer[i][a][d];
         squaredSumStates[a][d] += _stateBuffer[i][a][d] * _stateBuffer[i][a][d];
       }
-<<<<<<< HEAD
 
   _k->_logger->logInfo("Detailed", " + Using State Normalization N(Mean, Sigma):\n");
 
@@ -1128,13 +1071,21 @@ void Agent::rescaleFeatures()
       sumFeatures[a][d] += _featureBuffer[i][a][d];
       squaredSumFeatures[a][d] += _featureBuffer[i][a][d] * _featureBuffer[i][a][d];
     }
-=======
->>>>>>> master
+  
+  std::vector<std::vector<float>> sumStates(_problem->_agentsPerEnvironment, std::vector<float>(_problem->_stateVectorSize, 0.0f));
+  std::vector<std::vector<float>> squaredSumStates(_problem->_agentsPerEnvironment, std::vector<float>(_problem->_stateVectorSize, 0.0f));
+
+  for (size_t i = 0; i < _stateBuffer.size(); ++i)
+    for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
+      for (size_t d = 0; d < _problem->_stateVectorSize; ++d)
+      {
+        sumStates[a][d] += _stateBuffer[i][a][d];
+        squaredSumStates[a][d] += _stateBuffer[i][a][d] * _stateBuffer[i][a][d];
+      }
 
   _k->_logger->logInfo("Detailed", " + Using State Normalization N(Mean, Sigma):\n");
 
   for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
-<<<<<<< HEAD
   for (size_t d = 0; d < _problem->_featureVectorSize; ++d)
   {
     _featureRescalingMeans[a][d] = sumFeatures[a][d] / (float)_featureBuffer.size();
@@ -1149,9 +1100,9 @@ void Agent::rescaleFeatures()
   // Actual rescaling of initial features
   for (size_t i = 0; i < _featureBuffer.size(); ++i)
   for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
+  {
     for (size_t d = 0; d < _problem->_featureVectorSize; ++d)
       _featureBuffer[i][a][d] = (_featureBuffer[i][a][d] - _featureRescalingMeans[a][d]) / _featureRescalingSigmas[a][d];
-=======
     for (size_t d = 0; d < _problem->_stateVectorSize; ++d)
     {
       _stateRescalingMeans[a][d] = sumStates[a][d] / (float)_stateBuffer.size();
@@ -1163,13 +1114,13 @@ void Agent::rescaleFeatures()
 
       _k->_logger->logInfo("Detailed", " + State [%zu]: N(%f, %f)\n", d, _stateRescalingMeans[a][d], _stateRescalingSigmas[a][d]);
     }
+  }
 
   // Actual rescaling of initial states
   for (size_t i = 0; i < _stateBuffer.size(); ++i)
     for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
       for (size_t d = 0; d < _problem->_stateVectorSize; ++d)
         _stateBuffer[i][a][d] = (_stateBuffer[i][a][d] - _stateRescalingMeans[a][d]) / _stateRescalingSigmas[a][d];
->>>>>>> master
 }
 
 void Agent::attendWorker(size_t workerId)
@@ -1207,18 +1158,11 @@ void Agent::attendWorker(size_t workerId)
 
       // Getting the training reward of the latest episodes
       _trainingLastReward = KORALI_GET(std::vector<float>, _workers[workerId], "Training Rewards");
-<<<<<<< HEAD
-      _trainingExperienceHistory.push_back(message["Episodes"]["Experiences"].size());
-=======
->>>>>>> master
 
       // Keeping training statistics. Updating if exceeded best training policy so far.
       for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
       {
-<<<<<<< HEAD
-        // _experienceReplayOffPolicyHistory.push_back(_experienceReplayOffPolicyRatio);
-=======
->>>>>>> master
+        _experienceReplayOffPolicyHistory.push_back(_experienceReplayOffPolicyRatio);
         if (_trainingLastReward[a] > _trainingBestReward[a])
         {
           _trainingBestReward[a] = _trainingLastReward[a];
@@ -1226,6 +1170,9 @@ void Agent::attendWorker(size_t workerId)
         }
         _trainingRewardHistory[a].push_back(_trainingLastReward[a]);
       }
+      // Storing bookkeeping information
+      _trainingExperienceHistory.push_back(message["Episodes"]["Experiences"].size());
+
       // Storing bookkeeping information
       _trainingExperienceHistory.push_back(message["Episodes"]["Experiences"].size());
 
@@ -1277,24 +1224,18 @@ void Agent::processEpisode(knlohmann::json &episode)
    *********************************************************************/
   const size_t episodeId = episode["Sample Id"];
   const size_t numAgents = _problem->_agentsPerEnvironment;
-<<<<<<< HEAD
 
   // Storage for the episode's cumulative feature reward
   std::vector<float> cumulativeFeatureReward(numAgents, 0.0f);
-
-=======
-
   // Storage for the episode's cumulative reward
   std::vector<float> cumulativeReward(numAgents, 0.0f);
 
->>>>>>> master
   // Go over experiences in episode
   const size_t episodeExperienceCount = episode["Experiences"].size();
   for (size_t expId = 0; expId < episodeExperienceCount; expId++)
   {
     // Put state to replay memory
     _stateBuffer.add(episode["Experiences"][expId]["State"].get<std::vector<std::vector<float>>>());
-<<<<<<< HEAD
 
     // Get action and put it to replay memory
     _actionBuffer.add(episode["Experiences"][expId]["Action"].get<std::vector<std::vector<float>>>());
@@ -1304,48 +1245,29 @@ void Agent::processEpisode(knlohmann::json &episode)
 
     // Getting features
     _featureBuffer.add(episode["Experiences"][expId]["Features"].get<std::vector<std::vector<float>>>());
-
+   
+    std::vector<float> featureReward(numAgents, 0.0f);
     for(size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
     {
       // Getting reward (TODO: batch forwarding)
-      const float featureReward = calculateReward({{_featureBuffer[_featureBuffer.size()-1][a]}})[0];
+      featureReward[a] = calculateReward({{_featureBuffer[_featureBuffer.size()-1][a]}})[0];
 
       // Accumulate feature reward
-      cumulativeFeatureReward[a] += featureReward;
+      cumulativeFeatureReward[a] += featureReward[a];
     }
     
     // For cooporative multi-agent model rewards are averaged
     if (_multiAgentRelationship == "Cooperation")
     {
-      float avgReward = std::accumulate(reward.begin(), reward.end(), 0.);
+      float avgReward = std::accumulate(featureReward.begin(), featureReward.end(), 0.);
       avgReward /= numAgents;
-      reward = std::vector<float>(numAgents, avgReward);
+      featureReward = std::vector<float>(numAgents, avgReward);
     }
 
     // Update reward rescaling moments
     if (_rewardRescalingEnabled)
     {
       KORALI_LOG_ERROR("IRL does not allow reward rescaling");
-    }
-=======
-
-    // Get action and put it to replay memory
-    _actionBuffer.add(episode["Experiences"][expId]["Action"].get<std::vector<std::vector<float>>>());
-
-    // Get reward
-    std::vector<float> reward = episode["Experiences"][expId]["Reward"].get<std::vector<float>>();
-
-    // For cooporative multi-agent model rewards are averaged
-    if (_multiAgentRelationship == "Cooperation")
-    {
-      float avgReward = std::accumulate(reward.begin(), reward.end(), 0.);
-      avgReward /= numAgents;
-      reward = std::vector<float>(numAgents, avgReward);
-    }
-
-    // Update reward rescaling moments
-    if (_rewardRescalingEnabled)
-    {
       if (_rewardBufferContiguous.size() >= _experienceReplayMaximumSize * numAgents)
       {
         for (size_t a = 0; a < numAgents; a++)
@@ -1356,20 +1278,16 @@ void Agent::processEpisode(knlohmann::json &episode)
         _rewardRescalingSumSquaredRewards += reward[a] * reward[a];
       }
     }
->>>>>>> master
 
     // Put reward to replay memory
     for (size_t a = 0; a < numAgents; a++)
-      _rewardBufferContiguous.add(reward[a]);
-<<<<<<< HEAD
+      _rewardBufferContiguous.add(featureReward[a]);
     
     _rewardUpdateBuffer.add(_rewardUpdateCount);
-=======
 
     // Keeping statistics
     for (size_t a = 0; a < numAgents; a++)
       cumulativeReward[a] += reward[a];
->>>>>>> master
 
     // Checking and adding experience termination status and truncated state to replay memory
     termination_t termination;
@@ -1387,20 +1305,17 @@ void Agent::processEpisode(knlohmann::json &episode)
     _terminationBuffer.add(termination);
     _truncatedStateBuffer.add(truncatedState);
     _truncatedStateValueBuffer.add(truncatedStateValue);
-<<<<<<< HEAD
 
     // Storing policy on episode start
     if (expId == 0)
     {
-      _policyBuffer.add(episode["Policy Hyperparameters"][0].get<std::vector<float>>());
       assert(_problem->_policiesPerEnvironment == 1); // TODO: this works only for unique policy
+      _policyBuffer.add(episode["Policy Hyperparameters"][0].get<std::vector<float>>());
     }
     else
     {
       _policyBuffer.add({}); // Placeholder
     }
-=======
->>>>>>> master
 
     // Getting policy information and state value
     std::vector<policy_t> expPolicy(numAgents);
@@ -1450,7 +1365,6 @@ void Agent::processEpisode(knlohmann::json &episode)
       for (size_t a = 0; a < numAgents; a++)
         expPolicy[a].actionProbabilities = actProb[a];
     }
-<<<<<<< HEAD
 
     if (isDefined(episode["Experiences"][expId], "Policy", "Available Actions"))
     {
@@ -1463,20 +1377,7 @@ void Agent::processEpisode(knlohmann::json &episode)
       }
     }
 
-=======
 
-    if (isDefined(episode["Experiences"][expId], "Policy", "Available Actions"))
-    {
-      const auto availAct = episode["Experiences"][expId]["Policy"]["Available Actions"].get<std::vector<std::vector<size_t>>>();
-      for (size_t a = 0; a < numAgents; a++)
-      {
-        expPolicy[a].availableActions = availAct[a];
-        if (std::accumulate(expPolicy[a].availableActions.begin(), expPolicy[a].availableActions.end(), 0) == 0)
-          KORALI_LOG_ERROR("State with experience id %zu for agent %zu detected with no available actions.", expId, a);
-      }
-    }
-
->>>>>>> master
     // Storing policy information in replay memory
     _expPolicyBuffer.add(expPolicy);
     _curPolicyBuffer.add(expPolicy);
@@ -1554,21 +1455,12 @@ void Agent::processEpisode(knlohmann::json &episode)
         retV[a] = calculateStateValue(expTruncatedStateSequence);
       else
         retV[a] = calculateStateValue(expTruncatedStateSequence, a);
-<<<<<<< HEAD
 
       // Get value of trucated state
       if (std::isfinite(retV[a]) == false)
         KORALI_LOG_ERROR("Calculated state value for truncated state returned an invalid value: %f\n", retV[a]);
     }
 
-=======
-
-      // Get value of trucated state
-      if (std::isfinite(retV[a]) == false)
-        KORALI_LOG_ERROR("Calculated state value for truncated state returned an invalid value: %f\n", retV[a]);
-    }
-
->>>>>>> master
     // For cooporative multi-agent model truncated state-values are averaged
     if (_multiAgentRelationship == "Cooperation")
     {
@@ -1586,13 +1478,12 @@ void Agent::processEpisode(knlohmann::json &episode)
     for (size_t a = 0; a < numAgents; a++)
     {
       // Calculating retrace value. Importance weight is 1.0f because the policy is current.
-      retV[a] = getScaledReward(_rewardBufferContiguous[expId * numAgents + a]) + _discountFactor * retV[a];
+      retV[a] = _rewardBufferContiguous[expId * numAgents + a] + _discountFactor * retV[a];
       _retraceValueBufferContiguous[expId * numAgents + a] = retV[a];
     }
 
   // Update reward rescaling sigma
   if (_rewardRescalingEnabled)
-<<<<<<< HEAD
   {
     // get environment Id vector
     // finalize computation of standard deviation for reward rescaling
@@ -1607,9 +1498,6 @@ void Agent::processEpisode(knlohmann::json &episode)
   // Increasing total experience counters
   _experienceCount += episodeExperienceCount;
   _sessionExperienceCount += episodeExperienceCount;
-=======
-    _rewardRescalingSigma = std::sqrt(_rewardRescalingSumSquaredRewards / ((float)_rewardBufferContiguous.size()) + 1e-9);
->>>>>>> master
 }
 
 std::vector<std::pair<size_t, size_t>> Agent::generateMiniBatch()
@@ -1721,7 +1609,6 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
   std::vector<size_t> updateBatch;
   std::vector<std::pair<size_t, size_t>> updateMinibatch;
   std::vector<policy_t> updatePolicyData;
-<<<<<<< HEAD
 
   // Fill updateMinibatch and updatePolicyData
   size_t b = 0;
@@ -1753,39 +1640,6 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
   // Container to compute offpolicy count difference in minibatch
   std::vector<int> offPolicyCountDelta(numAgents, 0);
 
-=======
-
-  // Fill updateMinibatch and updatePolicyData
-  size_t b = 0;
-  while (b < miniBatchSize)
-  {
-    // Add new unique combination
-    updateBatch.push_back(b);
-    updateMinibatch.push_back(miniBatch[b]);
-    updatePolicyData.push_back(policyData[b]);
-
-    size_t a = 1;
-
-    // Iterate over experiences with same expId
-    while ((miniBatch[b + a].first == miniBatch[b + a - 1].first) && (b + a < miniBatchSize))
-    {
-      // Add unique experiences from agents
-      if (miniBatch[b + a].second != miniBatch[b + a - 1].second)
-      {
-        updateMinibatch.push_back(miniBatch[b + a]);
-        updatePolicyData.push_back(policyData[b + a]);
-      }
-      a++;
-    }
-
-    // Increment batch counter by the number of same expIds
-    b += a;
-  }
-
-  // Container to compute offpolicy count difference in minibatch
-  std::vector<int> offPolicyCountDelta(numAgents, 0);
-
->>>>>>> master
 #pragma omp parallel for reduction(vec_int_plus \
                                    : offPolicyCountDelta)
   for (size_t i = 0; i < updateMinibatch.size(); i++)
@@ -1816,12 +1670,12 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     _importanceWeightBuffer[expId][agentId] = importanceWeight;
     _truncatedImportanceWeightBufferContiguous[expId * numAgents + agentId] = std::min(_importanceWeightTruncationLevel, importanceWeight);
 
+
     // Keep track of off-policyness (in principle only necessary for agentId==policyId)
     if (not _multiAgentCorrelation)
     {
       // Checking if experience is on policy
       const bool isOnPolicy = (importanceWeight > (1.0f / _experienceReplayOffPolicyCurrentCutoff)) && (importanceWeight < _experienceReplayOffPolicyCurrentCutoff);
-<<<<<<< HEAD
 
       // Updating off policy count if a change is detected
       if (_isOnPolicyBuffer[expId][agentId] == true && isOnPolicy == false)
@@ -1970,7 +1824,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     // Update off policy count
     _experienceReplayOffPolicyCount[a] += offPolicyCountDelta[a];
     _experienceReplayOffPolicyRatio[a] = (float)_experienceReplayOffPolicyCount[a] / (float)_isOnPolicyBuffer.size();
-
+    
     // Normalize off policy Ratio
     if (_problem->_policiesPerEnvironment == 1)
       _experienceReplayOffPolicyRatio[a] /= (float)numAgents;
@@ -1996,7 +1850,8 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
 
   size_t t = 0;
   std::vector<ssize_t> featureMiniBatch(_rewardFunctionBatchSize);
-  std::vector<std::vector<std::vector<float>>> featureBatch(_rewardFunctionBatchSize, std::vector<std::vector<float>>(1, std::vector<float>(_problem->_featureVectorSize)));
+  std::vector<std::vector<std::vector<float>>>
+  featureBatch(_rewardFunctionBatchSize, std::vector<std::vector<float>>(_problem->_agentsPerEnvironment, std::vector<float>(_problem->_featureVectorSize)));
 
   // Update rewards backward
   for (size_t i = 0; i < retraceMiniBatch.size(); i++)
@@ -2007,6 +1862,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     // If the starting experience has already been discarded, take the earliest one that still remains
     const ssize_t startId = (ssize_t)_episodePosBuffer[endId] < endId ? endId - (ssize_t)_episodePosBuffer[endId] : 0;
 
+    assert(numAgents == 1);
     // Now iterating backwards to find the beginning
     for (ssize_t curId = endId; curId >= startId; curId--)
     {
@@ -2015,208 +1871,38 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
       {
         // Add features and experience id
         featureMiniBatch[t] = curId;
-        featureBatch[t++] = {_featureBuffer[curId]};
+        featureBatch[t++] = {{_featureBuffer[curId][0]}};
         if (t == _rewardFunctionBatchSize)
         {
           // Feature batch is full, forward features
-          const auto rewards = calculateReward(featureBatch);
+          auto featureReward = calculateReward(featureBatch);
 
           // Update rewards
           for (size_t b = 0; b < _rewardFunctionBatchSize; ++b)
           {
             const size_t expId = featureMiniBatch[b];
-            _rewardBufferContiguous[expId] = rewards[b];
+            _rewardBufferContiguous[expId * numAgents] = featureReward[b];
             _rewardUpdateBuffer[expId] = _rewardUpdateCount;
           }
 
           // Reset count
           t = 0;
         }
-=======
-
-      // Updating off policy count if a change is detected
-      if (_isOnPolicyBuffer[expId][agentId] == true && isOnPolicy == false)
-        offPolicyCountDelta[agentId]++;
-
-      if (_isOnPolicyBuffer[expId][agentId] == false && isOnPolicy == true)
-        offPolicyCountDelta[agentId]--;
-
-      // Write to onPolicy vector
-      _isOnPolicyBuffer[expId][agentId] = isOnPolicy;
-    }
-
-    // Update truncated state value
-    if (_terminationBuffer[expId] == e_truncated)
-    {
-      // Get truncated state
-      auto expTruncatedStateSequence = getTruncatedStateSequence(expId, agentId);
-
-      // Forward tuncated state
-      // TODO: other policy for exp-sharing in multi-policy case??
-      float truncatedStateValue;
-      if (_problem->_policiesPerEnvironment == 1)
-        truncatedStateValue = calculateStateValue(expTruncatedStateSequence);
-      else
-        truncatedStateValue = calculateStateValue(expTruncatedStateSequence, agentId);
-
-      // Check value of trucated state
-      if (std::isfinite(truncatedStateValue) == false)
-        KORALI_LOG_ERROR("Calculated state value for truncated state returned an invalid value: %f\n", truncatedStateValue);
-
-      // Write truncated state value
-      _truncatedStateValueBuffer[expId][agentId] = truncatedStateValue;
-    }
-  }
-
-  /* Now taking care of advanced correlation features for MARL */
-
-  if (_multiAgentCorrelation)
-  {
-#pragma omp parallel for reduction(vec_int_plus \
-                                   : offPolicyCountDelta)
-    for (size_t i = 0; i < updateBatch.size(); i++)
-    {
-      const size_t batchId = updateBatch[i];
-      const size_t expId = miniBatch[batchId].first;
-
-      // Load importance weight for expId
-      const auto &importanceWeight = _importanceWeightBuffer[expId];
-
-      // Compute product of importance weights
-      float logProdImportanceWeight = 0.0f;
-      for (size_t a = 0; a < numAgents; a++)
-      {
-        // Numerical safety [ ln(10)=2.30258509299 ]
-        if (importanceWeight[a] == 0)
-          logProdImportanceWeight += 2.30258509299 * std::numeric_limits<float>::min_exponent10;
-        else
-          logProdImportanceWeight += std::log(importanceWeight[a]);
-      }
-
-      // Compute cut-off in log-space
-      const float logCutOff = (float)numAgents * std::log(_experienceReplayOffPolicyCurrentCutoff);
-
-      // Check whether experience is onPolicy
-      const bool onPolicy = (logProdImportanceWeight > (-1. * logCutOff)) && (logProdImportanceWeight < logCutOff);
-
-      // Load isOnPolicy
-      auto &isOnPolicy = _isOnPolicyBuffer[expId];
-
-      // Write to prodImportanceWeight vector
-      _productImportanceWeightBuffer[expId] = std::exp(logProdImportanceWeight);
-
-      // Truncate product of importance weight
-      const float truncatedProdImportanceWeight = std::min(_importanceWeightTruncationLevel, _productImportanceWeightBuffer[expId]);
-
-      // Overwrite truncated importance weights
-      for (size_t a = 0; a < numAgents; a++)
-        _truncatedImportanceWeightBufferContiguous[expId * numAgents + a] = truncatedProdImportanceWeight;
-
-      // Record change of on-policyness
-      for (size_t d = 0; d < numAgents; d++)
-      {
-        if (isOnPolicy[d] == true && onPolicy == false)
-          offPolicyCountDelta[d]++;
-
-        if (isOnPolicy[d] == false && onPolicy == true)
-          offPolicyCountDelta[d]--;
-      }
-
-      // Overwrite onPolicyVector
-      std::fill(isOnPolicy.begin(), isOnPolicy.end(), onPolicy);
-    }
-  }
-
-  // Average state values for cooperative MA
-  if (_multiAgentRelationship == "Cooperation")
-  {
-#pragma omp parallel for
-    for (size_t i = 0; i < updateBatch.size(); i++)
-    {
-      const size_t batchId = updateBatch[i];
-      const size_t expId = miniBatch[batchId].first;
-
-      // Average state-value
-      float averageStateValue = 0.0f;
-      for (size_t a = 0; a < numAgents; a++)
-        averageStateValue += _stateValueBufferContiguous[expId * numAgents + a];
-      averageStateValue /= numAgents;
-
-      // Overwrite state value with average
-      for (size_t a = 0; a < numAgents; a++)
-        _stateValueBufferContiguous[expId * numAgents + a] = averageStateValue;
-
-      // Same for truncated state-value
-      if (_terminationBuffer[expId] == e_truncated)
-      {
-        // Load truncated state value
-        auto &truncatedStateValue = _truncatedStateValueBuffer[expId];
-
-        // Average truncated state value
-        float averageTruncatedStateValue = std::accumulate(truncatedStateValue.begin(), truncatedStateValue.end(), 0.);
-        averageTruncatedStateValue /= numAgents;
-
-        // Overwrite truncated state value with average
-        std::fill(truncatedStateValue.begin(), truncatedStateValue.end(), averageTruncatedStateValue);
->>>>>>> master
       }
     }
   }
 
-<<<<<<< HEAD
   // Update the rest
   if (t > 0)
   {
-    const auto rewards = calculateReward(featureBatch);
+    auto featureReward = calculateReward(featureBatch);
     for (size_t b = 0; b < t; ++b)
     {
       const ssize_t expId = featureMiniBatch[b];
-      _rewardBufferContiguous[expId] = rewards[b];
+      for (size_t a = 0; a < numAgents; a++)
+      _rewardBufferContiguous[expId] = featureReward[b];
       _rewardUpdateBuffer[expId] = _rewardUpdateCount;
     }
-=======
-  /* Taking care of off-policy statistics */
-
-  if (_problem->_policiesPerEnvironment == 1)
-  {
-    // Consider all observation for the off-policy statistics
-    int sumOffPolicyCountDelta = std::accumulate(offPolicyCountDelta.begin(), offPolicyCountDelta.end(), 0.);
-    offPolicyCountDelta = std::vector<int>(numAgents, sumOffPolicyCountDelta);
-  }
-
-  // Updating the off policy count and ratio
-  for (size_t a = 0; a < numAgents; a++)
-  {
-    // Safety check for overflow
-    if ((int)_experienceReplayOffPolicyCount[a] < -offPolicyCountDelta[a])
-      KORALI_LOG_ERROR("Agent %ld: offPolicyCountDelta=%d bigger than _experienceReplayOffPolicyCount=%ld.\n", a, offPolicyCountDelta[a], _experienceReplayOffPolicyCount[a]);
-
-    // Update off policy count
-    _experienceReplayOffPolicyCount[a] += offPolicyCountDelta[a];
-    _experienceReplayOffPolicyRatio[a] = (float)_experienceReplayOffPolicyCount[a] / (float)_isOnPolicyBuffer.size();
-
-    // Normalize off policy Ratio
-    if (_problem->_policiesPerEnvironment == 1)
-      _experienceReplayOffPolicyRatio[a] /= (float)numAgents;
-  }
-
-  /* Update Retrace value */
-
-  // Now filtering experiences from the same episode
-  std::vector<size_t> retraceMiniBatch;
-
-  // Adding last experience from the sorted minibatch
-  retraceMiniBatch.push_back(miniBatch[updateBatch.back()].first);
-
-  // Adding experiences so long as they do not repeat episodes
-  for (ssize_t i = updateBatch.size() - 2; i >= 0; i--)
-  {
-    size_t currExpId = miniBatch[updateBatch[i]].first;
-    size_t nextExpId = miniBatch[updateBatch[i + 1]].first;
-    size_t curEpisode = _episodeIdBuffer[currExpId];
-    size_t nextEpisode = _episodeIdBuffer[nextExpId];
-    if (curEpisode != nextEpisode) retraceMiniBatch.push_back(currExpId);
->>>>>>> master
   }
 
 // Calculating retrace value for the oldest experiences of unique episodes
@@ -2224,11 +1910,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
   for (size_t i = 0; i < retraceMiniBatch.size(); i++)
   {
     // Determine start of the episode
-<<<<<<< HEAD
     const ssize_t endId = retraceMiniBatch[i];
-=======
-    ssize_t endId = retraceMiniBatch[i];
->>>>>>> master
     ssize_t startId = endId - _episodePosBuffer[endId];
 
     // If start of episode has been discarded, take earliest one
@@ -2248,11 +1930,8 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
 
     // Now iterating backwards and compute retrace value
     for (ssize_t curId = endId; curId >= startId; curId--)
-<<<<<<< HEAD
     {
       // Getting current reward, action, and state
-=======
->>>>>>> master
       for (size_t a = 0; a < numAgents; a++)
       {
         // Load truncated importance weight
@@ -2262,11 +1941,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
         const float stateValue = _stateValueBufferContiguous[curId * numAgents + a];
 
         // Getting current reward, action, and state
-<<<<<<< HEAD
         const float curReward = _rewardBufferContiguous[curId * numAgents + a];
-=======
-        const float curReward = getScaledReward(_rewardBufferContiguous[curId * numAgents + a]);
->>>>>>> master
 
         // Apply recursion
         retV[a] = stateValue + truncatedImportanceWeight * (curReward + _discountFactor * retV[a] - stateValue);
@@ -2274,10 +1949,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
         // Store retrace value
         _retraceValueBufferContiguous[curId * numAgents + a] = retV[a];
       }
-<<<<<<< HEAD
     }
-=======
->>>>>>> master
   }
 }
 
@@ -2302,8 +1974,6 @@ void Agent::resetTimeSequence()
     _stateTimeSequence[a].clear();
 }
 
-<<<<<<< HEAD
-
 std::vector<std::vector<std::vector<float>>> Agent::getMiniBatchFeatureSequence(const std::vector<size_t> &miniBatch)
 {
   // Allocating feature sequence vector
@@ -2324,8 +1994,6 @@ std::vector<std::vector<std::vector<float>>> Agent::getMiniBatchFeatureSequence(
   return featureSequence;
 }
 
-=======
->>>>>>> master
 std::vector<std::vector<float>> Agent::getTruncatedStateSequence(size_t expId, size_t agentId)
 {
   // Getting starting expId
@@ -2409,17 +2077,6 @@ void Agent::serializeExperienceReplay()
       stateJson["Experience Replay"][i]["Truncated Importance Weight"][a] = _truncatedImportanceWeightBufferContiguous[i * numAgents + a];
     }
 
-<<<<<<< HEAD
-=======
-    for (size_t a = 0; a < numAgents; a++)
-    {
-      stateJson["Experience Replay"][i]["Reward"][a] = _rewardBufferContiguous[i * numAgents + a];
-      stateJson["Experience Replay"][i]["State Value"][a] = _stateValueBufferContiguous[i * numAgents + a];
-      stateJson["Experience Replay"][i]["Retrace Value"][a] = _retraceValueBufferContiguous[i * numAgents + a];
-      stateJson["Experience Replay"][i]["Truncated Importance Weight"][a] = _truncatedImportanceWeightBufferContiguous[i * numAgents + a];
-    }
-
->>>>>>> master
     std::vector<float> expStateValue(numAgents, 0.0f);
     std::vector<std::vector<float>> expDistributionParameter(numAgents, std::vector<float>(_expPolicyBuffer[0][0].distributionParameters.size()));
     std::vector<size_t> expActionIdx(numAgents, 0);
@@ -2507,12 +2164,10 @@ void Agent::deserializeExperienceReplay()
   // Clearing existing database
   _stateBuffer.clear();
   _actionBuffer.clear();
-<<<<<<< HEAD
   _rewardUpdateBuffer.clear();
   _featureBuffer.clear();
   _policyBuffer.clear();
-=======
->>>>>>> master
+  
   _retraceValueBufferContiguous.clear();
   _rewardBufferContiguous.clear();
   _stateValueBufferContiguous.clear();
@@ -2533,12 +2188,10 @@ void Agent::deserializeExperienceReplay()
   {
     _episodeIdBuffer.add(stateJson["Experience Replay"][i]["Episode Id"].get<size_t>());
     _episodePosBuffer.add(stateJson["Experience Replay"][i]["Episode Pos"].get<size_t>());
-<<<<<<< HEAD
     _rewardUpdateBuffer.add(stateJson["Experience Replay"][i]["Reward Update"].get<float>());
     _featureBuffer.add(stateJson["Experience Replay"][i]["Feature"].get<std::vector<std::vector<float>>>());
     _policyBuffer.add(stateJson["Experience Replay"][i]["Policy"].get<std::vector<float>>());
-=======
->>>>>>> master
+    
     _stateBuffer.add(stateJson["Experience Replay"][i]["State"].get<std::vector<std::vector<float>>>());
     _actionBuffer.add(stateJson["Experience Replay"][i]["Action"].get<std::vector<std::vector<float>>>());
     _importanceWeightBuffer.add(stateJson["Experience Replay"][i]["Importance Weight"].get<std::vector<float>>());
@@ -2621,17 +2274,10 @@ void Agent::printGenerationAfter()
       _k->_logger->logInfo("Normal", " + %lu-Episode Average Reward for agent %lu:  %f\n", _trainingAverageDepth, a, _trainingAverageReward[a]);
       _k->_logger->logInfo("Normal", " + Best Reward for agent %lu:                 %f (%lu)\n", a, _trainingBestReward[a], _trainingBestEpisodeId[a]);
     }
-<<<<<<< HEAD
 
     if (_rewardRescalingEnabled)
       _k->_logger->logInfo("Normal", " + Reward Rescaling: N(0.0, %.3e)\n", _rewardRescalingSigma);
 
-=======
-
-    if (_rewardRescalingEnabled)
-      _k->_logger->logInfo("Normal", " + Reward Rescaling: N(0.0, %.3e)\n", _rewardRescalingSigma);
-
->>>>>>> master
     if (_problem->_testingFrequency > 0)
     {
       _k->_logger->logInfo("Normal", "Testing Statistics:\n");
@@ -2644,7 +2290,6 @@ void Agent::printGenerationAfter()
       printInformation();
       _k->_logger->logInfo("Normal", " + Current Learning Rate:           %.3e\n", _currentLearningRate);
     }
-<<<<<<< HEAD
 
     if (_stateRescalingEnabled)
       _k->_logger->logInfo("Normal", " + Using State Rescaling\n");
@@ -2655,8 +2300,6 @@ void Agent::printGenerationAfter()
     _k->_logger->logInfo("Normal", "Background Trajectory Count:      %lu/%lu\n", std::min(_backgroundTrajectoryCount, _backgroundSampleSize), _backgroundSampleSize);
     _k->_logger->logInfo("Normal", "Total Number Background Samples:  %zu\n", _backgroundTrajectoryCount);
     _k->_logger->logInfo("Normal", "Log Partition Function:           %f (%f)\n", _logPartitionFunction, _logSdevPartitionFunction);
-=======
->>>>>>> master
 
     _k->_logger->logInfo("Detailed", "Profiling Information:                    [Generation] - [Session]\n");
     _k->_logger->logInfo("Detailed", " + Experience Serialization Time:         [%5.3fs] - [%3.3fs]\n", _generationSerializationTime / 1.0e+9, _sessionSerializationTime / 1.0e+9);
@@ -2726,7 +2369,6 @@ void Agent::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Training", "Reward History");
  }
 
-<<<<<<< HEAD
  if (isDefined(js, "Training", "Feature Reward History"))
  {
  try { _trainingFeatureRewardHistory = js["Training"]["Feature Reward History"].get<std::vector<std::vector<float>>>();
@@ -2735,8 +2377,6 @@ void Agent::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Training", "Feature Reward History");
  }
 
-=======
->>>>>>> master
  if (isDefined(js, "Training", "Experience History"))
  {
  try { _trainingExperienceHistory = js["Training"]["Experience History"].get<std::vector<size_t>>();
@@ -2888,7 +2528,7 @@ void Agent::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Experience Replay", "Off Policy", "History"))
  {
- try { _experienceReplayOffPolicyHistory = js["Experience Replay"]["Off Policy"]["History"].get<std::vector<float>>();
+ try { _experienceReplayOffPolicyHistory = js["Experience Replay"]["Off Policy"]["History"].get<std::vector<std::vector<float>>>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Experience Replay']['Off Policy']['History']\n%s", e.what()); } 
    eraseValue(js, "Experience Replay", "Off Policy", "History");
@@ -2959,7 +2599,6 @@ void Agent::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Reward", "Rescaling", "Sum Squared Rewards");
  }
 
-<<<<<<< HEAD
  if (isDefined(js, "Log Partition Function"))
  {
  try { _logPartitionFunction = js["Log Partition Function"].get<float>();
@@ -3072,8 +2711,6 @@ void Agent::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Statistic Log Partition Function");
  }
 
-=======
->>>>>>> master
  if (isDefined(js, "State Rescaling", "Means"))
  {
  try { _stateRescalingMeans = js["State Rescaling"]["Means"].get<std::vector<std::vector<float>>>();
@@ -3416,7 +3053,6 @@ void Agent::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Reward Function']['Neural Network']['Hidden Layers'] required by agent.\n"); 
 
-<<<<<<< HEAD
  if (isDefined(js, "Reward Function", "Learning Rate"))
  {
  try { _rewardFunctionLearningRate = js["Reward Function"]["Learning Rate"].get<float>();
@@ -3476,31 +3112,6 @@ void Agent::setConfiguration(knlohmann::json& js)
  { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Multi Agent Correlation']\n%s", e.what()); } 
    eraseValue(js, "Multi Agent Correlation");
  }
-=======
- if (isDefined(js, "Multi Agent Relationship"))
- {
- try { _multiAgentRelationship = js["Multi Agent Relationship"].get<std::string>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Multi Agent Relationship']\n%s", e.what()); } 
-{
- bool validOption = false; 
- if (_multiAgentRelationship == "Individual") validOption = true; 
- if (_multiAgentRelationship == "Cooperation") validOption = true; 
- if (_multiAgentRelationship == "Competition") validOption = true; 
- if (validOption == false) KORALI_LOG_ERROR(" + Unrecognized value (%s) provided for mandatory setting: ['Multi Agent Relationship'] required by agent.\n", _multiAgentRelationship.c_str()); 
-}
-   eraseValue(js, "Multi Agent Relationship");
- }
-  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Multi Agent Relationship'] required by agent.\n"); 
-
- if (isDefined(js, "Multi Agent Correlation"))
- {
- try { _multiAgentCorrelation = js["Multi Agent Correlation"].get<int>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Multi Agent Correlation']\n%s", e.what()); } 
-   eraseValue(js, "Multi Agent Correlation");
- }
->>>>>>> master
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Multi Agent Correlation'] required by agent.\n"); 
 
  if (isDefined(js, "Multi Agent Sampling"))
@@ -3586,7 +3197,6 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Experience Replay"]["Off Policy"]["Annealing Rate"] = _experienceReplayOffPolicyAnnealingRate;
    js["Experience Replay"]["Off Policy"]["REFER Beta"] = _experienceReplayOffPolicyREFERBeta;
    js["Experiences Between Policy Updates"] = _experiencesBetweenPolicyUpdates;
-<<<<<<< HEAD
    js["Experiences Between Reward Updates"] = _experiencesBetweenRewardUpdates;
    js["Experiences Between Partition Function Statistics"] = _experiencesBetweenPartitionFunctionStatistics;
    js["Optimize Max Entropy Objective"] = _optimizeMaxEntropyObjective;
@@ -3599,10 +3209,6 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Reward Function"]["Batch Size"] = _rewardFunctionBatchSize;
    js["Reward Function"]["L2 Regularization"]["Enabled"] = _rewardFunctionL2RegularizationEnabled;
    js["Reward Function"]["L2 Regularization"]["Importance"] = _rewardFunctionL2RegularizationImportance;
-=======
-   js["State Rescaling"]["Enabled"] = _stateRescalingEnabled;
-   js["Reward"]["Rescaling"]["Enabled"] = _rewardRescalingEnabled;
->>>>>>> master
    js["Multi Agent Relationship"] = _multiAgentRelationship;
    js["Multi Agent Correlation"] = _multiAgentCorrelation;
    js["Multi Agent Sampling"] = _multiAgentSampling;
@@ -3614,10 +3220,7 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Action Upper Bounds"] = _actionUpperBounds;
    js["Current Episode"] = _currentEpisode;
    js["Training"]["Reward History"] = _trainingRewardHistory;
-<<<<<<< HEAD
    js["Training"]["Feature Reward History"] = _trainingFeatureRewardHistory;
-=======
->>>>>>> master
    js["Training"]["Experience History"] = _trainingExperienceHistory;
    js["Testing"]["Average Reward History"] = _testingAverageRewardHistory;
    js["Training"]["Average Reward"] = _trainingAverageReward;
@@ -3646,7 +3249,6 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Experience Count"] = _experienceCount;
    js["Reward"]["Rescaling"]["Sigma"] = _rewardRescalingSigma;
    js["Reward"]["Rescaling"]["Sum Squared Rewards"] = _rewardRescalingSumSquaredRewards;
-<<<<<<< HEAD
    js["Log Partition Function"] = _logPartitionFunction;
    js["Log Sdev Partition Function"] = _logSdevPartitionFunction;
    js["Demonstration Policy"] = _demonstrationPolicy;
@@ -3661,8 +3263,6 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Background Batch Importance Weight"] = _backgroundBatchImportanceWeight;
    js["Effective Sample Size"] = _effectiveSampleSize;
    js["Statistic Log Partition Function"] = _statisticLogPartitionFunction;
-=======
->>>>>>> master
    js["State Rescaling"]["Means"] = _stateRescalingMeans;
    js["State Rescaling"]["Sigmas"] = _stateRescalingSigmas;
    js["Effective Minibatch Size"] = _effectiveMinibatchSize;
@@ -3674,11 +3274,7 @@ void Agent::getConfiguration(knlohmann::json& js)
 void Agent::applyModuleDefaults(knlohmann::json& js) 
 {
 
-<<<<<<< HEAD
  std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Workers\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Multi Agent Sampling\": \"Tuple\", \"State Rescaling\": {\"Enabled\": false}, \"Feature Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Name\": \"Agent / Uniform Generator\", \"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
-=======
- std::string defaultString = "{\"Episodes Per Generation\": 1, \"Concurrent Workers\": 1, \"Discount Factor\": 0.995, \"Time Sequence Length\": 1, \"Importance Weight Truncation Level\": 1.0, \"Multi Agent Relationship\": \"Individual\", \"Multi Agent Correlation\": false, \"Multi Agent Sampling\": \"Tuple\", \"State Rescaling\": {\"Enabled\": false}, \"Reward\": {\"Rescaling\": {\"Enabled\": false}}, \"Mini Batch\": {\"Size\": 256}, \"L2 Regularization\": {\"Enabled\": false, \"Importance\": 0.0001}, \"Training\": {\"Average Depth\": 100, \"Current Policies\": {}, \"Best Policies\": {}}, \"Testing\": {\"Sample Ids\": [], \"Current Policies\": {}, \"Best Policies\": {}}, \"Termination Criteria\": {\"Max Episodes\": 0, \"Max Experiences\": 0, \"Max Policy Updates\": 0}, \"Experience Replay\": {\"Serialize\": true, \"Off Policy\": {\"Cutoff Scale\": 4.0, \"Target\": 0.1, \"REFER Beta\": 0.3, \"Annealing Rate\": 0.0}}, \"Uniform Generator\": {\"Name\": \"Agent / Uniform Generator\", \"Type\": \"Univariate/Uniform\", \"Minimum\": 0.0, \"Maximum\": 1.0}}";
->>>>>>> master
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Solver::applyModuleDefaults(js);

@@ -55,7 +55,7 @@ void ReinforcementLearning::initialize()
 
   if (_actionVectorSize == 0) KORALI_LOG_ERROR("No action variables have been defined.\n");
   if (_stateVectorSize == 0) KORALI_LOG_ERROR("No state variables have been defined.\n");
-<<<<<<< HEAD
+  
   if (_policiesPerEnvironment != 1)
     KORALI_LOG_ERROR("Number of policies %zu is not 1.\n", _policiesPerEnvironment);
 
@@ -109,10 +109,6 @@ void ReinforcementLearning::initialize()
         KORALI_LOG_ERROR("Dimension (%zu) of observed features (trajectory %zu index %zu) does not agree with problem configuration.\n", _observationsFeatures[t][i][a].size(), t, i, _featureVectorSize);
     }
   }
-=======
-  if ((_policiesPerEnvironment != _agentsPerEnvironment) && (_policiesPerEnvironment != 1))
-    KORALI_LOG_ERROR("Number of Policies: %lu is neither 1 nor %lu.\n", _policiesPerEnvironment, _agentsPerEnvironment);
->>>>>>> master
 
   // Setting initial launch id (0)
   _launchId = 0;
@@ -183,13 +179,10 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
     finalizeEnvironment();
     return;
   }
-<<<<<<< HEAD
     
   // Store episode policy
   auto policy = _agent->getPolicy();
   episode["Policy Hyperparameters"] = policy["Policy Hyperparameters"];
-=======
->>>>>>> master
 
   // Saving experiences
   while (worker["Termination"] == "Non Terminal")
@@ -203,19 +196,16 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
     // Storing the current action
     episode["Experiences"][actionCount]["Action"] = worker["Action"];
 
-    // Storing the experience's policy
-    episode["Experiences"][actionCount]["Policy"] = worker["Policy"];
-<<<<<<< HEAD
-
     // Storing features of the reward function
     episode["Experiences"][actionCount]["Features"] = worker["Features"];
+      
+    // Store Reward from environment if available
+    if (worker.contains("Reward"))
+    {
 
     // Sanity check for reward
     for (size_t i = 0; i < _agentsPerEnvironment; i++)
     {
-      // Store Reward from environment if available
-      if (worker.contains("Reward"))
-      {
         if (std::isfinite(worker["Reward"][i].get<float>()) == false)
           KORALI_LOG_ERROR("Environment reward returned an invalid value: %f\n", worker["Reward"][i].get<float>());
 
@@ -223,8 +213,12 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
         trainingRewards[i] += worker["Reward"][i].get<float>();
       }
     }
-=======
->>>>>>> master
+
+    // If single agent, put action into a single vector
+    if (_agentsPerEnvironment == 1) worker["Action"] = worker["Action"][0].get<std::vector<float>>();
+
+    // Jumping back into the worker's environment
+    runEnvironment(worker);
 
     // If single agent, put action into a single vector
     if (_agentsPerEnvironment == 1) worker["Action"] = worker["Action"][0].get<std::vector<float>>();
@@ -245,25 +239,12 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
 
     // Storing termination status
     episode["Experiences"][actionCount]["Termination"] = worker["Termination"];
-<<<<<<< HEAD
 
     // If the episode was truncated, then save the terminal state
     if (worker["Termination"] == "Truncated")
     {
       episode["Experiences"][actionCount]["Truncated State"] = worker["State"];
     }
-=======
-
-    // If the episode was truncated, then save the terminal state
-    if (worker["Termination"] == "Truncated")
-    {
-      episode["Experiences"][actionCount]["Truncated State"] = worker["State"];
-    }
-
-    // Adding to cumulative training rewards
-    for (size_t i = 0; i < _agentsPerEnvironment; i++)
-      trainingRewards[i] += worker["Reward"][i].get<float>();
->>>>>>> master
 
     // Increasing counter for generated actions
     actionCount++;
@@ -410,13 +391,6 @@ void ReinforcementLearning::initializeEnvironment(Sample &worker)
   // Then, we reset the state sequence for time-dependent learners
   _agent->resetTimeSequence();
 
-<<<<<<< HEAD
-=======
-  // Define state rescaling variables
-  _stateRescalingMeans = worker["State Rescaling"]["Means"].get<std::vector<std::vector<float>>>();
-  _stateRescalingSdevs = worker["State Rescaling"]["Standard Deviations"].get<std::vector<std::vector<float>>>();
-
->>>>>>> master
   // Appending any user-defined settings
   worker["Custom Settings"] = _customSettings;
 
@@ -493,22 +467,16 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
   // In case of this being a single agent, support returning state as only vector
   if (_agentsPerEnvironment == 1)
   {
-<<<<<<< HEAD
-=======
     // Support returning state as vector
->>>>>>> master
     auto state = KORALI_GET(std::vector<float>, worker, "State");
     worker._js.getJson().erase("State");
     worker["State"][0] = state;
 
-<<<<<<< HEAD
     auto features = KORALI_GET(std::vector<float>, worker, "Features");
     worker._js.getJson().erase("Features");
     worker["Features"][0] = features;
 
-=======
     // Support returning reward as scalar
->>>>>>> master
     auto reward = KORALI_GET(float, worker, "Reward");
     worker._js.getJson().erase("Reward");
     worker["Reward"][0] = reward;
@@ -526,7 +494,6 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
   {
     if (worker["State"][i].is_array() == false) KORALI_LOG_ERROR("Agent state variable returned by the environment is not a vector.\n");
     if (worker["State"][i].size() != _stateVectorSize) KORALI_LOG_ERROR("Agents state vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["State"][i].size(), _stateVectorSize);
-<<<<<<< HEAD
 
     if (worker["Features"][i].is_array() == false) KORALI_LOG_ERROR("Agent feature variable returned by the environment is not a vector.\n");
     if (worker["Features"][i].size() != _featureVectorSize) KORALI_LOG_ERROR("Agents feature vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["Features"][i].size(), _featureVectorSize);
@@ -537,11 +504,9 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
     for (size_t j = 0; j < _stateVectorSize; j++)
       if (std::isfinite(worker["Features"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu feature variable %lu returned an invalid value: %f\n", i, j, worker["Features"][i][j].get<float>());
 
-=======
 
     for (size_t j = 0; j < _stateVectorSize; j++)
       if (std::isfinite(worker["State"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu state variable %lu returned an invalid value: %f\n", i, j, worker["State"][i][j].get<float>());
->>>>>>> master
   }
 
   // Normalizing State
@@ -551,7 +516,6 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
 
     // Scale the state
     for (size_t d = 0; d < _stateVectorSize; ++d)
-<<<<<<< HEAD
       state[d] = (state[d] - stateRescalingMeans[i][d]) / stateRescalingSdevs[i][d];
 
     // Re-storing state into worker
@@ -565,12 +529,9 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
 
     // Re-storing state into agent
     worker["Features"][i] = features;
-=======
-      state[d] = (state[d] - _stateRescalingMeans[i][d]) / _stateRescalingSdevs[i][d];
 
     // Re-storing state into worker
     worker["State"][i] = state;
->>>>>>> master
   }
 
   // Checking correct format of reward
@@ -636,7 +597,6 @@ void ReinforcementLearning::setConfiguration(knlohmann::json& js)
    eraseValue(js, "State Vector Indexes");
  }
 
-<<<<<<< HEAD
  if (isDefined(js, "Number Observed Trajectories"))
  {
  try { _numberObservedTrajectories = js["Number Observed Trajectories"].get<size_t>();
@@ -661,8 +621,6 @@ void ReinforcementLearning::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Total Observed State Action Pairs");
  }
 
-=======
->>>>>>> master
  if (isDefined(js, "Action Count"))
  {
  try { _actionCount = js["Action Count"].get<size_t>();
@@ -839,12 +797,9 @@ void ReinforcementLearning::getConfiguration(knlohmann::json& js)
    js["State Vector Size"] = _stateVectorSize;
    js["Action Vector Indexes"] = _actionVectorIndexes;
    js["State Vector Indexes"] = _stateVectorIndexes;
-<<<<<<< HEAD
    js["Number Observed Trajectories"] = _numberObservedTrajectories;
    js["Feature Vector Size"] = _featureVectorSize;
    js["Total Observed State Action Pairs"] = _totalObservedStateActionPairs;
-=======
->>>>>>> master
    js["Action Count"] = _actionCount;
  for (size_t i = 0; i <  _k->_variables.size(); i++) { 
    _k->_js["Variables"][i]["Type"] = _k->_variables[i]->_type;

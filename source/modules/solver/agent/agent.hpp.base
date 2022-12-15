@@ -230,6 +230,7 @@ class __className__ : public __parentClassName__
 
   /**
    * @brief Contains the state value evaluation for every experience
+   */
   cBuffer<float> _stateValueBufferContiguous;
 
   /**

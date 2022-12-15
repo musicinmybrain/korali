@@ -253,13 +253,6 @@ class Agent : public Solver
   */
    std::string _multiAgentRelationship;
   /**
-<<<<<<< HEAD
-=======
-  * @brief Specifies whether we are in an individual setting or collaborator setting.
-  */
-   std::string _multiAgentRelationship;
-  /**
->>>>>>> master
   * @brief Specifies whether we take into account the dependencies of the agents or not.
   */
    int _multiAgentCorrelation;
@@ -287,13 +280,10 @@ class Agent : public Solver
   * @brief [Internal Use] Keeps a history of all training episode rewards.
   */
    std::vector<std::vector<float>> _trainingRewardHistory;
-<<<<<<< HEAD
   /**
   * @brief [Internal Use] Keeps a history of all training episode feature rewards.
   */
    std::vector<std::vector<float>> _trainingFeatureRewardHistory;
-=======
->>>>>>> master
   /**
   * @brief [Internal Use] Keeps a history of all training episode experience counts.
   */
@@ -306,13 +296,10 @@ class Agent : public Solver
   * @brief [Internal Use] Contains a running average of the training episode rewards.
   */
    std::vector<float> _trainingAverageReward;
-<<<<<<< HEAD
   /**
   * @brief [Internal Use] Contains a running average of the training episode feature rewards.
   */
    std::vector<float> _trainingAverageFeatureReward;
-=======
->>>>>>> master
   /**
   * @brief [Internal Use] Remembers the cumulative sum of rewards for the last training episode.
   */
@@ -325,7 +312,6 @@ class Agent : public Solver
   * @brief [Internal Use] Remembers the episode that obtained the maximum cumulative sum of rewards found so far.
   */
    std::vector<size_t> _trainingBestEpisodeId;
-<<<<<<< HEAD
   /**
   * @brief [Internal Use] Stores the current training policies configuration.
   */
@@ -333,15 +319,6 @@ class Agent : public Solver
   /**
   * @brief [Internal Use] Stores the best training policies configuration found so far.
   */
-=======
-  /**
-  * @brief [Internal Use] Stores the current training policies configuration.
-  */
-   knlohmann::json _trainingCurrentPolicies;
-  /**
-  * @brief [Internal Use] Stores the best training policies configuration found so far.
-  */
->>>>>>> master
    knlohmann::json _trainingBestPolicies;
   /**
   * @brief [Internal Use] The cumulative sum of rewards obtained when evaluating the testing samples.
@@ -383,13 +360,10 @@ class Agent : public Solver
   * @brief [Internal Use] Current off policy ratio in the experience replay.
   */
    std::vector<float> _experienceReplayOffPolicyRatio;
-<<<<<<< HEAD
   /**
   * @brief [Internal Use] Keeps a history of all off policy ratios.
   */
-   std::vector<float> _experienceReplayOffPolicyHistory;
-=======
->>>>>>> master
+   std::vector<std::vector<float>> _experienceReplayOffPolicyHistory;
   /**
   * @brief [Internal Use] Indicates the current cutoff to classify experiences as on- or off-policy.
   */
@@ -422,7 +396,6 @@ class Agent : public Solver
   * @brief [Internal Use] Sum of squared rewards in experience replay.
   */
    float _rewardRescalingSumSquaredRewards;
-<<<<<<< HEAD
   /**
   * @brief [Internal Use] The logarithm of the estimated partition function
   */
@@ -479,8 +452,6 @@ class Agent : public Solver
   * @brief [Internal Use] Container to collect statistics of log partition function.
   */
    std::vector<std::vector<float>> _statisticLogPartitionFunction;
-=======
->>>>>>> master
   /**
   * @brief [Internal Use] Contains the mean of the states. They will be shifted by this value in order to normalize the state distribution in the RM.
   */
@@ -544,14 +515,11 @@ class Agent : public Solver
   std::vector<bool> _isWorkerRunning;
 
   /**
-<<<<<<< HEAD
    * @brief Features given by the environment to calculate the reward
    */
   std::vector<float> features;
   
   /*
-=======
->>>>>>> master
    * @brief Pointer to training the actor network
    */
   std::vector<solver::DeepSupervisor *> _criticPolicyLearner;
@@ -605,26 +573,20 @@ class Agent : public Solver
    * @brief Stores the action taken by the agent
    */
   cBuffer<std::vector<std::vector<float>>> _actionBuffer;
-<<<<<<< HEAD
 
   /**
    * @brief Stores the observed features at the given state
    */
   cBuffer<std::vector<std::vector<float>>> _featureBuffer;
-=======
->>>>>>> master
 
   /**
    * @brief Stores the policyHyperparameters of the agent of a given episode
    */
-<<<<<<< HEAD
   cBuffer<std::vector<float>> _policyBuffer;
 
   /**
   * @brief Stores the current sequence of states observed by the agent (limited to time sequence length defined by the user)
   */
-=======
->>>>>>> master
   std::vector<cBuffer<std::vector<float>>> _stateTimeSequence;
 
   /**
@@ -686,7 +648,6 @@ class Agent : public Solver
    * @brief If this is a truncated terminal experience, the truncated state is also saved here
    */
   cBuffer<std::vector<std::vector<float>>> _truncatedStateBuffer;
-<<<<<<< HEAD
 
   /**
    * @brief Contains the rewards of every experience (for cache optimzed update of retV in updateExperienceMetadata)
@@ -696,28 +657,14 @@ class Agent : public Solver
   /**
    * @brief Contains the state value evaluation for every experience (for cache optimzed update of retV in updateExperienceMetadata)
    */
-  cBuffer<float> _stateValueBufferContiguous;
-=======
-
-  /**
-   * @brief Contains the rewards of every experience (for cache optimzed update of retV in updateExperienceMetadata)
-   */
-  cBuffer<float> _rewardBufferContiguous;
->>>>>>> master
-
-  /**
-   * @brief Contains the state value evaluation for every experience (for cache optimzed update of retV in updateExperienceMetadata)
-   */
-<<<<<<< HEAD
   cBuffer<float> _rewardUpdateBuffer;
 
   /**
    * @brief Contains the state value evaluation for every experience
-=======
+   */
   cBuffer<float> _stateValueBufferContiguous;
 
   /**
->>>>>>> master
    * @brief Stores the priority annealing rate.
    */
   float _priorityAnnealingRate;
@@ -732,7 +679,6 @@ class Agent : public Solver
    */
   problem::ReinforcementLearning *_problem;
 
-<<<<<<< HEAD
     /**
      *    * @brief Random device for the generation of shuffling numbers
      **/
@@ -779,8 +725,6 @@ class Agent : public Solver
    */
   std::vector<float> _maxEntropyGradient;
 
-=======
->>>>>>> master
   /****************************************************************************************************
    * Session-wise Profiling Timers
    ***************************************************************************************************/
@@ -924,7 +868,6 @@ class Agent : public Solver
   /**
    * @brief Generates an experience mini batch from the replay memory
    * @return A vector of pairs with the indexes to the experiences and agents in the mini batch
-<<<<<<< HEAD
    */
   std::vector<std::pair<size_t, size_t>> generateMiniBatch();
 
@@ -933,16 +876,6 @@ class Agent : public Solver
    * @param miniBatch Indexes to the latest experiences in a batch of sequences
    * @return The time step vector of states
    */
-=======
-   */
-  std::vector<std::pair<size_t, size_t>> generateMiniBatch();
-
-  /**
-   * @brief Gets a vector of states corresponding of time sequence corresponding to the provided last experience index
-   * @param miniBatch Indexes to the latest experiences in a batch of sequences
-   * @return The time step vector of states
-   */
->>>>>>> master
   std::vector<std::vector<std::vector<float>>> getMiniBatchStateSequence(const std::vector<std::pair<size_t, size_t>> &miniBatch);
 
   /**
@@ -981,7 +914,6 @@ class Agent : public Solver
   size_t getTimeSequenceStartExpId(size_t expId);
 
   /**
-<<<<<<< HEAD
    * @brief Gets a vector of features 
    * @param miniBatch Indexes to the feature
    * @return The vector of features
@@ -989,8 +921,6 @@ class Agent : public Solver
   std::vector<std::vector<std::vector<float>>> getMiniBatchFeatureSequence(const std::vector<size_t> &miniBatch);
 
   /**
-=======
->>>>>>> master
    * @brief Gets a vector of states corresponding of time sequence corresponding to the provided second-to-last experience index for which a truncated state exists
    * @param expId The index of the second-to-latest experience in the sequence
    * @param agentId The index of the agent
@@ -1050,7 +980,7 @@ class Agent : public Solver
    */
   inline float getScaledReward(const float reward)
   {
-<<<<<<< HEAD
+    KORALI_LOG_ERROR("IRL does not allow reward rescaling\n");
     return reward;
   }
 
@@ -1058,12 +988,6 @@ class Agent : public Solver
    * @brief Re-calculates reward scaling factors to have a zero mean and unit variance
    */
   void calculateRewardRescalingFactors();
-=======
-    float rescaledReward = reward / _rewardRescalingSigma;
-
-    if (std::isfinite(rescaledReward) == false)
-      KORALI_LOG_ERROR("Scaled reward is non finite: %f  (Sigma: %f)\n", rescaledReward, _rewardRescalingSigma);
->>>>>>> master
 
   /**
    * @brief Calculates the reward given a vector of features.

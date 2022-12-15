@@ -113,11 +113,14 @@ void __className__::initialize()
 
 
     // Initializing training and episode statistics
+    /*
     _testingAverageReward.resize(numAgents, -korali::Inf);
     _testingBestReward.resize(numAgents,-korali::Inf);
     _testingWorstReward.resize(numAgents,-korali::Inf);
     _testingBestAverageReward.resize(numAgents, -korali::Inf);
+    */
     _experienceCount = 0;
+
 
     _testingBestEpisodeId = 0;
     _trainingBestReward.resize(numAgents, -korali::Inf);
@@ -1093,6 +1096,7 @@ void __className__::rescaleFeatures()
   // Actual rescaling of initial features
   for (size_t i = 0; i < _featureBuffer.size(); ++i)
   for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
+  {
     for (size_t d = 0; d < _problem->_featureVectorSize; ++d)
       _featureBuffer[i][a][d] = (_featureBuffer[i][a][d] - _featureRescalingMeans[a][d]) / _featureRescalingSigmas[a][d];
     for (size_t d = 0; d < _problem->_stateVectorSize; ++d)
@@ -1106,6 +1110,7 @@ void __className__::rescaleFeatures()
 
       _k->_logger->logInfo("Detailed", " + State [%zu]: N(%f, %f)\n", d, _stateRescalingMeans[a][d], _stateRescalingSigmas[a][d]);
     }
+  }
 
   // Actual rescaling of initial states
   for (size_t i = 0; i < _stateBuffer.size(); ++i)
@@ -1631,9 +1636,6 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
   // Container to compute offpolicy count difference in minibatch
   std::vector<int> offPolicyCountDelta(numAgents, 0);
 
-  // Container to compute offpolicy count difference in minibatch
-  std::vector<int> offPolicyCountDelta(numAgents, 0);
-
 #pragma omp parallel for reduction(vec_int_plus \
                                    : offPolicyCountDelta)
   for (size_t i = 0; i < updateMinibatch.size(); i++)
@@ -1856,6 +1858,7 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
     // If the starting experience has already been discarded, take the earliest one that still remains
     const ssize_t startId = (ssize_t)_episodePosBuffer[endId] < endId ? endId - (ssize_t)_episodePosBuffer[endId] : 0;
 
+    assert(numAgents == 1);
     // Now iterating backwards to find the beginning
     for (ssize_t curId = endId; curId >= startId; curId--)
     {
@@ -1864,18 +1867,17 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
       {
         // Add features and experience id
         featureMiniBatch[t] = curId;
-        featureBatch[t++] = {_featureBuffer[curId]};
+        featureBatch[t++] = {{_featureBuffer[curId][0]}};
         if (t == _rewardFunctionBatchSize)
         {
           // Feature batch is full, forward features
-          const auto featureReward = calculateReward(featureBatch);
+          auto featureReward = calculateReward(featureBatch);
 
           // Update rewards
           for (size_t b = 0; b < _rewardFunctionBatchSize; ++b)
           {
             const size_t expId = featureMiniBatch[b];
-            for (size_t a = 0; a < numAgents; a++)
-            _rewardBufferContiguous[expId * numAgents + a] = featureReward[b][a];
+            _rewardBufferContiguous[expId * numAgents] = featureReward[b];
             _rewardUpdateBuffer[expId] = _rewardUpdateCount;
           }
 
@@ -1889,12 +1891,12 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
   // Update the rest
   if (t > 0)
   {
-    const auto featureReward = calculateReward(featureBatch);
+    auto featureReward = calculateReward(featureBatch);
     for (size_t b = 0; b < t; ++b)
     {
       const ssize_t expId = featureMiniBatch[b];
       for (size_t a = 0; a < numAgents; a++)
-      _rewardBufferContiguous[expId * numAgents + a] = featureReward[b][a];
+      _rewardBufferContiguous[expId] = featureReward[b];
       _rewardUpdateBuffer[expId] = _rewardUpdateCount;
     }
   }
@@ -1936,7 +1938,6 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
 
         // Getting current reward, action, and state
         const float curReward = _rewardBufferContiguous[curId * numAgents + a];
-        const float curReward = getScaledReward(_rewardBufferContiguous[curId * numAgents + a]);
 
         // Apply recursion
         retV[a] = stateValue + truncatedImportanceWeight * (curReward + _discountFactor * retV[a] - stateValue);

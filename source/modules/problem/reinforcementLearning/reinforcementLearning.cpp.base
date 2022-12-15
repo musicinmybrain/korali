@@ -210,8 +210,6 @@ void __className__::runTrainingEpisode(Sample &worker)
       }
     }
 
-    }
-
     // If single agent, put action into a single vector
     if (_agentsPerEnvironment == 1) worker["Action"] = worker["Action"][0].get<std::vector<float>>();
 
@@ -527,7 +525,6 @@ void __className__::runEnvironment(Sample &worker)
 
     // Re-storing state into agent
     worker["Features"][i] = features;
-      state[d] = (state[d] - stateRescalingMeans[i][d]) / stateRescalingSdevs[i][d];
 
     // Re-storing state into worker
     worker["State"][i] = state;
