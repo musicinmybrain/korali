@@ -492,7 +492,7 @@ void Agent::updateBackgroundBatch(const size_t replacementIdx)
   if (_backgroundTrajectoryCount == 0)
   {
     _k->_logger->logInfo("Detailed", "Initializing background batch..\n");
-
+    
     // Getting index of last experience
     size_t expId = _terminationBuffer.size() - 1;
 

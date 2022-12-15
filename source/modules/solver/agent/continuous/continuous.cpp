@@ -1071,7 +1071,7 @@ std::vector<float> Continuous::calculateKLDivergenceGradient(const policy_t &old
 float Continuous::evaluateTrajectoryLogProbability(const std::vector<std::vector<std::vector<float>>> &states, const std::vector<std::vector<std::vector<float>>> &actions, const std::vector<float> &policyHyperparameter)
 {
   knlohmann::json policy;
-  policy["Policy"] = policyHyperparameter;
+  policy[0] = policyHyperparameter;
   setPolicy(policy);
 
   float trajectoryLogProbability = 0.0;
