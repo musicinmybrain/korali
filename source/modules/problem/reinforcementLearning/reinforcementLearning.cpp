@@ -180,7 +180,7 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
   }
 
   // Store episode policy
-  auto policy = _agent->getPolicy();
+  const auto policy = _agent->getPolicy();
   episode["Policy Hyperparameters"] = policy["Policy Hyperparameters"];
 
   // Saving experiences
@@ -198,6 +198,16 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
     // Storing features of the reward function
     episode["Experiences"][actionCount]["Features"] = worker["Features"];
 
+    // Storing the experience's policy
+    episode["Experiences"][actionCount]["Policy"] = worker["Policy"];
+    
+    // If single agent, put action into a single vector
+    if (_agentsPerEnvironment == 1) worker["Action"] = worker["Action"][0].get<std::vector<float>>();
+
+
+    // Jumping back into the worker's environment
+    runEnvironment(worker);
+ 
     // Store Reward from environment if available
     if (worker.contains("Reward"))
     {
@@ -211,18 +221,6 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
         trainingRewards[i] += worker["Reward"][i].get<float>();
       }
     }
-
-    // If single agent, put action into a single vector
-    if (_agentsPerEnvironment == 1) worker["Action"] = worker["Action"][0].get<std::vector<float>>();
-
-    // Jumping back into the worker's environment
-    runEnvironment(worker);
-
-    // If single agent, put action into a single vector
-    if (_agentsPerEnvironment == 1) worker["Action"] = worker["Action"][0].get<std::vector<float>>();
-
-    // Jumping back into the worker's environment
-    runEnvironment(worker);
 
     // In case of this being a single agent, revert action format
     if (_agentsPerEnvironment == 1)
@@ -478,6 +476,7 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
     auto reward = KORALI_GET(float, worker, "Reward");
     worker._js.getJson().erase("Reward");
     worker["Reward"][0] = reward;
+
   }
 
   // Checking correct format of state
