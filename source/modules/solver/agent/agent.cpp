@@ -47,7 +47,7 @@ void Agent::initialize()
   // Initializing random seed for the shuffle operation
   mt = new std::mt19937(rd());
   mt->seed(_k->_randomSeed++);
-  
+
   // If not set, using heurisitc for maximum size
   if (_experienceReplayMaximumSize == 0)
     _experienceReplayMaximumSize = std::pow(2, 14) * std::sqrt(_problem->_stateVectorSize + _problem->_actionVectorSize);
@@ -58,7 +58,7 @@ void Agent::initialize()
 
   // Initialize current beta for all agents
   _experienceReplayOffPolicyREFERCurrentBeta = std::vector<float>(numAgents, _experienceReplayOffPolicyREFERBeta);
-  
+
   // Formatting reward history for each agent
   _trainingRewardHistory.resize(numAgents);
 
@@ -115,7 +115,6 @@ void Agent::initialize()
     // Initializing training statistics
     _trainingAverageFeatureReward.resize(numAgents, 0.0);
 
-
     // Initializing training and episode statistics
     /*
     _testingAverageReward.resize(numAgents, -korali::Inf);
@@ -124,7 +123,6 @@ void Agent::initialize()
     _testingBestAverageReward.resize(numAgents, -korali::Inf);
     */
     _experienceCount = 0;
-
 
     _testingBestEpisodeId = 0;
     _trainingBestReward.resize(numAgents, -korali::Inf);
@@ -136,12 +134,12 @@ void Agent::initialize()
     // If cutoff scale is not defined, use a heuristic value [defaults to 4.0]
     if (_experienceReplayOffPolicyCutoffScale <= 0.0f)
       KORALI_LOG_ERROR("Experience Replay Cutoff Scale must be larger 0.0");
-    
+
     _experienceReplayOffPolicyCount.resize(numAgents, 0);
     _experienceReplayOffPolicyRatio.resize(numAgents, 0.0f);
     if (_learningRate <= 0.0f)
       KORALI_LOG_ERROR("Learning rate must be larger 0.0");
-    
+
     _currentLearningRate = _learningRate;
     _experienceReplayOffPolicyCurrentCutoff = _experienceReplayOffPolicyCutoffScale;
 
@@ -152,11 +150,11 @@ void Agent::initialize()
     _featureRescalingSigmas = std::vector<std::vector<float>>(numAgents, std::vector<float>(_problem->_featureVectorSize, 1.0));
     _stateRescalingMeans = std::vector<std::vector<float>>(numAgents, std::vector<float>(_problem->_stateVectorSize, 0.0f));
     _stateRescalingSigmas = std::vector<std::vector<float>>(numAgents, std::vector<float>(_problem->_stateVectorSize, 1.0f));
- 
+
     // Reward Rescaling information
     _rewardRescalingSigma = 1.;
     _rewardRescalingSumSquaredRewards = 0.;
-    
+
     // If not given, get agent's initial policy
     if (not isDefined(_trainingCurrentPolicies, "Policy Hyperparameters"))
       _trainingCurrentPolicies = getPolicy();
@@ -445,7 +443,6 @@ void Agent::trainingGeneration()
    * Updating statistics/bookkeeping
    *********************************************************************/
 
-
   // Updating average cumulative reward statistics
   _trainingAverageReward = std::vector<float>(_problem->_agentsPerEnvironment, 0.0f);
   _trainingAverageFeatureReward = std::vector<float>(_problem->_agentsPerEnvironment, 0.0f);
@@ -463,7 +460,6 @@ void Agent::trainingGeneration()
     for (ssize_t e = startEpisodeId; e < endEpisodeId; e++)
       _trainingAverageFeatureReward[a] += _trainingFeatureRewardHistory[a][e];
     _trainingAverageFeatureReward[a] /= (float)(endEpisodeId - startEpisodeId);
-
   }
 
   // Increasing session's generation count
@@ -481,7 +477,7 @@ void Agent::testingGeneration()
     testingWorkers[workerId]["Sample Id"] = _testingSampleIds[workerId];
     testingWorkers[workerId]["Module"] = "Problem";
     testingWorkers[workerId]["Operation"] = "Run Testing Episode";
-    
+
     for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
       testingWorkers[workerId]["Policy Hyperparameters"][p] = _testingCurrentPolicies["Policy Hyperparameters"][p];
     testingWorkers[workerId]["State Rescaling"]["Means"] = _stateRescalingMeans;
@@ -1061,17 +1057,17 @@ void Agent::rescaleStates()
 void Agent::rescaleFeatures()
 {
   // Calculation of state moments
-    std::vector<std::vector<float>> sumFeatures(_problem->_agentsPerEnvironment, std::vector<float>(_problem->_featureVectorSize, 0.0));
-    std::vector<std::vector<float>> squaredSumFeatures(_problem->_agentsPerEnvironment, std::vector<float>(_problem->_featureVectorSize, 0.0));
+  std::vector<std::vector<float>> sumFeatures(_problem->_agentsPerEnvironment, std::vector<float>(_problem->_featureVectorSize, 0.0));
+  std::vector<std::vector<float>> squaredSumFeatures(_problem->_agentsPerEnvironment, std::vector<float>(_problem->_featureVectorSize, 0.0));
 
   for (size_t i = 0; i < _featureBuffer.size(); ++i)
     for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
-    for (size_t d = 0; d < _problem->_featureVectorSize; ++d)
-    {
-      sumFeatures[a][d] += _featureBuffer[i][a][d];
-      squaredSumFeatures[a][d] += _featureBuffer[i][a][d] * _featureBuffer[i][a][d];
-    }
-  
+      for (size_t d = 0; d < _problem->_featureVectorSize; ++d)
+      {
+        sumFeatures[a][d] += _featureBuffer[i][a][d];
+        squaredSumFeatures[a][d] += _featureBuffer[i][a][d] * _featureBuffer[i][a][d];
+      }
+
   std::vector<std::vector<float>> sumStates(_problem->_agentsPerEnvironment, std::vector<float>(_problem->_stateVectorSize, 0.0f));
   std::vector<std::vector<float>> squaredSumStates(_problem->_agentsPerEnvironment, std::vector<float>(_problem->_stateVectorSize, 0.0f));
 
@@ -1086,35 +1082,35 @@ void Agent::rescaleFeatures()
   _k->_logger->logInfo("Detailed", " + Using State Normalization N(Mean, Sigma):\n");
 
   for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
-  for (size_t d = 0; d < _problem->_featureVectorSize; ++d)
-  {
-    _featureRescalingMeans[a][d] = sumFeatures[a][d] / (float)_featureBuffer.size();
-    if (std::isfinite(_featureRescalingMeans[a][d]) == false) KORALI_LOG_ERROR("Feature mean not finite. Cannot shift features.");
+    for (size_t d = 0; d < _problem->_featureVectorSize; ++d)
+    {
+      _featureRescalingMeans[a][d] = sumFeatures[a][d] / (float)_featureBuffer.size();
+      if (std::isfinite(_featureRescalingMeans[a][d]) == false) KORALI_LOG_ERROR("Feature mean not finite. Cannot shift features.");
 
-    _featureRescalingSigmas[a][d] = std::sqrt(squaredSumFeatures[a][d] / (float)_featureBuffer.size() - _featureRescalingMeans[a][d] * _featureRescalingMeans[a][d]);
-    if (std::isfinite(_featureRescalingSigmas[a][d]) == false) KORALI_LOG_ERROR("Feature sdev not finite. Cannot scale features.");
+      _featureRescalingSigmas[a][d] = std::sqrt(squaredSumFeatures[a][d] / (float)_featureBuffer.size() - _featureRescalingMeans[a][d] * _featureRescalingMeans[a][d]);
+      if (std::isfinite(_featureRescalingSigmas[a][d]) == false) KORALI_LOG_ERROR("Feature sdev not finite. Cannot scale features.");
 
-    _k->_logger->logInfo("Detailed", " + Feature [%zu]: N(%f, %f)\n", d, _featureRescalingMeans[a][d], _featureRescalingSigmas[a][d]);
-  }
+      _k->_logger->logInfo("Detailed", " + Feature [%zu]: N(%f, %f)\n", d, _featureRescalingMeans[a][d], _featureRescalingSigmas[a][d]);
+    }
 
   // Actual rescaling of initial features
   for (size_t i = 0; i < _featureBuffer.size(); ++i)
-  for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
-  {
-    for (size_t d = 0; d < _problem->_featureVectorSize; ++d)
-      _featureBuffer[i][a][d] = (_featureBuffer[i][a][d] - _featureRescalingMeans[a][d]) / _featureRescalingSigmas[a][d];
-    for (size_t d = 0; d < _problem->_stateVectorSize; ++d)
+    for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
     {
-      _stateRescalingMeans[a][d] = sumStates[a][d] / (float)_stateBuffer.size();
-      if (std::isfinite(_stateRescalingMeans[a][d]) == false) _stateRescalingMeans[a][d] = 0.0f;
+      for (size_t d = 0; d < _problem->_featureVectorSize; ++d)
+        _featureBuffer[i][a][d] = (_featureBuffer[i][a][d] - _featureRescalingMeans[a][d]) / _featureRescalingSigmas[a][d];
+      for (size_t d = 0; d < _problem->_stateVectorSize; ++d)
+      {
+        _stateRescalingMeans[a][d] = sumStates[a][d] / (float)_stateBuffer.size();
+        if (std::isfinite(_stateRescalingMeans[a][d]) == false) _stateRescalingMeans[a][d] = 0.0f;
 
-      _stateRescalingSigmas[a][d] = std::sqrt(squaredSumStates[a][d] / (float)_stateBuffer.size() - _stateRescalingMeans[a][d] * _stateRescalingMeans[a][d]);
-      if (std::isfinite(_stateRescalingSigmas[a][d]) == false) _stateRescalingSigmas[a][d] = 1.0f;
-      if (_stateRescalingSigmas[a][d] <= 1e-9) _stateRescalingSigmas[a][d] = 1.0f;
+        _stateRescalingSigmas[a][d] = std::sqrt(squaredSumStates[a][d] / (float)_stateBuffer.size() - _stateRescalingMeans[a][d] * _stateRescalingMeans[a][d]);
+        if (std::isfinite(_stateRescalingSigmas[a][d]) == false) _stateRescalingSigmas[a][d] = 1.0f;
+        if (_stateRescalingSigmas[a][d] <= 1e-9) _stateRescalingSigmas[a][d] = 1.0f;
 
-      _k->_logger->logInfo("Detailed", " + State [%zu]: N(%f, %f)\n", d, _stateRescalingMeans[a][d], _stateRescalingSigmas[a][d]);
+        _k->_logger->logInfo("Detailed", " + State [%zu]: N(%f, %f)\n", d, _stateRescalingMeans[a][d], _stateRescalingSigmas[a][d]);
+      }
     }
-  }
 
   // Actual rescaling of initial states
   for (size_t i = 0; i < _stateBuffer.size(); ++i)
@@ -1245,17 +1241,17 @@ void Agent::processEpisode(knlohmann::json &episode)
 
     // Getting features
     _featureBuffer.add(episode["Experiences"][expId]["Features"].get<std::vector<std::vector<float>>>());
-   
+
     std::vector<float> featureReward(numAgents, 0.0f);
-    for(size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
+    for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
     {
       // Getting reward (TODO: batch forwarding)
-      featureReward[a] = calculateReward({{_featureBuffer[_featureBuffer.size()-1][a]}})[0];
+      featureReward[a] = calculateReward({{_featureBuffer[_featureBuffer.size() - 1][a]}})[0];
 
       // Accumulate feature reward
       cumulativeFeatureReward[a] += featureReward[a];
     }
-    
+
     // For cooporative multi-agent model rewards are averaged
     if (_multiAgentRelationship == "Cooperation")
     {
@@ -1282,7 +1278,7 @@ void Agent::processEpisode(knlohmann::json &episode)
     // Put reward to replay memory
     for (size_t a = 0; a < numAgents; a++)
       _rewardBufferContiguous.add(featureReward[a]);
-    
+
     _rewardUpdateBuffer.add(_rewardUpdateCount);
 
     // Keeping statistics
@@ -1376,7 +1372,6 @@ void Agent::processEpisode(knlohmann::json &episode)
           KORALI_LOG_ERROR("State with experience id %zu for agent %zu detected with no available actions.", expId, a);
       }
     }
-
 
     // Storing policy information in replay memory
     _expPolicyBuffer.add(expPolicy);
@@ -1670,7 +1665,6 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     _importanceWeightBuffer[expId][agentId] = importanceWeight;
     _truncatedImportanceWeightBufferContiguous[expId * numAgents + agentId] = std::min(_importanceWeightTruncationLevel, importanceWeight);
 
-
     // Keep track of off-policyness (in principle only necessary for agentId==policyId)
     if (not _multiAgentCorrelation)
     {
@@ -1824,7 +1818,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     // Update off policy count
     _experienceReplayOffPolicyCount[a] += offPolicyCountDelta[a];
     _experienceReplayOffPolicyRatio[a] = (float)_experienceReplayOffPolicyCount[a] / (float)_isOnPolicyBuffer.size();
-    
+
     // Normalize off policy Ratio
     if (_problem->_policiesPerEnvironment == 1)
       _experienceReplayOffPolicyRatio[a] /= (float)numAgents;
@@ -1851,7 +1845,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
   size_t t = 0;
   std::vector<ssize_t> featureMiniBatch(_rewardFunctionBatchSize);
   std::vector<std::vector<std::vector<float>>>
-  featureBatch(_rewardFunctionBatchSize, std::vector<std::vector<float>>(_problem->_agentsPerEnvironment, std::vector<float>(_problem->_featureVectorSize)));
+    featureBatch(_rewardFunctionBatchSize, std::vector<std::vector<float>>(_problem->_agentsPerEnvironment, std::vector<float>(_problem->_featureVectorSize)));
 
   // Update rewards backward
   for (size_t i = 0; i < retraceMiniBatch.size(); i++)
@@ -1900,7 +1894,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     {
       const ssize_t expId = featureMiniBatch[b];
       for (size_t a = 0; a < numAgents; a++)
-      _rewardBufferContiguous[expId] = featureReward[b];
+        _rewardBufferContiguous[expId] = featureReward[b];
       _rewardUpdateBuffer[expId] = _rewardUpdateCount;
     }
   }
@@ -1985,7 +1979,7 @@ std::vector<std::vector<std::vector<float>>> Agent::getMiniBatchFeatureSequence(
     // Getting current expId
     const size_t expId = miniBatch[b];
 
-    for(size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
+    for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
     {
       featureSequence[b][a] = _featureBuffer[expId][a];
     }
@@ -2064,7 +2058,7 @@ void Agent::serializeExperienceReplay()
     stateJson["Experience Replay"][i]["Truncated State"] = _truncatedStateBuffer[i];
     stateJson["Experience Replay"][i]["Truncated State Value"] = _truncatedStateValueBuffer[i];
     stateJson["Experience Replay"][i]["Termination"] = _terminationBuffer[i];
-   
+
     stateJson["Experience Replay"][i]["Feature"] = _featureBuffer[i];
     stateJson["Experience Replay"][i]["Reward Update"] = _rewardUpdateBuffer[i];
     stateJson["Experience Replay"][i]["Policy"] = _policyBuffer[i];
@@ -2167,7 +2161,7 @@ void Agent::deserializeExperienceReplay()
   _rewardUpdateBuffer.clear();
   _featureBuffer.clear();
   _policyBuffer.clear();
-  
+
   _retraceValueBufferContiguous.clear();
   _rewardBufferContiguous.clear();
   _stateValueBufferContiguous.clear();
@@ -2191,7 +2185,7 @@ void Agent::deserializeExperienceReplay()
     _rewardUpdateBuffer.add(stateJson["Experience Replay"][i]["Reward Update"].get<float>());
     _featureBuffer.add(stateJson["Experience Replay"][i]["Feature"].get<std::vector<std::vector<float>>>());
     _policyBuffer.add(stateJson["Experience Replay"][i]["Policy"].get<std::vector<float>>());
-    
+
     _stateBuffer.add(stateJson["Experience Replay"][i]["State"].get<std::vector<std::vector<float>>>());
     _actionBuffer.add(stateJson["Experience Replay"][i]["Action"].get<std::vector<std::vector<float>>>());
     _importanceWeightBuffer.add(stateJson["Experience Replay"][i]["Importance Weight"].get<std::vector<float>>());

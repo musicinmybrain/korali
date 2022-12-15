@@ -518,7 +518,7 @@ class Agent : public Solver
    * @brief Features given by the environment to calculate the reward
    */
   std::vector<float> features;
-  
+
   /*
    * @brief Pointer to training the actor network
    */
@@ -679,16 +679,15 @@ class Agent : public Solver
    */
   problem::ReinforcementLearning *_problem;
 
-    /**
+  /**
      *    * @brief Random device for the generation of shuffling numbers
      **/
-    std::random_device rd;
+  std::random_device rd;
 
-    /**
+  /**
     *    * @brief Mersenne twister for the generation of shuffling numbers
     **/
-    std::mt19937 *mt;
-
+  std::mt19937 *mt;
 
   /****************************************************************************************************
    * Storage for background batch and demonstration batch

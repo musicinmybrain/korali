@@ -186,14 +186,14 @@ float __className__::evaluateTrajectoryLogProbability(const std::vector<std::vec
   // Evaluate all states within a single trajectory and calculate probability of trajectory
   for (size_t t = 0; t < states.size(); ++t)
   {
-    for(size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
+    for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
     {
-    std::vector<policy_t> policyInfo(1);
-    runPolicy({{states[t][a]}}, policyInfo);
-    const auto &pActions = policyInfo[0].distributionParameters;
-    for (size_t actionIdx = 0; actionIdx < _problem->_possibleActions.size(); ++actionIdx)
-      if (actions[t][a] == _problem->_possibleActions[actionIdx])
-        trajectoryLogProbability += std::log(pActions[actionIdx]);
+      std::vector<policy_t> policyInfo(1);
+      runPolicy({{states[t][a]}}, policyInfo);
+      const auto &pActions = policyInfo[0].distributionParameters;
+      for (size_t actionIdx = 0; actionIdx < _problem->_possibleActions.size(); ++actionIdx)
+        if (actions[t][a] == _problem->_possibleActions[actionIdx])
+          trajectoryLogProbability += std::log(pActions[actionIdx]);
     }
   }
 
@@ -207,11 +207,11 @@ float __className__::evaluateTrajectoryLogProbabilityWithObservedPolicy(const st
   // Evaluate all states within a single trajectory and calculate probability of trajectory
   for (size_t t = 0; t < states.size(); ++t)
   {
-    for(size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
-    for (size_t actionIdx = 0; actionIdx < _problem->_possibleActions.size(); ++actionIdx)
-      if (_problem->_possibleActions[actionIdx] == actions[t][a])
+    for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
+      for (size_t actionIdx = 0; actionIdx < _problem->_possibleActions.size(); ++actionIdx)
+        if (_problem->_possibleActions[actionIdx] == actions[t][a])
           KORALI_LOG_ERROR("TODO");
-        //trajectoryLogProbability += std::log(_observationsApproximatorActionProbabilities[actionIdx]);
+    //trajectoryLogProbability += std::log(_observationsApproximatorActionProbabilities[actionIdx]);
   }
 
   return trajectoryLogProbability;

@@ -55,7 +55,7 @@ void ReinforcementLearning::initialize()
 
   if (_actionVectorSize == 0) KORALI_LOG_ERROR("No action variables have been defined.\n");
   if (_stateVectorSize == 0) KORALI_LOG_ERROR("No state variables have been defined.\n");
-  
+
   if (_policiesPerEnvironment != 1)
     KORALI_LOG_ERROR("Number of policies %zu is not 1.\n", _policiesPerEnvironment);
 
@@ -67,7 +67,6 @@ void ReinforcementLearning::initialize()
   if (_observationsStates[0].size() == 0) KORALI_LOG_ERROR("Observed states empty.\n");
   if (_observationsActions[0].size() == 0) KORALI_LOG_ERROR("Observed actions empty.\n");
   if (_observationsFeatures[0].size() == 0) KORALI_LOG_ERROR("Observed features empty.\n");
-  
 
   if (_observationsStates[0][0].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Mismatch observed agent states vs number of agents per environment.\n");
   if (_observationsActions[0][0].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Mismatch observed agent actions vs number of agents per environment.\n");
@@ -84,9 +83,9 @@ void ReinforcementLearning::initialize()
 
     for (size_t i = 0; i < trajectoryLength; ++i)
     {
-      for(size_t a = 0; a < _agentsPerEnvironment; ++a)
-      if (_observationsStates[t][i][a].size() != _stateVectorSize)
-        KORALI_LOG_ERROR("Dimension of observed state (trajectory %zu index %zu) does not agree with problem configuration.\n", t, i);
+      for (size_t a = 0; a < _agentsPerEnvironment; ++a)
+        if (_observationsStates[t][i][a].size() != _stateVectorSize)
+          KORALI_LOG_ERROR("Dimension of observed state (trajectory %zu index %zu) does not agree with problem configuration.\n", t, i);
     }
 
     if (_observationsActions[t].size() != trajectoryLength)
@@ -94,9 +93,9 @@ void ReinforcementLearning::initialize()
 
     for (size_t i = 0; i < trajectoryLength; ++i)
     {
-      for(size_t a = 0; a < _agentsPerEnvironment; ++a)
-      if (_observationsActions[t][i][a].size() != _actionVectorSize)
-        KORALI_LOG_ERROR("Dimension of observed action (%zu) does not agree with problem configuration (trajectory %zu index %zu).\n", _observationsActions[t][i][a].size(), t, i);
+      for (size_t a = 0; a < _agentsPerEnvironment; ++a)
+        if (_observationsActions[t][i][a].size() != _actionVectorSize)
+          KORALI_LOG_ERROR("Dimension of observed action (%zu) does not agree with problem configuration (trajectory %zu index %zu).\n", _observationsActions[t][i][a].size(), t, i);
     }
 
     if (_observationsFeatures[t].size() != trajectoryLength)
@@ -104,9 +103,9 @@ void ReinforcementLearning::initialize()
 
     for (size_t i = 0; i < trajectoryLength; ++i)
     {
-      for(size_t a = 0; a < _agentsPerEnvironment; ++a)
-      if (_observationsFeatures[t][i][a].size() != _featureVectorSize)
-        KORALI_LOG_ERROR("Dimension (%zu) of observed features (trajectory %zu index %zu) does not agree with problem configuration.\n", _observationsFeatures[t][i][a].size(), t, i, _featureVectorSize);
+      for (size_t a = 0; a < _agentsPerEnvironment; ++a)
+        if (_observationsFeatures[t][i][a].size() != _featureVectorSize)
+          KORALI_LOG_ERROR("Dimension (%zu) of observed features (trajectory %zu index %zu) does not agree with problem configuration.\n", _observationsFeatures[t][i][a].size(), t, i, _featureVectorSize);
     }
   }
 
@@ -179,7 +178,7 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
     finalizeEnvironment();
     return;
   }
-    
+
   // Store episode policy
   auto policy = _agent->getPolicy();
   episode["Policy Hyperparameters"] = policy["Policy Hyperparameters"];
@@ -198,14 +197,13 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
 
     // Storing features of the reward function
     episode["Experiences"][actionCount]["Features"] = worker["Features"];
-      
+
     // Store Reward from environment if available
     if (worker.contains("Reward"))
     {
-
-    // Sanity check for reward
-    for (size_t i = 0; i < _agentsPerEnvironment; i++)
-    {
+      // Sanity check for reward
+      for (size_t i = 0; i < _agentsPerEnvironment; i++)
+      {
         if (std::isfinite(worker["Reward"][i].get<float>()) == false)
           KORALI_LOG_ERROR("Environment reward returned an invalid value: %f\n", worker["Reward"][i].get<float>());
 
@@ -500,10 +498,9 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
 
     for (size_t j = 0; j < _stateVectorSize; j++)
       if (std::isfinite(worker["State"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu state variable %lu returned an invalid value: %f\n", i, j, worker["State"][i][j].get<float>());
-    
+
     for (size_t j = 0; j < _stateVectorSize; j++)
       if (std::isfinite(worker["Features"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu feature variable %lu returned an invalid value: %f\n", i, j, worker["Features"][i][j].get<float>());
-
 
     for (size_t j = 0; j < _stateVectorSize; j++)
       if (std::isfinite(worker["State"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu state variable %lu returned an invalid value: %f\n", i, j, worker["State"][i][j].get<float>());
