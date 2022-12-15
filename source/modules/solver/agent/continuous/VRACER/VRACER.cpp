@@ -259,7 +259,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
 
     // Compute policy gradient inside trust region
     std::vector<float> polGrad(_policyParameterCount, 0.0);
-    // if (_isOnPolicyBuffer[expId][agentId])
+    if (_isOnPolicyBuffer[expId][agentId])
     {
       // Qret for terminal state is just reward
       float Qret = getScaledReward(_rewardBufferContiguous[expId * numAgents + agentId]);
