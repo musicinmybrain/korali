@@ -21,9 +21,6 @@ void __className__::initialize()
   // Getting number of agents
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
-  // Formatting reward history for each agent
-  _trainingRewardHistory.resize(numAgents);
-
   // Allocating and obtaining action bounds information
   _actionLowerBounds.resize(_problem->_actionVectorSize);
   _actionUpperBounds.resize(_problem->_actionVectorSize);
@@ -57,6 +54,10 @@ void __className__::initialize()
 
   // Initialize current beta for all agents
   _experienceReplayOffPolicyREFERCurrentBeta = std::vector<float>(numAgents, _experienceReplayOffPolicyREFERBeta);
+  
+  // Formatting reward history for each agent
+  _trainingRewardHistory.resize(numAgents);
+
 
   //  Pre-allocating space for the experience replay memory
   _stateBuffer.resize(_experienceReplayMaximumSize);
@@ -81,8 +82,6 @@ void __className__::initialize()
   // Pre-allocate space for policies
   _policyBuffer.resize(_experienceReplayMaximumSize);
 
-  // Initialize Histories
-  _trainingRewardHistory.resize(0);
   _experienceReplayOffPolicyHistory.resize(0);
 
   // Initialize background samples
@@ -271,7 +270,7 @@ void __className__::initialize()
   _rewardFunctionLearner = dynamic_cast<solver::DeepSupervisor *>(_rewardFunctionExperiment._solver);
 
   // Init gradient
-  _maxEntropyGradient.resize(_rewardFunctionLearner->_optimizer->_nVars, 0.0);
+  _maxEntropyGradient.resize(1, 0.0);
 }
 
 void __className__::runGeneration()
@@ -1128,7 +1127,6 @@ void __className__::attendWorker(size_t workerId)
 
       // Getting the training reward of the latest episodes
       _trainingLastReward = KORALI_GET(std::vector<float>, _workers[workerId], "Training Rewards");
-      _trainingExperienceHistory.push_back(message["Episodes"]["Experiences"].size());
 
       // Keeping training statistics. Updating if exceeded best training policy so far.
       for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
@@ -1141,6 +1139,7 @@ void __className__::attendWorker(size_t workerId)
         }
         _trainingRewardHistory[a].push_back(_trainingLastReward[a]);
       }
+
       // Storing bookkeeping information
       _trainingExperienceHistory.push_back(message["Episodes"]["Experiences"].size());
 

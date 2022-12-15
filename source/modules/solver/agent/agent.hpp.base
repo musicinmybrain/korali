@@ -550,6 +550,7 @@ class __className__ : public __parentClassName__
    */
   inline float getScaledReward(const float reward)
   {
+    KORALI_LOG_ERROR("IRL does not allow reward rescaling\n");
     return reward;
   }
 

@@ -275,7 +275,7 @@ void Agent::initialize()
   _rewardFunctionLearner = dynamic_cast<solver::DeepSupervisor *>(_rewardFunctionExperiment._solver);
 
   // Init gradient
-  _maxEntropyGradient.resize(_rewardFunctionLearner->_optimizer->_nVars, 0.0);
+  _maxEntropyGradient.resize(1, 0.0);
 }
 
 void Agent::runGeneration()

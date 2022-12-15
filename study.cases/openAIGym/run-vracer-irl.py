@@ -23,7 +23,7 @@ args = parser.parse_args()
 print(args)
 
 ####### Load observations
-excludePositions = True
+excludePositions = False
 if (args.env == 'Reacher-v4'):
   excludePositions = True
 elif (args.env == 'Ant-v4'):

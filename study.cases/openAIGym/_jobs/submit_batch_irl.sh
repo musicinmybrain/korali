@@ -1,8 +1,9 @@
-run=500
+run=600
 
-export ENV="Swimmer-v5"
+export ENV="Swimmer-v4"
 export POL="Linear"
-export EXP=10000000
+export EXP=150000
+#export EXP=10000000
 
 for D in 1 4 16 64
 do 
@@ -13,5 +14,6 @@ do
         export DBS=$D
         export BBS=$B
         bsub < bsub-vracer-irl.lsf
+        exit
     done
 done
