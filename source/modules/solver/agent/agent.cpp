@@ -383,15 +383,6 @@ void Agent::trainingGeneration()
         }
       }
 
-      if (_experienceCount > _experiencesBetweenPartitionFunctionStatistics * _statisticLogPartitionFunction.size())
-      {
-        auto beginTime = std::chrono::steady_clock::now(); // Profiling
-
-        auto endTime = std::chrono::steady_clock::now();                                                                                 // Profiling
-        _sessionPartitionFunctionStatUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling
-        _generationPartitionFunctionStatUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
-      }
-
       // If we accumulated enough experiences between updates in this session, update now
       while (_sessionExperienceCount > (_experiencesBetweenPolicyUpdates * _sessionPolicyUpdateCount + _sessionExperiencesUntilStartSize))
       {
@@ -1068,17 +1059,6 @@ void Agent::rescaleFeatures()
         squaredSumFeatures[a][d] += _featureBuffer[i][a][d] * _featureBuffer[i][a][d];
       }
 
-  std::vector<std::vector<float>> sumStates(_problem->_agentsPerEnvironment, std::vector<float>(_problem->_stateVectorSize, 0.0f));
-  std::vector<std::vector<float>> squaredSumStates(_problem->_agentsPerEnvironment, std::vector<float>(_problem->_stateVectorSize, 0.0f));
-
-  for (size_t i = 0; i < _stateBuffer.size(); ++i)
-    for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
-      for (size_t d = 0; d < _problem->_stateVectorSize; ++d)
-      {
-        sumStates[a][d] += _stateBuffer[i][a][d];
-        squaredSumStates[a][d] += _stateBuffer[i][a][d] * _stateBuffer[i][a][d];
-      }
-
   _k->_logger->logInfo("Detailed", " + Using State Normalization N(Mean, Sigma):\n");
 
   for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
@@ -1099,24 +1079,8 @@ void Agent::rescaleFeatures()
     {
       for (size_t d = 0; d < _problem->_featureVectorSize; ++d)
         _featureBuffer[i][a][d] = (_featureBuffer[i][a][d] - _featureRescalingMeans[a][d]) / _featureRescalingSigmas[a][d];
-      for (size_t d = 0; d < _problem->_stateVectorSize; ++d)
-      {
-        _stateRescalingMeans[a][d] = sumStates[a][d] / (float)_stateBuffer.size();
-        if (std::isfinite(_stateRescalingMeans[a][d]) == false) _stateRescalingMeans[a][d] = 0.0f;
-
-        _stateRescalingSigmas[a][d] = std::sqrt(squaredSumStates[a][d] / (float)_stateBuffer.size() - _stateRescalingMeans[a][d] * _stateRescalingMeans[a][d]);
-        if (std::isfinite(_stateRescalingSigmas[a][d]) == false) _stateRescalingSigmas[a][d] = 1.0f;
-        if (_stateRescalingSigmas[a][d] <= 1e-9) _stateRescalingSigmas[a][d] = 1.0f;
-
-        _k->_logger->logInfo("Detailed", " + State [%zu]: N(%f, %f)\n", d, _stateRescalingMeans[a][d], _stateRescalingSigmas[a][d]);
-      }
     }
 
-  // Actual rescaling of initial states
-  for (size_t i = 0; i < _stateBuffer.size(); ++i)
-    for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
-      for (size_t d = 0; d < _problem->_stateVectorSize; ++d)
-        _stateBuffer[i][a][d] = (_stateBuffer[i][a][d] - _stateRescalingMeans[a][d]) / _stateRescalingSigmas[a][d];
 }
 
 void Agent::attendWorker(size_t workerId)
