@@ -834,8 +834,13 @@ std::vector<std::pair<size_t, size_t>> __className__::generateMiniBatch()
   // Get number of agents
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
-  // Allocating storage for mini batch experiecne indexes
+  // Allocating storage for mini batch experience indexes
   std::vector<std::pair<size_t, size_t>> miniBatch(_miniBatchSize * numAgents);
+
+  // One minibatch per policy for naive ensemble
+  const size_t numPolicies = (_currentEpisode < _burnIn) ? 1 : _problem->_policiesPerEnvironment;
+  if(_problem->_ensembleLearning && ((_gaussianApproximationEnabled || _minimalApproximation) == false))
+    miniBatch.resize(_miniBatchSize*numPolicies);
 
   // Fill minibatch
   for (size_t b = 0; b < _miniBatchSize; b++)
@@ -854,6 +859,23 @@ std::vector<std::pair<size_t, size_t>> __className__::generateMiniBatch()
       miniBatch[b * numAgents + a].second = a;
     }
   }
+
+  // Fill rest of minibatch for naive ensemble
+  if(_problem->_ensembleLearning && ((_gaussianApproximationEnabled || _minimalApproximation) == false))
+    for (size_t p = 1; p < numPolicies; p++)
+      for (size_t b = 0; b < _miniBatchSize; b++)
+      {
+        // Producing random (uniform) number for the selection of the experience
+        float x = _uniformGenerator->getRandomNumber();
+
+        // Selecting experience
+        size_t expId = std::floor(x * (float)_stateBuffer.size());
+        expId = expId == _stateBuffer.size() ? _stateBuffer.size() - 1 : expId;
+
+        // Setting experience
+        miniBatch[p * _miniBatchSize + b].first = expId;
+        miniBatch[p * _miniBatchSize + b].second = 0;
+      }
 
   // Sorting minibatch: first by expId, second by agentId
   // to quickly detect duplicates when updating metadata

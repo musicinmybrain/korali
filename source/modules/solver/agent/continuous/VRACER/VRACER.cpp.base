@@ -120,7 +120,7 @@ void __className__::trainPolicy()
     auto stateSequenceBatchCopy = stateSequenceBatch;
 
     // Disable experience sharing for competing agents
-    if (_multiAgentRelationship == "Competition")
+    if (_multiAgentRelationship == "Competition" || (_problem->_ensembleLearning && ((_gaussianApproximationEnabled || _minimalApproximation) == false)))
     {
       std::vector<std::pair<size_t, size_t>> miniBatchModified(_miniBatchSize);
       std::vector<std::vector<std::vector<float>>> stateSequenceModified(_miniBatchSize);
@@ -243,7 +243,7 @@ void __className__::calculatePolicyGradients(const std::vector<std::pair<size_t,
     // Gradient has to be divided by Number of Samples in Bayesian learning
     if ((_gaussianApproximationEnabled || _minimalApproximation) &&
         (_currentEpisode >= _burnIn))
-      gradientLoss[0] /= (float)(_numberOfSamples*_problem->_policiesPerEnvironment);;
+      gradientLoss[0] /= (float)(_numberOfSamples*_problem->_policiesPerEnvironment);
 
     // Check value of gradient
     if (std::isfinite(gradientLoss[0]) == false)
@@ -275,7 +275,7 @@ void __className__::calculatePolicyGradients(const std::vector<std::pair<size_t,
 
       // Cumulate policy loss
       const float &importanceWeight = _importanceWeightBuffer[expId][agentId];
-      _policyLoss += importanceWeight * (Qret - stateValue);
+      _policyLoss += importanceWeight * lossOffPolicy;
 
       // Compute Off-Policy Gradient
       polGrad = calculateImportanceWeightGradient(expAction, curPolicy, expPolicy, importanceWeight);
