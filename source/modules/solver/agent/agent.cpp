@@ -746,9 +746,9 @@ void Agent::processEpisode(knlohmann::json &episode)
         const size_t numPolicies = _problem->_policiesPerEnvironment;
         if(_currentEpisode >= _burnIn)
         { 
-          if(_gaussianApproximationEnabled)
+          if(_gaussianApproximationEnabled || _minimalApproximation)
           {
-            // Compute predictive posterior distribution
+            // Compute predictive posterior distribution (we only need value, which is same for Gaussian and full model)
             std::vector<policy_t> policy;
             gaussianPredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
 
@@ -1030,9 +1030,9 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
         const size_t numPolicies = _problem->_policiesPerEnvironment;
         if(_currentEpisode >= _burnIn)
         { 
-          if(_gaussianApproximationEnabled)
+          if(_gaussianApproximationEnabled || _minimalApproximation)
           {
-            // Compute predictive posterior distribution
+            // Compute predictive posterior distribution (we only need value, which is same for Gaussian and full model)
             std::vector<policy_t> policy;
             gaussianPredictivePosteriorDistribution({expTruncatedStateSequence}, policy);
 

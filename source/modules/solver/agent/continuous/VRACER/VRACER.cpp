@@ -259,7 +259,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
 
     // Compute policy gradient inside trust region
     std::vector<float> polGrad(_policyParameterCount, 0.0);
-    if (_isOnPolicyBuffer[expId][agentId])
+    // if (_isOnPolicyBuffer[expId][agentId])
     {
       // Qret for terminal state is just reward
       float Qret = getScaledReward(_rewardBufferContiguous[expId * numAgents + agentId]);
@@ -650,6 +650,9 @@ void VRACER::calculatePredictivePosteriorProbabilities(std::vector<float> &actio
   // Create empty policy to forward samples
   std::vector<policy_t> policy;
 
+  // Create buffer for log-probabilities
+  std::vector<std::vector<float>> logProbabilities(batchSize);
+
   // Forward policy for samples of predictive posterior distribution
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
     for (size_t s = 0; s < numSamples; s++)
@@ -685,10 +688,10 @@ void VRACER::calculatePredictivePosteriorProbabilities(std::vector<float> &actio
         }
 
         // Compute probability of action
-        const float probability = calculateActionProbability(_action, policy[b]);
+        const float logProbability = calculateLogActionProbability(_action, policy[b]);
 
-        // Sum probability
-        curPolicy[b].actionProbabilities[0] += probability;
+        // Push log-propability to vector
+        logProbabilities[b].push_back(logProbability);
 
         // Accumulate State Value
         curPolicy[b].stateValue += policy[b].stateValue;
@@ -746,10 +749,10 @@ void VRACER::calculatePredictivePosteriorProbabilities(std::vector<float> &actio
         }
 
         // Compute probability of action
-        const float probability = calculateActionProbability(_action, policy[b]);
+        const float logProbability = calculateLogActionProbability(_action, policy[b]);
 
-        // Sum probability
-        curPolicy[b].actionProbabilities[0] += probability;
+        // Push log-propability to vector
+        logProbabilities[b].push_back(logProbability);
 
         // Accumulate State Value
         curPolicy[b].stateValue += policy[b].stateValue;
@@ -780,11 +783,12 @@ void VRACER::calculatePredictivePosteriorProbabilities(std::vector<float> &actio
 #pragma omp parallel for
   for (size_t b = 0; b < batchSize; b++)
   {
-    // Complete computation of predictive posterior probability
-    curPolicy[b].actionProbabilities[0] *= invTotNumSamples;
-
     // Finalize State Value
     curPolicy[b].stateValue *= invTotNumSamples;
+
+    // Finalize action probabilities
+    curPolicy[b].actionProbabilities[0] = logSumExp(logProbabilities[b]) + std::log(invTotNumSamples);
+
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)
     {
       // Finalize Mean

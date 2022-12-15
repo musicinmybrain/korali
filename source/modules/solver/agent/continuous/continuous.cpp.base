@@ -350,125 +350,116 @@ std::vector<float> __className__::generateTestingAction(const policy_t &curPolic
 
 float __className__::calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy)
 {
-  if( _minimalApproximation )
-  {
-    // Read old/current probabilities
-    const float oldProbability = oldPolicy.actionProbabilities[0];
-    const float curProbability = curPolicy.actionProbabilities[0];
-
-    // Compute importance weights
-    float importanceWeight = curProbability / oldProbability;
-
-    // Normalizing extreme values to prevent loss of precision
-    if (std::abs(importanceWeight) > std::exp(+7.f)) importanceWeight = sgn(importanceWeight)*std::exp(+7.f);
-    if (std::abs(importanceWeight) < std::exp(-7.f)) importanceWeight = sgn(importanceWeight)*std::exp(-7.f);
-
-    // Return importance weight
-    return importanceWeight;
-  }
-
   float logpCurPolicy = 0.0f;
   float logpOldPolicy = 0.0f;
 
-  if (_policyDistribution == "Normal")
+  if( _minimalApproximation )
   {
-    for (size_t i = 0; i < action.size(); i++)
-    {
-      // Getting parameters from the new and old policies
-      const float oldMean = oldPolicy.distributionParameters[i];
-      const float oldSigma = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
-      const float curMean = curPolicy.distributionParameters[i];
-      const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
-
-      logpCurPolicy += normalLogDensity(action[i], curMean, curSigma);
-      logpOldPolicy += normalLogDensity(action[i], oldMean, oldSigma);
-    }
+    // Read old/current probabilities
+    logpOldPolicy = oldPolicy.actionProbabilities[0];
+    logpCurPolicy = curPolicy.actionProbabilities[0];
   }
-
-  if (_policyDistribution == "Squashed Normal")
-  {
-    for (size_t i = 0; i < action.size(); i++)
+  else {
+    if (_policyDistribution == "Normal")
     {
-      // Getting parameters from the new and old policies
-      const float oldMu = oldPolicy.distributionParameters[i];
-      const float oldSigma = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
-      const float curMu = curPolicy.distributionParameters[i];
-      const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
-
-      // Importance weight of squashed normal is the importance weight of normal evaluated at unbounded action
-      logpCurPolicy += normalLogDensity(oldPolicy.unboundedAction[i], curMu, curSigma);
-      logpOldPolicy += normalLogDensity(oldPolicy.unboundedAction[i], oldMu, oldSigma);
-    }
-  }
-
-  if (_policyDistribution == "Clipped Normal")
-  {
-    for (size_t i = 0; i < action.size(); i++)
-    {
-      // Getting parameters from the new and old policies
-      const float oldMu = oldPolicy.distributionParameters[i];
-      const float oldSigma = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
-      const float curMu = curPolicy.distributionParameters[i];
-      const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
-
-      if (action[i] <= _actionLowerBounds[i])
+      for (size_t i = 0; i < action.size(); i++)
       {
-        logpCurPolicy += normalLogCDF(_actionLowerBounds[i], curMu, curSigma);
-        logpOldPolicy += normalLogCDF(_actionLowerBounds[i], oldMu, oldSigma);
-      }
-      else if (_actionUpperBounds[i] <= action[i])
-      {
-        logpCurPolicy += normalLogCCDF(_actionUpperBounds[i], curMu, curSigma);
-        logpOldPolicy += normalLogCCDF(_actionUpperBounds[i], oldMu, oldSigma);
-      }
-      else
-      {
-        logpCurPolicy += normalLogDensity(action[i], curMu, curSigma);
-        logpOldPolicy += normalLogDensity(action[i], oldMu, oldSigma);
+        // Getting parameters from the new and old policies
+        const float oldMean = oldPolicy.distributionParameters[i];
+        const float oldSigma = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
+        const float curMean = curPolicy.distributionParameters[i];
+        const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+
+        logpCurPolicy += normalLogDensity(action[i], curMean, curSigma);
+        logpOldPolicy += normalLogDensity(action[i], oldMean, oldSigma);
       }
     }
-  }
 
-  if (_policyDistribution == "Truncated Normal")
-  {
-    for (size_t i = 0; i < action.size(); i++)
+    if (_policyDistribution == "Squashed Normal")
     {
-      // Getting parameters from the new and old policies
-      const float oldMu = oldPolicy.distributionParameters[i];
-      const float oldSigma = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
-      const float curMu = curPolicy.distributionParameters[i];
-      const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+      for (size_t i = 0; i < action.size(); i++)
+      {
+        // Getting parameters from the new and old policies
+        const float oldMu = oldPolicy.distributionParameters[i];
+        const float oldSigma = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
+        const float curMu = curPolicy.distributionParameters[i];
+        const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
 
-      const float oldInvSig = 1.f / oldSigma;
-      const float curInvSig = 1.f / curSigma;
-
-      const float oldAlpha = (_actionLowerBounds[i] - oldMu) * oldInvSig * M_SQRT1_2;
-      const float oldBeta = (_actionUpperBounds[i] - oldMu) * oldInvSig * M_SQRT1_2;
-
-      const float curAlpha = (_actionLowerBounds[i] - curMu) * curInvSig * M_SQRT1_2;
-      const float curBeta = (_actionUpperBounds[i] - curMu) * curInvSig * M_SQRT1_2;
-
-      // log of normalization constants
-      const float lCq = M_LN2 - safeLogMinus(gsl_sf_log_erfc(-curBeta), gsl_sf_log_erfc(-curAlpha));
-      const float lCp = M_LN2 - safeLogMinus(gsl_sf_log_erfc(-oldBeta), gsl_sf_log_erfc(-oldAlpha));
-
-      logpCurPolicy += lCq - std::log(curSigma) - 0.5 * (action[i] - curMu) * (action[i] - curMu) * curInvSig * curInvSig;
-      logpOldPolicy += lCp - std::log(oldSigma) - 0.5 * (action[i] - oldMu) * (action[i] - oldMu) * oldInvSig * oldInvSig;
+        // Importance weight of squashed normal is the importance weight of normal evaluated at unbounded action
+        logpCurPolicy += normalLogDensity(oldPolicy.unboundedAction[i], curMu, curSigma);
+        logpOldPolicy += normalLogDensity(oldPolicy.unboundedAction[i], oldMu, oldSigma);
+      }
     }
-  }
 
-  if (_policyDistribution == "Beta")
-  {
-    for (size_t i = 0; i < action.size(); i++)
+    if (_policyDistribution == "Clipped Normal")
     {
-      // Getting parameters from the new and old policies
-      const float oldMu = oldPolicy.distributionParameters[i];
-      const float oldVariance = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
-      const float curMu = curPolicy.distributionParameters[i];
-      const float curVariance = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+      for (size_t i = 0; i < action.size(); i++)
+      {
+        // Getting parameters from the new and old policies
+        const float oldMu = oldPolicy.distributionParameters[i];
+        const float oldSigma = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
+        const float curMu = curPolicy.distributionParameters[i];
+        const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
 
-      logpCurPolicy += betaLogDensityAlt(action[i], curMu, curVariance, _actionLowerBounds[i], _actionUpperBounds[i]);
-      logpOldPolicy += betaLogDensityAlt(action[i], oldMu, oldVariance, _actionLowerBounds[i], _actionUpperBounds[i]);
+        if (action[i] <= _actionLowerBounds[i])
+        {
+          logpCurPolicy += normalLogCDF(_actionLowerBounds[i], curMu, curSigma);
+          logpOldPolicy += normalLogCDF(_actionLowerBounds[i], oldMu, oldSigma);
+        }
+        else if (_actionUpperBounds[i] <= action[i])
+        {
+          logpCurPolicy += normalLogCCDF(_actionUpperBounds[i], curMu, curSigma);
+          logpOldPolicy += normalLogCCDF(_actionUpperBounds[i], oldMu, oldSigma);
+        }
+        else
+        {
+          logpCurPolicy += normalLogDensity(action[i], curMu, curSigma);
+          logpOldPolicy += normalLogDensity(action[i], oldMu, oldSigma);
+        }
+      }
+    }
+
+    if (_policyDistribution == "Truncated Normal")
+    {
+      for (size_t i = 0; i < action.size(); i++)
+      {
+        // Getting parameters from the new and old policies
+        const float oldMu = oldPolicy.distributionParameters[i];
+        const float oldSigma = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
+        const float curMu = curPolicy.distributionParameters[i];
+        const float curSigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+
+        const float oldInvSig = 1.f / oldSigma;
+        const float curInvSig = 1.f / curSigma;
+
+        const float oldAlpha = (_actionLowerBounds[i] - oldMu) * oldInvSig * M_SQRT1_2;
+        const float oldBeta = (_actionUpperBounds[i] - oldMu) * oldInvSig * M_SQRT1_2;
+
+        const float curAlpha = (_actionLowerBounds[i] - curMu) * curInvSig * M_SQRT1_2;
+        const float curBeta = (_actionUpperBounds[i] - curMu) * curInvSig * M_SQRT1_2;
+
+        // log of normalization constants
+        const float lCq = M_LN2 - safeLogMinus(gsl_sf_log_erfc(-curBeta), gsl_sf_log_erfc(-curAlpha));
+        const float lCp = M_LN2 - safeLogMinus(gsl_sf_log_erfc(-oldBeta), gsl_sf_log_erfc(-oldAlpha));
+
+        logpCurPolicy += lCq - std::log(curSigma) - 0.5 * (action[i] - curMu) * (action[i] - curMu) * curInvSig * curInvSig;
+        logpOldPolicy += lCp - std::log(oldSigma) - 0.5 * (action[i] - oldMu) * (action[i] - oldMu) * oldInvSig * oldInvSig;
+      }
+    }
+
+    if (_policyDistribution == "Beta")
+    {
+      for (size_t i = 0; i < action.size(); i++)
+      {
+        // Getting parameters from the new and old policies
+        const float oldMu = oldPolicy.distributionParameters[i];
+        const float oldVariance = oldPolicy.distributionParameters[_problem->_actionVectorSize + i];
+        const float curMu = curPolicy.distributionParameters[i];
+        const float curVariance = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+
+        logpCurPolicy += betaLogDensityAlt(action[i], curMu, curVariance, _actionLowerBounds[i], _actionUpperBounds[i]);
+        logpOldPolicy += betaLogDensityAlt(action[i], oldMu, oldVariance, _actionLowerBounds[i], _actionUpperBounds[i]);
+      }
     }
   }
 
@@ -486,7 +477,7 @@ float __className__::calculateImportanceWeight(const std::vector<float> &action,
   return importanceWeight;
 }
 
-float __className__::calculateActionProbability(const std::vector<float> &action, const policy_t& policy) const
+float __className__::calculateLogActionProbability(const std::vector<float> &action, const policy_t& policy) const
 {
   // Compute probability of action
   float logpCurPolicy = 0.0f;
@@ -556,11 +547,8 @@ float __className__::calculateActionProbability(const std::vector<float> &action
     }
   }
 
-  // Exponentiate log-probability
-  const float probability = std::exp(logpCurPolicy);
-
-  // Return probability
-  return probability;
+  // Return log-probability
+  return logpCurPolicy;
 }
 
 std::vector<float> __className__::calculateImportanceWeightGradient(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, const float importanceWeight)
@@ -572,11 +560,14 @@ std::vector<float> __className__::calculateImportanceWeightGradient(const std::v
   if( _minimalApproximation )
   {
     // Read old/current probabilities
-    const float oldProbability = oldPolicy.actionProbabilities[0];
-    const float curProbability = calculateActionProbability(action, curPolicy);
+    const float oldLogProbability = oldPolicy.actionProbabilities[0];
+    const float curLogProbability = calculateLogActionProbability(action, curPolicy);
+
+    // Compute log-factor
+    const float logFactor = curLogProbability - oldLogProbability;
 
     // Compute factor
-    factor = curProbability / oldProbability;
+    factor = std::exp(logFactor);
   }
 
   // Storage for importance weight gradients
