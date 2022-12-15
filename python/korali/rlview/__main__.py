@@ -23,7 +23,8 @@ sns.color_palette("tab10")
 from korali.rlview.utils import get_figure
 
 ##################### Plotting Reward History
-def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservations, showAgents, dir ):
+def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservations, featureReward, showAgents, dir ):
+
     # get color
     color = next(ax._get_lines.prop_cycler)['color']
 
@@ -51,7 +52,10 @@ def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservat
     ## Unpack and preprocess the results
     for r in results:
         # Load Returns
-        returns = np.array(r["Solver"]["Training"]["Reward History"])
+        if featureReward:
+            returns = np.array(r["Solver"]["Training"]["Feature Reward History"])
+        else:
+            returns = np.array(r["Solver"]["Training"]["Reward History"])
 
         if (r["Problem"]["Agents Per Environment"] > 1) and not showAgents:
             returns = np.mean(returns, axis=0)
@@ -310,7 +314,7 @@ if __name__ == '__main__':
 
     ### Creating plot
     for run in range(len(results)):
-        plotRewardHistory(ax, results[run], args.averageDepth, args.showCI, args.showCumulativeRewards, args.showObservations, args.showAgents, args.dir[run])
+        plotRewardHistory(ax, results[run], args.averageDepth, args.showCI, args.showCumulativeRewards, args.showObservations, args.featureReward, args.showAgents, args.dir[run])
 
     ax.set_ylabel('Cumulative Reward')
     if args.showObservations:

@@ -16,7 +16,7 @@ cd ..
 export OMP_NUM_THREADS=8
 source settings_irl.sh
 
-BASE="${SCRATCH}/${LSB_JOBID}/irl/"
+BASE="${SCRATCH}/irl/${LSB_JOBID}"
 DIR="${BASE}/_result_irl_${ENV}_${RUN}/"
 
 mkdir ${DIR} -p

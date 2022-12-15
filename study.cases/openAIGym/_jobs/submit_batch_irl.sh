@@ -2,7 +2,7 @@ run=600
 
 export ENV="Swimmer-v4"
 export POL="Linear"
-export EXP=150000
+export EXP=300000
 #export EXP=10000000
 
 for D in 1 4 16 64
