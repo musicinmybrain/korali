@@ -184,8 +184,7 @@ void __className__::calculatePolicyGradients(const std::vector<std::pair<size_t,
     if (_isOnPolicyBuffer[expId][agentId])
     {
       // Qret for terminal state is just reward
-      float Qret = calculateReward({{_featureBuffer[expId * numAgents + agentId]}})[0];
-      //float Qret = getScaledReward(_rewardBufferContiguous[expId * numAgents + agentId]);
+      float Qret = calculateReward({{_featureBuffer[expId][agentId]}})[0];
 
       // If experience is non-terminal, add Vtbc
       if (_terminationBuffer[expId] == e_nonTerminal)

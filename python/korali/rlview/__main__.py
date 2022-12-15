@@ -208,6 +208,9 @@ def parseResults( dir, numRuns ):
   
 if __name__ == '__main__':
 
+    # Setting termination signal handler
+    signal.signal(signal.SIGINT, lambda x, y: exit(0))
+
     # Parsing arguments
     parser = argparse.ArgumentParser(
         prog='korali.rlview',
@@ -287,7 +290,7 @@ if __name__ == '__main__':
       help='Run without graphics (for testing purpose)',
       action='store_true',
       required=False)
-
+    
     args = parser.parse_args()
 
     ### Validating arguments

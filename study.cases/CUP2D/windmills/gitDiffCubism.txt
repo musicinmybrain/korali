@@ -1,0 +1,16 @@
+diff --git a/include/Cubism/HDF5Dumper_MPI.h b/include/Cubism/HDF5Dumper_MPI.h
+index 18ffdae..0387753 100644
+--- a/include/Cubism/HDF5Dumper_MPI.h
++++ b/include/Cubism/HDF5Dumper_MPI.h
+@@ -611,8 +611,9 @@ void DumpHDF5_MPI2(TGrid &grid, typename TGrid::Real absTime, const std::string
+                 const int base = iz_b*nX_max*nY_max + iy_b*nX_max + ix_b;
+                 if (NCHANNELS > 1)
+                 {
+-                  output[0] = output[0]*output[0] + output[1]*output[1] + output[2]*output[2];
+-                  array_block[base] = sqrt(output[0]);
++                //   output[0] = output[0]*output[0] + output[1]*output[1] + output[2]*output[2];
++                //   array_block[base] = sqrt(output[0]);
++                  array_block[base] = output[0] + output[1];
+                 }
+                 else
+                 {

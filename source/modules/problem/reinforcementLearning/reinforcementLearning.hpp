@@ -88,6 +88,7 @@ class ReinforcementLearning : public Problem
   */
    std::vector<size_t> _stateVectorIndexes;
   /**
+<<<<<<< HEAD
   * @brief [Internal Use] Stores the number of observed trajectories.
   */
    size_t _numberObservedTrajectories;
@@ -100,6 +101,8 @@ class ReinforcementLearning : public Problem
   */
    size_t _totalObservedStateActionPairs;
   /**
+=======
+>>>>>>> master
   * @brief [Internal Use] The maximum number of actions an agent can take (only relevant for discrete).
   */
    size_t _actionCount;
@@ -185,6 +188,7 @@ class ReinforcementLearning : public Problem
    * @brief Contains the state rescaling sigmas
    */
   std::vector<std::vector<float>> _stateRescalingSdevs;
+<<<<<<< HEAD
 
   /**
    * @brief Contains the feature rescaling means
@@ -195,6 +199,8 @@ class ReinforcementLearning : public Problem
    * @brief Contains the feature rescaling sigmas
    */
   std::vector<float> _featureRescalingSdevs;
+=======
+>>>>>>> master
 
   /**
    * @brief [Profiling] Stores policy evaluation time per episode

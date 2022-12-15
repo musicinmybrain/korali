@@ -79,7 +79,11 @@ void DeepSupervisor::initialize()
 
   // Instancing training neural network
   auto trainingNeuralNetworkConfig = neuralNetworkConfig;
+<<<<<<< HEAD
   trainingNeuralNetworkConfig["Batch Sizes"] = {_problem->_trainingBatchSize, _problem->_testingBatchSize};
+=======
+  trainingNeuralNetworkConfig["Batch Sizes"] = batchSizes;
+>>>>>>> master
   trainingNeuralNetworkConfig["Mode"] = "Training";
   _neuralNetwork = dynamic_cast<NeuralNetwork *>(getModule(trainingNeuralNetworkConfig, _k));
   _neuralNetwork->applyModuleDefaults(trainingNeuralNetworkConfig);

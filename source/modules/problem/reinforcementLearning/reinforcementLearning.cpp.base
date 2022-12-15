@@ -51,6 +51,7 @@ void __className__::initialize()
 
   if (_actionVectorSize == 0) KORALI_LOG_ERROR("No action variables have been defined.\n");
   if (_stateVectorSize == 0) KORALI_LOG_ERROR("No state variables have been defined.\n");
+  
   if (_policiesPerEnvironment != 1)
     KORALI_LOG_ERROR("Number of policies %zu is not 1.\n", _policiesPerEnvironment);
 
@@ -191,18 +192,16 @@ void __className__::runTrainingEpisode(Sample &worker)
     // Storing the current action
     episode["Experiences"][actionCount]["Action"] = worker["Action"];
 
-    // Storing the experience's policy
-    episode["Experiences"][actionCount]["Policy"] = worker["Policy"];
-
     // Storing features of the reward function
     episode["Experiences"][actionCount]["Features"] = worker["Features"];
+      
+    // Store Reward from environment if available
+    if (worker.contains("Reward"))
+    {
 
     // Sanity check for reward
     for (size_t i = 0; i < _agentsPerEnvironment; i++)
     {
-      // Store Reward from environment if available
-      if (worker.contains("Reward"))
-      {
         if (std::isfinite(worker["Reward"][i].get<float>()) == false)
           KORALI_LOG_ERROR("Environment reward returned an invalid value: %f\n", worker["Reward"][i].get<float>());
 
@@ -210,6 +209,14 @@ void __className__::runTrainingEpisode(Sample &worker)
         trainingRewards[i] += worker["Reward"][i].get<float>();
       }
     }
+
+    }
+
+    // If single agent, put action into a single vector
+    if (_agentsPerEnvironment == 1) worker["Action"] = worker["Action"][0].get<std::vector<float>>();
+
+    // Jumping back into the worker's environment
+    runEnvironment(worker);
 
     // If single agent, put action into a single vector
     if (_agentsPerEnvironment == 1) worker["Action"] = worker["Action"][0].get<std::vector<float>>();
@@ -458,6 +465,7 @@ void __className__::runEnvironment(Sample &worker)
   // In case of this being a single agent, support returning state as only vector
   if (_agentsPerEnvironment == 1)
   {
+    // Support returning state as vector
     auto state = KORALI_GET(std::vector<float>, worker, "State");
     worker._js.getJson().erase("State");
     worker["State"][0] = state;
@@ -466,6 +474,7 @@ void __className__::runEnvironment(Sample &worker)
     worker._js.getJson().erase("Features");
     worker["Features"][0] = features;
 
+    // Support returning reward as scalar
     auto reward = KORALI_GET(float, worker, "Reward");
     worker._js.getJson().erase("Reward");
     worker["Reward"][0] = reward;
@@ -493,6 +502,9 @@ void __className__::runEnvironment(Sample &worker)
     for (size_t j = 0; j < _stateVectorSize; j++)
       if (std::isfinite(worker["Features"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu feature variable %lu returned an invalid value: %f\n", i, j, worker["Features"][i][j].get<float>());
 
+
+    for (size_t j = 0; j < _stateVectorSize; j++)
+      if (std::isfinite(worker["State"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu state variable %lu returned an invalid value: %f\n", i, j, worker["State"][i][j].get<float>());
   }
 
   // Normalizing State
@@ -515,6 +527,10 @@ void __className__::runEnvironment(Sample &worker)
 
     // Re-storing state into agent
     worker["Features"][i] = features;
+      state[d] = (state[d] - stateRescalingMeans[i][d]) / stateRescalingSdevs[i][d];
+
+    // Re-storing state into worker
+    worker["State"][i] = state;
   }
 
   // Checking correct format of reward

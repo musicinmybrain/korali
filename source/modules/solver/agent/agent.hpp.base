@@ -226,15 +226,13 @@ class __className__ : public __parentClassName__
   /**
    * @brief Contains the state value evaluation for every experience (for cache optimzed update of retV in updateExperienceMetadata)
    */
-  cBuffer<float> _stateValueBufferContiguous;
-
-  /**
-   * @brief Contains the rewards of every experience
-   */
   cBuffer<float> _rewardUpdateBuffer;
 
   /**
    * @brief Contains the state value evaluation for every experience
+  cBuffer<float> _stateValueBufferContiguous;
+
+  /**
    * @brief Stores the priority annealing rate.
    */
   float _priorityAnnealingRate;

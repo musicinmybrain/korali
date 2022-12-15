@@ -4,6 +4,7 @@ import gym
 import numpy as np
 from HumanoidWrapper import HumanoidWrapper
 from AntWrapper import AntWrapper
+from packaging.version import parse as parse_version
 
 if (gym.__version__ != "0.26.2"):
     print(f"[agent] Gym version 0.26.2 expected, but is {gym.__version__}")
@@ -21,12 +22,8 @@ def initEnvironment(e, envName, excludePositions, moviePath = ''):
  else:
   env = gym.make(envName, exclude_current_positions_from_observation=excludePositions)
 
- from packaging.version import parse as parse_version
  oldEnv = parse_version(gym.__version__) < parse_version('0.26.0')
 
- from HumanoidWrapper import HumanoidWrapper
- from AntWrapper import AntWrapper
- 
  if (envName == 'Humanoid-v4'):
   env = HumanoidWrapper(env)
  
