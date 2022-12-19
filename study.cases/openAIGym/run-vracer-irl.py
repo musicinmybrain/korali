@@ -165,7 +165,7 @@ e["Solver"]["Termination Criteria"]["Max Experiences"] = args.exp
 e["Solver"]["Experience Replay"]["Serialize"] = False
 e["Console Output"]["Verbosity"] = "Detailed"
 e["File Output"]["Enabled"] = True
-e["File Output"]["Frequency"] = 200
+e["File Output"]["Frequency"] = 100
 e["File Output"]["Use Multiple Files"] = False
 e["File Output"]["Path"] = resultFolder
 
