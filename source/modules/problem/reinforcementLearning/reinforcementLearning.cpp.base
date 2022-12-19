@@ -216,18 +216,16 @@ void __className__::runTrainingEpisode(Sample &worker)
         // Adding to cumulative training rewards
         trainingRewards[i] += worker["Reward"][i].get<float>();
       }
+      worker._js.getJson().erase("Reward");
     }
 
     // In case of this being a single agent, revert action format
     if (_agentsPerEnvironment == 1)
     {
-      auto action = KORALI_GET(std::vector<float>, worker, "Action");
+      const auto action = KORALI_GET(std::vector<float>, worker, "Action");
       worker._js.getJson().erase("Action");
       worker["Action"][0] = action;
     }
-
-    // Storing experience's reward
-    episode["Experiences"][actionCount]["Reward"] = worker["Reward"];
 
     // Storing termination status
     episode["Experiences"][actionCount]["Termination"] = worker["Termination"];
@@ -357,7 +355,7 @@ void __className__::runTestingEpisode(Sample &worker)
       testingRewards[i] += worker["Reward"][i].get<float>();
   }
 
-  // Calculating average reward between testing episodes
+  // Calculating average reward over episodes and agents
   float rewardSum = 0.0f;
   for (size_t i = 0; i < _agentsPerEnvironment; i++)
     rewardSum += testingRewards[i];

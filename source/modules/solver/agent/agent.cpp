@@ -747,7 +747,7 @@ void Agent::updateRewardFunction()
         const size_t batchSize = std::min(_rewardFunctionBatchSize, observedTrajectoryLength - t);
         for (size_t b = 0; b < batchSize; ++b)
         {
-          featuresBatch[b] = {_problem->_observationsFeatures[demIdx][b]};
+          featuresBatch[b][0] = _problem->_observationsFeatures[demIdx][b][0];
           backwardMultiplier[b] = std::vector<float>(1, 1.);
         }
 
@@ -1187,8 +1187,6 @@ void Agent::processEpisode(knlohmann::json &episode)
 
   // Storage for the episode's cumulative feature reward
   std::vector<float> cumulativeFeatureReward(numAgents, 0.0f);
-  // Storage for the episode's cumulative reward
-  std::vector<float> cumulativeReward(numAgents, 0.0f);
 
   // Go over experiences in episode
   const size_t episodeExperienceCount = episode["Experiences"].size();
@@ -1200,12 +1198,10 @@ void Agent::processEpisode(knlohmann::json &episode)
     // Get action and put it to replay memory
     _actionBuffer.add(episode["Experiences"][expId]["Action"].get<std::vector<std::vector<float>>>());
 
-    // Get reward
-    std::vector<float> reward = episode["Experiences"][expId]["Reward"].get<std::vector<float>>();
-
     // Getting features
     _featureBuffer.add(episode["Experiences"][expId]["Features"].get<std::vector<std::vector<float>>>());
 
+    // Calculate reward
     std::vector<float> featureReward(numAgents, 0.0f);
     for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
     {
@@ -1228,15 +1224,6 @@ void Agent::processEpisode(knlohmann::json &episode)
     if (_rewardRescalingEnabled)
     {
       KORALI_LOG_ERROR("IRL does not allow reward rescaling");
-      if (_rewardBufferContiguous.size() >= _experienceReplayMaximumSize * numAgents)
-      {
-        for (size_t a = 0; a < numAgents; a++)
-          _rewardRescalingSumSquaredRewards -= _rewardBufferContiguous[a] * _rewardBufferContiguous[a];
-      }
-      for (size_t a = 0; a < numAgents; a++)
-      {
-        _rewardRescalingSumSquaredRewards += reward[a] * reward[a];
-      }
     }
 
     // Put reward to replay memory
@@ -1244,10 +1231,6 @@ void Agent::processEpisode(knlohmann::json &episode)
       _rewardBufferContiguous.add(featureReward[a]);
 
     _rewardUpdateBuffer.add(_rewardUpdateCount);
-
-    // Keeping statistics
-    for (size_t a = 0; a < numAgents; a++)
-      cumulativeReward[a] += reward[a];
 
     // Checking and adding experience termination status and truncated state to replay memory
     termination_t termination;
@@ -1392,7 +1375,7 @@ void Agent::processEpisode(knlohmann::json &episode)
    *********************************************************************/
 
   // Getting position of the final experience of the episode in the replay memory
-  ssize_t endId = (ssize_t)_stateBuffer.size() - 1;
+  const ssize_t endId = (ssize_t)_stateBuffer.size() - 1;
 
   // Getting the starting ID of the initial experience of the episode in the replay memory
   ssize_t startId = endId - episodeExperienceCount + 1;
@@ -1471,40 +1454,16 @@ std::vector<std::pair<size_t, size_t>> Agent::generateMiniBatch()
   for (size_t b = 0; b < _miniBatchSize; b++)
   {
     // Producing random (uniform) number for the selection of the experience
-    float x = _uniformGenerator->getRandomNumber();
+    const float x = _uniformGenerator->getRandomNumber();
 
     // Selecting experience
-    size_t expId = std::floor(x * (float)(_stateBuffer.size() - 1));
+    const size_t expId = std::floor(x * (float)(_stateBuffer.size() - 1));
 
     for (size_t a = 0; a < numAgents; a++)
     {
       // Setting experience
       miniBatch[b * numAgents + a].first = expId;
       miniBatch[b * numAgents + a].second = a;
-
-      // Sample agentId
-      if (_multiAgentSampling == "Experience")
-      {
-        // Producing random (uniform) number for the selection of the experience
-        float ax = _uniformGenerator->getRandomNumber();
-
-        // Selecting agent
-        miniBatch[b * numAgents + a].second = std::floor(ax * (float)(numAgents - 1));
-      }
-
-      // Sample both
-      if (_multiAgentSampling == "Baseline")
-      {
-        // Producing random (uniform) number for the selection of the experience
-        float ex = _uniformGenerator->getRandomNumber();
-        float ax = _uniformGenerator->getRandomNumber();
-
-        // Selecting experience
-        miniBatch[b * numAgents + a].first = std::floor(ex * (float)(_stateBuffer.size() - 1));
-
-        // Selecting agent
-        miniBatch[b * numAgents + a].second = std::floor(ax * (float)(numAgents - 1));
-      }
     }
   }
 
@@ -1812,6 +1771,8 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     featureBatch(_rewardFunctionBatchSize, std::vector<std::vector<float>>(_problem->_agentsPerEnvironment, std::vector<float>(_problem->_featureVectorSize)));
 
   // Update rewards backward
+  for (size_t a = 0; a < numAgents; a++)
+  {
   for (size_t i = 0; i < retraceMiniBatch.size(); i++)
   {
     // Finding the earliest experience corresponding to the same episode as this experience
@@ -1820,7 +1781,6 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     // If the starting experience has already been discarded, take the earliest one that still remains
     const ssize_t startId = (ssize_t)_episodePosBuffer[endId] < endId ? endId - (ssize_t)_episodePosBuffer[endId] : 0;
 
-    assert(numAgents == 1);
     // Now iterating backwards to find the beginning
     for (ssize_t curId = endId; curId >= startId; curId--)
     {
@@ -1829,7 +1789,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
       {
         // Add features and experience id
         featureMiniBatch[t] = curId;
-        featureBatch[t++] = {{_featureBuffer[curId][0]}};
+        featureBatch[t++] = {{_featureBuffer[curId][a]}};
         if (t == _rewardFunctionBatchSize)
         {
           // Feature batch is full, forward features
@@ -1839,7 +1799,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
           for (size_t b = 0; b < _rewardFunctionBatchSize; ++b)
           {
             const size_t expId = featureMiniBatch[b];
-            _rewardBufferContiguous[expId * numAgents] = featureReward[b];
+            _rewardBufferContiguous[expId * numAgents + a] = featureReward[b];
             _rewardUpdateBuffer[expId] = _rewardUpdateCount;
           }
 
@@ -1858,9 +1818,10 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     {
       const ssize_t expId = featureMiniBatch[b];
       for (size_t a = 0; a < numAgents; a++)
-        _rewardBufferContiguous[expId] = featureReward[b];
+        _rewardBufferContiguous[expId * numAgents + a] = featureReward[b];
       _rewardUpdateBuffer[expId] = _rewardUpdateCount;
     }
+  }
   }
 
 // Calculating retrace value for the oldest experiences of unique episodes
