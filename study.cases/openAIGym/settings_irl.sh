@@ -1,6 +1,6 @@
 # Defaults for Options
 ENV=${ENV:-Swimmer-v4}  # environment
-EBRU=${EBRU:-100}       # experiences between reward updates
+EBRU=${EBRU:-5000}      # experiences between reward updates
 DBS=${DBS:-10}          # demonstration batch size
 BBS=${BBS:-50}          # background batch size
 BSS=${BSS:-1000}        # background sample size
