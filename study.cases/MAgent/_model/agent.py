@@ -19,6 +19,14 @@ def initEnvironment(e, envName, multPolicies):
      actionVariableCount = 1
      numIndividuals = 162
      possibleActions = [ [a] for a in range(21) ]
+ if (envName == 'Battlefield'):
+     from magent2.environments import battlefield_v5
+     env = battlefield_v5.env()
+     stateVariableCount = 845
+     actionVariableCount = 1
+     numIndividuals = 24
+     possibleActions = [ [a] for a in range(21) ]
+
      
 
 
@@ -57,7 +65,7 @@ def initEnvironment(e, envName, multPolicies):
  #      e["Variables"][stateVariableCount + i]["Upper Bound"] = float(ac_upper)
  #      e["Variables"][stateVariableCount + i]["Initial Exploration Noise"] = math.sqrt(0.2) * (ac_upper - ac_low)
 
- if (envName == 'Battle'):
+ if (envName == 'Battle') or (envName == 'Battlefield'):
    ### Defining problem configuration for discrete environments
    e["Problem"]["Type"] = "Reinforcement Learning / Discrete"
    e["Problem"]["Environment Function"] = lambda x : agent(x, env)
@@ -85,7 +93,7 @@ def agent(s, env):
  #   for ag in env.agents:
  #      state = env.observe(ag).tolist()
  #      states.append(state)
- if (env.env.env.metadata['name']=='battle_v4'):
+ if (env.env.env.metadata['name']=='battle_v4') or (env.env.env.metadata['name']=='battlefield_v5'):
     for ag in env.agents:
       state = env.observe(ag)
       state = state.reshape(845)
@@ -162,7 +170,7 @@ def agent(s, env):
   #  for ag in env.agents:
   #     state = env.observe(ag).tolist()
   #     states.append(state)
-  if (env.env.env.metadata['name']=='battle_v4'):
+  if (env.env.env.metadata['name']=='battle_v4') or (env.env.env.metadata['name']=='battlefield_v5'):
     for ag in env.agents:
       state = env.observe(ag)
       state = state.reshape(845)

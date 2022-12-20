@@ -87,6 +87,8 @@ elif(args.model == '6'):
 
 if (args.env == 'Battle'):
 	numAg = 162
+elif (args.env == 'Battlefield'):
+	numAg = 24
 else:
 	print("Environment '{}' not recognized! Exit..".format(args.env))
 	sys.exit()

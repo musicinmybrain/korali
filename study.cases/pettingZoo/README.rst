@@ -1,7 +1,7 @@
 Reinforcement Learning examples on pettingZoo
 ==============================================
 
-This folders contain a ready-to-use setup to run pettingZoo. 
+This folders contain a ready-to-use setup to run `pettingZoo SISL <https://pettingzoo.farama.org/environments/sisl/>`_. 
 
 Pre-Requisites:
 ------------------
@@ -25,7 +25,10 @@ Any of the following environments are available for testing:
 .. code-block:: bash
    
    % pettingZoo
+   Multiwalker
+   Pursuit
    Waterworld
+	
 
 
 To run any of these, use the following example:
