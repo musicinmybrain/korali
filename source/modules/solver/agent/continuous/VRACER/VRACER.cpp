@@ -216,10 +216,10 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
   const size_t miniBatchSize = miniBatch.size();
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
-#pragma omp parallel for schedule(guided, numAgents) reduction(vec_float_plus                                  \
-                                                               : _miniBatchPolicyMean, _miniBatchPolicyStdDev, _miniBatchPolicyGradientMean, _miniBatchPolicyGradientStdDev, _miniBatchKLGradientMean, _miniBatchKLGradientStdDev, _miniBatchCurrentPolicyMean, _miniBatchCurrentPolicyStdDev) \
-  reduction(+                                                                                                  \
-            : _valueLoss, _policyLoss)
+// #pragma omp parallel for schedule(guided, numAgents) reduction(vec_float_plus                                  \
+//                                                                : _miniBatchPolicyMean, _miniBatchPolicyStdDev, _miniBatchPolicyGradientMean, _miniBatchPolicyGradientStdDev, _miniBatchKLGradientMean, _miniBatchKLGradientStdDev, _miniBatchCurrentPolicyMean, _miniBatchCurrentPolicyStdDev) \
+//   reduction(+                                                                                                  \
+//             : _valueLoss, _policyLoss)
   for (size_t b = 0; b < miniBatchSize; b++)
   {
     // Getting index of current experiment
@@ -234,6 +234,8 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     const auto &stateValue = _stateValueBufferContiguous[expId * numAgents + agentId];
     const auto &curPolicy = _curPolicyBuffer[expId][agentId];
     const auto &expVtbc = _retraceValueBufferContiguous[expId * numAgents + agentId];
+
+    
 
     // Storage for the update gradient
     std::vector<float> gradientLoss(1 + _policyParameterCount, 0.0f);
@@ -297,40 +299,40 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       }
 
       // Modifications of Gradient for  Bayesian Learning
-      if ((_gaussianApproximationEnabled || _minimalApproximation) &&
-          (_currentEpisode >= _burnIn))
-      {
-        const float invN = 1.0 / (_numberOfSamples*_problem->_policiesPerEnvironment);
-        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
-        {
-          if (std::isfinite(polGrad[i]) == false)
-            KORALI_LOG_ERROR("Policy Gradient i=%ld has an invalid value [before]: %f\n", i, polGrad[i]);
+      // if ((_gaussianApproximationEnabled || _minimalApproximation) &&
+      //     (_currentEpisode >= _burnIn))
+      // {
+      //   const float invN = 1.0 / (_numberOfSamples*_problem->_policiesPerEnvironment);
+      //   for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+      //   {
+      //     if (std::isfinite(polGrad[i]) == false)
+      //       KORALI_LOG_ERROR("Policy Gradient i=%ld has an invalid value [before]: %f\n", i, polGrad[i]);
 
-          // Get distribution parameter from predictive posterior policy
-          const float &mean = curPolicy.distributionParameters[i];
-          const float &sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
-          const float invSigma = 1 / sigma;
+      //     // Get distribution parameter from predictive posterior policy
+      //     const float &mean = curPolicy.distributionParameters[i];
+      //     const float &sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+      //     const float invSigma = 1 / sigma;
 
-          // Get sigma for current hyperparameters
-          const float curMean = curPolicy.currentDistributionParameters[i];
-          // const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
+      //     // Get sigma for current hyperparameters
+      //     const float curMean = curPolicy.currentDistributionParameters[i];
+      //     // const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
 
-          // Scaling mean gradient by number of samples
-          polGrad[i] *= invN;
+      //     // Scaling mean gradient by number of samples
+      //     polGrad[i] *= invN;
 
-          // Adding contribution from standard deviation
-          if((_gaussianApproximationType == "Mixture") && (_minimalApproximation == false))
-            polGrad[i] += invN * invSigma * (curMean - mean) * polGrad[i + _problem->_actionVectorSize];
+      //     // Adding contribution from standard deviation
+      //     if((_gaussianApproximationType == "Mixture") && (_minimalApproximation == false))
+      //       polGrad[i] += invN * invSigma * (curMean - mean) * polGrad[i + _problem->_actionVectorSize];
 
-          // Scaling standard deviation gradient by number of samples
-          float sigmaFactor = 1.0;
-          if((_gaussianApproximationType == "Average") || _minimalApproximation) 
-            sigmaFactor = invN;
-          if((_gaussianApproximationType == "Mixture") && (_minimalApproximation == false)) 
-            sigmaFactor = 0.0; //curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma;
-          polGrad[i + _problem->_actionVectorSize] *= sigmaFactor;
-        }
-      }
+      //     // Scaling standard deviation gradient by number of samples
+      //     float sigmaFactor = 1.0;
+      //     if((_gaussianApproximationType == "Average") || _minimalApproximation) 
+      //       sigmaFactor = invN;
+      //     if((_gaussianApproximationType == "Mixture") && (_minimalApproximation == false)) 
+      //       sigmaFactor = 0.0; //curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma;
+      //     polGrad[i + _problem->_actionVectorSize] *= sigmaFactor;
+      //   }
+      // }
 
       // Set Gradient of Loss wrt Params
       for (size_t i = 0; i < _policyParameterCount; i++)
@@ -363,37 +365,37 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
         klGrad[i + _problem->_actionVectorSize] = klGrad[i + _problem->_actionVectorSize] < 0 ? -1e7 : 1e7;
 
       // Modifications of Gradient for  Bayesian Learning
-      if ((_gaussianApproximationEnabled || _minimalApproximation) &&
-          (_currentEpisode >= _burnIn))
-      {
-        const float invN = 1.0 / (_numberOfSamples*_problem->_policiesPerEnvironment);
-        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
-        {
-          // Get distribution parameter from approximation of predictive posterior policy
-          const float &mean = _minimalApproximation ? curPolicy.currentDistributionParameters[i] : curPolicy.distributionParameters[i];
-          const float &sigma = _minimalApproximation ? curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] : curPolicy.distributionParameters[_problem->_actionVectorSize + i];
-          const float invSigma = 1 / sigma;
+      // if ((_gaussianApproximationEnabled || _minimalApproximation) &&
+      //     (_currentEpisode >= _burnIn))
+      // {
+      //   const float invN = 1.0 / (_numberOfSamples*_problem->_policiesPerEnvironment);
+      //   for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+      //   {
+      //     // Get distribution parameter from approximation of predictive posterior policy
+      //     const float &mean = _minimalApproximation ? curPolicy.currentDistributionParameters[i] : curPolicy.distributionParameters[i];
+      //     const float &sigma = _minimalApproximation ? curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] : curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+      //     const float invSigma = 1 / sigma;
 
-          // Get sigma for current hyperparameters
-          const float &curMean = _minimalApproximation ? curPolicy.distributionParameters[i] : curPolicy.currentDistributionParameters[i];
-          // const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
+      //     // Get sigma for current hyperparameters
+      //     const float &curMean = _minimalApproximation ? curPolicy.distributionParameters[i] : curPolicy.currentDistributionParameters[i];
+      //     // const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
 
-          // Scaling mean gradient by number of samples
-          klGrad[i] *= invN;
+      //     // Scaling mean gradient by number of samples
+      //     klGrad[i] *= invN;
 
-          // Adding contribution from standard deviation
-          if(_gaussianApproximationType == "Mixture")
-            klGrad[i] += invN * invSigma * (curMean - mean) * klGrad[i + _problem->_actionVectorSize];
+      //     // Adding contribution from standard deviation
+      //     if(_gaussianApproximationType == "Mixture")
+      //       klGrad[i] += invN * invSigma * (curMean - mean) * klGrad[i + _problem->_actionVectorSize];
 
-          // Scaling standard deviation gradient by number of samples
-          float sigmaFactor = 1.0;
-          if(_gaussianApproximationType == "Average")
-            sigmaFactor = invN;
-          if(_gaussianApproximationType == "Mixture")
-            sigmaFactor = 0.0; //curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma;
-          klGrad[i + _problem->_actionVectorSize] *= sigmaFactor;
-        }
-      }
+      //     // Scaling standard deviation gradient by number of samples
+      //     float sigmaFactor = 1.0;
+      //     if(_gaussianApproximationType == "Average")
+      //       sigmaFactor = invN;
+      //     if(_gaussianApproximationType == "Mixture")
+      //       sigmaFactor = 0.0; //curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma;
+      //     klGrad[i + _problem->_actionVectorSize] *= sigmaFactor;
+      //   }
+      // }
 
       // Safety checks
       if (std::isfinite(klGrad[i]) == false)
@@ -800,7 +802,7 @@ void VRACER::calculatePredictivePosteriorProbabilities(std::vector<float> &actio
       if(_gaussianApproximationType == "Mixture")
       {
         curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
-        curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy[b].distributionParameters[_problem->_actionVectorSize + i]);
+        curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i]);
       }
     }
   }
