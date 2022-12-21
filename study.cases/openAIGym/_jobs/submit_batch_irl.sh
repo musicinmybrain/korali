@@ -1,17 +1,20 @@
-run=700
+run=800
 
 export ENV="Swimmer-v4"
 export POL="Linear"
-export EXP=5000000
+export EXP=3000000
 
-for D in 4 16 64
+for D in 16
 do 
-    for B in 4 16 64
+    for B in 64
     do 
-        run=$(($run+1))
-        export RUN=$run
-        export DBS=$D
-        export BBS=$B
-        bsub < bsub-vracer-irl.lsf
+        for rep in {1..3}
+        do
+            run=$(($run+1))
+            export RUN=$run
+            export DBS=$D
+            export BBS=$B
+            bsub < bsub-vracer-irl.lsf
+        done
     done
 done

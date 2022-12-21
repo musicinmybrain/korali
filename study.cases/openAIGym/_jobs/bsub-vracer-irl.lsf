@@ -43,8 +43,8 @@ python3 run-vracer-irl.py --env ${ENV} --ebru ${EBRU} --dbs ${DBS} --bbs ${BBS} 
 
 popd
 
-python3 -m korali.rlview --dir $DIR --out "irl-${ENV}_${RUN}.png" --showObservations
-python3 -m korali.rlview --dir $DIR --out "firl-${ENV}_${RUN}.png" --featureReward --showObservations
+python3 -m korali.rlview --dir $DIR --out "irl-${ENV}_${RUN}.png" --showObservations --showCI 0.8
+python3 -m korali.rlview --dir $DIR --out "firl-${ENV}_${RUN}.png" --featureReward --showObservations --showCI 0.8
 python3 -m korali.plot --dir $DIR --out "${ENV}_${RUN}.png"
 
 code=$?
