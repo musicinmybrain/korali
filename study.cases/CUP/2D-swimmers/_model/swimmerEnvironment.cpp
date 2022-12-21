@@ -295,7 +295,7 @@ void runEnvironment(korali::Sample &s)
   double tNextAct = 0; // Time of next action
 
   // Setting maximum number of steps before truncation
-  const size_t maxSteps = 10000;
+  const size_t maxSteps = 200;
 
   // Container for actions
   std::vector<std::vector<double>> actions(nAgents, std::vector<double>(NUMACTIONS));
