@@ -368,9 +368,9 @@ void LSTM::backwardData(const size_t t)
   {
     // Cleaning current weight gradients
     const memory::dim L = _depth;
-    const memory::dim G = _gateCount;      // Gates
+    const memory::dim G = _gateCount;                   // Gates
     const memory::dim IC = _prevLayer->_outputChannels; // Input Channels
-    const memory::dim OC = _outputChannels; // Output Channels
+    const memory::dim OC = _outputChannels;             // Output Channels
 
     std::vector<float> nullInputWeightGradients(L * G * OC * IC, 0.0f);
     write_to_dnnl_memory(nullInputWeightGradients.data(), _weightsLayerGradientMem);

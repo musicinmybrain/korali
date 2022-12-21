@@ -10,9 +10,21 @@ bool Optimizer::isSampleFeasible(const std::vector<double> &sample)
 {
   for (size_t i = 0; i < sample.size(); i++)
   {
-    if (std::isfinite(sample[i]) == false) return false;
-    if (sample[i] < _k->_variables[i]->_lowerBound) return false;
-    if (sample[i] > _k->_variables[i]->_upperBound) return false;
+    if (std::isfinite(sample[i]) == false)
+    {
+      _infeasibleSampleCount++;
+      return false;
+    }
+    if (sample[i] < _k->_variables[i]->_lowerBound)
+    {
+      _infeasibleSampleCount++;
+      return false;
+    }
+    if (sample[i] > _k->_variables[i]->_upperBound)
+    {
+      _infeasibleSampleCount++;
+      return false;
+    }
   }
   return true;
 }
@@ -53,6 +65,14 @@ void Optimizer::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Best Ever Variables");
  }
 
+ if (isDefined(js, "Infeasible Sample Count"))
+ {
+ try { _infeasibleSampleCount = js["Infeasible Sample Count"].get<size_t>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ optimizer ] \n + Key:    ['Infeasible Sample Count']\n%s", e.what()); } 
+   eraseValue(js, "Infeasible Sample Count");
+ }
+
  if (isDefined(js, "Termination Criteria", "Max Value"))
  {
  try { _maxValue = js["Termination Criteria"]["Max Value"].get<double>();
@@ -70,6 +90,15 @@ void Optimizer::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Termination Criteria", "Min Value Difference Threshold");
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Termination Criteria']['Min Value Difference Threshold'] required by optimizer.\n"); 
+
+ if (isDefined(js, "Termination Criteria", "Max Infeasible Resamplings"))
+ {
+ try { _maxInfeasibleResamplings = js["Termination Criteria"]["Max Infeasible Resamplings"].get<size_t>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ optimizer ] \n + Key:    ['Termination Criteria']['Max Infeasible Resamplings']\n%s", e.what()); } 
+   eraseValue(js, "Termination Criteria", "Max Infeasible Resamplings");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Termination Criteria']['Max Infeasible Resamplings'] required by optimizer.\n"); 
 
  if (isDefined(_k->_js.getJson(), "Variables"))
  for (size_t i = 0; i < _k->_js["Variables"].size(); i++) { 
@@ -149,10 +178,12 @@ void Optimizer::getConfiguration(knlohmann::json& js)
  js["Type"] = _type;
    js["Termination Criteria"]["Max Value"] = _maxValue;
    js["Termination Criteria"]["Min Value Difference Threshold"] = _minValueDifferenceThreshold;
+   js["Termination Criteria"]["Max Infeasible Resamplings"] = _maxInfeasibleResamplings;
    js["Current Best Value"] = _currentBestValue;
    js["Previous Best Value"] = _previousBestValue;
    js["Best Ever Value"] = _bestEverValue;
    js["Best Ever Variables"] = _bestEverVariables;
+   js["Infeasible Sample Count"] = _infeasibleSampleCount;
  for (size_t i = 0; i <  _k->_variables.size(); i++) { 
    _k->_js["Variables"][i]["Lower Bound"] = _k->_variables[i]->_lowerBound;
    _k->_js["Variables"][i]["Upper Bound"] = _k->_variables[i]->_upperBound;
@@ -168,7 +199,7 @@ void Optimizer::getConfiguration(knlohmann::json& js)
 void Optimizer::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Termination Criteria\": {\"Max Value\": Infinity, \"Min Value Difference Threshold\": -Infinity}}";
+ std::string defaultString = "{\"Termination Criteria\": {\"Max Value\": Infinity, \"Min Value Difference Threshold\": -Infinity, \"Max Infeasible Resamplings\": 1000000}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Solver::applyModuleDefaults(js);
@@ -198,6 +229,12 @@ bool Optimizer::checkTermination()
  if (_k->_currentGeneration > 1 && (fabs(_currentBestValue - _previousBestValue) < _minValueDifferenceThreshold))
  {
   _terminationCriteria.push_back("optimizer['Min Value Difference Threshold'] = " + std::to_string(_minValueDifferenceThreshold) + ".");
+  hasFinished = true;
+ }
+
+ if ((_maxInfeasibleResamplings > 0) && (_infeasibleSampleCount >= _maxInfeasibleResamplings))
+ {
+  _terminationCriteria.push_back("optimizer['Max Infeasible Resamplings'] = " + std::to_string(_maxInfeasibleResamplings) + ".");
   hasFinished = true;
  }
 

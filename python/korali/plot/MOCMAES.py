@@ -68,7 +68,9 @@ def plotGen(genList, idx):
           plot_lower_triangle(ax, samplesTmp)
 
           for i in range(numObjectives):
+            ax[i, i].set_xticks([])
             ax[i, i].set_xticklabels([])
+            ax[i, i].set_yticks([])
             ax[i, i].set_yticklabels([])
 
     else:

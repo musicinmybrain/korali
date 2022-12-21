@@ -13,14 +13,13 @@
 #pragma once
 
 #include "auxiliar/cbuffer.hpp"
+#include "modules/distribution/univariate/normal/normal.hpp"
 #include "modules/problem/reinforcementLearning/reinforcementLearning.hpp"
 #include "modules/problem/supervisedLearning/supervisedLearning.hpp"
-#include "modules/solver/learner/deepSupervisor/deepSupervisor.hpp"
-#include "modules/distribution/univariate/normal/normal.hpp"
+#include "modules/solver/deepSupervisor/deepSupervisor.hpp"
 #include "sample/sample.hpp"
 #include <algorithm> // std::shuffle
 #include <random>
-#include <boost/circular_buffer.hpp>
 
 namespace korali
 {
@@ -68,18 +67,23 @@ struct policy_t
   std::vector<float> distributionParameters;
 
   /**
+   * @brief [Bayesian] Contains the parameters for the policy with the current weights
+   */
+  std::vector<float> currentDistributionParameters;
+
+  /**
    * @brief [Discrete] Stores the index of the selected experience
    */
   size_t actionIndex;
 
   /**
-  * @brief [Discrete] Stores the action probabilities of the categorial distribution.
-  */
+   * @brief [Discrete/Bayesian] Stores the action probabilities
+   */
   std::vector<float> actionProbabilities;
 
   /**
-  * @brief [Discrete] Flags the actions that are available at the current state.
-  */
+   * @brief [Discrete] Flags the actions that are available at the current state
+   */
   std::vector<size_t> availableActions;
 
   /**
@@ -113,9 +117,9 @@ class Agent : public Solver
   /**
   * @brief Indicates the number of concurrent environments to use to collect experiences.
   */
-   size_t _concurrentEnvironments;
+   size_t _concurrentWorkers;
   /**
-  * @brief Indicates how many episodes to complete in a generation (checkpoints are generated between generations).
+  * @brief Number of reinforcement learning episodes per Korali generation (checkpoints are generated between generations).
   */
    size_t _episodesPerGeneration;
   /**
@@ -123,17 +127,37 @@ class Agent : public Solver
   */
    int _bayesianLearning;
   /**
-  * @brief Number of Samples stored from Posterior.
+  * @brief Number of samples to approximate predictive posterior distribution.
   */
    size_t _numberOfSamples;
+  /**
+  * @brief Number of episodes before starting to do bayesian learning.
+  */
+   size_t _burnIn;
+  /**
+  * @brief Number of hyperparameters stored.
+  */
+   size_t _numberOfStoredHyperparameters;
+  /**
+  * @brief Use Gaussian Approximation of Predictive Posterior Distribution.
+  */
+   int _gaussianApproximationEnabled;
+  /**
+  * @brief Use minimal approximation, which uses the full predictive distribution and only approximates the distribution for the KL divergence.
+  */
+   int _minimalApproximation;
+  /**
+  * @brief Descibes method to compute moments for Gaussian Approximation of Predictive Posterior Distribution.
+  */
+   std::string _gaussianApproximationType;
   /**
   * @brief Boolean to determine whether Stochastic Weight Averaging (https://arxiv.org/pdf/1902.02476.pdf) is used.
   */
    int _swag;
   /**
-  * @brief Coefficient to control magnitude of noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf).
+  * @brief Enable Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf).
   */
-   float _langevinDynamicsNoiseLevel;
+   int _langevinDynamics;
   /**
   * @brief Dropout probability that is used (https://proceedings.mlr.press/v48/gal16.html).
   */
@@ -162,10 +186,6 @@ class Agent : public Solver
   * @brief The number of experiences to randomly select to train the neural network(s) with.
   */
    size_t _miniBatchSize;
-  /**
-  * @brief Determines how to select experiences from the replay memory for mini batch creation.
-  */
-   std::string _miniBatchStrategy;
   /**
   * @brief Indicates the number of contiguous experiences to pass to the NN for learning. This is only useful when using recurrent NNs.
   */
@@ -343,6 +363,10 @@ class Agent : public Solver
   */
    knlohmann::json _testingBestPolicies;
   /**
+  * @brief [Internal Use] Boolean to decide between using best testing policy or training policy.
+  */
+   int _testingUseBestPolicies;
+  /**
   * @brief [Internal Use] Number of off-policy experiences in the experience replay.
   */
    std::vector<size_t> _experienceReplayOffPolicyCount;
@@ -443,19 +467,19 @@ class Agent : public Solver
   
 
   /**
-   * @brief Array of agents collecting new experiences
+   * @brief Array of workers collecting new experiences
    */
-  std::vector<Sample> _agents;
+  std::vector<Sample> _workers;
 
   /**
-   * @brief Keeps track of the age
+   * @brief Keeps track of the workers
    */
-  std::vector<bool> _isAgentRunning;
+  std::vector<bool> _isWorkerRunning;
 
   /**
    * @brief Pointer to training the actor network
    */
-  std::vector<learner::DeepSupervisor *> _criticPolicyLearner;
+  std::vector<solver::DeepSupervisor *> _criticPolicyLearner;
 
   /**
    * @brief Korali experiment for obtaining the agent's action
@@ -495,92 +519,92 @@ class Agent : public Solver
   /**
    * @brief Stores the state of the experience
    */
-  boost::circular_buffer<std::vector<std::vector<float>>> _stateVector;
+  cBuffer<std::vector<std::vector<float>>> _stateBuffer;
 
   /**
-   * @brief Stores the action taken by the agent at the given state
+   * @brief Stores the action taken by the agent
    */
-  boost::circular_buffer<std::vector<std::vector<float>>> _actionVector;
+  cBuffer<std::vector<std::vector<float>>> _actionBuffer;
 
   /**
    * @brief Stores the current sequence of states observed by the agent (limited to time sequence length defined by the user)
    */
-  std::vector<boost::circular_buffer<std::vector<float>>> _stateTimeSequence;
+  std::vector<cBuffer<std::vector<float>>> _stateTimeSequence;
 
   /**
    * @brief Episode that experience belongs to
    */
-  boost::circular_buffer<size_t> _episodeIdVector;
+  cBuffer<size_t> _episodeIdBuffer;
 
   /**
    * @brief Position within the episode of this experience
    */
-  boost::circular_buffer<size_t> _episodePosVector;
+  cBuffer<size_t> _episodePosBuffer;
 
   /**
    * @brief Contains the latest calculation of the experience's importance weight
    */
-  boost::circular_buffer<std::vector<float>> _importanceWeightVector;
+  cBuffer<std::vector<float>> _importanceWeightBuffer;
 
   /**
-   * @brief specialization of truncated importance weight vector for single-agent RL
+   * @brief Contains the latest calculation of the experience's truncated importance weight (for cache optimzed update of retV in updateExperienceMetadata)
    */
-  boost::circular_buffer<float> _truncatedImportanceWeightVectorContiguous;
+  cBuffer<float> _truncatedImportanceWeightBufferContiguous;
 
   /**
    * @brief Contains the latest calculation of the product of the product of the experience's importance weights
    */
-  boost::circular_buffer<float> _productImportanceWeightVector;
+  cBuffer<float> _productImportanceWeightBuffer;
 
   /**
    * @brief Contains the most current policy information given the experience state
    */
-  boost::circular_buffer<std::vector<policy_t>> _curPolicyVector;
+  cBuffer<std::vector<policy_t>> _curPolicyBuffer;
 
   /**
    * @brief Contains the policy information produced at the moment of the action was taken
    */
-  boost::circular_buffer<std::vector<policy_t>> _expPolicyVector;
+  cBuffer<std::vector<policy_t>> _expPolicyBuffer;
 
   /**
    * @brief Indicates whether the experience is on policy, given the specified off-policiness criteria
    */
-  boost::circular_buffer<std::vector<char>> _isOnPolicyVector;
+  cBuffer<std::vector<char>> _isOnPolicyBuffer;
 
   /**
    * @brief Specifies whether the experience is terminal (truncated or normal) or not.
    */
-  boost::circular_buffer<termination_t> _terminationVector;
+  cBuffer<termination_t> _terminationBuffer;
 
   /**
-   * @brief Specialization of retrace (Vtbc) vector for single-agent RL
+   * @brief Contains the result of the retrace (Vtbc) function for the currrent experience (for cache optimzed update of retV in updateExperienceMetadata)
    */
-  boost::circular_buffer<float> _retraceValueVectorContiguous;
+  cBuffer<float> _retraceValueBufferContiguous;
 
   /**
    * @brief If this is a truncated terminal experience, this contains the state value for that state
    */
-  boost::circular_buffer<std::vector<float>> _truncatedStateValueVector;
-
-  /**
-   * @brief If this is a truncated terminal experience, the truncated state is also saved here
-   */
-  boost::circular_buffer<std::vector<std::vector<float>>> _truncatedStateVector;
-
-  /**
-   * @brief Specialization of reward vector for single-agent RL
-   */
-  boost::circular_buffer<float> _rewardVectorContiguous;
-
-  /**
-   * @brief Specialization of state value vector for single-agent RL
-   */
-  boost::circular_buffer<float> _stateValueVectorContiguous;
+  cBuffer<std::vector<float>> _truncatedStateValueBuffer;
 
   /**
    * @brief Contains the wished number of samples from the hyperparameter posterior
    */
-  boost::circular_buffer<std::vector<std::vector<float>>> _hyperparameterVector;
+  cBuffer<std::vector<std::vector<float>>> _hyperparameterBuffer;
+
+  /**
+   * @brief If this is a truncated terminal experience, the truncated state is also saved here
+   */
+  cBuffer<std::vector<std::vector<float>>> _truncatedStateBuffer;
+
+  /**
+   * @brief Contains the rewards of every experience (for cache optimzed update of retV in updateExperienceMetadata)
+   */
+  cBuffer<float> _rewardBufferContiguous;
+
+  /**
+   * @brief Contains the state value evaluation for every experience (for cache optimzed update of retV in updateExperienceMetadata)
+   */
+  cBuffer<float> _stateValueBufferContiguous;
 
   /**
    * @brief Stores the priority annealing rate.
@@ -597,16 +621,6 @@ class Agent : public Solver
    */
   problem::ReinforcementLearning *_problem;
 
-  /**
-   * @brief Random device for the generation of shuffling numbers
-   */
-  std::random_device rd;
-
-  /**
-   * @brief Mersenne twister for the generation of shuffling numbers
-   */
-  std::mt19937 *mt;
-
   /****************************************************************************************************
    * Session-wise Profiling Timers
    ***************************************************************************************************/
@@ -622,19 +636,19 @@ class Agent : public Solver
   double _sessionSerializationTime;
 
   /**
-   * @brief [Profiling] Stores the computation time per episode taken by Agents
+   * @brief [Profiling] Stores the computation time per episode taken by Workers
    */
-  double _sessionAgentComputationTime;
+  double _sessionWorkerComputationTime;
 
   /**
-   * @brief [Profiling] Measures the average communication time per episode taken by Agents
+   * @brief [Profiling] Measures the average communication time per episode taken by Workers
    */
-  double _sessionAgentCommunicationTime;
+  double _sessionWorkerCommunicationTime;
 
   /**
-   * @brief [Profiling] Measures the average policy evaluation time per episode taken by Agents
+   * @brief [Profiling] Measures the average policy evaluation time per episode taken by Workers
    */
-  double _sessionAgentPolicyEvaluationTime;
+  double _sessionPolicyEvaluationTime;
 
   /**
    * @brief [Profiling] Measures the time taken to update the policy in the current generation
@@ -642,34 +656,9 @@ class Agent : public Solver
   double _sessionPolicyUpdateTime;
 
   /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _sessionCreateMinibatchTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _sessionRunPolicyTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _sessionUpdateMetadataTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _sessionPolicyGradientTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _sessionRunGenerationTime;
-
-  /**
    * @brief [Profiling] Measures the time taken to update the attend the agent's state
    */
-  double _sessionAgentAttendingTime;
+  double _sessionWorkerAttendingTime;
 
   /****************************************************************************************************
    * Generation-wise Profiling Timers
@@ -686,19 +675,19 @@ class Agent : public Solver
   double _generationSerializationTime;
 
   /**
-   * @brief [Profiling] Stores the computation time per episode taken by Agents
+   * @brief [Profiling] Stores the computation time per episode taken by worker
    */
-  double _generationAgentComputationTime;
+  double _generationWorkerComputationTime;
 
   /**
-   * @brief [Profiling] Measures the average communication time per episode taken by Agents
+   * @brief [Profiling] Measures the average communication time per episode taken by Workers
    */
-  double _generationAgentCommunicationTime;
+  double _generationWorkerCommunicationTime;
 
   /**
-   * @brief [Profiling] Measures the average policy evaluation time per episode taken by Agents
+   * @brief [Profiling] Measures the average policy evaluation time per episode taken by Workers
    */
-  double _generationAgentPolicyEvaluationTime;
+  double _generationPolicyEvaluationTime;
 
   /**
    * @brief [Profiling] Measures the time taken to update the policy in the current generation
@@ -706,57 +695,29 @@ class Agent : public Solver
   double _generationPolicyUpdateTime;
 
   /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _generationCreateMinibatchTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _generationRunPolicyTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _generationUpdateMetadataTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _generationPolicyGradientTime;
-
-  /**
-   * @brief [Profiling] Measures the time taken to update the policy in the current generation
-   */
-  double _generationRunGenerationTime;
-
-  /**
    * @brief [Profiling] Measures the time taken to update the attend the agent's state
    */
-  double _generationAgentAttendingTime;
+  double _generationWorkerAttendingTime;
 
   /****************************************************************************************************
-   * Common Agent functions
+   * Common functions
    ***************************************************************************************************/
 
   /**
    * @brief Additional post-processing of episode after episode terminated.
-   * @param episodeId The unique identifier of the provided episode
    * @param episode A vector of experiences pertaining to the episode.
    */
   void processEpisode(knlohmann::json &episode);
 
   /**
    * @brief Generates an experience mini batch from the replay memory
-   * @param miniBatchSize Size of the mini batch to create
-   * @return A vector with the indexes to the experiences in the mini batch
+   * @return A vector of pairs with the indexes to the experiences and agents in the mini batch
    */
   std::vector<std::pair<size_t, size_t>> generateMiniBatch();
 
   /**
    * @brief Gets a vector of states corresponding of time sequence corresponding to the provided last experience index
    * @param miniBatch Indexes to the latest experiences in a batch of sequences
-   * @param includeAction Specifies whether to include the experience's action in the sequence
    * @return The time step vector of states
    */
   std::vector<std::vector<std::vector<float>>> getMiniBatchStateSequence(const std::vector<std::pair<size_t, size_t>> &miniBatch);
@@ -766,12 +727,52 @@ class Agent : public Solver
    * @param miniBatch The mini batch of experience ids to update
    * @param policyData The policy to use to evaluate the experiences
    */
-  void updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<policy_t> &policyData);
+  void updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, const std::vector<policy_t> &policyData);
 
   /**
    * @brief Resets time sequence within the agent, to forget past actions from other episodes
    */
   void resetTimeSequence();
+
+  /**
+   * @brief Function to pass a state time series through the NN and calculates the action probabilities, along with any additional information
+   * @param stateSequence The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
+   * @param policyIdx The index for the policy for which the state-value is computed
+   * @return A JSON object containing the information produced by the policies given the current state series
+   */
+  virtual float calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx = 0) = 0;
+
+  /**
+   * @brief Function to pass a state time series through the NN and calculates the action probabilities, along with any additional information
+   * @param stateSequenceBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
+   * @param policy Vector with policy objects that is filled after forwarding the policy
+   * @param policyIdx The index for the policy for which the state-value is computed
+   */
+  virtual void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) = 0;
+
+  /**
+   * @brief Function to compute the Gaussian approximation of the predictive posterior distribution
+   * @param stateSequenceBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
+   * @param curPolicy The current policy for the given state
+   */
+  virtual void gaussianPredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) = 0;
+
+  /**
+   * @brief Function to compute the probability under the full predictive posterior distribution and the Gaussian approximation of the predictive posterior distribution during Inference
+   * @param action The action [during inference]
+   * @param miniBatch The minibatch indices [during training]
+   * @param stateSequence The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
+   * @param policy Vector with policy objects that is filled after forwarding the policy
+   */
+  virtual void calculatePredictivePosteriorProbabilities(std::vector<float> &action, const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy) = 0;
+
+  /**
+   * @brief Function to foward current policy and update currentDistributionParameters
+   * @param stateSequenceBatch  The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
+   * @param curPolicy The approximate predictive posterior distribution
+   * @param policyIdx Index of the current policy
+   */
+  virtual void finalizePredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy, const size_t policyIdx) = 0;
 
   /**
    * @brief Calculates the starting experience index of the time sequence for the selected experience
@@ -783,6 +784,7 @@ class Agent : public Solver
   /**
    * @brief Gets a vector of states corresponding of time sequence corresponding to the provided second-to-last experience index for which a truncated state exists
    * @param expId The index of the second-to-latest experience in the sequence
+   * @param agentId The index of the agent
    * @return The time step vector of states, including the truncated state
    */
   std::vector<std::vector<float>> getTruncatedStateSequence(size_t expId, size_t agentId);
@@ -798,9 +800,9 @@ class Agent : public Solver
 
   /**
    * @brief Listens to incoming experience from the given agent, sends back policy or terminates the episode depending on what's needed
-   * @param agentId The Agent's ID
+   * @param workerId The worker's ID
    */
-  void attendAgent(const size_t agentId);
+  void attendWorker(const size_t workerId);
 
   /**
    * @brief Serializes the experience replay into a JSON compatible format
@@ -829,7 +831,6 @@ class Agent : public Solver
 
   /**
    * @brief Rescales a given reward by the square root of the sum of squarred rewards
-   * @param agentId The id of the environment to which this reward belongs
    * @param reward the input reward to rescale
    * @return The normalized reward
    */
@@ -845,22 +846,22 @@ class Agent : public Solver
 
   /**
    * @brief Get Sample from Posterior for Bayesian RL
-   * @param Index of policy for which sample is computed
+   * @param policyIdx Index of policy for which sample is computed
    * @return The hyperparameter sample from the posterior
    */
-  std::vector<float> samplePosterior( const size_t policyIdx );
+  std::vector<float> samplePosterior(const size_t policyIdx);
 
   /**
-   * @brief Run a generation of HMC to update the hyperparameters of the neural network
+   * @brief Trains the policy based on the new experiences using HMC
    */
-  void runGenerationHMC();
+  void trainPolicyHMC();
 
   /****************************************************************************************************
    * Virtual functions (responsibilities) for learning algorithms to fulfill
    ***************************************************************************************************/
 
   /**
-   * @brief Trains the Agent's policy, based on the new experiences
+   * @brief Trains the policy based on the new experiences
    */
   virtual void trainPolicy() = 0;
 
@@ -868,13 +869,13 @@ class Agent : public Solver
    * @brief Obtains the policy hyperaparamters from the learner for the agent to generate new actions
    * @return The current policy hyperparameters
    */
-  virtual knlohmann::json getAgentPolicy() = 0;
+  virtual knlohmann::json getPolicy() = 0;
 
   /**
    * @brief Updates the agent's hyperparameters
    * @param hyperparameters The hyperparameters to update the agent.
    */
-  virtual void setAgentPolicy(const knlohmann::json &hyperparameters) = 0;
+  virtual void setPolicy(const knlohmann::json &hyperparameters) = 0;
 
   /**
    * @brief Initializes the internal state of the policy
@@ -884,27 +885,13 @@ class Agent : public Solver
   /**
    * @brief Prints information about the training policy
    */
-  virtual void printAgentInformation() = 0;
+  virtual void printInformation() = 0;
 
   /**
    * @brief Gathers the next action either from the policy or randomly
    * @param sample Sample on which the action and metadata will be stored
    */
   virtual void getAction(korali::Sample &sample) = 0;
-
-    /**
-   * @brief Function to pass a state time series through the NN and calculates the action probabilities, along with any additional information
-   * @param stateBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
-   * @return A JSON object containing the information produced by the policies given the current state series
-   */
-  virtual float calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx = 0) = 0;
-
-  /**
-   * @brief Function to pass a state time series through the NN and calculates the action probabilities, along with any additional information
-   * @param stateBatch The batch of state time series (Format: BxTxS, B is batch size, T is the time series lenght, and S is the state size)
-   * @return A JSON object containing the information produced by the policies given the current state series
-   */
-  virtual void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) = 0;
 
   void runGeneration() override;
   void printGenerationAfter() override;

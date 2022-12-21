@@ -1,6 +1,5 @@
 #include "engine.hpp"
 #include "modules/solver/integrator/integrator.hpp"
-#include "sample/sample.hpp"
 
 namespace korali
 {
@@ -12,22 +11,12 @@ void Integrator::setInitialConfiguration()
 {
   _variableCount = _k->_variables.size();
 
-  _integral = 0;
-  _sampleCount = 1;
-  for (size_t i = 0; i < _variableCount; i++)
-    _sampleCount *= _k->_variables[i]->_numberOfGridpoints;
-  _maxModelEvaluations = std::min(_maxModelEvaluations, _sampleCount);
-
-  if (_k->_variables[0]->_samplePoints.size() > 0)
-  { // quadrature
-    _indicesHelper.resize(_variableCount);
-    _indicesHelper[0] = _k->_variables[0]->_samplePoints.size();
-    _indicesHelper[1] = _k->_variables[0]->_samplePoints.size();
-    for (size_t i = 2; i < _indicesHelper.size(); i++)
-    {
-      _indicesHelper[i] = _indicesHelper[i - 1] * _k->_variables[i - 1]->_samplePoints.size();
-    }
+  for (size_t i = 0; i < _variableCount; ++i)
+  {
+    if (_k->_variables[i]->_upperBound <= _k->_variables[i]->_lowerBound) KORALI_LOG_ERROR("'Upper Bound' is not strictly bigger then 'Lower Bound' for variable %s.\n", _k->_variables[i]->_name.c_str());
   }
+
+  _accumulatedIntegral = 0.;
 }
 
 void Integrator::runGeneration()
@@ -35,54 +24,24 @@ void Integrator::runGeneration()
   if (_k->_currentGeneration == 1) setInitialConfiguration();
 
   _executionsPerGeneration = std::min(_executionsPerGeneration, _maxModelEvaluations - _modelEvaluationCount);
+  _samples.resize(_executionsPerGeneration);
 
-  std::vector<Sample> samples(_executionsPerGeneration);
-  std::vector<double> sampleData(_variableCount);
-  std::vector<std::vector<size_t>> usedIndices(_executionsPerGeneration, std::vector<size_t>(_variableCount));
-
-  size_t rest, index;
   for (size_t i = 0; i < _executionsPerGeneration; i++)
   {
-    rest = _modelEvaluationCount;
-    for (int d = _variableCount - 1; d >= 0; d--)
-    {
-      // quadrature
-      //  We assume i = _index[0] + _index[1]*_sample[0].size() + _index[1]*_index[2]*_sample[1].size() + .....
-      if (d == 0)
-        index = rest % _indicesHelper[d];
-      else
-        index = rest / _indicesHelper[d];
-      rest -= index * _indicesHelper[d];
-
-      sampleData[d] = _k->_variables[d]->_samplePoints[index];
-      usedIndices[i][d] = index;
-    }
-
-    _k->_logger->logInfo("Detailed", "Running sample %zu/%zu with values:\n         ", _modelEvaluationCount + 1, _sampleCount);
-    for (auto &x : sampleData) _k->_logger->logData("Detailed", " %le   ", x);
-    _k->_logger->logData("Detailed", "\n");
-
-    samples[i]["Sample Id"] = i;
-    samples[i]["Module"] = "Problem";
-    samples[i]["Operation"] = "Execute";
-    samples[i]["Parameters"] = sampleData;
-    KORALI_START(samples[i]);
+    launchSample(i);
     _modelEvaluationCount++;
   }
-  KORALI_WAITALL(samples);
 
-  double weight;
+  KORALI_WAITALL(_samples);
+
   for (size_t i = 0; i < _executionsPerGeneration; i++)
   {
-    weight = 1.0;
-    for (size_t d = 0; d < _variableCount; d++)
-      weight *= _k->_variables[d]->_quadratureWeights[usedIndices[i][d]];
-
-    auto f = KORALI_GET(double, samples[i], "Evaluation");
-
-    _integral += weight * f;
+    auto f = KORALI_GET(double, _samples[i], "Evaluation");
+    auto w = KORALI_GET(double, _samples[i], "Weight");
+    _accumulatedIntegral += w * f;
   }
-  (*_k)["Results"]["Integral"] = _integral;
+
+  (*_k)["Results"]["Integral"] = _accumulatedIntegral;
 }
 
 void Integrator::printGenerationBefore()
@@ -91,40 +50,40 @@ void Integrator::printGenerationBefore()
 
 void Integrator::printGenerationAfter()
 {
-  _k->_logger->logInfo("Minimal", "Total Terms summed %lu/%lu.\n", _modelEvaluationCount, _sampleCount);
+  _k->_logger->logInfo("Minimal", "Total evaluations accumulated %lu/%lu.\n", _modelEvaluationCount, _maxModelEvaluations);
 }
 
 void Integrator::finalize()
 {
-  _k->_logger->logInfo("Minimal", "Integral Calculated: %e\n", _integral);
+  _k->_logger->logInfo("Minimal", "Integral Calculated: %e\n", _accumulatedIntegral);
 }
 
 void Integrator::setConfiguration(knlohmann::json& js) 
 {
  if (isDefined(js, "Results"))  eraseValue(js, "Results");
 
- if (isDefined(js, "Sample Count"))
+ if (isDefined(js, "Accumulated Integral"))
  {
- try { _sampleCount = js["Sample Count"].get<size_t>();
+ try { _accumulatedIntegral = js["Accumulated Integral"].get<double>();
 } catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ integrator ] \n + Key:    ['Sample Count']\n%s", e.what()); } 
-   eraseValue(js, "Sample Count");
+ { KORALI_LOG_ERROR(" + Object: [ integrator ] \n + Key:    ['Accumulated Integral']\n%s", e.what()); } 
+   eraseValue(js, "Accumulated Integral");
  }
 
- if (isDefined(js, "Integral"))
+ if (isDefined(js, "Grid Points"))
  {
- try { _integral = js["Integral"].get<double>();
+ try { _gridPoints = js["Grid Points"].get<std::vector<std::vector<float>>>();
 } catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ integrator ] \n + Key:    ['Integral']\n%s", e.what()); } 
-   eraseValue(js, "Integral");
+ { KORALI_LOG_ERROR(" + Object: [ integrator ] \n + Key:    ['Grid Points']\n%s", e.what()); } 
+   eraseValue(js, "Grid Points");
  }
 
- if (isDefined(js, "Indices Helper"))
+ if (isDefined(js, "Weight"))
  {
- try { _indicesHelper = js["Indices Helper"].get<std::vector<size_t>>();
+ try { _weight = js["Weight"].get<float>();
 } catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ integrator ] \n + Key:    ['Indices Helper']\n%s", e.what()); } 
-   eraseValue(js, "Indices Helper");
+ { KORALI_LOG_ERROR(" + Object: [ integrator ] \n + Key:    ['Weight']\n%s", e.what()); } 
+   eraseValue(js, "Weight");
  }
 
  if (isDefined(js, "Executions Per Generation"))
@@ -136,6 +95,27 @@ void Integrator::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Executions Per Generation'] required by integrator.\n"); 
 
+ if (isDefined(_k->_js.getJson(), "Variables"))
+ for (size_t i = 0; i < _k->_js["Variables"].size(); i++) { 
+ if (isDefined(_k->_js["Variables"][i], "Lower Bound"))
+ {
+ try { _k->_variables[i]->_lowerBound = _k->_js["Variables"][i]["Lower Bound"].get<double>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ integrator ] \n + Key:    ['Lower Bound']\n%s", e.what()); } 
+   eraseValue(_k->_js["Variables"][i], "Lower Bound");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Lower Bound'] required by integrator.\n"); 
+
+ if (isDefined(_k->_js["Variables"][i], "Upper Bound"))
+ {
+ try { _k->_variables[i]->_upperBound = _k->_js["Variables"][i]["Upper Bound"].get<double>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ integrator ] \n + Key:    ['Upper Bound']\n%s", e.what()); } 
+   eraseValue(_k->_js["Variables"][i], "Upper Bound");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Upper Bound'] required by integrator.\n"); 
+
+ } 
  Solver::setConfiguration(js);
  _type = "integrator";
  if(isDefined(js, "Type")) eraseValue(js, "Type");
@@ -147,16 +127,20 @@ void Integrator::getConfiguration(knlohmann::json& js)
 
  js["Type"] = _type;
    js["Executions Per Generation"] = _executionsPerGeneration;
-   js["Sample Count"] = _sampleCount;
-   js["Integral"] = _integral;
-   js["Indices Helper"] = _indicesHelper;
+   js["Accumulated Integral"] = _accumulatedIntegral;
+   js["Grid Points"] = _gridPoints;
+   js["Weight"] = _weight;
+ for (size_t i = 0; i <  _k->_variables.size(); i++) { 
+   _k->_js["Variables"][i]["Lower Bound"] = _k->_variables[i]->_lowerBound;
+   _k->_js["Variables"][i]["Upper Bound"] = _k->_variables[i]->_upperBound;
+ } 
  Solver::getConfiguration(js);
 } 
 
 void Integrator::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Executions Per Generation\": 500000000}";
+ std::string defaultString = "{\"Executions Per Generation\": 100}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Solver::applyModuleDefaults(js);

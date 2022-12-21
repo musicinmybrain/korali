@@ -9,7 +9,6 @@
 import sys
 sys.path.append('_model')
 from model import *
-from constraints import *
 
 # Creating new experiment
 import korali

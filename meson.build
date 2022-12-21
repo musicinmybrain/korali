@@ -56,7 +56,6 @@ korali_deps = []
 # (needs benchmark: gslcblas versus system cblas (and possibly ATLAS))
 korali_deps += dependency('gsl', fallback: ['gsl', 'gsl_dep'], version : '>=2.5', required: true)
 korali_deps += dependency('eigen3', fallback: ['eigen', 'eigen_dep'], required: true)
-korali_deps += dependency('boost')
 
 # Process pybind11
 pybind11_dep = dependency('pybind11', fallback: ['pybind11', 'pybind11_dep'], required: true)
@@ -165,6 +164,7 @@ subdir('python/korali')
 # tests
 if get_option('test')
   nomalloc = environment({'MALLOC_PERTURB_': '0'})
-  subdir('tests')
   subdir('examples')
+  subdir('study.cases')
+  subdir('tests')
 endif

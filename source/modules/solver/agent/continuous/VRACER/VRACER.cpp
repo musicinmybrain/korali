@@ -1,8 +1,9 @@
 #include "engine.hpp"
 #include "modules/solver/agent/continuous/VRACER/VRACER.hpp"
-#include "omp.h"
+#ifdef _OPENMP
+  #include "omp.h"
+#endif
 #include "sample/sample.hpp"
-
 #include <gsl/gsl_sf_psi.h>
 
 namespace korali
@@ -34,11 +35,17 @@ void VRACER::initializeAgent()
 
   _effectiveMinibatchSize = _miniBatchSize * _problem->_agentsPerEnvironment;
 
-  if( (_multiAgentRelationship == "Competition") || _problem->_ensembleLearning )
+  if ((_multiAgentRelationship == "Competition") || _problem->_ensembleLearning)
     _effectiveMinibatchSize = _miniBatchSize;
 
+  if (_effectiveMinibatchSize == 1)
+    KORALI_LOG_ERROR("Effective Minibatch Size (%ld) should be greater than one!", _effectiveMinibatchSize);
+
+  // Parallel initialization of neural networks (first touch!)
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
+    _criticPolicyExperiment[p]["Random Seed"] = _k->_randomSeed++;
+
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
     _criticPolicyExperiment[p]["Problem"]["Max Timesteps"] = _timeSequenceLength;
     _criticPolicyExperiment[p]["Problem"]["Training Batch Size"] = _effectiveMinibatchSize;
@@ -46,8 +53,9 @@ void VRACER::initializeAgent()
     _criticPolicyExperiment[p]["Problem"]["Input"]["Size"] = _problem->_stateVectorSize;
     _criticPolicyExperiment[p]["Problem"]["Solution"]["Size"] = 1 + _policyParameterCount;
 
-    _criticPolicyExperiment[p]["Solver"]["Type"] = "Learner/DeepSupervisor";
+    _criticPolicyExperiment[p]["Solver"]["Type"] = "DeepSupervisor";
     _criticPolicyExperiment[p]["Solver"]["Mode"] = "Training";
+    _criticPolicyExperiment[p]["Solver"]["Number Of Policy Threads"] = 1;
     _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Enabled"] = _l2RegularizationEnabled;
     _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Importance"] = _l2RegularizationImportance;
     _criticPolicyExperiment[p]["Solver"]["Learning Rate"] = _currentLearningRate;
@@ -73,8 +81,9 @@ void VRACER::initializeAgent()
     // Running initialization to verify that the configuration is correct
     _criticPolicyExperiment[p].setEngine(_k->_engine);
     _criticPolicyExperiment[p].initialize();
+
     _criticPolicyProblem[p] = dynamic_cast<problem::SupervisedLearning *>(_criticPolicyExperiment[p]._problem);
-    _criticPolicyLearner[p] = dynamic_cast<solver::learner::DeepSupervisor *>(_criticPolicyExperiment[p]._solver);
+    _criticPolicyLearner[p] = dynamic_cast<solver::DeepSupervisor *>(_criticPolicyExperiment[p]._solver);
 
     // Preallocating space in the underlying supervised problem's input and solution data structures (for performance, we don't reinitialize it every time)
     _criticPolicyProblem[p]->_inputData.resize(_effectiveMinibatchSize);
@@ -84,98 +93,110 @@ void VRACER::initializeAgent()
   // Minibatch statistics
   _miniBatchPolicyMean.resize(_problem->_actionVectorSize);
   _miniBatchPolicyStdDev.resize(_problem->_actionVectorSize);
+  _miniBatchCurrentPolicyMean.resize(_problem->_actionVectorSize);
+  _miniBatchCurrentPolicyStdDev.resize(_problem->_actionVectorSize);
+  _miniBatchPolicyGradientMean.resize(_problem->_actionVectorSize);
+  _miniBatchPolicyGradientStdDev.resize(_problem->_actionVectorSize);
+  _miniBatchKLGradientMean.resize(_problem->_actionVectorSize);
+  _miniBatchKLGradientStdDev.resize(_problem->_actionVectorSize);
 }
 
 void VRACER::trainPolicy()
 {
-  auto beginTime = std::chrono::steady_clock::now();
   // Obtaining Minibatch experience ids
   const auto miniBatch = generateMiniBatch();
 
   // Gathering state sequences for selected minibatch
   const auto stateSequenceBatch = getMiniBatchStateSequence(miniBatch);
-  auto endTime = std::chrono::steady_clock::now(); 
-  _sessionCreateMinibatchTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
-  _generationCreateMinibatchTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
-
-  // Prepare stateSequenceBatch and miniBatch
-  auto _miniBatch          = miniBatch;
-  auto _stateSequenceBatch = stateSequenceBatch;
 
   // Buffer for policy info to update experience metadata
   std::vector<policy_t> policyInfoUpdateMetadata(miniBatch.size());
 
+  // Container for parameters
+  std::vector<policy_t> policyInfo;
+
   // Get number of policies
-  const size_t numPolicies = _problem->_policiesPerEnvironment;
+  size_t numPolicies = _problem->_policiesPerEnvironment;
+  if (_problem->_ensembleLearning && (_currentEpisode < _burnIn))
+    numPolicies = 1;
 
-  // Run training generation for all policies
-  for (size_t p = 0; p < numPolicies; p++)
+  // Update policies
+  for( size_t p = 0; p<numPolicies; p++)
   {
-    // Disable experience sharing competing agents or Bayesian reinforcement learning
-    if( (_multiAgentRelationship == "Competition") || _problem->_ensembleLearning )
+    // Create private copy of minibatch
+    auto miniBatchCopy = miniBatch;
+    auto stateSequenceBatchCopy = stateSequenceBatch;
+
+    // Disable experience sharing for competing agents
+    if (_multiAgentRelationship == "Competition" || (_problem->_ensembleLearning && ((_gaussianApproximationEnabled || _minimalApproximation) == false)))
     {
-      std::vector<std::pair<size_t, size_t>> miniBatchBuffer(_miniBatchSize);
-      std::vector<std::vector<std::vector<float>>> stateSequenceBuffer(_miniBatchSize);
-      for( size_t i = 0; i<_miniBatchSize; i++ )
+      std::vector<std::pair<size_t, size_t>> miniBatchModified(_miniBatchSize);
+      std::vector<std::vector<std::vector<float>>> stateSequenceModified(_miniBatchSize);
+      for (size_t i = 0; i < _miniBatchSize; i++)
       {
-        miniBatchBuffer[i]     = miniBatch[ i*numPolicies + p ];
-        stateSequenceBuffer[i] = stateSequenceBatch[ i*numPolicies + p ];
+        miniBatchModified[i] = miniBatch[i * numPolicies + p];
+        stateSequenceModified[i] = stateSequenceBatch[i * numPolicies + p];
       }
-      _miniBatch          = miniBatchBuffer;
-      _stateSequenceBatch = stateSequenceBuffer;
+      miniBatchCopy = miniBatchModified;
+      stateSequenceBatchCopy = stateSequenceModified;
     }
 
-    // Sample posterior to ensure consistency between training and testing
-    if ( _bayesianLearning )
+    // For Gaussian approximation in Bayesian RL, work with predictive posterior distribution
+    if ((_gaussianApproximationEnabled || _minimalApproximation) &&
+        (_currentEpisode >= _burnIn))
+    { 
+      // compute predictive posterior distribution in first iteration
+      if( p == 0 )
+      {
+        if( _gaussianApproximationEnabled )
+          gaussianPredictivePosteriorDistribution(stateSequenceBatchCopy, policyInfo);
+        if( _minimalApproximation )
+        { 
+          std::vector<float> dummy;
+          calculatePredictivePosteriorProbabilities(dummy, miniBatchCopy, stateSequenceBatchCopy, policyInfo);
+        }
+      }
+  
+      // Forward policy / update currentDistributionParameters
+      finalizePredictivePosterior(stateSequenceBatchCopy, policyInfo, p);
+    }
+    else
     {
-      // Compute posterior sample
-      auto hyperparameters = samplePosterior( p );
-
-      // Set parameters in neural network
-      _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
+      // Forward Policy
+      runPolicy(stateSequenceBatchCopy, policyInfo, p);
     }
-
-    // Forward NN
-    std::vector<policy_t> policyInfo;
-    beginTime = std::chrono::steady_clock::now(); 
-    runPolicy(_stateSequenceBatch, policyInfo, p);
-    endTime = std::chrono::steady_clock::now(); 
-    _sessionRunPolicyTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
-    _generationRunPolicyTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
 
     // Using policy information to update experience's metadata
-    beginTime = std::chrono::steady_clock::now();
-    updateExperienceMetadata(_miniBatch, policyInfo);
-    endTime = std::chrono::steady_clock::now();
-    _sessionUpdateMetadataTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
-    _generationUpdateMetadataTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
+    updateExperienceMetadata(miniBatchCopy, stateSequenceBatchCopy, policyInfo);
 
     // Now calculating policy gradients
-    beginTime = std::chrono::steady_clock::now();
-    calculatePolicyGradients(_miniBatch, p);
-    endTime = std::chrono::steady_clock::now();
-    _sessionPolicyGradientTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
-    _generationPolicyGradientTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
+    calculatePolicyGradients(miniBatchCopy, p);
 
     // Updating learning rate for critic/policy learner guided by REFER
     _criticPolicyLearner[p]->_learningRate = _currentLearningRate;
 
     // Now applying gradients to update policy NN
-    beginTime = std::chrono::steady_clock::now();
     _criticPolicyLearner[p]->runGeneration();
-    endTime = std::chrono::steady_clock::now();
-    _sessionRunGenerationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
-    _generationRunGenerationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();
+
+    // Add noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
+    if (_langevinDynamics)
+    {
+      auto hyperparameters = _criticPolicyLearner[p]->getHyperparameters();
+
+      // #pragma omp parallel for simd
+      for (size_t n = 0; n < hyperparameters.size(); n++)
+        hyperparameters[n] += std::sqrt(2 * _currentLearningRate) * _normalGenerator->getRandomNumber();
+    }
 
     // Store policyData for agent p for later update of metadata
-    if ( (numPolicies > 1) && (_multiAgentRelationship != "Competition") && !_problem->_ensembleLearning )
+    if ((numPolicies > 1) && (_multiAgentRelationship != "Competition") && !_problem->_ensembleLearning)
       for (size_t b = 0; b < _miniBatchSize; b++)
         policyInfoUpdateMetadata[b * numPolicies + p] = policyInfo[b * numPolicies + p];
   }
 
   // Correct experience metadata
-  if ( (numPolicies > 1) && (_multiAgentRelationship != "Competition") && !_problem->_ensembleLearning )
-    updateExperienceMetadata(_miniBatch, policyInfoUpdateMetadata);
+  if ((numPolicies > 1) && (_multiAgentRelationship != "Competition") && !_problem->_ensembleLearning)
+    updateExperienceMetadata(miniBatch, stateSequenceBatch, policyInfoUpdateMetadata);
 }
 
 void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx)
@@ -183,32 +204,39 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
   // Resetting statistics
   std::fill(_miniBatchPolicyMean.begin(), _miniBatchPolicyMean.end(), 0.0);
   std::fill(_miniBatchPolicyStdDev.begin(), _miniBatchPolicyStdDev.end(), 0.0);
+  std::fill(_miniBatchCurrentPolicyMean.begin(), _miniBatchCurrentPolicyMean.end(), 0.0);
+  std::fill(_miniBatchCurrentPolicyStdDev.begin(), _miniBatchCurrentPolicyStdDev.end(), 0.0);
+  std::fill(_miniBatchPolicyGradientMean.begin(), _miniBatchPolicyGradientMean.end(), 0.0);
+  std::fill(_miniBatchPolicyGradientStdDev.begin(), _miniBatchPolicyGradientStdDev.end(), 0.0);
+  std::fill(_miniBatchKLGradientMean.begin(), _miniBatchKLGradientMean.end(), 0.0);
+  std::fill(_miniBatchKLGradientStdDev.begin(), _miniBatchKLGradientStdDev.end(), 0.0);
   _valueLoss = 0.0;
   _policyLoss = 0.0;
 
   const size_t miniBatchSize = miniBatch.size();
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
-#pragma omp parallel for schedule(guided, numAgents) reduction(vec_float_plus \
-                                                               : _miniBatchPolicyMean, _miniBatchPolicyStdDev) \
-                                                                reduction(+: _valueLoss, _policyLoss )
+#pragma omp parallel for schedule(guided, numAgents) reduction(vec_float_plus                                  \
+                                                               : _miniBatchPolicyMean, _miniBatchPolicyStdDev, _miniBatchPolicyGradientMean, _miniBatchPolicyGradientStdDev, _miniBatchKLGradientMean, _miniBatchKLGradientStdDev, _miniBatchCurrentPolicyMean, _miniBatchCurrentPolicyStdDev) \
+  reduction(+                                                                                                  \
+            : _valueLoss, _policyLoss)
   for (size_t b = 0; b < miniBatchSize; b++)
   {
     // Getting index of current experiment
-    const size_t expId = miniBatch[b].first;
-    const size_t agentId = miniBatch[b].second;
+    const size_t &expId = miniBatch[b].first;
+    const size_t &agentId = miniBatch[b].second;
 
     // Get policy and action for this experience
-    const auto &expPolicy = _expPolicyVector[expId][agentId];
-    const auto &expAction = _actionVector[expId][agentId];
+    const auto &expPolicy = _expPolicyBuffer[expId][agentId];
+    const auto &expAction = _actionBuffer[expId][agentId];
 
     // Gathering metadata
-    const float stateValue = _stateValueVectorContiguous[expId*numAgents + agentId];
-    const float expVtbc = _retraceValueVectorContiguous[expId*numAgents + agentId];
-    const auto &curPolicy = _curPolicyVector[expId][agentId];
+    const auto &stateValue = _stateValueBufferContiguous[expId * numAgents + agentId];
+    const auto &curPolicy = _curPolicyBuffer[expId][agentId];
+    const auto &expVtbc = _retraceValueBufferContiguous[expId * numAgents + agentId];
 
     // Storage for the update gradient
-    std::vector<float> gradientLoss(1 + 2 * _problem->_actionVectorSize, 0.0f);
+    std::vector<float> gradientLoss(1 + _policyParameterCount, 0.0f);
 
     // Gradient of Value Function V(s) (eq. (9); *-1 because the optimizer is maximizing)
     gradientLoss[0] = (expVtbc - stateValue);
@@ -216,31 +244,37 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     // Cumulate value loss
     _valueLoss += 0.5 * (expVtbc - stateValue) * (expVtbc - stateValue);
 
-    //Gradient has to be divided by Number of Agents in Cooperation models
+    // Gradient has to be divided by Number of Agents in Cooperation models
     if (_multiAgentRelationship == "Cooperation")
       gradientLoss[0] /= numAgents;
+
+    // Gradient has to be divided by Number of Samples in Bayesian learning
+    if ((_gaussianApproximationEnabled || _minimalApproximation) &&
+        (_currentEpisode >= _burnIn))
+      gradientLoss[0] /= (float)(_numberOfSamples*_problem->_policiesPerEnvironment);
 
     // Check value of gradient
     if (std::isfinite(gradientLoss[0]) == false)
       KORALI_LOG_ERROR("Value Gradient has an invalid value: %f\n", gradientLoss[0]);
 
     // Compute policy gradient inside trust region
-    if (_isOnPolicyVector[expId][agentId])
+    std::vector<float> polGrad(_policyParameterCount, 0.0);
+    if (_isOnPolicyBuffer[expId][agentId])
     {
       // Qret for terminal state is just reward
-      float Qret = getScaledReward(_rewardVectorContiguous[expId*numAgents+agentId]);
+      float Qret = getScaledReward(_rewardBufferContiguous[expId * numAgents + agentId]);
 
       // If experience is non-terminal, add Vtbc
-      if (_terminationVector[expId] == e_nonTerminal)
+      if (_terminationBuffer[expId] == e_nonTerminal)
       {
-        const float nextExpVtbc = _retraceValueVectorContiguous[(expId + 1)*numAgents + agentId];
+        const float nextExpVtbc = _retraceValueBufferContiguous[(expId + 1) * numAgents + agentId];
         Qret += _discountFactor * nextExpVtbc;
       }
 
       // If experience is truncated, add truncated state value
-      if (_terminationVector[expId] == e_truncated)
+      if (_terminationBuffer[expId] == e_truncated)
       {
-        const float nextExpVtbc = _truncatedStateValueVector[expId][agentId];
+        const float &nextExpVtbc = _truncatedStateValueBuffer[expId][agentId];
         Qret += _discountFactor * nextExpVtbc;
       }
 
@@ -248,53 +282,137 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       const float lossOffPolicy = Qret - stateValue;
 
       // Cumulate policy loss
-      const float importanceWeight = _importanceWeightVector[expId][agentId];
-      _policyLoss += importanceWeight * ( Qret - stateValue );
+      const float &importanceWeight = _importanceWeightBuffer[expId][agentId];
+      _policyLoss += importanceWeight * lossOffPolicy;
 
       // Compute Off-Policy Gradient
-      auto polGrad = calculateImportanceWeightGradient(expAction, curPolicy, expPolicy, importanceWeight);
+      polGrad = calculateImportanceWeightGradient(expAction, curPolicy, expPolicy, importanceWeight);
 
       // Multi-agent correlation implies additional factor
       if (_multiAgentCorrelation)
       {
-        const float correlationFactor = _productImportanceWeightVector[expId] / _importanceWeightVector[expId][agentId];
+        const float correlationFactor = _productImportanceWeightBuffer[expId] / _importanceWeightBuffer[expId][agentId];
         for (size_t i = 0; i < polGrad.size(); i++)
           polGrad[i] *= correlationFactor;
       }
 
+      // Modifications of Gradient for  Bayesian Learning
+      if ((_gaussianApproximationEnabled || _minimalApproximation) &&
+          (_currentEpisode >= _burnIn))
+      {
+        const float invN = 1.0 / (_numberOfSamples*_problem->_policiesPerEnvironment);
+        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+        {
+          if (std::isfinite(polGrad[i]) == false)
+            KORALI_LOG_ERROR("Policy Gradient i=%ld has an invalid value [before]: %f\n", i, polGrad[i]);
+
+          // Get distribution parameter from predictive posterior policy
+          const float &mean = curPolicy.distributionParameters[i];
+          const float &sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+          const float invSigma = 1 / sigma;
+
+          // Get sigma for current hyperparameters
+          const float curMean = curPolicy.currentDistributionParameters[i];
+          // const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
+
+          // Scaling mean gradient by number of samples
+          polGrad[i] *= invN;
+
+          // Adding contribution from standard deviation
+          if((_gaussianApproximationType == "Mixture") && (_minimalApproximation == false))
+            polGrad[i] += invN * invSigma * (curMean - mean) * polGrad[i + _problem->_actionVectorSize];
+
+          // Scaling standard deviation gradient by number of samples
+          float sigmaFactor = 1.0;
+          if((_gaussianApproximationType == "Average") || _minimalApproximation) 
+            sigmaFactor = invN;
+          if((_gaussianApproximationType == "Mixture") && (_minimalApproximation == false)) 
+            sigmaFactor = 0.0; //curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma;
+          polGrad[i + _problem->_actionVectorSize] *= sigmaFactor;
+        }
+      }
+
       // Set Gradient of Loss wrt Params
-      for (size_t i = 0; i < 2 * _problem->_actionVectorSize; i++)
+      for (size_t i = 0; i < _policyParameterCount; i++)
       {
         gradientLoss[1 + i] = _experienceReplayOffPolicyREFERCurrentBeta[agentId] * lossOffPolicy * polGrad[i];
 
         if (std::isfinite(gradientLoss[i + 1]) == false)
-          KORALI_LOG_ERROR("Policy Gradient has an invalid value: %f\n", gradientLoss[i + 1]);
+          KORALI_LOG_ERROR("Policy Gradient i=%ld has an invalid value: %f\n", i, gradientLoss[i + 1]);
       }
     }
 
     // Compute derivative of KL divergence
-    const auto klGrad = calculateKLDivergenceGradient(expPolicy, curPolicy);
+    auto klGrad = calculateKLDivergenceGradient(expPolicy, curPolicy);
 
     // Compute factor for KL penalization
     const float klGradMultiplier = -(1.0f - _experienceReplayOffPolicyREFERCurrentBeta[agentId]);
 
-    // Add KL contribution
+    // Safety check
+    if (std::isfinite(klGradMultiplier) == false)
+      KORALI_LOG_ERROR("KL multiplier has an invalid value: %f\n", klGradMultiplier);
+
+    // When not using Gaussian approximation, clipp KL correction
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)
     {
+      // Clip large values of the KL grad
+      if ( std::abs(klGrad[i]) > 1e7)
+        klGrad[i] = klGrad[i] < 0 ? -1e7 : 1e7;
+
+      if ( std::abs(klGrad[i + _problem->_actionVectorSize]) > 1e7)
+        klGrad[i + _problem->_actionVectorSize] = klGrad[i + _problem->_actionVectorSize] < 0 ? -1e7 : 1e7;
+
+      // Modifications of Gradient for  Bayesian Learning
+      if ((_gaussianApproximationEnabled || _minimalApproximation) &&
+          (_currentEpisode >= _burnIn))
+      {
+        const float invN = 1.0 / (_numberOfSamples*_problem->_policiesPerEnvironment);
+        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+        {
+          // Get distribution parameter from approximation of predictive posterior policy
+          const float &mean = _minimalApproximation ? curPolicy.currentDistributionParameters[i] : curPolicy.distributionParameters[i];
+          const float &sigma = _minimalApproximation ? curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i] : curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+          const float invSigma = 1 / sigma;
+
+          // Get sigma for current hyperparameters
+          const float &curMean = _minimalApproximation ? curPolicy.distributionParameters[i] : curPolicy.currentDistributionParameters[i];
+          // const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
+
+          // Scaling mean gradient by number of samples
+          klGrad[i] *= invN;
+
+          // Adding contribution from standard deviation
+          if(_gaussianApproximationType == "Mixture")
+            klGrad[i] += invN * invSigma * (curMean - mean) * klGrad[i + _problem->_actionVectorSize];
+
+          // Scaling standard deviation gradient by number of samples
+          float sigmaFactor = 1.0;
+          if(_gaussianApproximationType == "Average")
+            sigmaFactor = invN;
+          if(_gaussianApproximationType == "Mixture")
+            sigmaFactor = 0.0; //curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma;
+          klGrad[i + _problem->_actionVectorSize] *= sigmaFactor;
+        }
+      }
+
+      // Safety checks
+      if (std::isfinite(klGrad[i]) == false)
+        KORALI_LOG_ERROR("KL Gradient has an invalid value %f\n", klGrad[i]);
+
+      if (std::isfinite(klGrad[i + _problem->_actionVectorSize]) == false)
+        KORALI_LOG_ERROR("KL Gradient has an invalid value %f\n", klGrad[i + _problem->_actionVectorSize]);
+
+      // Add KL contribution
       gradientLoss[1 + i] += klGradMultiplier * klGrad[i];
       gradientLoss[1 + i + _problem->_actionVectorSize] += klGradMultiplier * klGrad[i + _problem->_actionVectorSize];
 
-      if (std::isfinite(gradientLoss[i + 1]) == false)
-        KORALI_LOG_ERROR("KL correction has an invalid value: %f\n", gradientLoss[i + 1]);
+      // Safety checks
+      if (std::isfinite(gradientLoss[1 + i]) == false)
+        KORALI_LOG_ERROR("Gradient has an invalid value %f\n", gradientLoss[1 + i]);
 
-      if (std::isfinite(gradientLoss[i + 1 + _problem->_actionVectorSize]) == false)
-        KORALI_LOG_ERROR("KL correction has an invalid value: %f\n", gradientLoss[i + 1 + _problem->_actionVectorSize]);
+      if (std::isfinite(gradientLoss[1 + i + _problem->_actionVectorSize]) == false)
+        KORALI_LOG_ERROR("Gradient has an invalid value %f\n", gradientLoss[1 + i + _problem->_actionVectorSize]);
     }
-
-    // Add noise for Stochastic Gradient Langevin Dynamics (https://www.stats.ox.ac.uk/~teh/research/compstats/WelTeh2011a.pdf)
-    if( _langevinDynamicsNoiseLevel > 0.0 )
-    for( size_t i = 0; i<2*_problem->_actionVectorSize+1; i++ )
-      gradientLoss[i] += std::sqrt(_langevinDynamicsNoiseLevel * _currentLearningRate) * _normalGenerator->getRandomNumber();
 
     // Set Gradient of Loss as Solution
     _criticPolicyProblem[policyIdx]->_solutionData[b] = gradientLoss;
@@ -304,6 +422,15 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     {
       _miniBatchPolicyMean[i] += curPolicy.distributionParameters[i];
       _miniBatchPolicyStdDev[i] += curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+      if(_gaussianApproximationEnabled)
+      {
+        _miniBatchCurrentPolicyMean[i] += curPolicy.currentDistributionParameters[i];
+        _miniBatchCurrentPolicyStdDev[i] += curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
+      }
+      _miniBatchPolicyGradientMean[i] += polGrad[i];
+      _miniBatchPolicyGradientStdDev[i] += polGrad[i + _problem->_actionVectorSize];
+      _miniBatchKLGradientMean[i] += klGrad[i];
+      _miniBatchKLGradientStdDev[i] += klGrad[i + _problem->_actionVectorSize];
     }
   }
 
@@ -312,23 +439,32 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
   {
     _miniBatchPolicyMean[i] /= (float)miniBatchSize;
     _miniBatchPolicyStdDev[i] /= (float)miniBatchSize;
+    if(_gaussianApproximationEnabled)
+    {
+      _miniBatchCurrentPolicyMean[i] /= (float)miniBatchSize;
+      _miniBatchCurrentPolicyStdDev[i] /= (float)miniBatchSize;
+    }
+    _miniBatchPolicyGradientMean[i] /= (float)miniBatchSize;
+    _miniBatchPolicyGradientStdDev[i] /= (float)miniBatchSize;
+    _miniBatchKLGradientMean[i] /= (float)miniBatchSize;
+    _miniBatchKLGradientStdDev[i] /= (float)miniBatchSize;
   }
 
   _valueLoss /= (float)miniBatchSize;
   _policyLoss /= (float)miniBatchSize;
 }
 
-float VRACER::calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx)
+float VRACER::calculateStateValue(const std::vector<std::vector<float>> &stateSequence, const size_t policyIdx)
 {
   // Forward the neural network for this state to get the state value
   const auto evaluation = _criticPolicyLearner[policyIdx]->getEvaluation({stateSequence});
   return evaluation[0][0];
 }
 
-void VRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policyInfo, size_t policyIdx)
+void VRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policyInfo, const size_t policyIdx)
 {
   // Getting batch size
-  size_t batchSize = stateSequenceBatch.size();
+  const size_t batchSize = stateSequenceBatch.size();
 
   // Preparing storage for results
   policyInfo.resize(batchSize);
@@ -345,7 +481,384 @@ void VRACER::runPolicy(const std::vector<std::vector<std::vector<float>>> &state
   }
 }
 
-knlohmann::json VRACER::getAgentPolicy()
+void VRACER::gaussianPredictivePosteriorDistribution(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
+{
+  // Get minibatch-size
+  const size_t batchSize = stateSequenceBatch.size();
+
+  // Intitialize curPolicy
+  curPolicy.resize(batchSize);
+#pragma omp parallel for
+  for (size_t b = 0; b < batchSize; b++)
+  {
+    curPolicy[b].stateValue = 0.0f;
+    curPolicy[b].distributionParameters.resize(_policyParameterCount, 0.0);
+  }
+
+  // Create empty policy to forward samples
+  std::vector<policy_t> policy;
+
+  // Determine the number of samples
+  size_t numSamples = _numberOfSamples;
+
+  // Take care of situation where not enough hyperparameters are in buffer
+  if (_numberOfStoredHyperparameters > 1)
+    numSamples = std::max(numSamples, _hyperparameterBuffer.size());
+
+  // For swag and dropout we have to include current hyperparameters at the end
+  if (_swag || (_dropoutProbability > 0.0))
+    numSamples--;
+
+  // Compute moments for Gaussian approximation to predictive posterior distribution
+  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+    for (size_t s = 0; s < numSamples; s++)
+    {
+      // Get sample
+      std::vector<float> hyperparameters;
+      if (_swag || (_dropoutProbability > 0.0))
+        hyperparameters = samplePosterior(p);
+      else
+        hyperparameters = _hyperparameterBuffer[s][p];
+
+      // Set parameters in neural network
+      _criticPolicyLearner[p]->_neuralNetwork->setHyperparameters(hyperparameters);
+
+      // Forward policy
+      runPolicy(stateSequenceBatch, policy, p);
+
+      // Update statistics of predictive posterior distribution
+      // mean = 1/N sum{ mean_i }, var = 1/N sum{ mean_i^2 + var_i^2 } - mean
+#pragma omp parallel for
+      for (size_t b = 0; b < batchSize; b++)
+      {
+        // Accumulate State Value
+        curPolicy[b].stateValue += policy[b].stateValue;
+        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+        {
+          // Get mean, squared mean, standard deviation and variance
+          const float mean = policy[b].distributionParameters[i];
+          const float meanSquared = mean * mean;
+          const float standardDeviation = policy[b].distributionParameters[_problem->_actionVectorSize + i];
+          const float variance = standardDeviation * standardDeviation;
+
+          // Accumulate Mean
+          curPolicy[b].distributionParameters[i] += mean;
+
+          // Accumulate Variance
+          if(_gaussianApproximationType == "Average")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
+          if(_gaussianApproximationType == "Mixture")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+        }
+      }
+    }
+
+  // For consistency of SWAG and dropout, add contribution from the current policies
+  if (_swag || (_dropoutProbability > 0.0))
+  {
+    for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+    {
+      // Get current hyperparameters
+      const auto &hyperparameters = _hyperparameterBuffer[_hyperparameterBuffer.size() - 1][p];
+
+      // Set current hyperparameters
+      _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
+
+      // Forward policy for current hyperparameters // TODO: avoid forwarding current policy twice
+      runPolicy(stateSequenceBatch, policy, p);
+
+      // Update policy
+#pragma omp parallel for
+      for (size_t b = 0; b < batchSize; b++)
+      {
+        // Accumulate State Value
+        curPolicy[b].stateValue += policy[b].stateValue;
+        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+        {
+          // Get mean, squared mean, standard deviation and variance
+          const float mean = policy[b].distributionParameters[i];
+          const float meanSquared = mean * mean;
+          const float standardDeviation = policy[b].distributionParameters[_problem->_actionVectorSize + i];
+          const float variance = standardDeviation * standardDeviation;
+
+          // Accumulate Mean
+          curPolicy[b].distributionParameters[i] += mean;
+
+          // Accumulate Variance
+          if(_gaussianApproximationType == "Average")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
+          if(_gaussianApproximationType == "Mixture")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+        }
+      }
+    }
+  }
+
+  // Complete computation of predictive posterior distribution
+  const float invTotNumSamples = 1.0 / (_numberOfSamples * _problem->_policiesPerEnvironment);
+#pragma omp parallel for
+  for (size_t b = 0; b < batchSize; b++)
+  {
+    // Finalize State Value
+    curPolicy[b].stateValue *= invTotNumSamples;
+    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    {
+      // Finalize Mean
+      const float mixtureMean = curPolicy[b].distributionParameters[i] * invTotNumSamples;
+      curPolicy[b].distributionParameters[i] = mixtureMean;
+
+      // Finalize Variance
+      curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] *= invTotNumSamples;
+      if(_gaussianApproximationType == "Mixture")
+      {
+        curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
+        curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy[b].distributionParameters[_problem->_actionVectorSize + i]);
+      }
+    }
+  }
+}
+
+void VRACER::calculatePredictivePosteriorProbabilities(std::vector<float> &action, const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy)
+{
+  // Get batchSize
+  const size_t batchSize = stateSequenceBatch.size();
+
+  // Determine whether we are infering or training
+  const bool bTraining = (batchSize == _effectiveMinibatchSize);
+
+  // Set the number of samples
+  size_t numSamples = _numberOfSamples;
+
+  // Don't allow more samples than hyperparameters in buffer
+  if (_numberOfStoredHyperparameters > 1)
+    numSamples = std::min(numSamples, _hyperparameterBuffer.size());
+
+  // For swag and dropout, include current hyperparameters at the end
+  if (_swag || (_dropoutProbability > 0.0))
+    numSamples--;
+
+  // Intitialize curPolicy
+  curPolicy.resize(batchSize);
+#pragma omp parallel for
+  for (size_t b = 0; b < batchSize; b++)
+  {
+    curPolicy[b].stateValue = 0.0f;
+    curPolicy[b].currentDistributionParameters.resize(_policyParameterCount, 0.0);
+    curPolicy[b].actionProbabilities.resize(1, 0.0);
+  }
+
+  // Create empty policy to forward samples
+  std::vector<policy_t> policy;
+
+  // Create buffer for log-probabilities
+  std::vector<std::vector<float>> logProbabilities(batchSize);
+
+  // Forward policy for samples of predictive posterior distribution
+  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+    for (size_t s = 0; s < numSamples; s++)
+    {
+      // Get sample
+      std::vector<float> hyperparameters;
+      if (_swag || (_dropoutProbability > 0.0))
+        hyperparameters = samplePosterior(p);
+      else
+        hyperparameters = _hyperparameterBuffer[s][p];
+
+      // Set parameters in neural network
+      _criticPolicyLearner[p]->_neuralNetwork->setHyperparameters(hyperparameters);
+
+      // Forward policy
+      runPolicy(stateSequenceBatch, policy, p);
+
+#pragma omp parallel for
+      for (size_t b = 0; b < batchSize; b++)
+      {
+        // Create local copy for action
+        std::vector<float> _action = action;
+
+        // If training, no action is given, need to read from Buffer
+        if( bTraining )
+        {
+          // Get current expId and agentId
+          const size_t expId = miniBatch[b].first;
+          const size_t agentId = miniBatch[b].second;
+
+          // Get action
+          _action = _actionBuffer[expId][agentId];
+        }
+
+        // Compute probability of action
+        const float logProbability = calculateLogActionProbability(_action, policy[b]);
+
+        // Push log-propability to vector
+        logProbabilities[b].push_back(logProbability);
+
+        // Accumulate State Value
+        curPolicy[b].stateValue += policy[b].stateValue;
+
+        // Update distribution parameters
+        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+        {
+          // Get mean, squared mean, standard deviation and variance
+          const float mean = policy[b].distributionParameters[i];
+          const float meanSquared = mean * mean;
+          const float standardDeviation = policy[b].distributionParameters[_problem->_actionVectorSize + i];
+          const float variance = standardDeviation * standardDeviation;
+
+          // Accumulate Mean
+          curPolicy[b].currentDistributionParameters[i] += mean;
+
+          // Accumulate Variance
+          if(_gaussianApproximationType == "Average")
+            curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
+          if(_gaussianApproximationType == "Mixture")
+            curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+        }
+      }
+    }
+
+  // For consistency of SWAG and dropout, add contribution from the current policies
+  if (_swag || (_dropoutProbability > 0.0))
+  {
+    for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+    {
+      // Get current hyperparameters
+      const auto &hyperparameters = _hyperparameterBuffer[_hyperparameterBuffer.size() - 1][p];
+
+      // Set current hyperparameters
+      _criticPolicyLearner[p]->setHyperparameters(hyperparameters);
+
+      // Forward policy for current hyperparameters
+      runPolicy({stateSequenceBatch}, policy, p);
+
+#pragma omp parallel for
+      for (size_t b = 0; b < batchSize; b++)
+      {
+        // Create local copy for action
+        std::vector<float> _action = action;
+
+        // If training, no action is given, need to read from Buffer
+        if( bTraining )
+        {
+          // Get current expId and agentId
+          const size_t expId = miniBatch[b].first;
+          const size_t agentId = miniBatch[b].second;
+
+          // Get action
+          _action = _actionBuffer[expId][agentId];
+        }
+
+        // Compute probability of action
+        const float logProbability = calculateLogActionProbability(_action, policy[b]);
+
+        // Push log-propability to vector
+        logProbabilities[b].push_back(logProbability);
+
+        // Accumulate State Value
+        curPolicy[b].stateValue += policy[b].stateValue;
+        for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+        {
+          // Get mean, squared mean, standard deviation and variance
+          const float mean = policy[b].distributionParameters[i];
+          const float meanSquared = mean * mean;
+          const float standardDeviation = policy[b].distributionParameters[_problem->_actionVectorSize + i];
+          const float variance = standardDeviation * standardDeviation;
+
+          // Accumulate Mean
+          curPolicy[b].currentDistributionParameters[i] += mean;
+
+          // Accumulate Variance
+          if(_gaussianApproximationType == "Average")
+            curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
+          if(_gaussianApproximationType == "Mixture")
+            curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+        }
+      }
+    }
+  }
+
+  // Get total number of samples
+  const float invTotNumSamples = 1.0 / (_numberOfSamples * _problem->_policiesPerEnvironment);
+
+#pragma omp parallel for
+  for (size_t b = 0; b < batchSize; b++)
+  {
+    // Finalize State Value
+    curPolicy[b].stateValue *= invTotNumSamples;
+
+    // Finalize action probabilities
+    curPolicy[b].actionProbabilities[0] = logSumExp(logProbabilities[b]) + std::log(invTotNumSamples);
+
+    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    {
+      // Finalize Mean
+      const float mixtureMean = curPolicy[b].currentDistributionParameters[i] * invTotNumSamples;
+      curPolicy[b].currentDistributionParameters[i] = mixtureMean;
+
+      // Finalize Variance
+      curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] *= invTotNumSamples;
+      if(_gaussianApproximationType == "Mixture")
+      {
+        curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
+        curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy[b].distributionParameters[_problem->_actionVectorSize + i]);
+      }
+    }
+  }
+}
+
+void VRACER::finalizePredictivePosterior(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &curPolicy, const size_t policyIdx)
+{
+  // Getting batch size
+  const size_t batchSize = stateSequenceBatch.size();
+
+  // Get current hyperparameters
+  const auto &hyperparameters = _hyperparameterBuffer[_hyperparameterBuffer.size() - 1][policyIdx];
+
+  // Set current hyperparameters
+  _criticPolicyLearner[policyIdx]->setHyperparameters(hyperparameters);
+
+  // Create policy to forward samples
+  std::vector<policy_t> policy;
+
+  // Forward policy for current hyperparameters
+  runPolicy(stateSequenceBatch, policy, policyIdx);
+
+  // Initialize storage
+#pragma omp parallel for
+  for (size_t b = 0; b < batchSize; b++)
+  {
+    if(_gaussianApproximationEnabled)
+      curPolicy[b].currentDistributionParameters.resize(_policyParameterCount, 0.0);
+
+    if(_minimalApproximation)
+      curPolicy[b].distributionParameters.resize(_policyParameterCount, 0.0);
+  }
+
+#pragma omp parallel for
+  for (size_t b = 0; b < batchSize; b++)
+    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    {
+      // Get mean and standard deviation
+      const float mean = policy[b].distributionParameters[i];
+      float standardDeviation = policy[b].distributionParameters[_problem->_actionVectorSize + i];
+
+      if(_gaussianApproximationEnabled)
+      {
+        // Save mean and standard deviation for current hyperparameters
+        curPolicy[b].currentDistributionParameters[i] = mean;
+        curPolicy[b].currentDistributionParameters[_problem->_actionVectorSize + i] = standardDeviation;
+      }
+
+      if(_minimalApproximation)
+      {
+        // Save mean and standard deviation for current hyperparameters
+        curPolicy[b].distributionParameters[i] = mean;
+        curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] = standardDeviation;
+      }
+    }
+}
+
+knlohmann::json VRACER::getPolicy()
 {
   knlohmann::json hyperparameters;
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
@@ -353,18 +866,32 @@ knlohmann::json VRACER::getAgentPolicy()
   return hyperparameters;
 }
 
-void VRACER::setAgentPolicy(const knlohmann::json &hyperparameters)
+void VRACER::setPolicy(const knlohmann::json &hyperparameters)
 {
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-    _criticPolicyLearner[p]->setHyperparameters(hyperparameters[p].get<std::vector<float>>());
+    _criticPolicyLearner[p]->_neuralNetwork->setHyperparameters(hyperparameters[p].get<std::vector<float>>());
 }
 
-void VRACER::printAgentInformation()
+void VRACER::printInformation()
 {
   _k->_logger->logInfo("Normal", " + [VRACER] Policy Learning Rate: %.3e\n", _currentLearningRate);
-  _k->_logger->logInfo("Detailed", " + [VRACER] Policy Parameters (Mu & Sigma):\n");
+  if ( _gaussianApproximationEnabled )
+  {
+    _k->_logger->logInfo("Detailed", " + [VRACER] Policy Parameters (Mu & Sigma - Gaussian) - (Mu & Sigma - Individual):\n");
+    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+      _k->_logger->logInfo("Detailed", " + [VRACER] Action %zu: (%.3e,%.3e) - (%.3e,%.3e)\n", i, _miniBatchPolicyMean[i], _miniBatchPolicyStdDev[i], _miniBatchCurrentPolicyMean[i], _miniBatchCurrentPolicyStdDev[i]);
+  }
+  else
+  {
+    _k->_logger->logInfo("Detailed", " + [VRACER] Policy Parameters (Mu & Sigma):\n");
+    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+      _k->_logger->logInfo("Detailed", " + [VRACER] Action %zu: (%.3e,%.3e)\n", i, _miniBatchPolicyMean[i], _miniBatchPolicyStdDev[i]);
+  }
+  _k->_logger->logInfo("Detailed", " + [VRACER] Policy Gradients (Mu & Sigma - IW) - (Mu & Sigma - KL):\n");
   for (size_t i = 0; i < _problem->_actionVectorSize; i++)
-    _k->_logger->logInfo("Detailed", " + [VRACER] Action %zu: (%.3e,%.3e)\n", i, _miniBatchPolicyMean[i], _miniBatchPolicyStdDev[i]);
+  {
+    _k->_logger->logInfo("Detailed", " + [VRACER] Action %zu: (%.3e,%.3e) - (%.3e,%.3e)\n", i, _miniBatchPolicyGradientMean[i], _miniBatchPolicyGradientStdDev[i], _miniBatchKLGradientMean[i], _miniBatchKLGradientStdDev[i]);
+  }
 }
 
 void VRACER::setConfiguration(knlohmann::json& js) 

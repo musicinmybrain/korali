@@ -27,6 +27,7 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <algorithm>
 
 namespace korali
 {
@@ -93,6 +94,15 @@ const double Min = std::numeric_limits<double>::min();
 * @brief Korali's definition of minimum representable difference between two numbers
 */
 const double Eps = std::numeric_limits<double>::epsilon();
+
+/**
+* @brief Returns the sign of a number
+* @param val The number
+* @return The signum of val
+*/
+template <typename T> int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
+}
 
 /**
 * @brief Check if both arguments are approximately equal up to given precision
@@ -214,10 +224,7 @@ T safeLogMinus(T x, T y)
 template <typename T>
 T logSumExp(const T *logValues, const size_t &n)
 {
-  T maxLogValue = -Inf;
-  for (size_t i = 0; i < n; i++)
-    if (logValues[i] > maxLogValue)
-      maxLogValue = logValues[i];
+  T maxLogValue = *std::max_element(logValues, logValues + n);
 
   if (std::isinf(maxLogValue) == true)
   {

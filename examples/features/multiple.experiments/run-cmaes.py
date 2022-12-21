@@ -27,7 +27,7 @@ for i in range(8):
   # Configuring CMA-ES parameters
   e["Solver"]["Type"] = "Optimizer/CMAES"
   e["Solver"]["Population Size"] = 32
-  e["Solver"]["Termination Criteria"]["Max Generations"] = 100
+  e["Solver"]["Termination Criteria"]["Max Generations"] = 10
 
   # Configuring the problem's random distributions
   e["Distributions"][0]["Name"] = "Uniform 0"
@@ -71,15 +71,13 @@ for i in range(8):
   # Adding Experiment to vector
   eList.append(e)
 
-k["Conduit"]["Type"] = "Concurrent"
-k["Conduit"]["Concurrent Jobs"] = 4
 k["Profiling"]["Detail"] = "Full"
 k["Profiling"]["Frequency"] = 0.5
 
-# Running first 100 generations
+# Running first 10 generations
 k.run(eList)
 
-# Running next 100 generations
+# Running next 10 generations
 for e in eList:
-  e["Solver"]["Termination Criteria"]["Max Generations"] = 150
+  e["Solver"]["Termination Criteria"]["Max Generations"] = 20
 k.run(eList)

@@ -109,6 +109,10 @@ class NeuralNetwork : public Module
   */
    std::vector<size_t> _batchSizes;
   /**
+  * @brief Specifies the batch sizes.
+  */
+   int _numberOfPolicyThreads;
+  /**
   * @brief [Internal Use] Current value of the training loss.
   */
    float _currentTrainingLoss;
@@ -180,7 +184,7 @@ class NeuralNetwork : public Module
 
   /**
    * @brief Generates the initial values for the hyperparameters
-   * @return The initial hyperparameters
+   * @return The generated hyperparameters
    */
   std::vector<float> generateInitialHyperparameters();
 

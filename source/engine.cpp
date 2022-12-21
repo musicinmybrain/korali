@@ -7,9 +7,11 @@
 #include "modules/problem/problem.hpp"
 #include "modules/solver/solver.hpp"
 #include "sample/sample.hpp"
-#include <omp.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#ifdef _OPENMP
+#include <omp.h>
+#endif
 
 namespace korali
 {

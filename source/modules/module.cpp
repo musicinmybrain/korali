@@ -16,8 +16,10 @@
 #include "distribution/univariate/laplace/laplace.hpp"
 #include "distribution/univariate/logNormal/logNormal.hpp"
 #include "distribution/univariate/normal/normal.hpp"
+#include "distribution/univariate/poisson/poisson.hpp"
 #include "distribution/univariate/truncatedNormal/truncatedNormal.hpp"
 #include "distribution/univariate/uniform/uniform.hpp"
+#include "distribution/univariate/uniformratio/uniformratio.hpp"
 #include "distribution/univariate/weibull/weibull.hpp"
 #include "experiment/experiment.hpp"
 #include "neuralNetwork/layer/activation/activation.hpp"
@@ -33,6 +35,7 @@
 #include "neuralNetwork/neuralNetwork.hpp"
 #include "problem/bayesian/custom/custom.hpp"
 #include "problem/bayesian/reference/reference.hpp"
+#include "problem/design/design.hpp"
 #include "problem/hierarchical/psi/psi.hpp"
 #include "problem/hierarchical/theta/theta.hpp"
 #include "problem/hierarchical/thetaNew/thetaNew.hpp"
@@ -44,14 +47,23 @@
 #include "problem/reinforcementLearning/discrete/discrete.hpp"
 #include "problem/sampling/sampling.hpp"
 #include "problem/supervisedLearning/supervisedLearning.hpp"
+#include "problem/reaction/reaction.hpp"
 #include "solver/agent/continuous/VRACER/VRACER.hpp"
 #include "solver/agent/continuous/continuous.hpp"
 #include "solver/agent/discrete/dVRACER/dVRACER.hpp"
 #include "solver/agent/discrete/discrete.hpp"
+#include "solver/designer/designer.hpp"
 #include "solver/executor/executor.hpp"
 #include "solver/integrator/integrator.hpp"
-#include "solver/learner/deepSupervisor/deepSupervisor.hpp"
-#include "solver/learner/gaussianProcess/gaussianProcess.hpp"
+#include "solver/integrator/montecarlo/MonteCarlo.hpp"
+#include "solver/integrator/quadrature/Quadrature.hpp"
+#include "solver/deepSupervisor/deepSupervisor.hpp"
+#include "solver/deepSupervisor/optimizers/fAdam/fAdam.hpp"
+#include "solver/deepSupervisor/optimizers/fAdaBelief/fAdaBelief.hpp"
+#include "solver/deepSupervisor/optimizers/fMadGrad/fMadGrad.hpp"
+#include "solver/deepSupervisor/optimizers/fAdaGrad/fAdaGrad.hpp"
+#include "solver/deepSupervisor/optimizers/fRMSProp/fRMSProp.hpp"
+#include "solver/deepSupervisor/optimizers/fSGD/fSGD.hpp"
 #include "solver/optimizer/AdaBelief/AdaBelief.hpp"
 #include "solver/optimizer/Adam/Adam.hpp"
 #include "solver/optimizer/CMAES/CMAES.hpp"
@@ -66,6 +78,9 @@
 #include "solver/sampler/Nested/Nested.hpp"
 #include "solver/sampler/TMCMC/TMCMC.hpp"
 #include "solver/sampler/sampler.hpp"
+#include "solver/SSM/SSA/SSA.hpp"
+#include "solver/SSM/TauLeaping/TauLeaping.hpp"
+#include "solver/SSM/SSM.hpp"
 
 namespace korali
 {
@@ -111,10 +126,14 @@ Module *Module::getModule(knlohmann::json &js, Experiment *e)
 
   // Creating module pointer from it's type.
   Module *module = nullptr;
+  if (iCompare(moduleType, "Experiment")) module = new korali::Experiment();
 
+  // Conduits
   if (iCompare(moduleType, "Concurrent")) module = new korali::conduit::Concurrent();
   if (iCompare(moduleType, "Distributed")) module = new korali::conduit::Distributed();
   if (iCompare(moduleType, "Sequential")) module = new korali::conduit::Sequential();
+  
+  // Distributions
   if (iCompare(moduleType, "Multivariate/Normal")) module = new korali::distribution::multivariate::Normal();
   if (iCompare(moduleType, "Specific/Multinomial")) module = new korali::distribution::specific::Multinomial();
   if (iCompare(moduleType, "Univariate/Beta")) module = new korali::distribution::univariate::Beta();
@@ -126,26 +145,40 @@ Module *Module::getModule(knlohmann::json &js, Experiment *e)
   if (iCompare(moduleType, "Univariate/Laplace")) module = new korali::distribution::univariate::Laplace();
   if (iCompare(moduleType, "Univariate/LogNormal")) module = new korali::distribution::univariate::LogNormal();
   if (iCompare(moduleType, "Univariate/Normal")) module = new korali::distribution::univariate::Normal();
+  if (iCompare(moduleType, "Univariate/Poisson")) module = new korali::distribution::univariate::Poisson();
   if (iCompare(moduleType, "Univariate/TruncatedNormal")) module = new korali::distribution::univariate::TruncatedNormal();
   if (iCompare(moduleType, "Univariate/Uniform")) module = new korali::distribution::univariate::Uniform();
+  if (iCompare(moduleType, "Univariate/UniformRatio")) module = new korali::distribution::univariate::UniformRatio();
   if (iCompare(moduleType, "Univariate/Weibull")) module = new korali::distribution::univariate::Weibull();
-  if (iCompare(moduleType, "Experiment")) module = new korali::Experiment();
+
+  // Problem types
   if (iCompare(moduleType, "Bayesian/Custom")) module = new korali::problem::bayesian::Custom();
   if (iCompare(moduleType, "Bayesian/Reference")) module = new korali::problem::bayesian::Reference();
+  if (iCompare(moduleType, "Design")) module = new korali::problem::Design();
   if (iCompare(moduleType, "Hierarchical/Psi")) module = new korali::problem::hierarchical::Psi();
   if (iCompare(moduleType, "Hierarchical/Theta")) module = new korali::problem::hierarchical::Theta();
   if (iCompare(moduleType, "Hierarchical/ThetaNew")) module = new korali::problem::hierarchical::ThetaNew();
   if (iCompare(moduleType, "Integration")) module = new korali::problem::Integration();
   if (iCompare(moduleType, "Optimization")) module = new korali::problem::Optimization();
   if (iCompare(moduleType, "Propagation")) module = new korali::problem::Propagation();
-  if (iCompare(moduleType, "Sampling")) module = new korali::problem::Sampling();
+  if (iCompare(moduleType, "Reaction")) module = new korali::problem::Reaction();
   if (iCompare(moduleType, "ReinforcementLearning/Continuous")) module = new korali::problem::reinforcementLearning::Continuous();
   if (iCompare(moduleType, "ReinforcementLearning/Discrete")) module = new korali::problem::reinforcementLearning::Discrete();
+  if (iCompare(moduleType, "Sampling")) module = new korali::problem::Sampling();
   if (iCompare(moduleType, "SupervisedLearning")) module = new korali::problem::SupervisedLearning();
+  
+  // Solver modules
+  if (iCompare(moduleType, "Designer")) module = new korali::solver::Designer();
   if (iCompare(moduleType, "Executor")) module = new korali::solver::Executor();
-  if (iCompare(moduleType, "Integrator")) module = new korali::solver::Integrator();
-  if (iCompare(moduleType, "Learner/GaussianProcess")) module = new korali::solver::learner::GaussianProcess();
-  if (iCompare(moduleType, "Learner/DeepSupervisor")) module = new korali::solver::learner::DeepSupervisor();
+  if (iCompare(moduleType, "Integrator/MonteCarlo")) module = new korali::solver::integrator::MonteCarlo();
+  if (iCompare(moduleType, "Integrator/Quadrature")) module = new korali::solver::integrator::Quadrature();
+  if (iCompare(moduleType, "DeepSupervisor")) module = new korali::solver::DeepSupervisor();
+  if (iCompare(moduleType, "DeepSupervisor/optimizers/fAdam")) module = new korali::fAdam();
+  if (iCompare(moduleType, "DeepSupervisor/optimizers/fAdaBelief")) module = new korali::fAdaBelief();
+  if (iCompare(moduleType, "DeepSupervisor/optimizers/fMadGrad")) module = new korali::fMadGrad();
+  if (iCompare(moduleType, "DeepSupervisor/optimizers/fAdaGrad")) module = new korali::fAdaGrad();
+  if (iCompare(moduleType, "DeepSupervisor/optimizers/fSGD")) module = new korali::fSGD();
+  if (iCompare(moduleType, "DeepSupervisor/optimizers/fRMSProp")) module = new korali::fRMSProp();
   if (iCompare(moduleType, "Agent/Continuous/VRACER")) module = new korali::solver::agent::continuous::VRACER();
   if (iCompare(moduleType, "Agent/Discrete/dVRACER")) module = new korali::solver::agent::discrete::dVRACER();
   if (iCompare(moduleType, "Optimizer/CMAES")) module = new korali::solver::optimizer::CMAES();
@@ -160,6 +193,10 @@ Module *Module::getModule(knlohmann::json &js, Experiment *e)
   if (iCompare(moduleType, "Sampler/MCMC")) module = new korali::solver::sampler::MCMC();
   if (iCompare(moduleType, "Sampler/HMC")) module = new korali::solver::sampler::HMC();
   if (iCompare(moduleType, "Sampler/TMCMC")) module = new korali::solver::sampler::TMCMC();
+  if (iCompare(moduleType, "SSM/SSA")) module = new korali::solver::ssm::SSA();
+  if (iCompare(moduleType, "SSM/TauLeaping")) module = new korali::solver::ssm::TauLeaping();
+
+  // Neural Network modules
   if (iCompare(moduleType, "NeuralNetwork")) module = new korali::NeuralNetwork();
   if (iCompare(moduleType, "Layer/Linear")) module = new korali::neuralNetwork::layer::Linear();
   if (iCompare(moduleType, "Layer/Convolution")) module = new korali::neuralNetwork::layer::Convolution();

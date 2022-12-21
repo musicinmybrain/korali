@@ -23,7 +23,6 @@ sns.color_palette("tab10")
 from korali.rlview.utils import get_figure
 
 ##################### Plotting Reward History
-
 def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservations, showAgents, dir ):
     # get color
     color = next(ax._get_lines.prop_cycler)['color']
@@ -58,7 +57,8 @@ def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservat
             returns = np.mean(returns, axis=0)
             returns = np.reshape(returns, (1,-1))
 
-        returns = np.reshape(returns, (numResults,-1))
+        if numResults == 1:
+            returns = np.reshape(returns, (1,-1))
 
         for _return in returns:
             # Load and save cumulative sum of observations
@@ -104,7 +104,7 @@ def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservat
                 meanReturn = np.append(averageStart, averageRest)
                 meanReturns.append( meanReturn )
 
-                stdReturn = np.append(averageSquaredStart, averageSquaredRest) - meanReturn**2
+                stdReturn = np.sqrt(np.append(averageSquaredStart, averageSquaredRest) - meanReturn**2)
                 stdReturns.append(stdReturn)
 
     ## Only keep first maxEpisodes entries
@@ -127,22 +127,22 @@ def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservat
     if numResults == 1:
         if showCI > 0.0: # Plot median together with CI
             ax.plot(episodes, medianReturns[0], '-', linewidth=2.0, zorder=1, label=dir, color=color)
-            ax.fill_between(episodes, lowerCiReturns[0], upperCiReturns[0][:maxEpisodes], alpha=0.5)
+            ax.fill_between(episodes, lowerCiReturns[0], upperCiReturns[0][:maxEpisodes], alpha=0.5, color=color)
         else: # .. or mean with standard deviation
             ax.plot(episodes, meanReturns[0], '-', linewidth=2.0, zorder=1, label=dir, color=color)
-            ax.fill_between(episodes, meanReturns[0]-stdReturns[0], meanReturns[0]+stdReturns[0], alpha=0.2)
+            ax.fill_between(episodes, meanReturns[0]-stdReturns[0], meanReturns[0]+stdReturns[0], alpha=0.2, color=color)
         if showData:
-            ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=plt.gca().lines[-1].get_color())
+            ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=color)
     elif showAgents:
         for i in range(numResults):
             if showCI > 0.0:
                 ax.plot(episodes, medianReturns[i], '-', linewidth=2.0, zorder=1, label=dir, color=color)
-                ax.fill_between(episodes, lowerCiReturns[i], upperCiReturns[i], alpha=0.5)
+                ax.fill_between(episodes, lowerCiReturns[i], upperCiReturns[i], alpha=0.5, color=color)
             else:
                 ax.plot(episodes, meanReturns[i], '-', linewidth=2.0, zorder=1, label=dir, color=color)
-                ax.fill_between(episodes, meanReturns[i]-stdReturns[i], meanReturns[i]+stdReturns[i], alpha=0.5)
+                ax.fill_between(episodes, meanReturns[i]-stdReturns[i], meanReturns[i]+stdReturns[i], alpha=0.5, color=color)
             if showData:
-                ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=plt.gca().lines[-1].get_color())
+                ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=color)
     else:
         if showCI > 0.0: # Plot median over runs
             medianReturns = np.array(medianReturns)
@@ -158,8 +158,8 @@ def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservat
                 confIntervalLower.append( np.percentile(data, 50-50*showCI) )
                 confIntervalUpper.append( np.percentile(data, 50+50*showCI) )
 
-            ax.plot(episodes, median, '-', linewidth=2.0, zorder=1, label=dir)
-            ax.fill_between(episodes, confIntervalLower, confIntervalUpper, alpha=0.5)
+            ax.plot(episodes, median, '-', linewidth=2.0, zorder=1, label=dir, color=color)
+            ax.fill_between(episodes, confIntervalLower, confIntervalUpper, alpha=0.5, color=color)
         else: # .. or mean with standard deviation
             meanReturns = np.array(meanReturns)
 
@@ -175,11 +175,11 @@ def plotRewardHistory( ax, results, averageDepth, showCI, showData, showObservat
             std  = np.array(std)
 
             ax.plot(episodes, mean, '-', linewidth=2.0, zorder=1, label=dir, color=color)
-            ax.fill_between(episodes, mean-std, mean+std, alpha=0.5)
+            ax.fill_between(episodes, mean-std, mean+std, alpha=0.5, color=color)
 
         if showData:
             for i in range(len(returnsHistory)):
-                ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=plt.gca().lines[-1].get_color())
+                ax.plot(episodes, returnsHistory[i], 'x', markersize=1.3, linewidth=2.0, alpha=0.2, zorder=0, color=color)
 
 ##################### Results parser
 
@@ -194,7 +194,7 @@ def parseResults( dir, numRuns ):
         for run in range(0,numRuns):
             configFile = p + '/latest'
             if numRuns > 1:
-                configFile = p + "/run{}".format(run+1) + '/latest'
+                configFile = p + "/run{:02d}".format(run+1) + '/latest'
             if (not os.path.isfile(configFile)):
                 print("[Korali] Error: Did not find any results in the {0} folder...".format(configFile))
                 exit(-1)
@@ -230,11 +230,13 @@ if __name__ == '__main__':
     parser.add_argument(
         '--minReward',
         help='Minimum reward to display',
+        type=float,
         default=+math.inf,
         required=False)
     parser.add_argument(
         '--maxReward',
         help='Maximum reward to display',
+        type=float,
         default=-math.inf,
         required=False)
     parser.add_argument(
@@ -279,6 +281,11 @@ if __name__ == '__main__':
         help='Enable the plotting of the returns for each agent.',
         action='store_true',
         required=False)
+    parser.add_argument(
+      '--test',
+      help='Run without graphics (for testing purpose)',
+      action='store_true',
+      required=False)
 
     args = parser.parse_args()
 
@@ -287,7 +294,8 @@ if __name__ == '__main__':
         print("[Korali] Argument of confidence interval must be in [0,1].")
         exit(-1)
 
-    if args.output:
+    ### Setup without graphics, if needed
+    if (args.test or args.output): 
         matplotlib.use('Agg')
  
     ### Reading values from result files

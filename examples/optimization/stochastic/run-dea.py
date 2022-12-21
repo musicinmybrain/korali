@@ -26,7 +26,7 @@ e["Solver"]["Population Size"] = 32
 e["Solver"]["Termination Criteria"]["Min Value Difference Threshold"] = 1e-12
 e["Solver"]["Termination Criteria"]["Max Generations"] = 100
 
-dim = 10
+dim = 3
 
 # Defining the problem's variables and their bounds.
 for i in range(dim):

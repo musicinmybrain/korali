@@ -23,9 +23,7 @@ samplers_tester = executable('samplers_tester',
   
 test('modules.solver.samplers', samplers_tester,
   protocol: 'gtest',
-  suite: 'unit',
-  link_args: [ python3_libs ],
-  cpp_args: [ python3_cflags ]
+  suite: 'unit'
 )
 
 executor_tester = executable('executor_tester',
@@ -56,8 +54,8 @@ test('modules.solver.integrator', integrator_tester,
   suite: 'unit',
 )
 
-learners_tester = executable('learners_tester',
-  files(['learners.cpp']),
+deepSupervisor_tester = executable('deepSupervisor_tester',
+  files(['deepSupervisor.cpp']),
   include_directories: korali_include,
   dependencies: [ gtest_main_dep, korali_deps, pybind11_dep ],
   link_with: [ python_extension ],
@@ -65,7 +63,7 @@ learners_tester = executable('learners_tester',
   cpp_args: [ python3_cflags ]
   )
   
-test('modules.solver.learners', learners_tester,
+test('modules.solver.deepSupervisor', deepSupervisor_tester,
   protocol: 'gtest',
   suite: 'unit',
 )

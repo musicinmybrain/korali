@@ -54,15 +54,16 @@ void NeuralNetwork::initialize()
     if (_batchSizes[i] == 0)
       KORALI_LOG_ERROR("Batch size %lu is zero.\n", i, _batchSizes[i]);
 
+  if (std::all_of(_batchSizes.begin(), _batchSizes.end(), [](size_t i)
+                  {
+                    return i == 1;
+                  }))
+    KORALI_LOG_ERROR("All minibatch-sizes are 1. Please make trainingBatchSize>1 to allow distinguishing calls for training from testing.\n");
+
   // Creating layer pipelines of format ThreadCount x Batch Sizes x Layer Count
   size_t layerCount = _layers.size();
-#ifdef _OPENMP
-  int maxThreads = omp_get_max_threads();
-#else
-  int maxThreads = 1;
-#endif
-  _pipelines.resize(maxThreads);
-  for (int curThread = 0; curThread < maxThreads; curThread++)
+  _pipelines.resize(_numberOfPolicyThreads);
+  for (int curThread = 0; curThread < _numberOfPolicyThreads; curThread++)
   {
     _pipelines[curThread].resize(_batchSizes.size());
     for (size_t batchSizeIdx = 0; batchSizeIdx < _batchSizes.size(); batchSizeIdx++)
@@ -70,7 +71,7 @@ void NeuralNetwork::initialize()
   }
 
   // Creating layer objects
-  for (int curThread = 0; curThread < maxThreads; curThread++)
+  for (int curThread = 0; curThread < _numberOfPolicyThreads; curThread++)
     for (size_t batchSizeIdx = 0; batchSizeIdx < _batchSizes.size(); batchSizeIdx++)
       for (size_t i = 0; i < layerCount; i++)
       {
@@ -82,7 +83,7 @@ void NeuralNetwork::initialize()
       }
 
   // Assigning relevant metadata to all the layers
-  for (int curThread = 0; curThread < maxThreads; curThread++)
+  for (int curThread = 0; curThread < _numberOfPolicyThreads; curThread++)
     for (size_t batchSizeIdx = 0; batchSizeIdx < _batchSizes.size(); batchSizeIdx++)
       for (size_t i = 0; i < layerCount; i++)
       {
@@ -96,7 +97,7 @@ void NeuralNetwork::initialize()
       }
 
   // Initialize layers
-  for (int curThread = 0; curThread < maxThreads; curThread++)
+  for (int curThread = 0; curThread < _numberOfPolicyThreads; curThread++)
     for (size_t batchSizeIdx = 0; batchSizeIdx < _batchSizes.size(); batchSizeIdx++)
       for (size_t i = 0; i < layerCount; i++)
       {
@@ -109,7 +110,7 @@ void NeuralNetwork::initialize()
     _pipelines[0][0]._layerVector[i]->createHyperparameterMemory();
 
   // Propagating hyperparamter memory to all other instances
-  for (int curThread = 0; curThread < maxThreads; curThread++)
+  for (int curThread = 0; curThread < _numberOfPolicyThreads; curThread++)
     for (size_t batchSizeIdx = 0; batchSizeIdx < _batchSizes.size(); batchSizeIdx++)
       for (size_t i = 0; i < layerCount; i++)
       {
@@ -121,7 +122,7 @@ void NeuralNetwork::initialize()
   _hyperparameterCount = 0;
   for (size_t i = 0; i < layerCount; i++)
   {
-    for (int curThread = 0; curThread < maxThreads; curThread++)
+    for (int curThread = 0; curThread < _numberOfPolicyThreads; curThread++)
       for (size_t batchSizeIdx = 0; batchSizeIdx < _batchSizes.size(); batchSizeIdx++)
       {
         layerPipeline_t *p = &_pipelines[curThread][batchSizeIdx];
@@ -132,7 +133,7 @@ void NeuralNetwork::initialize()
   }
 
   // Create forward and backward (only for training) pipelines
-  for (int curThread = 0; curThread < maxThreads; curThread++)
+  for (int curThread = 0; curThread < _numberOfPolicyThreads; curThread++)
     for (size_t batchSizeIdx = 0; batchSizeIdx < _batchSizes.size(); batchSizeIdx++)
     {
       // Getting corresponding layer pipeline pointer
@@ -148,7 +149,8 @@ void NeuralNetwork::initialize()
       for (size_t i = 0; i < layerCount; i++)
         p->_layerVector[i]->createForwardPipeline();
 
-      if (_mode == "Training")
+      // Only create backward pipeline for thread 0
+      if ((_mode == "Training") && (curThread == 0))
         for (size_t i = 0; i < layerCount; i++)
           p->_layerVector[i]->createBackwardPipeline();
 
@@ -185,14 +187,18 @@ void NeuralNetwork::initialize()
 
 std::vector<float> NeuralNetwork::generateInitialHyperparameters()
 {
-  // Setting initial values for hyperparameters
+  // Empty storage for hyperparameters
   std::vector<float> initialHyperparameters;
 
+  // Initialize hyperparameters layer by layer
   for (size_t i = 0; i < _pipelines[0][0]._layerVector.size(); i++)
   {
     auto layerParameters = _pipelines[0][0]._layerVector[i]->generateInitialHyperparameters();
     initialHyperparameters.insert(initialHyperparameters.end(), layerParameters.begin(), layerParameters.end());
   }
+
+  // Set hyperparameters in neural network
+  setHyperparameters(initialHyperparameters);
 
   return initialHyperparameters;
 }
@@ -201,14 +207,24 @@ void NeuralNetwork::forward(const std::vector<std::vector<std::vector<float>>> &
 {
   // Finding out current thread
 #ifdef _OPENMP
-  size_t curThread = omp_get_thread_num();
+  int curThread = omp_get_thread_num();
+  if (_numberOfPolicyThreads == 1)
+    curThread = 0;
 #else
-  size_t curThread = 0;
+  int curThread = 0;
 #endif
+
+  // Safety
+  if ((curThread >= _numberOfPolicyThreads) || (curThread < 0))
+    KORALI_LOG_ERROR("Called forward with thread %d/%d.\n", curThread, _numberOfPolicyThreads);
 
   // Finding out pipeline corresponding to the input batch size id
   size_t N = inputValues.size();
   size_t batchSizeIdx = getBatchSizeIdx(N);
+
+  // Thread-safetly is only needed during inference, for training always use pipeline 0
+  if (N != 1)
+    curThread = 0;
 
   // Getting corresponding layer pipeline pointer
   layerPipeline_t *p = &_pipelines[curThread][batchSizeIdx];
@@ -257,19 +273,12 @@ void NeuralNetwork::forward(const std::vector<std::vector<std::vector<float>>> &
 
 void NeuralNetwork::backward(const std::vector<std::vector<float>> &outputGradients)
 {
-  // Finding out current thread
-#ifdef _OPENMP
-  size_t curThread = omp_get_thread_num();
-#else
-  size_t curThread = 0;
-#endif
-
   // Finding out pipeline corresponding to the input batch size id
   size_t N = outputGradients.size();
   size_t batchSizeIdx = getBatchSizeIdx(N);
 
   // Getting corresponding layer pipeline pointer
-  layerPipeline_t *p = &_pipelines[curThread][batchSizeIdx];
+  layerPipeline_t *p = &_pipelines[0][batchSizeIdx];
 
   // Getting batch dimensions
   size_t T = _timestepCount;
@@ -364,11 +373,18 @@ size_t NeuralNetwork::getBatchSizeIdx(const size_t batchSize)
 
 std::vector<std::vector<float>> &NeuralNetwork::getOutputValues(const size_t batchSize)
 {
+  // Finding out current thread
 #ifdef _OPENMP
-  size_t curThread = omp_get_thread_num();
+  int curThread = omp_get_thread_num();
+  if (_numberOfPolicyThreads == 1)
+    curThread = 0;
 #else
-  size_t curThread = 0;
+  int curThread = 0;
 #endif
+
+  // Safety
+  if ((curThread >= _numberOfPolicyThreads) || (curThread < 0))
+    KORALI_LOG_ERROR("Called getOutputValues with thread %d/%d.\n", curThread, _numberOfPolicyThreads);
   size_t batchSizeIdx = getBatchSizeIdx(batchSize);
   layerPipeline_t *p = &_pipelines[curThread][batchSizeIdx];
   return p->_outputValues;
@@ -376,11 +392,18 @@ std::vector<std::vector<float>> &NeuralNetwork::getOutputValues(const size_t bat
 
 std::vector<std::vector<float>> &NeuralNetwork::getInputGradients(const size_t batchSize)
 {
+  // Finding out current thread
 #ifdef _OPENMP
-  size_t curThread = omp_get_thread_num();
+  int curThread = omp_get_thread_num();
+  if (_numberOfPolicyThreads == 1)
+    curThread = 0;
 #else
-  size_t curThread = 0;
+  int curThread = 0;
 #endif
+
+  // Safety
+  if ((curThread >= _numberOfPolicyThreads) || (curThread < 0))
+    KORALI_LOG_ERROR("Called getInputGradients with thread %d/%d.\n", curThread, _numberOfPolicyThreads);
   size_t batchSizeIdx = getBatchSizeIdx(batchSize);
   layerPipeline_t *p = &_pipelines[curThread][batchSizeIdx];
   return p->_inputGradients;
@@ -388,11 +411,18 @@ std::vector<std::vector<float>> &NeuralNetwork::getInputGradients(const size_t b
 
 std::vector<float> &NeuralNetwork::getHyperparameterGradients(const size_t batchSize)
 {
+  // Finding out current thread
 #ifdef _OPENMP
-  size_t curThread = omp_get_thread_num();
+  int curThread = omp_get_thread_num();
+  if (_numberOfPolicyThreads == 1)
+    curThread = 0;
 #else
-  size_t curThread = 0;
+  int curThread = 0;
 #endif
+
+  // Safety
+  if ((curThread >= _numberOfPolicyThreads) || (curThread < 0))
+    KORALI_LOG_ERROR("Called getHyperparameterGradients with thread %d/%d.\n", curThread, _numberOfPolicyThreads);
   size_t batchSizeIdx = getBatchSizeIdx(batchSize);
   layerPipeline_t *p = &_pipelines[curThread][batchSizeIdx];
   return p->_hyperparameterGradients;
@@ -410,10 +440,6 @@ std::vector<float> NeuralNetwork::getHyperparameters()
     _pipelines[0][0]._layerVector[i]->getHyperparameters(&hyperparameters[index]);
   }
 
-  for (const float h : hyperparameters)
-    if (std::isfinite(h) == false)
-      KORALI_LOG_ERROR("Returning non-finite hyperparameters"); //TODO: move check to optimizer
-
   return hyperparameters;
 }
 
@@ -421,10 +447,6 @@ void NeuralNetwork::setHyperparameters(const std::vector<float> &hyperparameters
 {
   if (hyperparameters.size() != _hyperparameterCount)
     KORALI_LOG_ERROR("Wrong number of hyperparameters passed to the neural network. Expected: %lu, provided: %lu.\n", _hyperparameterCount, hyperparameters.size());
-
-  for (const float h : hyperparameters)
-    if (std::isfinite(h) == false)
-      KORALI_LOG_ERROR("Assigning non-finite value to hyperparameters"); //TODO: move check to optimizer
 
   size_t layerCount = _pipelines[0][0]._layerVector.size();
 
@@ -513,6 +535,15 @@ void NeuralNetwork::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Batch Sizes'] required by neuralNetwork.\n"); 
 
+ if (isDefined(js, "Number Of Policy Threads"))
+ {
+ try { _numberOfPolicyThreads = js["Number Of Policy Threads"].get<int>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ neuralNetwork ] \n + Key:    ['Number Of Policy Threads']\n%s", e.what()); } 
+   eraseValue(js, "Number Of Policy Threads");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Number Of Policy Threads'] required by neuralNetwork.\n"); 
+
  Module::setConfiguration(js);
  _type = ".";
  if(isDefined(js, "Type")) eraseValue(js, "Type");
@@ -528,6 +559,7 @@ void NeuralNetwork::getConfiguration(knlohmann::json& js)
    js["Layers"] = _layers;
    js["Timestep Count"] = _timestepCount;
    js["Batch Sizes"] = _batchSizes;
+   js["Number Of Policy Threads"] = _numberOfPolicyThreads;
    js["Current Training Loss"] = _currentTrainingLoss;
  if(_uniformGenerator != NULL) _uniformGenerator->getConfiguration(js["Uniform Generator"]);
  Module::getConfiguration(js);
@@ -536,7 +568,7 @@ void NeuralNetwork::getConfiguration(knlohmann::json& js)
 void NeuralNetwork::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Engine\": \"Korali\", \"Input Values\": [], \"Batch Sizes\": [], \"Uniform Generator\": {\"Type\": \"Univariate/Uniform\", \"Minimum\": -1.0, \"Maximum\": 1.0}}";
+ std::string defaultString = "{\"Engine\": \"Korali\", \"Input Values\": [], \"Batch Sizes\": [], \"Number Of Policy Threads\": 1, \"Uniform Generator\": {\"Name\": \"Neural Network / Uniform Generator\", \"Type\": \"Univariate/Uniform\", \"Minimum\": -1.0, \"Maximum\": 1.0}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Module::applyModuleDefaults(js);

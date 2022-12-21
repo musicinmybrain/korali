@@ -53,7 +53,7 @@ class ReinforcementLearning : public Problem
   */
    size_t _actionsBetweenPolicyUpdates;
   /**
-  * @brief Number of generations after which the policy will be tested.
+  * @brief Number of episodes after which the policy will be tested.
   */
    size_t _testingFrequency;
   /**

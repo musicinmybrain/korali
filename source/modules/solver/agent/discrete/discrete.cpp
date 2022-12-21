@@ -28,7 +28,7 @@ void Discrete::getAction(korali::Sample &sample)
     auto state = sample["State"][i].get<std::vector<float>>();
 
     // Adding state to the state time sequence
-    _stateTimeSequence[i].push_back(state);
+    _stateTimeSequence[i].add(state);
 
     // Preparing storage for policy information and flag available actions if provided
     std::vector<policy_t> policy(1);
@@ -36,9 +36,9 @@ void Discrete::getAction(korali::Sample &sample)
 
     // Getting the probability of the actions given by the agent's policy
     if (_problem->_policiesPerEnvironment == 1)
-      runPolicy({boostToVector(_stateTimeSequence[i])}, policy);
+      runPolicy({_stateTimeSequence[i].getVector()}, policy);
     else
-      runPolicy({boostToVector(_stateTimeSequence[i])}, policy, i);
+      runPolicy({_stateTimeSequence[i].getVector()}, policy, i);
 
     const auto &qValAndInvTemp = policy[0].distributionParameters;
     const auto &pActions = policy[0].actionProbabilities;
@@ -47,10 +47,8 @@ void Discrete::getAction(korali::Sample &sample)
     size_t actionIdx = 0;
 
     /*****************************************************************************
-     * During training, we follow the Epsilon-greedy strategy. Choose, given a
-     * probability (pEpsilon), one from the following:
-     *  - Uniformly random action among all possible actions
-     *  - Sample action guided by the policy's probability distribution
+     * During training, we sample action guided by 
+     * the policy's probability distribution
      ****************************************************************************/
 
     if (sample["Mode"] == "Training")

@@ -30,19 +30,19 @@ class Gamma : public Univariate
   private:
   public: 
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The shape parameter of the Gamma distribution, it controls the mean and skewness.
   */
    double _shape;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The shape parameter of the Gamma distribution, it controls the mean and skewness.
   */
    std::string _shapeConditional;
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The scale parameter of the Gamma distribution, it controls the mean.
   */
    double _scale;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The scale parameter of the Gamma distribution, it controls the mean.
   */
    std::string _scaleConditional;
   

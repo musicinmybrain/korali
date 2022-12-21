@@ -33,35 +33,35 @@ class TruncatedNormal : public Univariate
 
   public: 
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The mean of the untruncated Normal distribution.
   */
    double _mu;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The mean of the untruncated Normal distribution.
   */
    std::string _muConditional;
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The standard deviation of the untruncated Normal distribution.
   */
    double _sigma;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The standard deviation of the untruncated Normal distribution.
   */
    std::string _sigmaConditional;
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The lower bound of the truncated Normal distribution.
   */
    double _minimum;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The lower bound of the truncated Normal distribution.
   */
    std::string _minimumConditional;
   /**
-  * @brief [Conditional Variable Value] 
+  * @brief [Conditional Variable Value] The upper bound of the truncated Normal distribution.
   */
    double _maximum;
   /**
-  * @brief [Conditional Variable Reference] 
+  * @brief [Conditional Variable Reference] The upper bound of the truncated Normal distribution.
   */
    std::string _maximumConditional;
   

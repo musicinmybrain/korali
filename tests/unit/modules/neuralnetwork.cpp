@@ -31,7 +31,7 @@ namespace
   neuralNetworkConfig["Type"] = "Neural Network";
   neuralNetworkConfig["Engine"] = "OneDNN";
   neuralNetworkConfig["Timestep Count"] = 1;
-  neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1});
+  neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
   neuralNetworkConfig["Layers"][0]["Type"] = "Layer/Input";
   neuralNetworkConfig["Layers"][0]["Output Channels"] = 1;
   neuralNetworkConfig["Layers"][1]["Type"] = "Layer/Output";
@@ -46,11 +46,6 @@ namespace
   ASSERT_NO_THROW(nn->initialize());
   ASSERT_ANY_THROW(nn->initialize());
 
-  std::vector<float> _hyperparameters;
-  ASSERT_NO_THROW(_hyperparameters = nn->generateInitialHyperparameters());
-  ASSERT_NO_THROW(nn->setHyperparameters(_hyperparameters));
-  ASSERT_ANY_THROW(nn->setHyperparameters(std::vector<float>({0.1, 0.1})));
-
   nn->_isInitialized = false;
   nn->_engine = "CuDNN";
   ASSERT_NO_THROW(nn->initialize());
@@ -63,7 +58,7 @@ namespace
   nn->_batchSizes = std::vector<size_t>({0});
   ASSERT_ANY_THROW(nn->initialize());
 
-  nn->_batchSizes = std::vector<size_t>({1});
+  nn->_batchSizes = std::vector<size_t>({1,2});
   nn->_isInitialized = false;
   ASSERT_NO_THROW(nn->initialize());
 
@@ -141,7 +136,7 @@ namespace
   ASSERT_ANY_THROW(nn->setConfiguration(neuralNetworkConfig));
 
   neuralNetworkConfig = baseNNJs;
-  neuralNetworkConfig["Batch Sizes"] = std::vector<float>({1});
+  neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
   ASSERT_NO_THROW(nn->setConfiguration(neuralNetworkConfig));
 
   ASSERT_NO_THROW(nn->getConfiguration(neuralNetworkConfig));
@@ -157,7 +152,7 @@ namespace
    neuralNetworkConfig["Type"] = "Neural Network";
    neuralNetworkConfig["Engine"] = "OneDNN";
    neuralNetworkConfig["Timestep Count"] = 1;
-   neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1});
+   neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
    neuralNetworkConfig["Layers"][0]["Type"] = "Layer/Input";
    neuralNetworkConfig["Layers"][0]["Output Channels"] = 1;
    neuralNetworkConfig["Layers"][1]["Type"] = "Layer/Activation";
@@ -334,7 +329,7 @@ namespace
   neuralNetworkConfig["Type"] = "Neural Network";
   neuralNetworkConfig["Engine"] = "OneDNN";
   neuralNetworkConfig["Timestep Count"] = 1;
-  neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1});
+  neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
   neuralNetworkConfig["Layers"][0]["Type"] = "Layer/Input";
   neuralNetworkConfig["Layers"][0]["Output Channels"] = 1;
   neuralNetworkConfig["Layers"][1]["Type"] = "Layer/Activation";
@@ -375,7 +370,7 @@ namespace
   neuralNetworkConfig["Type"] = "Neural Network";
   neuralNetworkConfig["Engine"] = "OneDNN";
   neuralNetworkConfig["Timestep Count"] = 1;
-  neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1});
+  neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
   neuralNetworkConfig["Layers"][0]["Type"] = "Layer/Input";
   neuralNetworkConfig["Layers"][0]["Output Channels"] = 1;
   neuralNetworkConfig["Layers"][1]["Type"] = "Layer/Output";
@@ -509,7 +504,7 @@ namespace
   neuralNetworkConfig["Type"] = "Neural Network";
   neuralNetworkConfig["Engine"] = "OneDNN";
   neuralNetworkConfig["Timestep Count"] = 1;
-  neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1});
+  neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
   neuralNetworkConfig["Layers"][0]["Type"] = "Layer/Input";
   neuralNetworkConfig["Layers"][0]["Output Channels"] = 1;
   neuralNetworkConfig["Layers"][1]["Type"] = "Layer/Linear";
@@ -550,7 +545,7 @@ namespace
   neuralNetworkConfig["Type"] = "Neural Network";
   neuralNetworkConfig["Engine"] = "OneDNN";
   neuralNetworkConfig["Timestep Count"] = 1;
-  neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1});
+  neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
   neuralNetworkConfig["Layers"][0]["Type"] = "Layer/Input";
   neuralNetworkConfig["Layers"][0]["Output Channels"] = 1;
   neuralNetworkConfig["Layers"][1]["Type"] = "Layer/Recurrent/GRU";
@@ -591,7 +586,7 @@ namespace
   neuralNetworkConfig["Type"] = "Neural Network";
   neuralNetworkConfig["Engine"] = "OneDNN";
   neuralNetworkConfig["Timestep Count"] = 1;
-  neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1});
+  neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
   neuralNetworkConfig["Layers"][0]["Type"] = "Layer/Input";
   neuralNetworkConfig["Layers"][0]["Output Channels"] = 1;
   neuralNetworkConfig["Layers"][1]["Type"] = "Layer/Recurrent/LSTM";
@@ -659,7 +654,7 @@ namespace
    neuralNetworkConfig["Type"] = "Neural Network";
    neuralNetworkConfig["Engine"] = "Korali";
    neuralNetworkConfig["Timestep Count"] = 1;
-   neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1});
+   neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
    neuralNetworkConfig["Layers"][0]["Type"] = "Layer/Input";
    neuralNetworkConfig["Layers"][0]["Output Channels"] = 1;
    neuralNetworkConfig["Layers"][1]["Type"] = "Layer/Output";
@@ -674,11 +669,6 @@ namespace
    ASSERT_NO_THROW(nn->initialize());
    ASSERT_ANY_THROW(nn->initialize());
 
-   std::vector<float> _hyperparameters;
-   ASSERT_NO_THROW(_hyperparameters = nn->generateInitialHyperparameters());
-   ASSERT_NO_THROW(nn->setHyperparameters(_hyperparameters));
-   ASSERT_ANY_THROW(nn->setHyperparameters(std::vector<float>({0.1, 0.1})));
-
    nn->_isInitialized = false;
    nn->_engine = "CuDNN";
    ASSERT_NO_THROW(nn->initialize());
@@ -691,7 +681,7 @@ namespace
    nn->_batchSizes = std::vector<size_t>({0});
    ASSERT_ANY_THROW(nn->initialize());
 
-   nn->_batchSizes = std::vector<size_t>({1});
+   nn->_batchSizes = std::vector<size_t>({1,2});
    nn->_isInitialized = false;
    ASSERT_NO_THROW(nn->initialize());
 
@@ -769,7 +759,7 @@ namespace
    ASSERT_ANY_THROW(nn->setConfiguration(neuralNetworkConfig));
 
    neuralNetworkConfig = baseNNJs;
-   neuralNetworkConfig["Batch Sizes"] = std::vector<float>({1});
+   neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
    ASSERT_NO_THROW(nn->setConfiguration(neuralNetworkConfig));
 
    ASSERT_NO_THROW(nn->getConfiguration(neuralNetworkConfig));
@@ -785,7 +775,7 @@ namespace
     neuralNetworkConfig["Type"] = "Neural Network";
     neuralNetworkConfig["Engine"] = "Korali";
     neuralNetworkConfig["Timestep Count"] = 1;
-    neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1});
+    neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
     neuralNetworkConfig["Layers"][0]["Type"] = "Layer/Input";
     neuralNetworkConfig["Layers"][0]["Output Channels"] = 1;
     neuralNetworkConfig["Layers"][1]["Type"] = "Layer/Activation";
@@ -948,7 +938,7 @@ namespace
    neuralNetworkConfig["Type"] = "Neural Network";
    neuralNetworkConfig["Engine"] = "Korali";
    neuralNetworkConfig["Timestep Count"] = 1;
-   neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1});
+   neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
    neuralNetworkConfig["Layers"][0]["Type"] = "Layer/Input";
    neuralNetworkConfig["Layers"][0]["Output Channels"] = 1;
    neuralNetworkConfig["Layers"][1]["Type"] = "Layer/Activation";
@@ -989,7 +979,7 @@ namespace
    neuralNetworkConfig["Type"] = "Neural Network";
    neuralNetworkConfig["Engine"] = "Korali";
    neuralNetworkConfig["Timestep Count"] = 1;
-   neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1});
+   neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
    neuralNetworkConfig["Layers"][0]["Type"] = "Layer/Input";
    neuralNetworkConfig["Layers"][0]["Output Channels"] = 1;
    neuralNetworkConfig["Layers"][1]["Type"] = "Layer/Output";
@@ -1087,7 +1077,7 @@ namespace
    neuralNetworkConfig["Type"] = "Neural Network";
    neuralNetworkConfig["Engine"] = "Korali";
    neuralNetworkConfig["Timestep Count"] = 1;
-   neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1});
+   neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
    neuralNetworkConfig["Layers"][0]["Type"] = "Layer/Input";
    neuralNetworkConfig["Layers"][0]["Output Channels"] = 1;
    neuralNetworkConfig["Layers"][1]["Type"] = "Layer/Linear";
@@ -1128,7 +1118,7 @@ namespace
    neuralNetworkConfig["Type"] = "Neural Network";
    neuralNetworkConfig["Engine"] = "Korali";
    neuralNetworkConfig["Timestep Count"] = 1;
-   neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1});
+   neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
    neuralNetworkConfig["Layers"][0]["Type"] = "Layer/Input";
    neuralNetworkConfig["Layers"][0]["Output Channels"] = 1;
    neuralNetworkConfig["Layers"][1]["Type"] = "Layer/Recurrent/GRU";
@@ -1171,7 +1161,7 @@ namespace
    neuralNetworkConfig["Type"] = "Neural Network";
    neuralNetworkConfig["Engine"] = "Korali";
    neuralNetworkConfig["Timestep Count"] = 1;
-   neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1});
+   neuralNetworkConfig["Batch Sizes"] = std::vector<size_t>({1,2});
    neuralNetworkConfig["Layers"][0]["Type"] = "Layer/Input";
    neuralNetworkConfig["Layers"][0]["Output Channels"] = 1;
    neuralNetworkConfig["Layers"][1]["Type"] = "Layer/Recurrent/LSTM";

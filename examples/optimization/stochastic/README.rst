@@ -63,8 +63,7 @@ Then, we set the type of the problem to `Direct Evaluation`, and the objective t
 
 .. code-block:: python
 
-    e["Problem"]["Type"] = "Evaluation/Direct/Basic"
-    e["Problem"]["Objective"] = "Maximize"
+    e["Problem"]["Type"] = "Optimization"
 
 The Variables
 -------------
@@ -88,7 +87,7 @@ We choose the solver `CMAES`, set the population size to be `32` and two termina
     e["Solver"]["Termination Criteria"]["Min Value Difference Threshold"] = 1e-7
     e["Solver"]["Termination Criteria"]["Max Generations"] = 100
 
-For a detailed description of CMAES settings see :ref:`CMAES <module-solver-optimizer-cmaes>`.
+For a detailed description see `CMAES settings <https://korali.readthedocs.io/en/master/modules/solver/optimizer/CMAES/CMAES.html>`_.
 
 Finally, we need to add a call to the run() routine to start the Korali engine.
 
@@ -100,14 +99,23 @@ Running
 -------
 
 We are now ready to run our example:
-`./run-cmaes`
+
+.. code-block:: python
+
+    ./run-cmaes
 
 Or, alternatively:
-`python3 ./run-cmaes`
+
+.. code-block:: python
+
+    python3 ./run-cmaes
 
 The results are saved in the folder `_korali_result/`.
 
 Plotting
 --------
 You can see the results of CMA-ES by running the command,
-`python3 -m korali.plot`
+
+.. code-block:: python
+    
+    python3 -m korali.plot
