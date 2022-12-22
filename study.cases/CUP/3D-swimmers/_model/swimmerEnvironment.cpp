@@ -348,7 +348,7 @@ std::vector<double> getState(StefanFish *agent, const std::vector<double>& origi
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( agent->myFish );
   const double length = agent->length;
   const double Tperiod = cFish->Tperiod;
-  std::vector<double> S(7,0);
+  std::vector<double> S(10,0);
   S[0] = ( agent->position[0] - origin[0] )/ length;
   S[1] = ( agent->position[1] - origin[1] )/ length;
   S[2] = 2 * std::atan2(agent->quaternion[3], agent->quaternion[0]);
