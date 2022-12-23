@@ -37,9 +37,17 @@ for i in range(100):
 
 	e["Random Seed"] = 0xC0FEE
 
+	## Defining probelem configurations
+	e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
+	e["Problem"]["Environment Function"] = lambda x : agent(x, env)
+	e["Problem"]["Custom Settings"]["Print Step Information"] = "Disabled"
+	e["Problem"]["Custom Settings"]["Rendering"] = "Disabled"
+	e["Problem"]["Testing Frequency"] = 20
+	e["Problem"]["Policy Testing Episodes"] = 10
+
 	### Initializing openAI Gym environment
 
-	initEnvironment(e, args.env, int(e["Random Seed"]))
+	initEnvironment(e, args.env, e["Random Seed"], e["Problem"]["Custom Settings"]["Rendering"] == "Enabled")
 
 	### Defining Agent Configuration 
 
