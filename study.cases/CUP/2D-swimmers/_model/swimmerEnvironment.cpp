@@ -211,7 +211,7 @@ void runEnvironment(korali::Sample &s)
     initialData[2] = initialPosition[1];
 
     // During training, add noise to inital position of agent
-    if ( s["Mode"] == "Training" )
+    // if ( (s["Mode"] == "Training") || (sampleId == 0) )
     {
       // only rank 0 samples initial data
       if( rank == 0 )

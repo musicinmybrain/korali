@@ -9,13 +9,13 @@ RUNNAME=$1
 TASK=$2
 
 # number of agents
-NAGENTS=1
+NAGENTS=100
 
 # number of nodes per worker
 NRANKS=1
 
 # number of cores per worker
-NUMCORES=12
+NUMCORES=128
 
 # Set number of nodes here
 mpiflags="mpirun -n 2"
