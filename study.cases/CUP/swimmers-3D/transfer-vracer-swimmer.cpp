@@ -15,6 +15,7 @@ int main(int argc, char *argv[])
   // retreiving number of agents, and ranks
   int nAgents = atoi(argv[argc-2]);
   int nRanks  = atoi(argv[argc-1]);
+  std::string resultsPath = argv[argc-5];
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
@@ -35,14 +36,6 @@ int main(int argc, char *argv[])
   // Creating Experiment
   auto e = korali::Experiment();
   e["Problem"]["Type"] = "Reinforcement Learning / Continuous";
-
-  // Check if existing results are there and continuing them
-  auto found = e.loadState(trainingResultsPath + std::string("/latest"));
-  if (found == true){
-    // printf("[Korali] Continuing execution from previous run...\n");
-    // Hack to enable execution after Testing.
-    e["Solver"]["Termination Criteria"]["Max Generations"] = std::numeric_limits<int>::max();
-  }
 
   // Configuring Experiment
   e["Problem"]["Environment Function"] = &runEnvironment;
@@ -128,6 +121,23 @@ int main(int argc, char *argv[])
   e["File Output"]["Frequency"] = 1;
   e["File Output"]["Use Multiple Files"] = false;
   e["File Output"]["Path"] = trainingResultsPath;
+
+  // Korali experiments for previous results
+  auto eOld = korali::Experiment();
+
+  // Loading existing results and transplant training policy
+  auto found = eOld.loadState(resultsPath + std::string("/latest"));
+  
+  if( found )
+  {
+    printf("[Korali] Continuing execution with policy learned in previous run...\n");
+    e["Solver"]["Training"]["Current Policies"]["Policy Hyperparameters"] = eOld["Solver"]["Training"]["Current Policies"]["Policy Hyperparameters"];
+  }
+  else
+  {
+    printf("[Korali] Did not find the policy learned in previous run, training from scratch...\n");
+  }
+
 
   ////// Running Experiment
   auto k = korali::Engine();

@@ -1,4 +1,4 @@
-SWIMMER = run-vracer-swimmer
+SWIMMER = run-vracer-swimmer transfer-vracer-swimmer
 KORALICXX=${CXX}
 KORALICFLAGS=`python3 -m korali.cxx --cflags`
 KORALILIBS=`python3 -m korali.cxx --libs`
