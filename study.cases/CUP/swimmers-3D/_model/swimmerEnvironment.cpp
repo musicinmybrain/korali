@@ -80,7 +80,7 @@ void runEnvironment(korali::Sample &s)
   std::string AGENTPOSZ  = " zpos=0.25";
 
   std::string AGENT = " \n\
-  StefanFish heightProfile=danio widthProfile=stefan bFixToPlanar=1 L=0.2 T=1";
+  StefanFish heightProfile=baseline widthProfile=baseline bFixToPlanar=1 L=0.2 T=1";
 
   // Declare initial data vector
   double initialData[3];
@@ -99,7 +99,7 @@ void runEnvironment(korali::Sample &s)
     initialData[2] = initialPosition[1];
 
     // During training, add noise to inital position of agent
-    // if ( (s["Mode"] == "Training") || (sampleId == 0) )
+    // if ( s["Mode"] == "Training" )
     {
       // only rank 0 samples initial data
       if( rank == 0 )
