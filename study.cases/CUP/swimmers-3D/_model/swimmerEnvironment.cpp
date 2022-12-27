@@ -80,7 +80,7 @@ void runEnvironment(korali::Sample &s)
   std::string AGENTPOSZ  = " zpos=0.25";
 
   std::string AGENT = " \n\
-  StefanFish heightProfile=baseline widthProfile=baseline bFixToPlanar=1 L=0.2 T=1";
+  StefanFish heightProfile=baseline widthProfile=baseline bFixToPlanar=1 L=0.2 T=1 ";
 
   // Declare initial data vector
   double initialData[3];
@@ -116,7 +116,7 @@ void runEnvironment(korali::Sample &s)
     }
 
     // Append agent to argument string
-    argumentString = argumentString + AGENTANGLE + std::to_string(initialData[0]) + AGENTPOSX + std::to_string(initialData[1]) + AGENTPOSY + std::to_string(initialData[2]) + AGENTPOSZ;
+    argumentString += AGENT + AGENTANGLE + std::to_string(initialData[0]) + AGENTPOSX + std::to_string(initialData[1]) + AGENTPOSY + std::to_string(initialData[2]) + AGENTPOSZ;
   }
 
   // printf("%s\n",argumentString.c_str());
