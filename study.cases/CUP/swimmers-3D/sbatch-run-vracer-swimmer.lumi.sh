@@ -36,7 +36,7 @@ cat <<EOF >daint_sbatch
 #SBATCH --job-name="${RUNNAME}"
 #SBATCH --output=${RUNNAME}_out_%j.txt
 #SBATCH --error=${RUNNAME}_err_%j.txt
-#SBATCH --time=24:00:00
+#SBATCH --time=48:00:00
 #SBATCH --partition=standard
 #SBATCH --nodes=$((NNODES)) --ntasks-per-node=${NUMCORES} --cpus-per-task=1 --hint=nomultithread
 #SBATCH hetjob

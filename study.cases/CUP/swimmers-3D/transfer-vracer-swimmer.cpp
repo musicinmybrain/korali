@@ -138,7 +138,6 @@ int main(int argc, char *argv[])
     printf("[Korali] Did not find the policy learned in previous run, training from scratch...\n");
   }
 
-
   ////// Running Experiment
   auto k = korali::Engine();
 

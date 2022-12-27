@@ -1,12 +1,11 @@
 #! /usr/bin/env bash
 
-if [ $# -lt 2 ] ; then
-	echo "Usage: ./sbatch-compare-vracer-swimmer.sh RUNNAME TASK"
+if [ $# -lt 1 ] ; then
+	echo "Usage: ./sbatch-transfer-vracer-swimmer.sh RUNNAME"
 	exit 1
 fi
 
 RUNNAME=$1
-TASK=$2
 
 # path to previous run
 RESULTSPATH=/scratch/project_465000158/paweber/korali/4swimmer-transfer
@@ -29,7 +28,7 @@ NNODES=$(( $NWORKER * $NRANKS ))
 # setup run directory and copy necessary files
 RUNPATH="${SCRATCH}/korali/${RUNNAME}"
 mkdir -p ${RUNPATH}
-cp compare-vracer-swimmer ${RUNPATH}
+cp transfer-vracer-swimmer ${RUNPATH}
 cd ${RUNPATH}
 
 cat <<EOF >daint_sbatch
@@ -45,7 +44,7 @@ cat <<EOF >daint_sbatch
 #SBATCH --partition=standard
 #SBATCH --nodes=1 --ntasks-per-node=1 --cpus-per-task=8
 
-srun  --het-group=0,1 ./compare-vracer-swimmer -resultsPath $RESULTSPATH -nAgents $NAGENTS -nRanks $(( $NRANKS * $NUMCORES ))
+srun  --het-group=0,1 ./transfer-vracer-swimmer -resultsPath $RESULTSPATH -nAgents $NAGENTS -nRanks $(( $NRANKS * $NUMCORES ))
 EOF
 
 echo "Starting task ${TASK} with ${NWORKER} simulations each using ${NRANKS} ranks with ${NUMCORES} cores"
