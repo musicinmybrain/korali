@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
   }
 
   // retreiving number of agents, and ranks
-  int nAgents = atoi(argv[argc-2]);
+  int nAgents = atoi(argv[argc-3]);
   int nRanks  = atoi(argv[argc-1]);
   std::string resultsPath = argv[argc-5];
   int rank;
