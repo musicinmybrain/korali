@@ -142,6 +142,9 @@ int main(int argc, char *argv[])
   k["Conduit"]["Ranks Per Worker"] = nRanks;
   korali::setKoraliMPIComm(MPI_COMM_WORLD);
 
+  // Set random seed
+  e["Random Seed"] = 0xC0FFEE;
+
   // ..and run
   k.run(e);
 }

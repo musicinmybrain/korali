@@ -41,7 +41,7 @@ void VRACER::initializeAgent()
   if (_effectiveMinibatchSize == 1)
     KORALI_LOG_ERROR("Effective Minibatch Size (%ld) should be greater than one!", _effectiveMinibatchSize);
 
-  // Parallel initialization of neural networks (first touch!)
+  // Initialization of neural networks
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
     _criticPolicyExperiment[p]["Random Seed"] = _k->_randomSeed++;
