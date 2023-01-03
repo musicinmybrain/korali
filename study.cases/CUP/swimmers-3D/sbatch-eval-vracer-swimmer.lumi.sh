@@ -6,9 +6,6 @@ if [ $# -lt 1 ] ; then
 fi
 
 RUNNAME=$1
-TASK=$2
-
-EVAL=1
 
 # number of agents
 NAGENTS=4
