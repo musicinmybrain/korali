@@ -114,7 +114,6 @@ e["Solver"]["Demonstration Batch Size"] = args.dbs
 e["Solver"]["Background Batch Size"] = args.bbs
 e["Solver"]["Background Sample Size"] = args.bss
 e["Solver"]["Use Fusion Distribution"] = True
-e["Solver"]["Experiences Between Partition Function Statistics"] = 1e5
 
 ## Reward Function Specification
 

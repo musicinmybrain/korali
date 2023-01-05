@@ -12,9 +12,8 @@ namespace reinforcementLearning
 
 void Discrete::initialize()
 {
-  printf("X\n");
   ReinforcementLearning::initialize();
-  printf("X\n");
+  
   /*********************************************************************
    * Verifying Discrete Action Space
    *********************************************************************/

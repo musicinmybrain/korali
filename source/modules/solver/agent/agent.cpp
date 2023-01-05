@@ -1939,8 +1939,6 @@ void Agent::finalize()
     if (_k->_fileOutputEnabled)
       serializeExperienceReplay();
 
-  //partitionFunctionStat();
-
   _k->_logger->logInfo("Normal", "Waiting for pending agents to finish...\n");
 
   // Waiting for pending agents to finish
@@ -2910,15 +2908,6 @@ void Agent::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Experiences Between Reward Updates'] required by agent.\n"); 
 
- if (isDefined(js, "Experiences Between Partition Function Statistics"))
- {
- try { _experiencesBetweenPartitionFunctionStatistics = js["Experiences Between Partition Function Statistics"].get<float>();
-} catch (const std::exception& e)
- { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Experiences Between Partition Function Statistics']\n%s", e.what()); } 
-   eraseValue(js, "Experiences Between Partition Function Statistics");
- }
-  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Experiences Between Partition Function Statistics'] required by agent.\n"); 
-
  if (isDefined(js, "Optimize Max Entropy Objective"))
  {
  try { _optimizeMaxEntropyObjective = js["Optimize Max Entropy Objective"].get<int>();
@@ -3117,7 +3106,6 @@ void Agent::getConfiguration(knlohmann::json& js)
    js["Experience Replay"]["Off Policy"]["REFER Beta"] = _experienceReplayOffPolicyREFERBeta;
    js["Experiences Between Policy Updates"] = _experiencesBetweenPolicyUpdates;
    js["Experiences Between Reward Updates"] = _experiencesBetweenRewardUpdates;
-   js["Experiences Between Partition Function Statistics"] = _experiencesBetweenPartitionFunctionStatistics;
    js["Optimize Max Entropy Objective"] = _optimizeMaxEntropyObjective;
    js["Use Fusion Distribution"] = _useFusionDistribution;
    js["Demonstration Batch Size"] = _demonstrationBatchSize;

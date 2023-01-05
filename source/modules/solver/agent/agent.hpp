@@ -205,10 +205,6 @@ class Agent : public Solver
   */
    float _experiencesBetweenRewardUpdates;
   /**
-  * @brief The number of experiences to receive before measuring partition function statistics.
-  */
-   float _experiencesBetweenPartitionFunctionStatistics;
-  /**
   * @brief If true, optimize max entropy objective, else maximize feature reward on observed trajectories.
   */
    int _optimizeMaxEntropyObjective;

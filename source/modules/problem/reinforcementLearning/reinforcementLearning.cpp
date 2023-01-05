@@ -498,9 +498,6 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
 
     for (size_t j = 0; j < _stateVectorSize; j++)
       if (std::isfinite(worker["Features"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu feature variable %lu returned an invalid value: %f\n", i, j, worker["Features"][i][j].get<float>());
-
-    for (size_t j = 0; j < _stateVectorSize; j++)
-      if (std::isfinite(worker["State"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu state variable %lu returned an invalid value: %f\n", i, j, worker["State"][i][j].get<float>());
   }
 
   // Normalizing State
@@ -523,9 +520,6 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
 
     // Re-storing state into agent
     worker["Features"][i] = features;
-
-    // Re-storing state into worker
-    worker["State"][i] = state;
   }
 
   // Checking correct format of reward
