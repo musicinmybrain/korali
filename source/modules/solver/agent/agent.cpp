@@ -269,7 +269,7 @@ void Agent::initialize()
   _rewardFunctionLearner = dynamic_cast<solver::DeepSupervisor *>(_rewardFunctionExperiment._solver);
 
   // Init gradient
-  _maxEntropyGradient.resize(1, 0.0);
+_maxEntropyGradient.resize(_rewardFunctionLearner->_neuralNetwork->_hyperparameterCount,0);
 }
 
 void Agent::runGeneration()
@@ -1001,7 +1001,7 @@ void Agent::updateRewardFunction()
     }
 
     // Passing hyperparameter gradients through an Adam update
-    _rewardFunctionLearner->backwardGradients({_maxEntropyGradient});
+    _rewardFunctionLearner->_optimizer->processResult(_maxEntropyGradient);
 
     // Getting new set of hyperparameters from Adam
     _rewardFunctionLearner->_neuralNetwork->setHyperparameters(_rewardFunctionLearner->_optimizer->_currentValue);

@@ -1,14 +1,14 @@
-run=800
+run=1001
 
 export ENV="Swimmer-v4"
 export POL="Linear"
 export EXP=3000000
 
-for D in 16
+for D in 1 4 16 64
 do 
-    for B in 64
+    for B in 1 4 16 64
     do 
-        for rep in {1..3}
+        for rep in {1..1}
         do
             run=$(($run+1))
             export RUN=$run
