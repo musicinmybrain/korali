@@ -108,7 +108,7 @@ e["Solver"]["Reward"]["Rescaling"]["Enabled"] = False
 ### IRL related configuration
 
 e["Solver"]["Demonstration Policy"] = args.pol
-e["Solver"]["Optimize Max Entropy Objective"] = False
+e["Solver"]["Optimize Max Entropy Objective"] = True
 e["Solver"]["Experiences Between Reward Updates"] = args.ebru
 e["Solver"]["Demonstration Batch Size"] = args.dbs
 e["Solver"]["Background Batch Size"] = args.bbs

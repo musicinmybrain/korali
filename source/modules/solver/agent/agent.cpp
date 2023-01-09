@@ -1426,7 +1426,6 @@ void Agent::processEpisode(knlohmann::json &episode)
 
   // Increasing episode counters
   _sessionEpisodeCount++;
-  _currentEpisode++;
 
   // Increasing total experience counters
   _experienceCount += episodeExperienceCount;
