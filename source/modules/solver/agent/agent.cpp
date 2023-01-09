@@ -1109,10 +1109,6 @@ void Agent::attendWorker(size_t workerId)
       // Process every episode received and its experiences (add them to replay memory)
       processEpisode(message["Episodes"]);
 
-      // Increasing total experience counters
-      _experienceCount += message["Episodes"]["Experiences"].size();
-      _sessionExperienceCount += message["Episodes"]["Experiences"].size();
-
       // Waiting for the agent to come back with all the information
       KORALI_WAIT(_workers[workerId]);
 
@@ -1130,8 +1126,6 @@ void Agent::attendWorker(size_t workerId)
         }
         _trainingRewardHistory[a].push_back(_trainingLastReward[a]);
       }
-      // Storing bookkeeping information
-      _trainingExperienceHistory.push_back(message["Episodes"]["Experiences"].size());
 
       // Storing bookkeeping information
       _trainingExperienceHistory.push_back(message["Episodes"]["Experiences"].size());
@@ -1166,9 +1160,6 @@ void Agent::attendWorker(size_t workerId)
 
       // Set agent as finished
       _isWorkerRunning[workerId] = false;
-
-      // Increasing session episode count
-      _sessionEpisodeCount++;
     }
   }
 
