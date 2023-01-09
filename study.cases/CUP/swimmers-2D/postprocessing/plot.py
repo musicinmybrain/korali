@@ -243,8 +243,8 @@ def plotValueFunctionRM( ax, data, config, xlim, ylim, N ):
     rescalingSigmas = np.reshape(rescalingSigmas,(-1,))
 
     states = np.reshape(states, (-1,states.shape[2]))
-    stateX = 0.9 + ( states[:,0] * rescalingSigmas[0] + rescalingMeans[0] ) * 0.2
-    stateY = 0.5 + ( states[:,1] * rescalingSigmas[1] + rescalingMeans[1] ) * 0.2
+    stateX = ( 0.9 + ( states[:,0] * rescalingSigmas[0] + rescalingMeans[0] ) * 0.2 ) / 0.2
+    stateY = ( 0.5 + ( states[:,1] * rescalingSigmas[1] + rescalingMeans[1] ) * 0.2 ) / 0.2
 
     for i in range(len(xCoords)-1):
         for j in range(len(yCoords)-1):
@@ -260,8 +260,39 @@ def plotValueFunctionRM( ax, data, config, xlim, ylim, N ):
     fig.colorbar(im, ax=ax)
 
     # Add circle
-    circle = plt.Circle((0.6, 0.5), 0.05, color='gray')
-    ax.add_patch(circle)
+    # circle = plt.Circle((0.6, 0.5), 0.05, color='gray')
+    # axs[l][k].add_patch(circle)
+
+    posx = 3   #0.6
+    posy = 2.5 #0.5
+
+    # Add cylinder
+    D = 0.25
+    x = np.linspace(-D,0,100)
+    y = np.sqrt(D**2-x**2)
+
+    ax.plot( x + posx, posy+y, "k-" )
+    ax.plot( x + posx, posy-y, "k-" )
+    ax.vlines(x=posx, ymin=posy-D, ymax=posy+D, color="black")
+    ax.fill_between( x + posx, posy-y, posy+y, color="grey" )
+
+    # Add Hydrofoil
+    # L = 0.6
+    # tRatio = 0.12
+    # a =  0.2969
+    # b = -0.1260
+    # c = -0.3516
+    # d =  0.2843
+    # e = -0.1015; # -0.1036 instead of -0.1015 to ensure closing end
+    # t = tRatio*L # NACA00{tRatio}
+
+    # s = np.linspace(0,L,1000)
+    # p = s/L
+    # y = 5*t* (a*np.sqrt(p) +b*p +c*p*p + d*p*p*p + e*p*p*p*p)
+
+    # ax.plot( s + posx - 0.4, posy+y, "k-" )
+    # ax.plot( s + posx - 0.4, posy-y, "k-" )
+    # ax.fill_between( s + posx - 0.4, posy-y, posy+y, color="lightgrey" )
 
 def plotPolicyRM( ax, data, config, xlim, ylim, N ):
     # Binning of x- and y- coordines
@@ -291,8 +322,8 @@ def plotPolicyRM( ax, data, config, xlim, ylim, N ):
     rescalingSigmas = np.reshape(rescalingSigmas,(-1,))
 
     states = np.reshape(states, (-1,states.shape[2]))
-    stateX = 0.9 + ( states[:,0] * rescalingSigmas[0] + rescalingMeans[0] ) * 0.2
-    stateY = 0.5 + ( states[:,1] * rescalingSigmas[1] + rescalingMeans[1] ) * 0.2
+    stateX = ( 0.9 + ( states[:,0] * rescalingSigmas[0] + rescalingMeans[0] ) * 0.2 ) / 0.2
+    stateY = ( 0.5 + ( states[:,1] * rescalingSigmas[1] + rescalingMeans[1] ) * 0.2 ) / 0.2
 
     for l in range(2): #mean/sigma
         for k in range(2): #components
@@ -319,8 +350,39 @@ def plotPolicyRM( ax, data, config, xlim, ylim, N ):
             fig.colorbar(im, ax=ax[l][k])
 
             # Add circle
-            circle = plt.Circle((0.6, 0.5), 0.05, color='gray')
-            axs[l][k].add_patch(circle)
+            # circle = plt.Circle((0.6, 0.5), 0.05, color='gray')
+            # axs[l][k].add_patch(circle)
+
+            posx = 3   #0.6
+            posy = 2.5 #0.5
+
+            # Add cylinder
+            D = 0.25
+            x = np.linspace(-D,0,100)
+            y = np.sqrt(D**2-x**2)
+
+            axs[l][k].plot( x + posx, posy+y, "k-" )
+            axs[l][k].plot( x + posx, posy-y, "k-" )
+            axs[l][k].vlines(x=posx, ymin=posy-D, ymax=posy+D, color="black")
+            axs[l][k].fill_between( x + posx, posy-y, posy+y, color="grey" )
+
+            # Add Hydrofoil
+            # L = 0.6
+            # tRatio = 0.12
+            # a =  0.2969
+            # b = -0.1260
+            # c = -0.3516
+            # d =  0.2843
+            # e = -0.1015; # -0.1036 instead of -0.1015 to ensure closing end
+            # t = tRatio*L # NACA00{tRatio}
+
+            # s = np.linspace(0,L,1000)
+            # p = s/L
+            # y = 5*t* (a*np.sqrt(p) +b*p +c*p*p + d*p*p*p + e*p*p*p*p)
+
+            # axs[l][k].plot( s + posx - 0.4, posy+y, "k-" )
+            # axs[l][k].plot( s + posx - 0.4, posy-y, "k-" )
+            # axs[l][k].fill_between( s + posx - 0.4, posy-y, posy+y, color="lightgrey" )
 
 def plotValue( averageValue, xlim, ylim, N ):
     aspect = ylim / xlim
@@ -331,10 +393,10 @@ def plotValue( averageValue, xlim, ylim, N ):
 
     im = ax.pcolormesh(X, Y, averageValue, cmap='viridis')
     fig.colorbar(im, ax=ax)
-
-    # Add circle
+    
+     # Add circle
     circle = plt.Circle((0.6, 0.5), 0.05, color='gray')
-    ax.add_patch(circle) 
+    ax.add_patch(circle)
 
 def plotPolicy( l, k, averagedPolicyParameter, xlim, ylim, N ):
     aspect = ylim / xlim
@@ -375,13 +437,13 @@ if __name__ == '__main__':
         '--xlim',
         help='maximal extent in x-direction.',
         type = float,
-        default = 2,
+        default = 10,
         required=False)
     parser.add_argument(
         '--ylim',
         help='maximal extent in y-direction.',
         type = float,
-        default = 1,
+        default = 5,
         required=False)
     parser.add_argument(
         '--N',
