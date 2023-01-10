@@ -265,8 +265,8 @@ void __className__::initialize()
   _rewardFunctionLearner = dynamic_cast<solver::DeepSupervisor *>(_rewardFunctionExperiment._solver);
     
   // Preallocating space in the underlying supervised problem's input and solution data structures 
-  _rewardFunctionProblem[p]->_inputData.resize(_rewardFunctionBatchSize);
-  _rewardFunctionProblem[p]->_solutionData.resize(_rewardFunctionBatchSize);
+  _rewardFunctionProblem->_inputData.resize(_rewardFunctionBatchSize);
+  _rewardFunctionProblem->_solutionData.resize(_rewardFunctionBatchSize);
 
   // Init gradient
   _maxEntropyGradient.resize(_rewardFunctionLearner->_neuralNetwork->_hyperparameterCount,0);

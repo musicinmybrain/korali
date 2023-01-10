@@ -267,9 +267,13 @@ void Agent::initialize()
   _rewardFunctionExperiment.initialize();
   _rewardFunctionProblem = dynamic_cast<problem::SupervisedLearning *>(_rewardFunctionExperiment._problem);
   _rewardFunctionLearner = dynamic_cast<solver::DeepSupervisor *>(_rewardFunctionExperiment._solver);
+    
+  // Preallocating space in the underlying supervised problem's input and solution data structures 
+  _rewardFunctionProblem->_inputData.resize(_rewardFunctionBatchSize);
+  _rewardFunctionProblem->_solutionData.resize(_rewardFunctionBatchSize);
 
   // Init gradient
-_maxEntropyGradient.resize(_rewardFunctionLearner->_neuralNetwork->_hyperparameterCount,0);
+  _maxEntropyGradient.resize(_rewardFunctionLearner->_neuralNetwork->_hyperparameterCount,0);
 }
 
 void Agent::runGeneration()
@@ -729,7 +733,7 @@ void Agent::updateRewardFunction()
     // Calculate cumulative rewards for demonstration batch and extract trajectory probabilities
     float cumDemoReward = 0.;
     std::vector<float> cumulativeRewardsDemonstrationBatch(_demonstrationBatchSize, 0.0);
-    std::vector<std::vector<float>> gradientCumulativeRewardFunctionDemonstrationBatch(_demonstrationBatchSize, std::vector<float>(_rewardFunctionLearner->_optimizer->_nVars, 0.));
+    std::vector<std::vector<float>> gradientCumulativeRewardFunctionDemonstrationBatch(_demonstrationBatchSize, std::vector<float>(_rewardFunctionLearner->_neuralNetwork->_hyperparameterCount, 0.));
     std::vector<std::vector<float>> demonstrationTrajectoryLogProbabilities(_demonstrationBatchSize, std::vector<float>(totalBatchSize));
     for (size_t n = 0; n < _demonstrationBatchSize; ++n)
     {
@@ -795,18 +799,18 @@ void Agent::updateRewardFunction()
         }
       }
     }
+      
+    // Record history of average feature reward of demonstrations
+    _demonstrationFeatureReward.push_back(cumDemoReward / (float)_demonstrationBatchSize);
 
     if (_optimizeMaxEntropyObjective == true)
     {
       // Record history of logprobability of demonstrations
       _demonstrationLogProbability.push_back(demoLogP / (float)(_demonstrationBatchSize + _backgroundBatchSize));
 
-      // Record history of average feature reward of demonstrations
-      _demonstrationFeatureReward.push_back(cumDemoReward / (float)_demonstrationBatchSize);
-
       // Calculate cumulative rewards for randomized background batch and extract trajectory probabilities
       std::vector<float> cumulativeRewardsBackgroundBatch(_backgroundBatchSize, 0.0);
-      std::vector<std::vector<float>> gradientCumulativeRewardFunctionBackgroundBatch(_backgroundBatchSize, std::vector<float>(_rewardFunctionLearner->_optimizer->_nVars, 0.));
+      std::vector<std::vector<float>> gradientCumulativeRewardFunctionBackgroundBatch(_backgroundBatchSize, std::vector<float>(_rewardFunctionLearner->_neuralNetwork->_hyperparameterCount, 0.));
       std::vector<std::vector<float>> backgroundTrajectoryLogProbabilities(_backgroundBatchSize, std::vector<float>(totalBatchSize));
 
       for (size_t m = 0; m < _backgroundBatchSize; ++m)
