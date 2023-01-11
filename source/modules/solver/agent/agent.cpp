@@ -305,7 +305,7 @@ void Agent::trainingGeneration()
     for (size_t workerId = 0; workerId < _concurrentWorkers; workerId++)
       if (_isWorkerRunning[workerId] == false)
       {
-        _workers[workerId]["Sample Id"] = _currentEpisode++;
+        _workers[workerId]["Sample Id"] = _currentEpisode;
         _workers[workerId]["Module"] = "Problem";
         _workers[workerId]["Operation"] = "Run Training Episode";
         for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
@@ -367,6 +367,7 @@ void Agent::trainingGeneration()
         {
           updateRewardFunction();
           _rewardUpdateCount++;
+          _sessionRewardUpdateCount++;
         }
       }
       else
@@ -802,6 +803,8 @@ void Agent::updateRewardFunction()
       
     // Record history of average feature reward of demonstrations
     _demonstrationFeatureReward.push_back(cumDemoReward / (float)_demonstrationBatchSize);
+
+    printf("ar %lf (%zu)\n", cumDemoReward / (float)_demonstrationBatchSize, _rewardUpdateCount);
 
     if (_optimizeMaxEntropyObjective == true)
     {
@@ -1430,6 +1433,7 @@ void Agent::processEpisode(knlohmann::json &episode)
 
   // Increasing episode counters
   _sessionEpisodeCount++;
+  _currentEpisode++;
 
   // Increasing total experience counters
   _experienceCount += episodeExperienceCount;
