@@ -800,7 +800,7 @@ void __className__::updateRewardFunction()
     // Record history of average feature reward of demonstrations
     _demonstrationFeatureReward.push_back(cumDemoReward / (float)_demonstrationBatchSize);
 
-    printf("ar %lf (%zu)\n", cumDemoReward / (float)_demonstrationBatchSize, _rewardUpdateCount);
+    //printf("ar %lf (%zu)\n", cumDemoReward / (float)_demonstrationBatchSize, _rewardUpdateCount);
 
     if (_optimizeMaxEntropyObjective == true)
     {
@@ -977,8 +977,8 @@ void __className__::updateRewardFunction()
           _maxEntropyGradient[k] += (1. - _demonstrationBatchSize * mult) * gradientCumulativeRewardFunctionDemonstrationBatch[n][k];
           if (std::isfinite(_maxEntropyGradient[k]) == false) KORALI_LOG_ERROR("Reward gradient not finite!");
         }
-        _k->_logger->logInfo("Detailed", "Neg Bracket (%zu/%zu)!\n", negBracket, _demonstrationBatchSize);
-        _k->_logger->logInfo("Detailed", "Effective Sample Size (%f/%f)!\n", ess, (float)(_demonstrationBatchSize + _backgroundBatchSize));
+        //_k->_logger->logInfo("Detailed", "Neg Bracket (%zu/%zu)!\n", negBracket, _demonstrationBatchSize);
+        //_k->_logger->logInfo("Detailed", "Effective Sample Size (%f/%f)!\n", ess, (float)(_demonstrationBatchSize + _backgroundBatchSize));
       }
 
       // Record history of importance weights
