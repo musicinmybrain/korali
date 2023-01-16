@@ -742,7 +742,8 @@ void __className__::updateRewardFunction()
 
       while (t < observedTrajectoryLength)
       {
-        std::vector<std::vector<std::vector<float>>> featuresBatch(_rewardFunctionBatchSize, std::vector<std::vector<float>>(1, std::vector<float>(_problem->_featureVectorSize, 0.)));
+        assert(_problem->_agentsPerEnvironment == 1);  //TODO verify this section for multiple agents
+        std::vector<std::vector<std::vector<float>>> featuresBatch(_rewardFunctionBatchSize, std::vector<std::vector<float>>(_problem->_agentsPerEnvironment, std::vector<float>(_problem->_featureVectorSize, 0.)));
         std::vector<std::vector<float>> backwardMultiplier(_rewardFunctionBatchSize, std::vector<float>(1, 0.));
 
         const size_t batchSize = std::min(_rewardFunctionBatchSize, observedTrajectoryLength - t);
@@ -1200,7 +1201,8 @@ void __className__::processEpisode(knlohmann::json &episode)
     for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
     {
       // Getting reward (TODO: batch forwarding)
-      featureReward[a] = calculateReward({{_featureBuffer[_featureBuffer.size() - 1][a]}})[0];
+      const auto features = episode["Experiences"][expId]["Features"].get<std::vector<std::vector<float>>>()
+      featureReward[a] = calculateReward({{features[a]}})[0];
 
       // Accumulate feature reward
       cumulativeFeatureReward[a] += featureReward[a];
@@ -1372,7 +1374,7 @@ void __className__::processEpisode(knlohmann::json &episode)
   const ssize_t endId = (ssize_t)_stateBuffer.size() - 1;
 
   // Getting the starting ID of the initial experience of the episode in the replay memory
-  ssize_t startId = endId - episodeExperienceCount + 1;
+  ssize_t startId = endId - (ssize_t)episodeExperienceCount + 1;
 
   // Storage for the retrace value
   std::vector<float> retV(numAgents, 0.0f);
@@ -1414,7 +1416,7 @@ void __className__::processEpisode(knlohmann::json &episode)
     for (size_t a = 0; a < numAgents; a++)
     {
       // Calculating retrace value. Importance weight is 1.0f because the policy is current.
-      retV[a] = _rewardBufferContiguous[expId * numAgents + a] + _discountFactor * retV[a];
+      retV[a] = _discountFactor * retV[a] + _rewardBufferContiguous[expId * numAgents + a];
       _retraceValueBufferContiguous[expId * numAgents + a] = retV[a];
     }
 

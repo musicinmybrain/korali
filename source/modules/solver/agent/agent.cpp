@@ -232,7 +232,7 @@ void Agent::initialize()
 
   if (_problem->_numberObservedTrajectories < _demonstrationBatchSize) KORALI_LOG_ERROR("Demonstration Batch Size (%zu) must be smaller than total number of observed trajectories (%zu).\n", _demonstrationBatchSize, _problem->_numberObservedTrajectories);
 
-  if (_backgroundSampleSize <= _backgroundBatchSize) KORALI_LOG_ERROR("Bachground Sample Size too small, must be greater than Background Batch Size");
+  if (_backgroundSampleSize <= _backgroundBatchSize) KORALI_LOG_ERROR("Background Sample Size too small, must be greater than Background Batch Size");
 
   if ((_demonstrationPolicy == "Constant" || _demonstrationPolicy == "Linear" || _demonstrationPolicy == "Quadratic") == false) KORALI_LOG_ERROR("Demonstration Policy is invalid, choose 'Constant', 'Linear' or 'Quadratic'");
 
@@ -804,7 +804,7 @@ void Agent::updateRewardFunction()
     // Record history of average feature reward of demonstrations
     _demonstrationFeatureReward.push_back(cumDemoReward / (float)_demonstrationBatchSize);
 
-    printf("ar %lf (%zu)\n", cumDemoReward / (float)_demonstrationBatchSize, _rewardUpdateCount);
+    //printf("ar %lf (%zu)\n", cumDemoReward / (float)_demonstrationBatchSize, _rewardUpdateCount);
 
     if (_optimizeMaxEntropyObjective == true)
     {
@@ -981,8 +981,8 @@ void Agent::updateRewardFunction()
           _maxEntropyGradient[k] += (1. - _demonstrationBatchSize * mult) * gradientCumulativeRewardFunctionDemonstrationBatch[n][k];
           if (std::isfinite(_maxEntropyGradient[k]) == false) KORALI_LOG_ERROR("Reward gradient not finite!");
         }
-        _k->_logger->logInfo("Detailed", "Neg Bracket (%zu/%zu)!\n", negBracket, _demonstrationBatchSize);
-        _k->_logger->logInfo("Detailed", "Effective Sample Size (%f/%f)!\n", ess, (float)(_demonstrationBatchSize + _backgroundBatchSize));
+        //_k->_logger->logInfo("Detailed", "Neg Bracket (%zu/%zu)!\n", negBracket, _demonstrationBatchSize);
+        //_k->_logger->logInfo("Detailed", "Effective Sample Size (%f/%f)!\n", ess, (float)(_demonstrationBatchSize + _backgroundBatchSize));
       }
 
       // Record history of importance weights
