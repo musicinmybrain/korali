@@ -11,6 +11,12 @@ if (parse_version(gym.__version__) < parse_version('0.26.0')):
     sys.exit()
 
 
+threshold = { 
+        "Swimmer-v4" : 350,
+        "HalfCheetah-v4" : 14000 
+    }
+
+testrunnumber = 0
 obsstates = []
 obsactions = []
 obsrewards = []
@@ -25,7 +31,7 @@ def initEnvironment(e, envName, excludePosition=True, moviePath = ''):
     excludePosition = True
     env = gym.make(envName)
  else:
-    env = gym.make(envName, exclude_current_positions_from_observation=excludePosition)
+    env = gym.make(envName, exclude_current_positions_from_observation=excludePosition, reset_noise_scale=0.5)
  
  # Handling special cases
  if (envName == 'Humanoid-v2'):
@@ -121,16 +127,20 @@ def environment(s, env, excludePosition):
  
  if (saveState):
 
-   numSaveTrajectories = s["Custom Settings"]["Num Save Trajectories"]
+   envName = s["Custom Settings"]["Env Name"]
+   numSaveTrajectories = s["Custom Settings"]["Total Testruns"]
+   global testrunnumber
    global obsstates
    global obsactions
    global obsrewards
 
-   obsstates.append(states)
-   obsactions.append(actions)
-   obsrewards.append(cumulativeReward)
+   testrunnumber += 1
+   if cumulativeReward > threshold[envName]:
+       obsstates.append(states)
+       obsactions.append(actions)
+       obsrewards.append(cumulativeReward)
 
-   if len(obsstates) == numSaveTrajectories:
+   if testrunnumber == numSaveTrajectories:
      fname = s["Custom Settings"]["File Name"]
     
      obsjson = {

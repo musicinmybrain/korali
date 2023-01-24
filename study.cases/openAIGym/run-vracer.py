@@ -95,7 +95,8 @@ e["File Output"]["Path"] = resultFolder
 if args.test:
     e["Solver"]["Testing"]["Sample Ids"] = list(range(args.n))
     e["Problem"]["Custom Settings"]["Save State"] = "True"
+    e["Problem"]["Custom Settings"]["Env Name"] = args.env
     e["Problem"]["Custom Settings"]["File Name"] = f"observations_{args.env}.json" if excludePos else f"observations_position_{args.env}.json"
-    e["Problem"]["Custom Settings"]["Num Save Trajectories"] = args.n
+    e["Problem"]["Custom Settings"]["Total Testruns"] = args.n
  
 k.run(e)
