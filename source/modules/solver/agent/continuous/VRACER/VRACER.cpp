@@ -313,21 +313,19 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
 
           // Get sigma for current hyperparameters
           const float curMean = curPolicy.currentDistributionParameters[i];
-          // const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
+          const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
 
           // Scaling mean gradient by number of samples
           polGrad[i] *= invN;
 
           // Adding contribution from standard deviation
-          if((_gaussianApproximationType == "Mixture") && (_minimalApproximation == false))
+          if( ((_gaussianApproximationType == "Total") || (_gaussianApproximationType == "Epistemic")) && (_minimalApproximation == false))
             polGrad[i] += invN * invSigma * (curMean - mean) * polGrad[i + _problem->_actionVectorSize];
 
           // Scaling standard deviation gradient by number of samples
-          float sigmaFactor = 1.0;
-          if((_gaussianApproximationType == "Average") || _minimalApproximation) 
-            sigmaFactor = invN;
-          if((_gaussianApproximationType == "Mixture") && (_minimalApproximation == false)) 
-            sigmaFactor = 0.0; //curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma;
+          float sigmaFactor = 0.0;
+          if( (_gaussianApproximationType == "Average") || (_gaussianApproximationEnabled ==  false) )
+            sigmaFactor = invN;  //curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma; DO NOT WORK
           polGrad[i + _problem->_actionVectorSize] *= sigmaFactor;
         }
       }
@@ -376,21 +374,19 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
 
           // Get sigma for current hyperparameters
           const float &curMean = _minimalApproximation ? curPolicy.distributionParameters[i] : curPolicy.currentDistributionParameters[i];
-          // const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
+          const float curSigma = curPolicy.currentDistributionParameters[_problem->_actionVectorSize + i];
 
           // Scaling mean gradient by number of samples
           klGrad[i] *= invN;
 
           // Adding contribution from standard deviation
-          if(_gaussianApproximationType == "Mixture")
+          if( ((_gaussianApproximationType == "Total") || (_gaussianApproximationType == "Epistemic")) )
             klGrad[i] += invN * invSigma * (curMean - mean) * klGrad[i + _problem->_actionVectorSize];
 
           // Scaling standard deviation gradient by number of samples
-          float sigmaFactor = 1.0;
-          if(_gaussianApproximationType == "Average")
-            sigmaFactor = invN;
-          if(_gaussianApproximationType == "Mixture")
-            sigmaFactor = 0.0; //curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma;
+          float sigmaFactor = 0.0;
+          if( (_gaussianApproximationType == "Average") || (_gaussianApproximationEnabled ==  false) )
+            sigmaFactor = invN;  //curSigma <= 1e-3 ? 0.0 : invN * invSigma * curSigma; DO NOT WORK
           klGrad[i + _problem->_actionVectorSize] *= sigmaFactor;
         }
       }
@@ -527,7 +523,6 @@ void VRACER::gaussianPredictivePosteriorDistribution(const std::vector<std::vect
       runPolicy(stateSequenceBatch, policy, p);
 
       // Update statistics of predictive posterior distribution
-      // mean = 1/N sum{ mean_i }, var = 1/N sum{ mean_i^2 + var_i^2 } - mean
 #pragma omp parallel for
       for (size_t b = 0; b < batchSize; b++)
       {
@@ -545,10 +540,12 @@ void VRACER::gaussianPredictivePosteriorDistribution(const std::vector<std::vect
           curPolicy[b].distributionParameters[i] += mean;
 
           // Accumulate Variance
-          if(_gaussianApproximationType == "Average")
-            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
-          if(_gaussianApproximationType == "Mixture")
+          if(_gaussianApproximationType == "Total")
             curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+          if(_gaussianApproximationType == "Epistemic")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += meanSquared;
+          if(_gaussianApproximationType == "Aleatoric")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += variance;
         }
       }
     }
@@ -585,10 +582,12 @@ void VRACER::gaussianPredictivePosteriorDistribution(const std::vector<std::vect
           curPolicy[b].distributionParameters[i] += mean;
 
           // Accumulate Variance
-          if(_gaussianApproximationType == "Average")
-            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += standardDeviation;
-          if(_gaussianApproximationType == "Mixture")
+          if(_gaussianApproximationType == "Total")
             curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += (meanSquared + variance);
+          if(_gaussianApproximationType == "Epistemic")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += meanSquared;
+          if(_gaussianApproximationType == "Aleatoric")
+            curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] += variance;
         }
       }
     }
@@ -609,11 +608,9 @@ void VRACER::gaussianPredictivePosteriorDistribution(const std::vector<std::vect
 
       // Finalize Variance
       curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] *= invTotNumSamples;
-      if(_gaussianApproximationType == "Mixture")
-      {
+      if( (_gaussianApproximationType == "Total") || (_gaussianApproximationType == "Epistemic") )
         curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] -= mixtureMean * mixtureMean;
-        curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy[b].distributionParameters[_problem->_actionVectorSize + i]);
-      }
+      curPolicy[b].distributionParameters[_problem->_actionVectorSize + i] = std::sqrt(curPolicy[b].distributionParameters[_problem->_actionVectorSize + i]);
     }
   }
 }

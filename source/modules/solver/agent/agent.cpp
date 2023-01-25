@@ -2208,7 +2208,9 @@ void Agent::setConfiguration(knlohmann::json& js)
  { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Gaussian Approximation']['Type']\n%s", e.what()); } 
 {
  bool validOption = false; 
- if (_gaussianApproximationType == "Mixture") validOption = true; 
+ if (_gaussianApproximationType == "Total") validOption = true; 
+ if (_gaussianApproximationType == "Epistemic") validOption = true; 
+ if (_gaussianApproximationType == "Aleatoric") validOption = true; 
  if (_gaussianApproximationType == "Average") validOption = true; 
  if (validOption == false) KORALI_LOG_ERROR(" + Unrecognized value (%s) provided for mandatory setting: ['Gaussian Approximation']['Type'] required by agent.\n", _gaussianApproximationType.c_str()); 
 }
