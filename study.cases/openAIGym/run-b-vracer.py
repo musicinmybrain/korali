@@ -13,8 +13,8 @@ parser.add_argument('--run', help='Run Number', required=False, type=int, defaul
 parser.add_argument('--optimizer', help='Optimizer', required=False, type=str, default = "Adam")
 
 parser.add_argument('--nPolicies', help='Number of Policies in Ensemble.', required=False, type=int, default = 5)
-parser.add_argument('--bGaussian', help='Boolean to decide whether we use Gaussian approximation.', required=False, type=bool, default=False)
-parser.add_argument('--bMinimal', help='Boolean to decide whether we use Minimal approximation.', required=False, type=bool, default=True)
+parser.add_argument('--bGaussian', help='Boolean to decide whether we use Gaussian approximation.', required=False, type=bool, default=True)
+parser.add_argument('--bMinimal', help='Boolean to decide whether we use Minimal approximation.', required=False, type=bool, default=False)
 parser.add_argument('--bBayesian', help='Boolean to decide whether we use Bayesian Learning.', required=False, type=bool, default=False)
 parser.add_argument('--nSamples', help='Number of Samples from Posterior that are used to approximate posterior predicitve distribution.', required=False, type=int, default = 1)
 parser.add_argument('--nHyperparameters', help='Number of Hyperparameters that are stored.', required=False, type=int, default = 1)
@@ -88,7 +88,7 @@ e["Solver"]["Burn In"] = 0
 
 # Settings for Gaussian approximation of policy
 e["Solver"]["Gaussian Approximation"]["Enabled"] = args.bGaussian
-e["Solver"]["Gaussian Approximation"]["Type"] = "Mixture"
+e["Solver"]["Gaussian Approximation"]["Type"] = "Aleatoric"
 
 # Setting for minimal approximation
 e["Solver"]["Minimal Approximation"] = args.bMinimal
