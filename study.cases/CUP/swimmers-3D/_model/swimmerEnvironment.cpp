@@ -116,7 +116,10 @@ void runEnvironment(korali::Sample &s)
     }
 
     // Append agent to argument string
-    argumentString += AGENT + AGENTANGLE + std::to_string(initialData[0]) + AGENTPOSX + std::to_string(initialData[1]) + AGENTPOSY + std::to_string(initialData[2]) + AGENTPOSZ;
+    if( a == 0 )
+      argumentString += AGENT + " bFixed=1 " + AGENTANGLE + std::to_string(initialData[0]) + AGENTPOSX + std::to_string(initialData[1]) + AGENTPOSY + std::to_string(initialData[2]) + AGENTPOSZ;
+    else
+      argumentString += AGENT + AGENTANGLE + std::to_string(initialData[0]) + AGENTPOSX + std::to_string(initialData[1]) + AGENTPOSY + std::to_string(initialData[2]) + AGENTPOSZ;
   }
 
   // printf("%s\n",argumentString.c_str());
@@ -326,12 +329,21 @@ bool isTerminal(StefanFish *agent)
   const double X = agent->position[0];
   const double Y = agent->position[1];
 
-  // Get margins
-  const double xMin = 0.1;
-  const double xMax = 1.9;
+// // 4 SWIMMERS
+// // small domain
+// std::vector<std::vector<double>> initialPositions{{
+//   {0.60, 0.50},
+//   {0.90, 0.425},
+//   {0.90, 0.575},
+//   {1.20, 0.50}
+// }};
 
-  const double yMin = 0.1;
-  const double yMax = 0.9;
+  // Get margins
+  const double xMin = 0.1; //0.4;
+  const double xMax = 1.9; //1.6;
+
+  const double yMin = 0.1; //0.3;
+  const double yMax = 0.9; //0.7;
 
   // Check if Swimmer is out of Bounds
   bool terminal = false;

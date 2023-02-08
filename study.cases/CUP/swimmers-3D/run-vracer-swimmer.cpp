@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
   e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tanh";
 
   ////// Defining Termination Criteria
-  e["Solver"]["Termination Criteria"]["Max Experiences"] = 5e5;
+  e["Solver"]["Termination Criteria"]["Max Experiences"] = 1e6;
 
   ////// Setting Korali output configuration
   e["Console Output"]["Verbosity"] = "Normal";
