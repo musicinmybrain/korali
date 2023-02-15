@@ -8,6 +8,7 @@
 #include <numeric> // std::iota
 #include <stdio.h>
 #include <unistd.h>
+#include <gsl/gsl_cdf.h>
 
 namespace korali
 {
@@ -68,9 +69,6 @@ void CMAES::setInitialConfiguration()
     if (_k->_variables[i]->_granularity > 0.0) _hasDiscreteVariables = true;
     else _onlyDiscreteVariables = false;
   }
-
-  // If all variables are discrete, set _hasDiscreteVariables to false
-  if( _onlyDiscreteVariables ) _hasDiscreteVariables = false;
 
   // Allocating Memory
   _samplePopulation.resize(s_max);
@@ -517,7 +515,7 @@ void CMAES::sampleSingle(size_t sampleIdx, const std::vector<double> &randomNumb
       _samplePopulation[sampleIdx][d] = _currentMean[d] + _sigma * _bDZMatrix[sampleIdx * _variableCount + d];
     }
 
-  if (_hasDiscreteVariables)
+  if (_hasDiscreteVariables && !_onlyDiscreteVariables)
   {
     if ((sampleIdx + 1) < _numberOfDiscreteMutations)
     {
@@ -547,6 +545,24 @@ void CMAES::sampleSingle(size_t sampleIdx, const std::vector<double> &randomNumb
         }
     }
   }
+
+  if( _onlyDiscreteVariables )
+    for (size_t d = 0; d < _variableCount; ++d)
+    {
+      // Compute normal CFD
+      const double CFD = normalCDF(_samplePopulation[sampleIdx][d], _currentMean[d], 1.0);
+
+      // Compute n and p [approximated via rounded mean]
+      const size_t n = _k->_variables[d]->_lowerBound - _k->_variables[d]->_lowerBound;
+      const int mean = std::round(_currentMean[d]) - _k->_variables[d]->_lowerBound;
+      const double p = mean / n;
+
+      // Invert CFD of binomial
+      size_t k = 0;
+      for(; k<n; k++ )
+        if( gsl_cdf_binomial_P(k, p, n) >= CFD ) break;
+      _samplePopulation[sampleIdx][d] = k;
+    }
 }
 
 void CMAES::updateDistribution()
@@ -670,7 +686,7 @@ void CMAES::updateDistribution()
   adaptC(hsig);
 
   /* update masking matrix */
-  if (_hasDiscreteVariables) updateDiscreteMutationMatrix();
+  if (_hasDiscreteVariables && !_onlyDiscreteVariables) updateDiscreteMutationMatrix();
 
   /* update viability bounds */
   if (_hasConstraints && (_isViabilityRegime == true)) updateViabilityBoundaries();
@@ -731,8 +747,8 @@ void CMAES::updateSigma()
 
     _sigma *= exp((_globalSuccessRate - (_targetSuccessRate / (1.0 - _targetSuccessRate)) * (1 - _globalSuccessRate)) / _dampFactor);
   }
-  /* update for discrte variables */
-  else if (_hasDiscreteVariables)
+  /* update for mixed-integer variables */
+  else if (_hasDiscreteVariables && !_onlyDiscreteVariables)
   {
     double pathL2 = 0.0;
     for (size_t d = 0; d < _variableCount; ++d) pathL2 += _maskingMatrixSigma[d] * _conjugateEvolutionPath[d] * _conjugateEvolutionPath[d];

@@ -65,7 +65,6 @@
 #include "solver/optimizer/AdaBelief/AdaBelief.hpp"
 #include "solver/optimizer/Adam/Adam.hpp"
 #include "solver/optimizer/CMAES/CMAES.hpp"
-#include "solver/optimizer/dCMAES/dCMAES.hpp"
 #include "solver/optimizer/DEA/DEA.hpp"
 #include "solver/optimizer/MADGRAD/MADGRAD.hpp"
 #include "solver/optimizer/MOCMAES/MOCMAES.hpp"
@@ -179,7 +178,6 @@ Module *Module::getModule(knlohmann::json &js, Experiment *e)
   if (iCompare(moduleType, "Agent/Continuous/VRACER")) module = new korali::solver::agent::continuous::VRACER();
   if (iCompare(moduleType, "Agent/Discrete/dVRACER")) module = new korali::solver::agent::discrete::dVRACER();
   if (iCompare(moduleType, "Optimizer/CMAES")) module = new korali::solver::optimizer::CMAES();
-  if (iCompare(moduleType, "Optimizer/dCMAES")) module = new korali::solver::optimizer::dCMAES();
   if (iCompare(moduleType, "Optimizer/DEA")) module = new korali::solver::optimizer::DEA();
   if (iCompare(moduleType, "Optimizer/Rprop")) module = new korali::solver::optimizer::Rprop();
   if (iCompare(moduleType, "Optimizer/Adam")) module = new korali::solver::optimizer::Adam();

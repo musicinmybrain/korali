@@ -23,7 +23,6 @@ korali_config += module_config
 subdir('AdaBelief')
 subdir('Adam')
 subdir('CMAES')
-subdir('dCMAES')
 subdir('DEA')
 subdir('gridSearch')
 subdir('MADGRAD')
