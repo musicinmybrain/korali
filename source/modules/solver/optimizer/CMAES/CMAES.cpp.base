@@ -41,14 +41,6 @@ void __className__::setInitialConfiguration()
     _constraintEvaluations.resize(problemConstraints.size());
   }
 
-  _hasDiscreteVariables = false;
-  /* check _granularity for discrete variables */
-  for (size_t i = 0; i < _k->_variables.size(); i++)
-  {
-    if (_k->_variables[i]->_granularity < 0.0) KORALI_LOG_ERROR("Negative granularity for variable \'%s\'.\n", _k->_variables[i]->_name.c_str());
-    if (_k->_variables[i]->_granularity > 0.0) _hasDiscreteVariables = true;
-  }
-
   _isViabilityRegime = _hasConstraints;
   if (_isViabilityRegime)
   {
@@ -60,6 +52,19 @@ void __className__::setInitialConfiguration()
     _currentPopulationSize = _populationSize;
     _currentMuValue = _muValue;
   }
+
+  /* check _granularity for discrete variables */
+  _hasDiscreteVariables = false;
+  _onlyDiscreteVariables = true;
+  for (size_t i = 0; i < _k->_variables.size(); i++)
+  {
+    if (_k->_variables[i]->_granularity < 0.0) KORALI_LOG_ERROR("Negative granularity for variable \'%s\'.\n", _k->_variables[i]->_name.c_str());
+    if (_k->_variables[i]->_granularity > 0.0) _hasDiscreteVariables = true;
+    else _onlyDiscreteVariables = false;
+  }
+
+  // If all variables are discrete, set _hasDiscreteVariables to false
+  if( _onlyDiscreteVariables ) _hasDiscreteVariables = false;
 
   // Allocating Memory
   _samplePopulation.resize(s_max);

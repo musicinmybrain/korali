@@ -47,14 +47,6 @@ void CMAES::setInitialConfiguration()
     _constraintEvaluations.resize(problemConstraints.size());
   }
 
-  _hasDiscreteVariables = false;
-  /* check _granularity for discrete variables */
-  for (size_t i = 0; i < _k->_variables.size(); i++)
-  {
-    if (_k->_variables[i]->_granularity < 0.0) KORALI_LOG_ERROR("Negative granularity for variable \'%s\'.\n", _k->_variables[i]->_name.c_str());
-    if (_k->_variables[i]->_granularity > 0.0) _hasDiscreteVariables = true;
-  }
-
   _isViabilityRegime = _hasConstraints;
   if (_isViabilityRegime)
   {
@@ -66,6 +58,19 @@ void CMAES::setInitialConfiguration()
     _currentPopulationSize = _populationSize;
     _currentMuValue = _muValue;
   }
+
+  /* check _granularity for discrete variables */
+  _hasDiscreteVariables = false;
+  _onlyDiscreteVariables = true;
+  for (size_t i = 0; i < _k->_variables.size(); i++)
+  {
+    if (_k->_variables[i]->_granularity < 0.0) KORALI_LOG_ERROR("Negative granularity for variable \'%s\'.\n", _k->_variables[i]->_name.c_str());
+    if (_k->_variables[i]->_granularity > 0.0) _hasDiscreteVariables = true;
+    else _onlyDiscreteVariables = false;
+  }
+
+  // If all variables are discrete, set _hasDiscreteVariables to false
+  if( _onlyDiscreteVariables ) _hasDiscreteVariables = false;
 
   // Allocating Memory
   _samplePopulation.resize(s_max);
@@ -1465,6 +1470,14 @@ void CMAES::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Has Discrete Variables");
  }
 
+ if (isDefined(js, "Only Discrete Variables"))
+ {
+ try { _onlyDiscreteVariables = js["Only Discrete Variables"].get<int>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ CMAES ] \n + Key:    ['Only Discrete Variables']\n%s", e.what()); } 
+   eraseValue(js, "Only Discrete Variables");
+ }
+
  if (isDefined(js, "Discrete Mutations"))
  {
  try { _discreteMutations = js["Discrete Mutations"].get<std::vector<double>>();
@@ -1833,6 +1846,7 @@ void CMAES::getConfiguration(knlohmann::json& js)
    js["Normal Constraint Approximation"] = _normalConstraintApproximation;
    js["Best Constraint Evaluations"] = _bestConstraintEvaluations;
    js["Has Discrete Variables"] = _hasDiscreteVariables;
+   js["Only Discrete Variables"] = _onlyDiscreteVariables;
    js["Discrete Mutations"] = _discreteMutations;
    js["Number Of Discrete Mutations"] = _numberOfDiscreteMutations;
    js["Number Masking Matrix Entries"] = _numberMaskingMatrixEntries;

@@ -328,6 +328,10 @@ class CMAES : public Optimizer
   */
    int _hasDiscreteVariables;
   /**
+  * @brief [Internal Use] Flag indicating if all variables are discrete.
+  */
+   int _onlyDiscreteVariables;
+  /**
   * @brief [Internal Use] Vector storing discrete mutations, required for covariance matrix update.
   */
    std::vector<double> _discreteMutations;
