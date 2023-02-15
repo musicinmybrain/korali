@@ -233,6 +233,7 @@ void __className__::runTrainingEpisode(Sample &worker)
   knlohmann::json message;
   message["Action"] = "Send Episodes";
   message["Sample Id"] = worker["Sample Id"];
+  message["Error"] = worker["Error"];
   message["Episodes"] = episode;
   KORALI_SEND_MSG_TO_ENGINE(message);
 
@@ -332,6 +333,9 @@ void __className__::initializeEnvironment(Sample &worker)
   // Initializing rewards
   if (_agentsPerEnvironment == 1) worker["Reward"] = 0.0f;
   if (_agentsPerEnvironment > 1) worker["Reward"] = std::vector<float>(_agentsPerEnvironment, 0.0f);
+
+  // Init error flag
+  worker["Error"] = 0;
 }
 
 void __className__::finalizeEnvironment()
@@ -408,7 +412,7 @@ void __className__::runEnvironment(Sample &worker)
     if (worker["State"][i].size() != _stateVectorSize) KORALI_LOG_ERROR("Agents state vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["State"][i].size(), _stateVectorSize);
 
     for (size_t j = 0; j < _stateVectorSize; j++)
-      if (std::isfinite(worker["State"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu state variable %lu returned an invalid value: %f\n", i, j, worker["State"][i][j].get<float>());
+      if (std::isfinite(worker["State"][i][j].get<float>()) == false) worker["Error"] = 1;
   }
 
   // Normalizing State
@@ -430,7 +434,7 @@ void __className__::runEnvironment(Sample &worker)
 
   // Sanity checks for reward
   for (size_t i = 0; i < _agentsPerEnvironment; i++)
-    if (std::isfinite(worker["Reward"][i].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu reward returned an invalid value: %f\n", i, worker["Reward"][i].get<float>());
+    if (std::isfinite(worker["Reward"][i].get<float>()) == false) worker["Error"] = 1;
 
   // If available actions not given, set all 1s
   std::vector<size_t> availableActions(_actionCount, 1);
@@ -449,6 +453,7 @@ void __className__::runEnvironment(Sample &worker)
   {
     if (worker["Available Actions"][i].size() != _actionCount) KORALI_LOG_ERROR("Available Actions vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["Available Actions"][i].size(), _actionCount);
   }
+
 }
 
 __moduleAutoCode__;

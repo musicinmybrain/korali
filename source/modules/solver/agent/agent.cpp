@@ -397,14 +397,23 @@ void Agent::attendWorker(size_t workerId)
     if (message["Action"] == "Send Episodes")
     {
       // Process every episode received and its experiences (add them to replay memory)
-      processEpisode(message["Episodes"]);
-
-      // Increasing total experience counters
-      _experienceCount += message["Episodes"]["Experiences"].size();
-      _sessionExperienceCount += message["Episodes"]["Experiences"].size();
+      if (message["Error"] == 0)
+      {
+        processEpisode(message["Episodes"]);
+      }
+      else
+      {
+        _k->_logger->logInfo("Detailed", "Message contains error, skip processing of episode...\n");
+      }
 
       // Waiting for the agent to come back with all the information
       KORALI_WAIT(_workers[workerId]);
+
+      if (message["Error"] == 0)
+      {
+        // Increasing total experience counters
+        _experienceCount += message["Episodes"]["Experiences"].size();
+        _sessionExperienceCount += message["Episodes"]["Experiences"].size();
 
       // Getting the training reward of the latest episodes
       _trainingLastReward = KORALI_GET(std::vector<float>, _workers[workerId], "Training Rewards");
@@ -442,6 +451,7 @@ void Agent::attendWorker(size_t workerId)
         }
       }
 
+      }
       // Obtaining profiling information
       _sessionWorkerComputationTime += KORALI_GET(double, _workers[workerId], "Computation Time");
       _sessionWorkerCommunicationTime += KORALI_GET(double, _workers[workerId], "Communication Time");
