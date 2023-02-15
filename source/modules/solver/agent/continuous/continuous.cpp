@@ -106,7 +106,7 @@ void Continuous::getAction(korali::Sample &sample)
   {
     // Getting current state
     auto state = sample["State"][i].get<std::vector<float>>();
-    
+
     // Check state
     for (size_t j = 0; j < _problem->_stateVectorSize; j++)
       if (std::isfinite(state[j]) == false) KORALI_LOG_ERROR("Agent %lu received %lu state with an invalid value: %f\n", i, j, state[j]);

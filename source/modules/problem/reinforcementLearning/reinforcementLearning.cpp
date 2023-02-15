@@ -457,7 +457,6 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
   {
     if (worker["Available Actions"][i].size() != _actionCount) KORALI_LOG_ERROR("Available Actions vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["Available Actions"][i].size(), _actionCount);
   }
-
 }
 
 void ReinforcementLearning::setConfiguration(knlohmann::json& js) 
