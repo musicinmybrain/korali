@@ -186,6 +186,16 @@ class Experiment : public Module
   bool _overrideEngine = false;
 
   /**
+   * @brief [Profiling] Measures the amount of time taken since inception
+   */
+  double _sessionRunningTime;
+
+  /**
+   * @brief [Profiling] Measures the amount of time taken by the generation
+   */
+  double _generationRunningTime;
+
+  /**
    * @brief For testing purposes, this field establishes which custom function to use to override the engine on sample execution for testing.
    */
   std::function<void(Sample &)> _overrideFunction;

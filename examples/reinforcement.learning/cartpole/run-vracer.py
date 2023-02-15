@@ -101,6 +101,7 @@ e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tan
 ### Defining Termination Criteria
 
 e["Solver"]["Termination Criteria"]["Max Generations"] = args.maxGenerations
+e["Solver"]["Termination Criteria"]["Max Running Time"] = 10
 
 ### Setting file output configuration
 

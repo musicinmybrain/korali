@@ -92,6 +92,10 @@ class Solver : public Module
   * @brief [Termination Criteria] Determines how many solver generations to run before stopping execution. Execution can be resumed at a later moment.
   */
    size_t _maxGenerations;
+  /**
+  * @brief [Termination Criteria] Maximal running time in seconds for the current session.
+  */
+   double _maxRunningTime;
   
  
   /**

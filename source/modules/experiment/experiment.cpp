@@ -43,7 +43,8 @@ void Experiment::run()
 {
   co_switch(__returnThread);
 
-  auto t0 = std::chrono::system_clock::now();
+  _sessionRunningTime = 0.0;
+  _generationRunningTime = 0.0;
 
   // Saving initial configuration
   if (_currentGeneration == 0)
@@ -74,17 +75,6 @@ void Experiment::run()
     auto t0 = std::chrono::system_clock::now();
     _solver->runGeneration();
 
-    // Timing and Profiling End
-    auto t1 = std::chrono::system_clock::now();
-
-    // Printing results to console
-    if (_consoleOutputFrequency > 0)
-      if (_currentGeneration % _consoleOutputFrequency == 0)
-      {
-        _solver->printGenerationAfter();
-        _logger->logInfo("Detailed", "Experiment: %lu - Generation Time: %.3fs\n", _experimentId, std::chrono::duration<double>(t1 - t0).count());
-      }
-
     // Saving state to a file
     if (_fileOutputEnabled)
       if (_fileOutputFrequency > 0)
@@ -94,6 +84,19 @@ void Experiment::run()
           getConfiguration(_js.getJson());
           saveState();
         }
+
+    // Timing and Profiling End
+    auto t1 = std::chrono::system_clock::now();
+    _generationRunningTime = std::chrono::duration<double>(t1 - t0).count();
+    _sessionRunningTime += _generationRunningTime;
+
+    // Printing results to console
+    if (_consoleOutputFrequency > 0)
+      if (_currentGeneration % _consoleOutputFrequency == 0)
+      {
+        _solver->printGenerationAfter();
+        _logger->logInfo("Detailed", "Experiment: %lu - Generation Time: %.3fs\n", _experimentId, _generationRunningTime);
+      }
 
     _currentGeneration++;
 
@@ -117,7 +120,7 @@ void Experiment::run()
   _logger->logInfo("Minimal", "%s finished correctly.\n", _solver->getType().c_str());
   for (size_t i = 0; i < _solver->_terminationCriteria.size(); i++) _logger->logInfo("Normal", "Termination Criterion Met: %s\n", _solver->_terminationCriteria[i].c_str());
   _logger->logInfo("Normal", "Final Generation: %lu\n", _currentGeneration);
-  _logger->logInfo("Normal", "Elapsed Time: %.3fs\n", std::chrono::duration<double>(t1 - t0).count());
+  _logger->logInfo("Normal", "Elapsed Time: %.3fs\n", _sessionRunningTime);
 }
 
 void Experiment::saveState()

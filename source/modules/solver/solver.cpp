@@ -57,6 +57,15 @@ void Solver::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Termination Criteria']['Max Generations'] required by solver.\n"); 
 
+ if (isDefined(js, "Termination Criteria", "Max Running Time"))
+ {
+ try { _maxRunningTime = js["Termination Criteria"]["Max Running Time"].get<double>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ solver ] \n + Key:    ['Termination Criteria']['Max Running Time']\n%s", e.what()); } 
+   eraseValue(js, "Termination Criteria", "Max Running Time");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Termination Criteria']['Max Running Time'] required by solver.\n"); 
+
  Module::setConfiguration(js);
  _type = ".";
  if(isDefined(js, "Type")) eraseValue(js, "Type");
@@ -69,6 +78,7 @@ void Solver::getConfiguration(knlohmann::json& js)
  js["Type"] = _type;
    js["Termination Criteria"]["Max Model Evaluations"] = _maxModelEvaluations;
    js["Termination Criteria"]["Max Generations"] = _maxGenerations;
+   js["Termination Criteria"]["Max Running Time"] = _maxRunningTime;
    js["Variable Count"] = _variableCount;
    js["Model Evaluation Count"] = _modelEvaluationCount;
  Module::getConfiguration(js);
@@ -77,7 +87,7 @@ void Solver::getConfiguration(knlohmann::json& js)
 void Solver::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Termination Criteria\": {\"Max Model Evaluations\": 1000000000, \"Max Generations\": 10000000000}, \"Variable Count\": 0, \"Model Evaluation Count\": 0}";
+ std::string defaultString = "{\"Termination Criteria\": {\"Max Model Evaluations\": 1000000000, \"Max Generations\": 10000000000, \"Max Running Time\": 10000000000}, \"Variable Count\": 0, \"Model Evaluation Count\": 0}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Module::applyModuleDefaults(js);
@@ -102,6 +112,12 @@ bool Solver::checkTermination()
  if (_k->_currentGeneration > _maxGenerations)
  {
   _terminationCriteria.push_back("solver['Max Generations'] = " + std::to_string(_maxGenerations) + ".");
+  hasFinished = true;
+ }
+
+ if (_k->_sessionRunningTime > _maxRunningTime)
+ {
+  _terminationCriteria.push_back("solver['Max Running Time'] = " + std::to_string(_maxRunningTime) + ".");
   hasFinished = true;
  }
 

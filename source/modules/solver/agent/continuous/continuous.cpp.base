@@ -259,10 +259,14 @@ std::vector<float> __className__::generateTestingAction(const policy_t &curPolic
     // Take only the modes of the Clipped Normal without noise
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)
     {
-      action[i] = curPolicy.distributionParameters[i];
-      // Clip mode to bounds
-      if (action[i] >= _actionUpperBounds[i]) action[i] = _actionUpperBounds[i];
-      if (action[i] <= _actionLowerBounds[i]) action[i] = _actionLowerBounds[i];
+      const float mu = curPolicy.distributionParameters[i];
+      const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+
+      action[i] = mu;
+
+      // Select mode
+      if (normalLogDensity(action[i], mu, sigma) < normalLogDensity(_actionUpperBounds[i], mu, sigma) + 1. - normalCDF(_actionUpperBounds[i], mu, sigma)) action[i] = _actionUpperBounds[i];
+      if (normalLogDensity(action[i], mu, sigma) < normalLogDensity(_actionLowerBounds[i], mu, sigma) + normalCDF(_actionLowerBounds[i], mu, sigma)) action[i] = _actionLowerBounds[i];
     }
   }
 

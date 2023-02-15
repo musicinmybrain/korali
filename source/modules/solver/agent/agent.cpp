@@ -133,7 +133,6 @@ void Agent::initialize()
         deserializeExperienceReplay();
 
   // Initializing session-wise profiling timers
-  _sessionRunningTime = 0.0;
   _sessionSerializationTime = 0.0;
   _sessionWorkerComputationTime = 0.0;
   _sessionWorkerCommunicationTime = 0.0;
@@ -198,10 +197,7 @@ void Agent::runGeneration()
 
 void Agent::trainingGeneration()
 {
-  auto beginTime = std::chrono::steady_clock::now(); // Profiling
-
   // Setting generation-specific timers
-  _generationRunningTime = 0.0;
   _generationSerializationTime = 0.0;
   _generationWorkerComputationTime = 0.0;
   _generationWorkerCommunicationTime = 0.0;
@@ -286,11 +282,6 @@ void Agent::trainingGeneration()
       if (_k->_fileOutputFrequency > 0)
         if (_k->_currentGeneration % _k->_fileOutputFrequency == 0)
           serializeExperienceReplay();
-
-  // Measuring generation time
-  auto endTime = std::chrono::steady_clock::now();                                                             // Profiling
-  _sessionRunningTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling
-  _generationRunningTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
 
   /*********************************************************************
    * Updating statistics/bookkeeping
@@ -1414,7 +1405,7 @@ void Agent::printGenerationAfter()
     _k->_logger->logInfo("Detailed", " + Avg Worker Communication/Wait Time:    [%5.3fs] - [%3.3fs]\n", _generationWorkerCommunicationTime / 1.0e+9, _sessionWorkerCommunicationTime / 1.0e+9);
     _k->_logger->logInfo("Detailed", " + Avg Policy Evaluation Time:            [%5.3fs] - [%3.3fs]\n", _generationPolicyEvaluationTime / 1.0e+9, _sessionPolicyEvaluationTime / 1.0e+9);
     _k->_logger->logInfo("Detailed", " + Policy Update Time:                    [%5.3fs] - [%3.3fs]\n", _generationPolicyUpdateTime / 1.0e+9, _sessionPolicyUpdateTime / 1.0e+9);
-    _k->_logger->logInfo("Detailed", " + Running Time:                          [%5.3fs] - [%3.3fs]\n", _generationRunningTime / 1.0e+9, _sessionRunningTime / 1.0e+9);
+    _k->_logger->logInfo("Detailed", " + Running Time:                          [%5.3fs] - [%3.3fs]\n", _k->_generationRunningTime, _k->_sessionRunningTime);
     _k->_logger->logInfo("Detailed", " + [I/O] Result File Saving Time:         [%5.3fs]\n", _k->_resultSavingTime / 1.0e+9);
   }
 

@@ -539,11 +539,6 @@ class Agent : public Solver
    ***************************************************************************************************/
 
   /**
-   * @brief [Profiling] Measures the amount of time taken by the generation
-   */
-  double _sessionRunningTime;
-
-  /**
    * @brief [Profiling] Measures the amount of time taken by ER serialization
    */
   double _sessionSerializationTime;
@@ -576,11 +571,6 @@ class Agent : public Solver
   /****************************************************************************************************
    * Generation-wise Profiling Timers
    ***************************************************************************************************/
-
-  /**
-   * @brief [Profiling] Measures the amount of time taken by the generation
-   */
-  double _generationRunningTime;
 
   /**
    * @brief [Profiling] Measures the amount of time taken by ER serialization
