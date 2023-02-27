@@ -248,8 +248,14 @@ void Agent::trainingGeneration()
       {
         auto beginTime = std::chrono::steady_clock::now(); // Profiling
 
+        // Generate minibatch
+        const auto miniBatch = generateMiniBatch();
+          
+        // Gathering state sequences for selected minibatch
+        const auto stateSequenceBatch = getMiniBatchStateSequence(miniBatch);
+
         // Calling the algorithm specific policy training algorithm
-        trainPolicy();
+        trainPolicy(miniBatch, stateSequenceBatch, {});
 
         auto endTime = std::chrono::steady_clock::now();                                                                  // Profiling
         _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling

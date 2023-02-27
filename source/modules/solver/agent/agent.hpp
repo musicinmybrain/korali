@@ -759,8 +759,11 @@ class Agent : public Solver
 
   /**
    * @brief Trains the policy, based on the new experiences
+   * @param miniBatch TODO
+   * @param stateSequenceBatch TODO
+   * @param policyInfoExternal evaluated states with external policy
    */
-  virtual void trainPolicy() = 0;
+  virtual void trainPolicy(const std::vector<std::pair<size_t,size_t> >& miniBatch, const std::vector<std::vector<std::vector<float>>>& stateSequenceBatch, const std::vector<policy_t>& policyInfoExternal) = 0;
 
   /**
    * @brief Obtains the policy hyperaparamters from the learner for the agent to generate new actions
