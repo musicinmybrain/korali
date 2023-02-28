@@ -127,14 +127,11 @@ void __className__::runTrainingEpisode(Sample &worker)
   // Saving experiences
   while (worker["Termination"] == "Non Terminal")
   {
-    // Generating new action from the agent's policy
-    getAction(worker);
-
     // Store the current state in the experience
-    episode["Experiences"][actionCount]["State"] = worker["State"];
+    episode["Experiences"][actionCount]["State"] = KORALI_GET(std::vector<float>, worker, "State");
 
     // Storing the current action
-    episode["Experiences"][actionCount]["Action"] = worker["Action"];
+    episode["Experiences"][actionCount]["Action"] = KORALI_GET(std::vector<float>, worker, "Action");
 
     // Storing the experience's policy
     episode["Experiences"][actionCount]["Policy"] = worker["Policy"];
@@ -234,6 +231,28 @@ void __className__::runTrainingEpisode(Sample &worker)
   message["Action"] = "Send Episodes";
   message["Sample Id"] = worker["Sample Id"];
   message["Episodes"] = episode;
+
+  // Sending evaluated mini batches
+  if (worker.contains("Mini Batch"))
+    if (worker.contains("Distribution Params") == false)
+      KORALI_LOG_ERROR("State sequence not evaluated in environment. Sample object does not contain Distribution Params");
+
+  if ((worker.contains("Mini Batch") and worker.contains("Distribution Params")) == true)
+  {
+    //const auto miniBatchList = KORALI_GET(std::vector<std::vector<std::pair<size_t, size_t>>>, worker, "Mini Batch");
+    const auto miniBatchList = KORALI_GET(std::vector<std::vector<std::vector<size_t>>>, worker, "Mini Batch");
+    const auto distributionParamsList = KORALI_GET(std::vector<std::vector<std::vector<float>>>, worker, "Distribution Params");
+
+    if (miniBatchList.size() != distributionParamsList.size())
+        KORALI_LOG_ERROR("Distribution Params length (%zu) does not match Mini Batch length (%zu)", distributionParamsList.size(), miniBatchList.size());
+
+    if (distributionParamsList[0][0].size() != 2 * _actionVectorSize)
+      KORALI_LOG_ERROR("Distribution Params must be of size %zu but are of size %zu", 2 * _actionVectorSize, distributionParamsList[0][0].size());
+
+    message["Mini Batch"] = miniBatchList;
+    message["Distribution Params"] = distributionParamsList;
+  }
+
   KORALI_SEND_MSG_TO_ENGINE(message);
 
   // Adding profiling information to worker
@@ -268,8 +287,6 @@ void __className__::runTestingEpisode(Sample &worker)
   // Running environment using the last policy only
   while (worker["Termination"] == "Non Terminal")
   {
-    getAction(worker);
-
     // If single agent, put action into a single vector
     // In case of this being a single agent, support returning action as only vector
     if (_agentsPerEnvironment == 1) worker["Action"] = worker["Action"][0].get<std::vector<float>>();
@@ -279,7 +296,7 @@ void __className__::runTestingEpisode(Sample &worker)
     // In case of this being a single agent, revert action format
     if (_agentsPerEnvironment == 1)
     {
-      auto action = KORALI_GET(std::vector<float>, worker, "Action");
+      const auto action = KORALI_GET(std::vector<float>, worker, "Action");
       worker._js.getJson().erase("Action");
       worker["Action"][0] = action;
     }
@@ -358,17 +375,6 @@ void __className__::requestNewPolicy(Sample &worker)
 
   auto t1 = std::chrono::steady_clock::now();                                                       // Profiling
   _agentCommunicationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count(); // Profiling
-}
-
-void __className__::getAction(Sample &worker)
-{
-  // Generating new action from policy
-  auto t0 = std::chrono::steady_clock::now(); // Profiling
-
-  _agent->getAction(worker);
-
-  auto t1 = std::chrono::steady_clock::now();                                                          // Profiling
-  _agentPolicyEvaluationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count(); // Profiling
 }
 
 void __className__::runEnvironment(Sample &worker)

@@ -218,6 +218,32 @@ void __className__::trainingGeneration()
         _workers[workerId]["State Rescaling"]["Means"] = _stateRescalingMeans;
         _workers[workerId]["State Rescaling"]["Standard Deviations"] = _stateRescalingSigmas;
 
+        int i = 0;
+        // If we accumulated enough experiences between updates in this session, update now
+        if (_experienceCount >= _experienceReplayStartSize)
+          while (_sessionExperienceCount > (_experiencesBetweenPolicyUpdates * _sessionPolicyUpdateCount + _sessionExperiencesUntilStartSize))
+          {
+            // Generate minibatch
+            const auto miniBatch = generateMiniBatch();
+
+            // Gathering state sequences for selected minibatch
+            const auto stateSequenceBatch = getMiniBatchStateSequence(miniBatch);
+
+            // Send state sequence to worker
+            _workers[workerId]["Mini Batch"][i] = miniBatch;
+            _workers[workerId]["State Sequence Batch"][i] = stateSequenceBatch;
+            i++;
+
+            // If we accumulated enough experiences, we rescale the states (once)
+            if (_stateRescalingEnabled == true)
+              if (_policyUpdateCount == 0)
+                rescaleStates();
+
+            // Increasing policy update counters
+            _policyUpdateCount++;
+            _sessionPolicyUpdateCount++;
+          }
+
         KORALI_START(_workers[workerId]);
 
         _isWorkerRunning[workerId] = true;
@@ -231,53 +257,8 @@ void __className__::trainingGeneration()
       if (_isWorkerRunning[workerId] == true)
         attendWorker(workerId);
 
-    // Perform optimization steps on the critic/policy, if reached the minimum replay memory size
-    if (_experienceCount >= _experienceReplayStartSize)
-    {
-      // If we accumulated enough experiences, we rescale the states (once)
-      if (_stateRescalingEnabled == true)
-        if (_policyUpdateCount == 0)
-          rescaleStates();
-
-      // If we accumulated enough experiences between updates in this session, update now
-      while (_sessionExperienceCount > (_experiencesBetweenPolicyUpdates * _sessionPolicyUpdateCount + _sessionExperiencesUntilStartSize))
-      {
-        auto beginTime = std::chrono::steady_clock::now(); // Profiling
-
-        // Generate minibatch
-        const auto miniBatch = generateMiniBatch();
-          
-        // Gathering state sequences for selected minibatch
-        const auto stateSequenceBatch = getMiniBatchStateSequence(miniBatch);
-
-        // Calling the algorithm specific policy training algorithm
-        trainPolicy(miniBatch, stateSequenceBatch, {});
-
-        auto endTime = std::chrono::steady_clock::now();                                                                  // Profiling
-        _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling
-        _generationPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
-
-        // Increasing policy update counters
-        _policyUpdateCount++;
-        _sessionPolicyUpdateCount++;
-
-        // Updating the off policy cutoff
-        _experienceReplayOffPolicyCurrentCutoff = _experienceReplayOffPolicyCutoffScale / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
-
-        for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
-        {
-          // Updating REFER learning rate and beta parameters
-          _currentLearningRate = _learningRate / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
-          if (_experienceReplayOffPolicyRatio[a] > _experienceReplayOffPolicyTarget)
-            _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a];
-          else
-            _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a] + _currentLearningRate;
-        }
-      }
-
-      // Getting new policy hyperparameters (for agents to generate actions)
-      _trainingCurrentPolicies = getPolicy();
-    }
+    // Getting new policy hyperparameters (for agents to generate actions)
+    _trainingCurrentPolicies = getPolicy();
   }
 
   // Now serializing experience replay database
@@ -393,6 +374,36 @@ void __className__::attendWorker(size_t workerId)
     {
       // Process every episode received and its experiences (add them to replay memory)
       processEpisode(message["Episodes"]);
+
+      if (isDefined(message, "Mini Batch"))
+      {
+            const auto beginTime = std::chrono::steady_clock::now(); // Profiling
+    
+            const auto miniBatchList = message["Mini Batch"].get<std::vector<std::vector<std::pair<size_t,size_t>>>>();
+            const auto distributionParamsList = message["Distribution Params"].get<std::vector<std::vector<std::vector<float>>>>();
+            // Train policy for all mini batches
+            for(size_t i = 0; i < miniBatchList.size(); ++i)
+            {
+                trainPolicy(miniBatchList[i], distributionParamsList[i]);
+            }
+
+            const auto endTime = std::chrono::steady_clock::now();                                                                  // Profiling
+            _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling
+            _generationPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
+
+            // Updating the off policy cutoff
+            _experienceReplayOffPolicyCurrentCutoff = _experienceReplayOffPolicyCutoffScale / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
+
+            for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
+            {
+              // Updating REFER learning rate and beta parameters
+              _currentLearningRate = _learningRate / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
+              if (_experienceReplayOffPolicyRatio[a] > _experienceReplayOffPolicyTarget)
+                _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a];
+              else
+                _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a] + _currentLearningRate;
+            }
+      }
 
       // Increasing total experience counters
       _experienceCount += message["Episodes"]["Experiences"].size();

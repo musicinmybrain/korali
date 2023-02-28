@@ -80,7 +80,6 @@ class Discrete : public Agent
    */
   std::vector<float> calculateKLDivergenceGradient(const policy_t &oldPolicy, const policy_t &curPolicy);
 
-  void getAction(korali::Sample &sample) override;
   virtual void initializeAgent() override;
 };
 

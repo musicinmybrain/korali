@@ -31,7 +31,6 @@ class __className__ : public __parentClassName__
    */
   std::vector<float> calculateKLDivergenceGradient(const policy_t &oldPolicy, const policy_t &curPolicy);
 
-  void getAction(korali::Sample &sample) override;
   virtual void initializeAgent() override;
 };
 

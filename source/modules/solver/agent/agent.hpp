@@ -760,10 +760,9 @@ class Agent : public Solver
   /**
    * @brief Trains the policy, based on the new experiences
    * @param miniBatch TODO
-   * @param stateSequenceBatch TODO
-   * @param policyInfoExternal evaluated states with external policy
+   * @param distributionParams evaluated states with external policy
    */
-  virtual void trainPolicy(const std::vector<std::pair<size_t,size_t> >& miniBatch, const std::vector<std::vector<std::vector<float>>>& stateSequenceBatch, const std::vector<policy_t>& policyInfoExternal) = 0;
+  virtual void trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributionParams) = 0;
 
   /**
    * @brief Obtains the policy hyperaparamters from the learner for the agent to generate new actions
@@ -786,12 +785,6 @@ class Agent : public Solver
    * @brief Prints information about the training policy
    */
   virtual void printInformation() = 0;
-
-  /**
-   * @brief Gathers the next action either from the policy or randomly
-   * @param sample Sample on which the action and metadata will be stored
-   */
-  virtual void getAction(korali::Sample &sample) = 0;
 
   void runGeneration() override;
   void printGenerationAfter() override;

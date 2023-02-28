@@ -89,7 +89,7 @@ class VRACER : public Continuous
 
   knlohmann::json getPolicy() override;
   void setPolicy(const knlohmann::json &hyperparameters) override;
-  void trainPolicy(const std::vector<std::pair<size_t,size_t> >& miniBatch, const std::vector<std::vector<std::vector<float>>>& stateSequenceBatch, const std::vector<policy_t>& policyInfoExternal) override;
+  void trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributioParams) override;
   void printInformation() override;
   void initializeAgent() override;
 };

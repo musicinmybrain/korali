@@ -85,46 +85,9 @@ void dVRACER::initializeAgent()
   }
 }
 
-void dVRACER::trainPolicy(const std::vector<std::pair<size_t,size_t> >& miniBatch, const std::vector<std::vector<std::vector<float>>>& stateSequenceBatch, const std::vector<policy_t>& policyInfoExternal)
+void dVRACER::trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributionParams)
 {
-  // Buffer for policy info to update experience metadata
-  std::vector<policy_t> policyInfoUpdateMetadata(miniBatch.size());
-
-  // Get number of policies
-  const size_t numPolicies = _problem->_policiesPerEnvironment;
-
-  // Update all policies using all experiences
-  for (size_t p = 0; p < numPolicies; p++)
-  {
-    /*
-    // Fill policyInfo with behavioral policy (access to availableActions)
-    std::vector<policy_t> policyInfo = getPolicyInfo(miniBatch);
-
-    // Forward NN
-    runPolicy(stateSequenceBatch, policyInfo, p);
-    */
-
-    // Using policy information to update experience's metadata
-    updateExperienceMetadata(miniBatch, policyInfoExternal);
-
-    // Now calculating policy gradients
-    calculatePolicyGradients(miniBatch, p);
-
-    // Updating learning rate for critic/policy learner guided by REFER
-    _criticPolicyLearner[p]->_learningRate = _currentLearningRate;
-
-    // Now applying gradients to update policy NN
-    _criticPolicyLearner[p]->runGeneration();
-
-    // Store policyData for agent p for later update of metadata
-    if (numPolicies > 1)
-      for (size_t b = 0; b < _miniBatchSize; b++)
-        policyInfoUpdateMetadata[b * numPolicies + p] = policyInfoExternal[b * numPolicies + p];
-  }
-
-  // Correct experience metadata
-  if (numPolicies > 1)
-    updateExperienceMetadata(miniBatch, policyInfoUpdateMetadata);
+  KORALI_LOG_ERROR("dVRACER deprecated");
 }
 
 void dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx)

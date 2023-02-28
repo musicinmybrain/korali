@@ -246,6 +246,7 @@ PYBIND11_MODULE(libkorali, m)
   pybind11::class_<Sample>(m, "Sample")
     .def("__getitem__", pybind11::overload_cast<pybind11::object>(&Sample::getItem), pybind11::return_value_policy::reference)
     .def("__setitem__", pybind11::overload_cast<pybind11::object, pybind11::object>(&Sample::setItem), pybind11::return_value_policy::reference)
+    .def("contains", &Sample::contains)
     .def("update", &Sample::update);
 
   pybind11::class_<Experiment>(m, "Experiment")

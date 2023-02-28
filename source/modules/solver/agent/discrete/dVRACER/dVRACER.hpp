@@ -96,7 +96,7 @@ class dVRACER : public Discrete
   void runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policy, size_t policyIdx = 0) override;
   knlohmann::json getPolicy() override;
   void setPolicy(const knlohmann::json &hyperparameters) override;
-  void trainPolicy(const std::vector<std::pair<size_t,size_t> >& miniBatch, const std::vector<std::vector<std::vector<float>>>& stateSequenceBatch, const std::vector<policy_t>& policyInfoExternal) override;
+  void trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributionParams) override;
   void printInformation() override;
   void initializeAgent() override;
 };

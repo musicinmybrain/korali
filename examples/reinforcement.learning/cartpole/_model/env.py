@@ -3,41 +3,67 @@ from cartpole import *
 import pdb
 import numpy as np
 ######## Defining Environment Storage
-
 cart = CartPole()
 maxSteps = 500
 
-def env(s):
+numActions = 1
+theta = np.random.normal(loc=0., scale=0.01, size=(2,4))
+
+def policy(state):
+    global theta
+    
+    action = theta @ state
+    return action
+
+
+def env(sample):
 
  # Initializing environment and random seed
- sampleId = s["Sample Id"]
+ sampleId = sample["Sample Id"]
  cart.reset(sampleId)
- s["State"] = cart.getState().tolist()
+ sample["State"] = cart.getState().tolist()
  step = 0
  done = False
 
- while not done and step < maxSteps:
+ if sample.contains("Mini Batch"):
+     miniBatch = np.array(sample["Mini Batch"])
 
-  # Getting new action
-  s.update()
+     stateSequenceBatch = np.array(sample["State Sequence Batch"])
+     numBatch, effectiveMiniBatchSize, numStates, _ = stateSequenceBatch.shape
+
+     policyParams = np.empty(shape = (numBatch, effectiveMiniBatchSize, 2*numActions), dtype=float)
+     for b, batch in enumerate(stateSequenceBatch):
+         for s, states in enumerate(batch):
+                 policyParams[b,s,:] = policy(states[0])
+
+     sample["Distribution Params"] = policyParams.tolist()
+
+ while not done and step < maxSteps:
   
+  # Calculate policy here and return action
+  action = policy(cart.getState())
+  sample["Action"] = action.tolist()
+ 
+  # Getting new action
+  sample.update()
+ 
   # Performing the action
-  done = cart.advance(s["Action"])
+  done = cart.advance(action)
   
   # Getting Reward
-  s["Reward"] = cart.getReward()
+  sample["Reward"] = cart.getReward()
    
   # Storing New State
-  s["State"] = cart.getState().tolist()
+  sample["State"] = cart.getState().tolist()
   
   # Advancing step counter
   step = step + 1
 
  # Setting finalization status
  if (cart.isOver()):
-  s["Termination"] = "Terminal"
+  sample["Termination"] = "Terminal"
  else:
-  s["Termination"] = "Truncated"
+  sample["Termination"] = "Truncated"
 
 def multienv(s):
 
