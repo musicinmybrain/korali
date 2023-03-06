@@ -729,11 +729,6 @@ class Agent : public Solver
   void trainingGeneration();
 
   /**
-   * @brief Runs a generation when running in testing mode
-   */
-  void testingGeneration();
-
-  /**
    * @brief Rescales states to have a zero mean and unit variance
    */
   void rescaleStates();

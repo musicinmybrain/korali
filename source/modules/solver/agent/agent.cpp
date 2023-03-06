@@ -161,40 +161,11 @@ void Agent::initialize()
     _testingCurrentPolicies.clear();
   }
 
-  if (_mode == "Testing")
-  {
-    // Fixing termination criteria for testing mode
-    _maxGenerations = _k->_currentGeneration + 1;
-
-    // Setting testing policy to best testing hyperparameters if not custom-set by the user
-    if (_testingCurrentPolicies.empty())
-    {
-      // Checking if testing policies have been generated
-      if (_testingBestPolicies.empty())
-      {
-        _k->_logger->logInfo("Minimal", "Using current training policy for testing.\n");
-        _testingCurrentPolicies = _trainingCurrentPolicies;
-      }
-      else
-      {
-        _k->_logger->logInfo("Minimal", "Using best testing policy for test-run.\n");
-        _testingCurrentPolicies = _testingBestPolicies;
-      }
-    }
-
-    // Checking if there's testing samples defined
-    if (_testingSampleIds.size() == 0)
-      KORALI_LOG_ERROR("For testing, you need to indicate the sample ids to run in the ['Testing']['Sample Ids'] field.\n");
-
-    // Prepare storage for rewards from tested samples
-    _testingReward.resize(_testingSampleIds.size());
-  }
 }
 
 void Agent::runGeneration()
 {
   if (_mode == "Training") trainingGeneration();
-  if (_mode == "Testing") testingGeneration();
 }
 
 void Agent::trainingGeneration()
@@ -227,6 +198,7 @@ void Agent::trainingGeneration()
         if (_experienceCount >= _experienceReplayStartSize)
           while (_sessionExperienceCount > (_experiencesBetweenPolicyUpdates * _sessionPolicyUpdateCount + _sessionExperiencesUntilStartSize))
           {
+            printf("1\n");
             // Generate minibatch
             const auto miniBatch = generateMiniBatch();
 
@@ -238,6 +210,7 @@ void Agent::trainingGeneration()
             _workers[workerId]["State Sequence Batch"][i] = stateSequenceBatch;
             i++;
 
+            printf("2\n");
             // If we accumulated enough experiences, we rescale the states (once)
             if (_stateRescalingEnabled == true)
               if (_policyUpdateCount == 0)
@@ -249,22 +222,26 @@ void Agent::trainingGeneration()
           }
 
         KORALI_START(_workers[workerId]);
+        printf("AA\n");
 
         _isWorkerRunning[workerId] = true;
       }
 
     // Listening to _workers for incoming experiences
     KORALI_LISTEN(_workers);
+    printf("BB\n");
 
     // Attending to running agents, checking if any experience has been received
     for (size_t workerId = 0; workerId < _concurrentWorkers; workerId++)
       if (_isWorkerRunning[workerId] == true)
         attendWorker(workerId);
 
+    printf("CC\n");
     // Getting new policy hyperparameters (for agents to generate actions)
     _trainingCurrentPolicies = getPolicy();
   }
 
+  printf("DD\n");
   // Now serializing experience replay database
   if (_experienceReplaySerialize == true)
     if (_k->_fileOutputEnabled)
@@ -290,31 +267,6 @@ void Agent::trainingGeneration()
 
   // Increasing session's generation count
   _sessionGeneration++;
-}
-
-void Agent::testingGeneration()
-{
-  // Allocating testing agents
-  std::vector<Sample> testingWorkers(_testingSampleIds.size());
-
-  // Launching  agents
-  for (size_t workerId = 0; workerId < _testingSampleIds.size(); workerId++)
-  {
-    testingWorkers[workerId]["Sample Id"] = _testingSampleIds[workerId];
-    testingWorkers[workerId]["Module"] = "Problem";
-    testingWorkers[workerId]["Operation"] = "Run Testing Episode";
-    for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-      testingWorkers[workerId]["Policy Hyperparameters"][p] = _testingCurrentPolicies["Policy Hyperparameters"][p];
-    testingWorkers[workerId]["State Rescaling"]["Means"] = _stateRescalingMeans;
-    testingWorkers[workerId]["State Rescaling"]["Standard Deviations"] = _stateRescalingSigmas;
-
-    KORALI_START(testingWorkers[workerId]);
-  }
-
-  KORALI_WAITALL(testingWorkers);
-
-  for (size_t workerId = 0; workerId < _testingSampleIds.size(); workerId++)
-    _testingReward[workerId] = KORALI_GET(float, testingWorkers[workerId], "Testing Reward");
 }
 
 void Agent::rescaleStates()
@@ -376,11 +328,15 @@ void Agent::attendWorker(size_t workerId)
     // Process episode(s) incoming from the agent(s)
     if (message["Action"] == "Send Episodes")
     {
+        
+      printf("PP\n");
       // Process every episode received and its experiences (add them to replay memory)
       processEpisode(message["Episodes"]);
+      printf("OO\n");
 
       if (isDefined(message, "Mini Batch"))
       {
+        printf("QQ\n");
             const auto beginTime = std::chrono::steady_clock::now(); // Profiling
     
             const auto miniBatchList = message["Mini Batch"].get<std::vector<std::vector<std::pair<size_t,size_t>>>>();
@@ -432,26 +388,6 @@ void Agent::attendWorker(size_t workerId)
       // Storing bookkeeping information
       _trainingExperienceHistory.push_back(message["Episodes"]["Experiences"].size());
 
-      // If the policy has exceeded the threshold during training, we gather its statistics
-      if (_workers[workerId]["Tested Policy"] == true)
-      {
-        _testingCandidateCount++;
-        _testingBestReward = KORALI_GET(float, _workers[workerId], "Best Testing Reward");
-        _testingWorstReward = KORALI_GET(float, _workers[workerId], "Worst Testing Reward");
-        _testingAverageReward = KORALI_GET(float, _workers[workerId], "Average Testing Reward");
-        _testingAverageRewardHistory.push_back(_testingAverageReward);
-
-        // If the average testing reward is better than the previous best, replace it
-        // and store hyperparameters as best so far.
-        if (_testingAverageReward > _testingBestAverageReward)
-        {
-          _testingBestAverageReward = _testingAverageReward;
-          _testingBestEpisodeId = episodeId;
-          for (size_t d = 0; d < _problem->_policiesPerEnvironment; ++d)
-            _testingBestPolicies["Policy Hyperparameters"][d] = _workers[workerId]["Policy Hyperparameters"][d];
-        }
-      }
-
       // Obtaining profiling information
       _sessionWorkerComputationTime += KORALI_GET(double, _workers[workerId], "Computation Time");
       _sessionWorkerCommunicationTime += KORALI_GET(double, _workers[workerId], "Communication Time");
@@ -488,15 +424,22 @@ void Agent::processEpisode(knlohmann::json &episode)
   const size_t episodeExperienceCount = episode["Experiences"].size();
   for (size_t expId = 0; expId < episodeExperienceCount; expId++)
   {
+    
     // Put state to replay memory
+    printf("q1\n");
     _stateBuffer.add(episode["Experiences"][expId]["State"].get<std::vector<std::vector<float>>>());
 
+    printf("q2\n");
     // Get action and put it to replay memory
-    _actionBuffer.add(episode["Experiences"][expId]["Action"].get<std::vector<std::vector<float>>>());
+    if (numAgents == 1)
+        _actionBuffer.add( {episode["Experiences"][expId]["Action"].get<std::vector<float>>()} );
+    else
+        _actionBuffer.add(episode["Experiences"][expId]["Action"].get<std::vector<std::vector<float>>>());
 
-    // Get reward
-    std::vector<float> reward = episode["Experiences"][expId]["Reward"].get<std::vector<float>>();
+    printf("q3\n");
+    auto reward = episode["Experiences"][expId]["Reward"].get<std::vector<float>>();
 
+    printf("q4\n");
     // For cooporative multi-agent model rewards are averaged
     if (_multiAgentRelationship == "Cooperation")
     {
@@ -527,6 +470,7 @@ void Agent::processEpisode(knlohmann::json &episode)
       }
     }
 
+    printf("q5\n");
     // Put reward to replay memory
     for (size_t a = 0; a < numAgents; a++)
       _rewardBufferContiguous.add(reward[a]);
@@ -540,6 +484,7 @@ void Agent::processEpisode(knlohmann::json &episode)
     std::vector<std::vector<float>> truncatedState;
     std::vector<float> truncatedStateValue;
 
+    printf("q6\n");
     if (episode["Experiences"][expId]["Termination"] == "Non Terminal") termination = e_nonTerminal;
     if (episode["Experiences"][expId]["Termination"] == "Terminal") termination = e_terminal;
     if (episode["Experiences"][expId]["Termination"] == "Truncated")
@@ -552,6 +497,7 @@ void Agent::processEpisode(knlohmann::json &episode)
     _truncatedStateBuffer.add(truncatedState);
     _truncatedStateValueBuffer.add(truncatedStateValue);
 
+    printf("q7\n");
     // Getting policy information and state value
     std::vector<policy_t> expPolicy(numAgents);
     std::vector<float> stateValue(numAgents);
@@ -571,9 +517,11 @@ void Agent::processEpisode(knlohmann::json &episode)
     for (size_t a = 0; a < numAgents; a++)
       _stateValueBufferContiguous.add(stateValue[a]);
 
+    printf("q8\n");
     /* Story policy information for continuous action spaces */
     if (isDefined(episode["Experiences"][expId], "Policy", "Distribution Parameters"))
     {
+      printf("q8b\n");
       const auto distParams = episode["Experiences"][expId]["Policy"]["Distribution Parameters"].get<std::vector<std::vector<float>>>();
       for (size_t a = 0; a < numAgents; a++)
         expPolicy[a].distributionParameters = distParams[a];
@@ -612,6 +560,7 @@ void Agent::processEpisode(knlohmann::json &episode)
       }
     }
 
+    printf("q9\n");
     // Storing policy information in replay memory
     _expPolicyBuffer.add(expPolicy);
     _curPolicyBuffer.add(expPolicy);

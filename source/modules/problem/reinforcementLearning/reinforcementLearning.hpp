@@ -119,12 +119,6 @@ class ReinforcementLearning : public Problem
   void runTrainingEpisode(korali::Sample &agent);
 
   /**
-   * @brief Runs an episode of the agent within the environment with actions produced by the policy only.
-   * @param agent Sample containing current agent/state information.
-   */
-  void runTestingEpisode(korali::Sample &agent);
-
-  /**
    * @brief Initializes the environment and agent configuration
    * @param agent Sample containing current agent/state information.
    */
