@@ -198,7 +198,6 @@ void Agent::trainingGeneration()
         if (_experienceCount >= _experienceReplayStartSize)
           while (_sessionExperienceCount > (_experiencesBetweenPolicyUpdates * _sessionPolicyUpdateCount + _sessionExperiencesUntilStartSize))
           {
-            printf("1\n");
             // Generate minibatch
             const auto miniBatch = generateMiniBatch();
 
@@ -210,7 +209,6 @@ void Agent::trainingGeneration()
             _workers[workerId]["State Sequence Batch"][i] = stateSequenceBatch;
             i++;
 
-            printf("2\n");
             // If we accumulated enough experiences, we rescale the states (once)
             if (_stateRescalingEnabled == true)
               if (_policyUpdateCount == 0)
@@ -222,26 +220,22 @@ void Agent::trainingGeneration()
           }
 
         KORALI_START(_workers[workerId]);
-        printf("AA\n");
 
         _isWorkerRunning[workerId] = true;
       }
 
     // Listening to _workers for incoming experiences
     KORALI_LISTEN(_workers);
-    printf("BB\n");
 
     // Attending to running agents, checking if any experience has been received
     for (size_t workerId = 0; workerId < _concurrentWorkers; workerId++)
       if (_isWorkerRunning[workerId] == true)
         attendWorker(workerId);
 
-    printf("CC\n");
     // Getting new policy hyperparameters (for agents to generate actions)
     _trainingCurrentPolicies = getPolicy();
   }
 
-  printf("DD\n");
   // Now serializing experience replay database
   if (_experienceReplaySerialize == true)
     if (_k->_fileOutputEnabled)
@@ -329,18 +323,15 @@ void Agent::attendWorker(size_t workerId)
     if (message["Action"] == "Send Episodes")
     {
         
-      printf("PP\n");
       // Process every episode received and its experiences (add them to replay memory)
       processEpisode(message["Episodes"]);
-      printf("OO\n");
 
       if (isDefined(message, "Mini Batch"))
       {
-        printf("QQ\n");
             const auto beginTime = std::chrono::steady_clock::now(); // Profiling
     
             const auto miniBatchList = message["Mini Batch"].get<std::vector<std::vector<std::pair<size_t,size_t>>>>();
-            const auto distributionParamsList = message["Distribution Params"].get<std::vector<std::vector<std::vector<float>>>>();
+            const auto distributionParamsList = message["Distribution Parameters"].get<std::vector<std::vector<std::vector<float>>>>();
             // Train policy for all mini batches
             for(size_t i = 0; i < miniBatchList.size(); ++i)
             {
@@ -426,20 +417,16 @@ void Agent::processEpisode(knlohmann::json &episode)
   {
     
     // Put state to replay memory
-    printf("q1\n");
     _stateBuffer.add(episode["Experiences"][expId]["State"].get<std::vector<std::vector<float>>>());
 
-    printf("q2\n");
     // Get action and put it to replay memory
     if (numAgents == 1)
         _actionBuffer.add( {episode["Experiences"][expId]["Action"].get<std::vector<float>>()} );
     else
         _actionBuffer.add(episode["Experiences"][expId]["Action"].get<std::vector<std::vector<float>>>());
 
-    printf("q3\n");
     auto reward = episode["Experiences"][expId]["Reward"].get<std::vector<float>>();
 
-    printf("q4\n");
     // For cooporative multi-agent model rewards are averaged
     if (_multiAgentRelationship == "Cooperation")
     {
@@ -470,7 +457,6 @@ void Agent::processEpisode(knlohmann::json &episode)
       }
     }
 
-    printf("q5\n");
     // Put reward to replay memory
     for (size_t a = 0; a < numAgents; a++)
       _rewardBufferContiguous.add(reward[a]);
@@ -484,7 +470,6 @@ void Agent::processEpisode(knlohmann::json &episode)
     std::vector<std::vector<float>> truncatedState;
     std::vector<float> truncatedStateValue;
 
-    printf("q6\n");
     if (episode["Experiences"][expId]["Termination"] == "Non Terminal") termination = e_nonTerminal;
     if (episode["Experiences"][expId]["Termination"] == "Terminal") termination = e_terminal;
     if (episode["Experiences"][expId]["Termination"] == "Truncated")
@@ -497,7 +482,6 @@ void Agent::processEpisode(knlohmann::json &episode)
     _truncatedStateBuffer.add(truncatedState);
     _truncatedStateValueBuffer.add(truncatedStateValue);
 
-    printf("q7\n");
     // Getting policy information and state value
     std::vector<policy_t> expPolicy(numAgents);
     std::vector<float> stateValue(numAgents);
@@ -517,11 +501,9 @@ void Agent::processEpisode(knlohmann::json &episode)
     for (size_t a = 0; a < numAgents; a++)
       _stateValueBufferContiguous.add(stateValue[a]);
 
-    printf("q8\n");
     /* Story policy information for continuous action spaces */
     if (isDefined(episode["Experiences"][expId], "Policy", "Distribution Parameters"))
     {
-      printf("q8b\n");
       const auto distParams = episode["Experiences"][expId]["Policy"]["Distribution Parameters"].get<std::vector<std::vector<float>>>();
       for (size_t a = 0; a < numAgents; a++)
         expPolicy[a].distributionParameters = distParams[a];
@@ -560,7 +542,6 @@ void Agent::processEpisode(knlohmann::json &episode)
       }
     }
 
-    printf("q9\n");
     // Storing policy information in replay memory
     _expPolicyBuffer.add(expPolicy);
     _curPolicyBuffer.add(expPolicy);

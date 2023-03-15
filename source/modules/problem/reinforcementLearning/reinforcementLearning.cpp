@@ -93,7 +93,6 @@ void __environmentWrapper()
 
 void ReinforcementLearning::runTrainingEpisode(Sample &worker)
 {
-  printf("X\n");
   // Profiling information - Computation and communication time taken by the agent
   _agentPolicyEvaluationTime = 0.0;
   _agentComputationTime = 0.0;
@@ -120,7 +119,8 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
   worker["Termination"] = "Non Terminal";
 
   // Getting first state
-  runEnvironment(worker);
+  if(worker["Termination"] == "Non Terminal")
+    runEnvironment(worker);
 
   // If this is not the leader rank within the worker group, return immediately
   if (_k->_engine->_conduit->isWorkerLeadRank() == false)
@@ -129,11 +129,9 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
     return;
   }
 
-  printf("Y\n");
   // Saving experiences
   while (worker["Termination"] == "Non Terminal")
   {
-    
 	// Getting current state
 	const auto state = worker["State"].get<std::vector<std::vector<float>>>();
 
@@ -152,26 +150,19 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
     // Storing the experience's policy
     episode["Experiences"][actionCount]["Policy"]["State Value"] = stateValue;
     episode["Experiences"][actionCount]["Policy"]["Distribution Parameters"] = worker["Distribution Parameters"];
-    worker._js.getJson().erase("Distribution Parameters");
 
-  printf("Y1\n");
     // Store the current state in the experience
     episode["Experiences"][actionCount]["State"] = worker["State"];
 
-  printf("Y2\n");
     // Storing the current action
     episode["Experiences"][actionCount]["Action"] = worker["Action"];
-    worker._js.getJson().erase("Action");
 
-  printf("Y3\n");
     // Jumping back into the worker's environment
     runEnvironment(worker);
 
-  printf("Y6\n");
     // Storing experience's reward
     episode["Experiences"][actionCount]["Reward"] = worker["Reward"];
 
-  printf("Y7\n");
     // Storing termination status
     episode["Experiences"][actionCount]["Termination"] = worker["Termination"];
 
@@ -188,6 +179,11 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
     // Increasing counter for generated actions
     actionCount++;
 
+	// Cleanup sample object
+    //worker._js.getJson().erase("Action");
+    //worker._js.getJson().erase("Reward");
+    //worker._js.getJson().erase("Termination");
+
     // Checking if we requested the given number of actions in between policy updates and it is not a terminal state
     if ((_actionsBetweenPolicyUpdates > 0) &&
         (worker["Termination"] == "Non Terminal") &&
@@ -195,10 +191,8 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
     {
       requestNewPolicy(worker);
     }
-    printf("Z\n");
   }
 
-  printf("Z1\n");
   // Setting cumulative reward
   worker["Training Rewards"] = trainingRewards;
 
@@ -219,14 +213,16 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
   message["Sample Id"] = worker["Sample Id"];
   message["Episodes"] = episode;
 
-  printf("Z2\n");
   // Sending evaluated mini batches
   if (worker.contains("Mini Batch"))
+  {
+    if (worker.contains("State Sequence Batch") == false)
+      KORALI_LOG_ERROR("State sequence not available. Sample object does not conaint State Sequence Batch");
+
     if (worker.contains("Distribution Parameters") == false)
       KORALI_LOG_ERROR("State sequence not evaluated in environment. Sample object does not contain Distribution Parameters");
-
-  if ((worker.contains("Mini Batch") and worker.contains("Distribution Parameters")) == true)
-  {
+    else
+    {
     //const auto miniBatchList = KORALI_GET(std::vector<std::vector<std::pair<size_t, size_t>>>, worker, "Mini Batch");
     const auto miniBatchList = KORALI_GET(std::vector<std::vector<std::vector<size_t>>>, worker, "Mini Batch");
     const auto distributionParamsList = KORALI_GET(std::vector<std::vector<std::vector<float>>>, worker, "Distribution Parameters");
@@ -238,17 +234,22 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
       KORALI_LOG_ERROR("Distribution Parameters must be of size %zu but are of size %zu", 2 * _actionVectorSize, distributionParamsList[0][0].size());
 
     message["Mini Batch"] = miniBatchList;
-    message["Distribution Paramseter"] = distributionParamsList;
+    message["Distribution Parameters"] = distributionParamsList;
+
+    }
+
+    // Cleanup
+    worker._js.getJson().erase("Mini Batch");
+    worker._js.getJson().erase("State Sequence Batch");
+    //worker._js.getJson().erase("Distribution Parameters");
   }
 
-  printf("Z3\n");
   KORALI_SEND_MSG_TO_ENGINE(message);
 
   // Adding profiling information to worker
   worker["Computation Time"] = _agentComputationTime;
   worker["Communication Time"] = _agentCommunicationTime;
   worker["Policy Evaluation Time"] = _agentPolicyEvaluationTime;
-  printf("Z4\n");
 }
 
 void ReinforcementLearning::initializeEnvironment(Sample &worker)
@@ -313,7 +314,6 @@ void ReinforcementLearning::requestNewPolicy(Sample &worker)
 
 void ReinforcementLearning::runEnvironment(Sample &worker)
 {
-  printf("A\n");
   // Switching back to the environment's thread
   auto beginTime = std::chrono::steady_clock::now(); // Profiling
 
@@ -323,6 +323,9 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
 
   // In case of this being a single worker, preprocess state and reward if necessary
   if (_conduit->isWorkerLeadRank() == false) return;
+  
+  // We are in a mini batch evaluation episode, to nothing..
+  if(worker.contains("Mini Batch")) return;
 
   // In case of this being a single agent, support returning state as only vector
   if (_agentsPerEnvironment == 1)
@@ -332,23 +335,17 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
     worker._js.getJson().erase("State");
     worker["State"][0] = state;
 
-  printf("A1\n");
     // Support returning reward as scalar
     const auto reward = KORALI_GET(float, worker, "Reward");
     worker._js.getJson().erase("Reward");
     worker["Reward"][0] = reward;
 
-  printf("A2\n");
     // Support returning distribution params as vector
-	if (worker._js.getJson().contains("Termination") == false)
-    {
     const auto distributionParams = KORALI_GET(std::vector<float>, worker, "Distribution Parameters");
     worker._js.getJson().erase("Distribution Parameters");
     worker["Distribution Parameters"][0] = distributionParams;
-    }
   }
 
-  printf("A3\n");
   // Checking correct format of state
   if (worker["State"].is_array() == false) KORALI_LOG_ERROR("Agent state variable returned by the environment is not a vector.\n");
   if (worker["State"].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Agents state vector returned with the wrong size: %lu, expected: %lu.\n", worker["State"].size(), _agentsPerEnvironment);
@@ -376,7 +373,6 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
     worker["State"][i] = state;
   }
 
-  printf("B\n");
   // Checking correct format of reward
   if (worker["Reward"].is_array() == false) KORALI_LOG_ERROR("Agent reward variable returned by the environment is not a vector.\n");
   if (worker["Reward"].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Agents reward vector returned with the wrong size: %lu, expected: %lu.\n", worker["Reward"].size(), _agentsPerEnvironment);
@@ -402,7 +398,6 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
   {
     if (worker["Available Actions"][i].size() != _actionCount) KORALI_LOG_ERROR("Available Actions vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["Available Actions"][i].size(), _actionCount);
   }
-  printf("C\n");
 }
 
 void ReinforcementLearning::setConfiguration(knlohmann::json& js) 

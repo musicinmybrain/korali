@@ -20,13 +20,7 @@ def policy(state):
 
 def env(sample):
 
- # Initializing environment and random seed
- sampleId = sample["Sample Id"]
- cart.reset(sampleId)
- sample["State"] = cart.getState().tolist()
- step = 0
- done = False
-
+ # If sample contains mini-batch, evaluate the state sequence and return distribution params
  if sample.contains("Mini Batch"):
      miniBatch = np.array(sample["Mini Batch"])
 
@@ -38,18 +32,23 @@ def env(sample):
          for s, states in enumerate(batch):
                  _, policyParams[b,s,:] = policy(states[0])
 
-     print("x")
-     exit()
      sample["Distribution Parameters"] = policyParams.tolist()
+     sample["Termination"] = "Terminal"
+     return
+ 
+ # Initializing environment and random seed
+ sampleId = sample["Sample Id"]
+ cart.reset(sampleId)
+ sample["State"] = cart.getState().tolist()
+ step = 0
+ done = False
 
+ # Else run episode
  while not done and step < maxSteps:
-  
   # Calculate policy here and return action
   action, distParams = policy(cart.getState())
   sample["Action"] = action.tolist()
   sample["Distribution Parameters"] = distParams.tolist()
-  print(step)
-  print(sample["Distribution Parameters"])
  
   # Getting new action
   sample.update()
@@ -66,9 +65,13 @@ def env(sample):
   # Advancing step counter
   step = step + 1
 
+ _, distParams = policy(cart.getState())
+ sample["Distribution Parameters"] = distParams.tolist()
+ 
  # Setting finalization status
  if (cart.isOver()):
   sample["Termination"] = "Terminal"
  else:
   sample["Termination"] = "Truncated"
- print(sample["Termination"])
+ 
+ return
