@@ -20,6 +20,11 @@ def policy(state):
 
 def env(sample):
 
+ # If sample contains gradient, do the gradient update
+ if sample.contains("Gradient"):
+     # We dont reach this yet (TODO inside korali)
+     print("TODO")
+
  # If sample contains mini-batch, evaluate the state sequence and return distribution params
  if sample.contains("Mini Batch"):
      miniBatch = np.array(sample["Mini Batch"])
