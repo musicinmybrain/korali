@@ -21,13 +21,17 @@ def policy(state):
 def env(sample):
 
  # If sample contains gradient, do the gradient update
- if sample.contains("Gradient"):
-     # We dont reach this yet (TODO inside korali)
-     print("TODO")
+ if sample.contains("Gradients"):
+     print("TODO: Received gradient, update external policy!")
+     gradients = np.array(sample["Gradients"]["Gradients"])
+     print(gradients)
+     print(gradients.shape)
 
  # If sample contains mini-batch, evaluate the state sequence and return distribution params
  if sample.contains("Mini Batch"):
      miniBatch = np.array(sample["Mini Batch"])
+     print("Mini Batch received, evaluating state sequences..")
+     print(miniBatch.shape)
 
      stateSequenceBatch = np.array(sample["State Sequence Batch"])
      numBatch, effectiveMiniBatchSize, numStates, _ = stateSequenceBatch.shape

@@ -156,7 +156,6 @@ void __className__::initialize()
     // In case the agent was tested before, remove _testingCurrentPolicies
     _testingCurrentPolicies.clear();
   }
-
 }
 
 void __className__::runGeneration()
@@ -318,38 +317,42 @@ void __className__::attendWorker(size_t workerId)
     // Process episode(s) incoming from the agent(s)
     if (message["Action"] == "Send Episodes")
     {
-        
       // Process every episode received and its experiences (add them to replay memory)
       processEpisode(message["Episodes"]);
 
       if (isDefined(message, "Mini Batch"))
       {
-            const auto beginTime = std::chrono::steady_clock::now(); // Profiling
-    
-            const auto miniBatchList = message["Mini Batch"].get<std::vector<std::vector<std::pair<size_t,size_t>>>>();
-            const auto distributionParamsList = message["Distribution Parameters"].get<std::vector<std::vector<std::vector<float>>>>();
-            // Train policy for all mini batches
-            for(size_t i = 0; i < miniBatchList.size(); ++i)
-            {
-                trainPolicy(miniBatchList[i], distributionParamsList[i]);
-            }
+        const auto beginTime = std::chrono::steady_clock::now(); // Profiling
 
-            const auto endTime = std::chrono::steady_clock::now();                                                                  // Profiling
-            _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling
-            _generationPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
+        const auto miniBatchList = message["Mini Batch"].get<std::vector<std::vector<std::pair<size_t, size_t>>>>();
+        const auto distributionParamsList = message["Distribution Parameters"].get<std::vector<std::vector<std::vector<float>>>>();
 
-            // Updating the off policy cutoff
-            _experienceReplayOffPolicyCurrentCutoff = _experienceReplayOffPolicyCutoffScale / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
+        knlohmann::json msgJson;
 
-            for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
-            {
-              // Updating REFER learning rate and beta parameters
-              _currentLearningRate = _learningRate / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
-              if (_experienceReplayOffPolicyRatio[a] > _experienceReplayOffPolicyTarget)
-                _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a];
-              else
-                _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a] + _currentLearningRate;
-            }
+        // Train policy for all mini batches
+        for (size_t i = 0; i < miniBatchList.size(); ++i)
+        {
+          msgJson["Gradients"][i] = trainPolicy(miniBatchList[i], distributionParamsList[i]);
+        }
+
+        KORALI_SEND_MSG_TO_SAMPLE(_workers[workerId], msgJson);
+
+        const auto endTime = std::chrono::steady_clock::now();                                                            // Profiling
+        _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling
+        _generationPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
+
+        // Updating the off policy cutoff
+        _experienceReplayOffPolicyCurrentCutoff = _experienceReplayOffPolicyCutoffScale / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
+
+        for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
+        {
+          // Updating REFER learning rate and beta parameters
+          _currentLearningRate = _learningRate / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
+          if (_experienceReplayOffPolicyRatio[a] > _experienceReplayOffPolicyTarget)
+            _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a];
+          else
+            _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a] + _currentLearningRate;
+        }
       }
 
       // Increasing total experience counters
@@ -411,15 +414,14 @@ void __className__::processEpisode(knlohmann::json &episode)
   const size_t episodeExperienceCount = episode["Experiences"].size();
   for (size_t expId = 0; expId < episodeExperienceCount; expId++)
   {
-    
     // Put state to replay memory
     _stateBuffer.add(episode["Experiences"][expId]["State"].get<std::vector<std::vector<float>>>());
 
     // Get action and put it to replay memory
     if (numAgents == 1)
-        _actionBuffer.add( {episode["Experiences"][expId]["Action"].get<std::vector<float>>()} );
+      _actionBuffer.add({episode["Experiences"][expId]["Action"].get<std::vector<float>>()});
     else
-        _actionBuffer.add(episode["Experiences"][expId]["Action"].get<std::vector<std::vector<float>>>());
+      _actionBuffer.add(episode["Experiences"][expId]["Action"].get<std::vector<std::vector<float>>>());
 
     auto reward = episode["Experiences"][expId]["Reward"].get<std::vector<float>>();
 
@@ -453,13 +455,14 @@ void __className__::processEpisode(knlohmann::json &episode)
       }
     }
 
-    // Put reward to replay memory
     for (size_t a = 0; a < numAgents; a++)
+    {
+      // Put reward to replay memory
       _rewardBufferContiguous.add(reward[a]);
 
-    // Keeping statistics
-    for (size_t a = 0; a < numAgents; a++)
+      // Keeping statistics
       cumulativeReward[a] += reward[a];
+    }
 
     // Checking and adding experience termination status and truncated state to replay memory
     termination_t termination;

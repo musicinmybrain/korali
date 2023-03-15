@@ -85,13 +85,17 @@ void dVRACER::initializeAgent()
   }
 }
 
-void dVRACER::trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributionParams)
+std::vector<float> dVRACER::trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributionParams)
 {
   KORALI_LOG_ERROR("dVRACER deprecated");
+  return std::vector<float>(0);
 }
 
-void dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx)
+std::vector<float> dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx)
 {
+  KORALI_LOG_ERROR("dVRACER deprecated");
+  return std::vector<float>(0);
+
   // Init statistics
   _statisticsAverageInverseTemperature = 0.;
   _statisticsAverageActionUnlikeability = 0.;

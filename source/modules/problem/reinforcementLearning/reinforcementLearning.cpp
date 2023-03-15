@@ -119,7 +119,7 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
   worker["Termination"] = "Non Terminal";
 
   // Getting first state
-  if(worker["Termination"] == "Non Terminal")
+  if (worker["Termination"] == "Non Terminal")
     runEnvironment(worker);
 
   // If this is not the leader rank within the worker group, return immediately
@@ -132,21 +132,20 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
   // Saving experiences
   while (worker["Termination"] == "Non Terminal")
   {
-	// Getting current state
-	const auto state = worker["State"].get<std::vector<std::vector<float>>>();
+    // Getting current state
+    const auto state = worker["State"].get<std::vector<std::vector<float>>>();
 
-
-  std::vector<float> stateValue(_agentsPerEnvironment);
- // Get action for all the agents in the environment
-  for (size_t i = 0; i < _agentsPerEnvironment; i++)
-  {
-    // Forward state sequence to get the Gaussian means and sigmas from policy
-    // in case of multiple polices it runs the i-th policy otherwise standard
-    if (_policiesPerEnvironment == 1)
-      stateValue[i] = _agent->calculateStateValue({state[i]}, 0);
-    else
-      stateValue[i] = _agent->calculateStateValue({state[i]}, i);
-  }
+    std::vector<float> stateValue(_agentsPerEnvironment);
+    // Get action for all the agents in the environment
+    for (size_t i = 0; i < _agentsPerEnvironment; i++)
+    {
+      // Forward state sequence to get the Gaussian means and sigmas from policy
+      // in case of multiple polices it runs the i-th policy otherwise standard
+      if (_policiesPerEnvironment == 1)
+        stateValue[i] = _agent->calculateStateValue({state[i]}, 0);
+      else
+        stateValue[i] = _agent->calculateStateValue({state[i]}, i);
+    }
     // Storing the experience's policy
     episode["Experiences"][actionCount]["Policy"]["State Value"] = stateValue;
     episode["Experiences"][actionCount]["Policy"]["Distribution Parameters"] = worker["Distribution Parameters"];
@@ -179,7 +178,7 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
     // Increasing counter for generated actions
     actionCount++;
 
-	// Cleanup sample object
+    // Cleanup sample object
     //worker._js.getJson().erase("Action");
     //worker._js.getJson().erase("Reward");
     //worker._js.getJson().erase("Termination");
@@ -195,6 +194,9 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
 
   // Setting cumulative reward
   worker["Training Rewards"] = trainingRewards;
+
+  if (worker.contains("Gradients"))
+    worker._js.getJson().erase("Gradients");
 
   // Finalizing Environment
   finalizeEnvironment();
@@ -223,19 +225,18 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
       KORALI_LOG_ERROR("State sequence not evaluated in environment. Sample object does not contain Distribution Parameters");
     else
     {
-    //const auto miniBatchList = KORALI_GET(std::vector<std::vector<std::pair<size_t, size_t>>>, worker, "Mini Batch");
-    const auto miniBatchList = KORALI_GET(std::vector<std::vector<std::vector<size_t>>>, worker, "Mini Batch");
-    const auto distributionParamsList = KORALI_GET(std::vector<std::vector<std::vector<float>>>, worker, "Distribution Parameters");
+      //const auto miniBatchList = KORALI_GET(std::vector<std::vector<std::pair<size_t, size_t>>>, worker, "Mini Batch");
+      const auto miniBatchList = KORALI_GET(std::vector<std::vector<std::vector<size_t>>>, worker, "Mini Batch");
+      const auto distributionParamsList = KORALI_GET(std::vector<std::vector<std::vector<float>>>, worker, "Distribution Parameters");
 
-    if (miniBatchList.size() != distributionParamsList.size())
+      if (miniBatchList.size() != distributionParamsList.size())
         KORALI_LOG_ERROR("Distribution Parameters length (%zu) does not match Mini Batch length (%zu)", distributionParamsList.size(), miniBatchList.size());
 
-    if (distributionParamsList[0][0].size() != 2 * _actionVectorSize)
-      KORALI_LOG_ERROR("Distribution Parameters must be of size %zu but are of size %zu", 2 * _actionVectorSize, distributionParamsList[0][0].size());
+      if (distributionParamsList[0][0].size() != 2 * _actionVectorSize)
+        KORALI_LOG_ERROR("Distribution Parameters must be of size %zu but are of size %zu", 2 * _actionVectorSize, distributionParamsList[0][0].size());
 
-    message["Mini Batch"] = miniBatchList;
-    message["Distribution Parameters"] = distributionParamsList;
-
+      message["Mini Batch"] = miniBatchList;
+      message["Distribution Parameters"] = distributionParamsList;
     }
 
     // Cleanup
@@ -245,6 +246,11 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
   }
 
   KORALI_SEND_MSG_TO_ENGINE(message);
+
+  if (message.contains("Mini Batch"))
+  {
+    worker["Gradients"] = KORALI_RECV_MSG_FROM_ENGINE();
+  }
 
   // Adding profiling information to worker
   worker["Computation Time"] = _agentComputationTime;
@@ -323,9 +329,9 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
 
   // In case of this being a single worker, preprocess state and reward if necessary
   if (_conduit->isWorkerLeadRank() == false) return;
-  
-  // We are in a mini batch evaluation episode, to nothing..
-  if(worker.contains("Mini Batch")) return;
+
+  if (worker.contains("Mini Batch"))
+    return;
 
   // In case of this being a single agent, support returning state as only vector
   if (_agentsPerEnvironment == 1)

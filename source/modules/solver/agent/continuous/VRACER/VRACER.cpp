@@ -82,59 +82,58 @@ void VRACER::initializeAgent()
   _miniBatchPolicyStdDev.resize(_problem->_actionVectorSize);
 }
 
-void VRACER::trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributionParams)
+std::vector<float> VRACER::trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributionParams)
 {
   // Gathering state sequences for selected minibatch
   const auto stateSequenceBatch = getMiniBatchStateSequence(miniBatch);
   if (stateSequenceBatch.size() != distributionParams.size())
-      KORALI_LOG_ERROR("Batch size mismatch between state sequence and distribution params");
-  
+    KORALI_LOG_ERROR("Batch size mismatch between state sequence and distribution params");
+
   // Get number of policies
   const size_t numPolicies = _problem->_policiesPerEnvironment;
   if (numPolicies > 1)
-      KORALI_LOG_ERROR("Multiple policies deprecated");
+    KORALI_LOG_ERROR("Multiple policies deprecated");
 
-  // Update all policies using all experiences
-  for (size_t p = 0; p < numPolicies; p++)
+  // Forward NN
+  std::vector<policy_t> policyInfo;
+
+  // Evaluate state value
+  runPolicy(stateSequenceBatch, policyInfo, 0);
+
+  // Assign external distribution params
+  for (size_t b = 0; b < miniBatch.size(); ++b)
   {
-    // Forward NN
-    std::vector<policy_t> policyInfo;
-
-    // Evaluate state value
-    runPolicy(stateSequenceBatch, policyInfo, p);
-
-    // Assign external distribution params
-    for(size_t b = 0; b < miniBatch.size(); ++b)
-    {
-      policyInfo[b].distributionParameters.assign(distributionParams[b].begin(), distributionParams[b].end());
-    }
-
-    // Using policy information to update experience's metadata
-    updateExperienceMetadata(miniBatch, policyInfo);
-
-    // Now calculating policy gradients
-    calculatePolicyGradients(miniBatch, p);
-
-    // Updating learning rate for critic/policy learner guided by REFER
-    _criticPolicyLearner[p]->_learningRate = _currentLearningRate;
-
-    // Now applying gradients to update policy NN
-    _criticPolicyLearner[p]->runGeneration();
+    policyInfo[b].distributionParameters.assign(distributionParams[b].begin(), distributionParams[b].end());
   }
 
+  // Using policy information to update experience's metadata
+  updateExperienceMetadata(miniBatch, policyInfo);
+
+  // Now calculating policy gradients
+  const auto policyGradient = calculatePolicyGradients(miniBatch, 0);
+
+  // Updating learning rate for critic/policy learner guided by REFER
+  _criticPolicyLearner[0]->_learningRate = _currentLearningRate;
+
+  // Now applying gradients to update policy NN
+  _criticPolicyLearner[0]->runGeneration();
+  return policyGradient;
 }
 
-void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx)
+std::vector<float> VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx)
 {
   // Resetting statistics
   std::fill(_miniBatchPolicyMean.begin(), _miniBatchPolicyMean.end(), 0.0);
   std::fill(_miniBatchPolicyStdDev.begin(), _miniBatchPolicyStdDev.end(), 0.0);
 
   const size_t miniBatchSize = miniBatch.size();
+
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
+  std::vector<float> gradientPolicyParams(_policyParameterCount, 0.0f);
+
 #pragma omp parallel for schedule(guided, numAgents) reduction(vec_float_plus \
-                                                               : _miniBatchPolicyMean, _miniBatchPolicyStdDev)
+                                                               : _miniBatchPolicyMean, _miniBatchPolicyStdDev, gradientPolicyParams)
   for (size_t b = 0; b < miniBatchSize; b++)
   {
     // Getting index of current experiment
@@ -152,7 +151,6 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
 
     // Storage for the update gradient
     std::vector<float> gradientStateValue(1, 0.0f);
-    std::vector<float> gradientPolicyParams(_policyParameterCount, 0.0f);
 
     // Gradient of Value Function V(s) (eq. (9); *-1 because the optimizer is maximizing)
     gradientStateValue[0] = (expVtbc - stateValue);
@@ -200,7 +198,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
 
       // Set Gradient of Loss wrt Params
       for (size_t i = 0; i < _policyParameterCount; i++)
-        gradientPolicyParams[i] = _experienceReplayOffPolicyREFERCurrentBeta[agentId] * lossOffPolicy * polGrad[i];
+        gradientPolicyParams[i] += _experienceReplayOffPolicyREFERCurrentBeta[agentId] * lossOffPolicy * polGrad[i];
     }
 
     // Compute derivative of KL divergence
@@ -239,6 +237,8 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     _miniBatchPolicyMean[i] /= (float)miniBatchSize;
     _miniBatchPolicyStdDev[i] /= (float)miniBatchSize;
   }
+
+  return gradientPolicyParams;
 }
 
 float VRACER::calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx)
