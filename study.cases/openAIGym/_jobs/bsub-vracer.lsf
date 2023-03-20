@@ -19,7 +19,7 @@ ENV="HalfCheetah-v4"
 
 python3 run-vracer.py --env ${ENV} --run ${RUN}
 
-DIR="./_result_vracer_${ENV}_${RUN}/"
+DIR="./_result_${ENV}_${RUN}/"
 
 python3 -m korali.rlview --dir $DIR --out "rl-${ENV}_${RUN}.png"
 

@@ -30,7 +30,7 @@ def initEnvironment(e, envName, moviePath = ''):
 
  ### Defining problem configuration for openAI Gym environments
  e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
- e["Problem"]["Environment Function"] = lambda x : agent(x, env)
+ e["Problem"]["Environment Function"] = lambda s : environment(s, env)
  e["Problem"]["Custom Settings"]["Print Step Information"] = "Disabled"
  e["Problem"]["Testing Frequency"] = 20
  e["Problem"]["Policy Testing Episodes"] = 10
@@ -59,8 +59,8 @@ def initEnvironment(e, envName, moviePath = ''):
   e["Variables"][stateVariableCount + i]["Upper Bound"] = float(env.action_space.high[i])
   e["Variables"][stateVariableCount + i]["Initial Exploration Noise"] = 0.2
 
-def agent(s, env):
-
+def environment(s, env):
+ 
  if (s["Custom Settings"]["Print Step Information"] == "Enabled"):
   printStep = True
  else:
