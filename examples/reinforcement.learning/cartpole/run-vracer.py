@@ -43,6 +43,7 @@ e = korali.Experiment()
 ### Defining the Cartpole problem's configuration
 e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
 e["Problem"]["Environment Function"] = env
+e["Problem"]["Agents Per Environment"] = 2
 e["Problem"]["Testing Frequency"] = 10
 
 e["Variables"][0]["Name"] = "Cart Position"

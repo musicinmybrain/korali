@@ -48,7 +48,7 @@ def env(sample):
  # Initializing environment and random seed
  sampleId = sample["Sample Id"]
  cart.reset(sampleId)
- sample["State"] = cart.getState().tolist()
+ sample["State"] = [cart.getState().tolist(), cart.getState().tolist()]
  step = 0
  done = False
 
@@ -56,8 +56,8 @@ def env(sample):
  while not done and step < maxSteps:
   # Calculate policy here and return action
   action, distParams = policy(cart.getState())
-  sample["Action"] = action.tolist()
-  sample["Distribution Parameters"] = distParams.tolist()
+  sample["Action"] = [action.tolist(), action.tolist()]
+  sample["Distribution Parameters"] = [distParams.tolist(), distParams.tolist()]
  
   # Getting new action
   sample.update()
@@ -66,10 +66,10 @@ def env(sample):
   done = cart.advance(action)
   
   # Getting Reward
-  sample["Reward"] = cart.getReward()
+  sample["Reward"] = [cart.getReward(), cart.getReward()]
    
   # Storing New State
-  sample["State"] = cart.getState().tolist()
+  sample["State"] = [cart.getState().tolist(), cart.getState().tolist()]
   
   # Advancing step counter
   step = step + 1
