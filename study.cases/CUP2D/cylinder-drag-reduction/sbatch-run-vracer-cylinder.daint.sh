@@ -25,7 +25,7 @@ cat <<EOF >daint_sbatch
 #SBATCH --time=12:00:00
 #SBATCH --partition=normal
 #SBATCH --nodes=$((NNODES+1))
-srun --nodes=$NNODES --ntasks-per-node=1 --cpus-per-task=12 --threads-per-core=1 ./run-vracer-cylinder -nRanks $NNODES : --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 --threads-per-core=1 ./run-vracer-cylinder -nRanks $NNODES
+srun --nodes=$NNODES --ntasks-per-node=1 --cpus-per-task=12 --threads-per-core=1 ./run-vracer-cylinder -nRanks 1 : --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 --threads-per-core=1 ./run-vracer-cylinder -nRanks 1
 
 EOF
 
