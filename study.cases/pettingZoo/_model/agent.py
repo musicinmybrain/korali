@@ -10,22 +10,22 @@ import matplotlib.pyplot as plt
 
 def initEnvironment(e, envName, multPolicies):
 
- # Creating environment 
+ # Creating environment
  if (envName ==  'Waterworld'):
     from pettingzoo.sisl import waterworld_v3
     env = waterworld_v3.env()
     stateVariableCount = 242
     actionVariableCount = 2
-    ac_upper = 0.01 
-    ac_low = -0.01 
+    ac_upper = 0.01
+    ac_low = -0.01
     numIndividuals = 5
  elif (envName == 'Multiwalker'):
     from pettingzoo.sisl import multiwalker_v9
     env = multiwalker_v9.env()
     stateVariableCount = 31
     actionVariableCount = 4
-    ac_upper = 1 
-    ac_low = -1 
+    ac_upper = 1
+    ac_low = -1
     numIndividuals = 3
  elif (envName ==  'Pursuit'):
    from pettingzoo.sisl import pursuit_v4
@@ -34,11 +34,19 @@ def initEnvironment(e, envName, multPolicies):
    actionVariableCount = 1
    numIndividuals = 8
    possibleActions = [ [0], [1], [2], [3], [4] ]
+ elif (envName == 'Simpletag'):
+   from pettingzoo.mpe import simple_tag_v2
+   env = simple_tag_v2.env(num_good=1, num_adversaries=1,continuous_actions=True)
+   stateVariableCount = 62
+   actionVariableCount = 5
+   ac_upper = 1
+   ac_low = 0
+   numIndividuals = 2
  else:
    print("Environment '{}' not recognized! Exit..".format(envName))
    sys.exit()
- 
- 
+
+
  ## Defining State Variables
 
  ## what should we do with two different state variable counts in one environment
@@ -48,11 +56,11 @@ def initEnvironment(e, envName, multPolicies):
 
  ## Defining Action Variables
  for i in range(actionVariableCount):
-   e["Variables"][stateVariableCount + i]["Name"] = "Action Variable " + str(i) 
+   e["Variables"][stateVariableCount + i]["Name"] = "Action Variable " + str(i)
    e["Variables"][stateVariableCount + i]["Type"] = "Action"
 
 # add the MPE to the continuous environment sets
- if (envName == 'Waterworld') or (envName == 'Multiwalker'):
+ if (envName == 'Waterworld') or (envName == 'Multiwalker') or (envName == 'Simpletag'):
    ### Defining problem configuration for continuous environments
    e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
    e["Problem"]["Environment Function"] = lambda x : agent(x, env)
@@ -60,7 +68,7 @@ def initEnvironment(e, envName, multPolicies):
    e["Problem"]["Agents Per Environment"] = numIndividuals
    if (multPolicies == 1) :
       e["Problem"]["Policies Per Environment"] = numIndividuals
-    
+
    # Defining Action Variables
    for i in range(actionVariableCount):
       e["Variables"][stateVariableCount + i]["Name"] = "Action Variable " + str(i)
@@ -80,16 +88,16 @@ def initEnvironment(e, envName, multPolicies):
       e["Problem"]["Policies Per Environment"] = numIndividuals
 
  return numIndividuals
- 
+
 def agent(s, env):
 
  if (s["Custom Settings"]["Print Step Information"] == "Enabled"):
   printStep = True
  else:
   printStep = False
- 
+
  env.reset()
- 
+
  states = []
 
 # add MPE here
@@ -105,13 +113,13 @@ def agent(s, env):
       states.append(state)
 
  s["State"] = states
- 
+
  step = 0
  done = False
 
  # Storage for cumulative reward
  cumulativeReward = 0.0
- 
+
  overSteps = 0
  if s["Mode"] == "Testing":
    image_count = 0
@@ -119,10 +127,10 @@ def agent(s, env):
  while not done and step < 500:
 
   s.update()
-  
-  # Printing step information    
+
+  # Printing step information
   if (printStep):  print('[Korali] Frame ' + str(step), end = '')
-  
+
   actions = s["Action"]
   rewards = []
   for ag in env.agents:
@@ -146,10 +154,10 @@ def agent(s, env):
    observation, reward, done, truncation, info = env.last()
    rewards.append(reward)
    action = actions.pop(0)
-   
+
    if done and (env.env.env.metadata['name']== 'multiwalker_v9'):
     continue
-   
+
    if (env.env.env.metadata['name']== 'waterworld_v3') or (env.env.env.metadata['name']== 'multiwalker_v9'):
       env.step(np.array(action,dtype= 'float32'))
    else: # Pursuit
@@ -157,26 +165,26 @@ def agent(s, env):
          #if persuit is done only action is NONE
          continue
       env.step(action[0])
-   
+
   # Getting Reward
   s["Reward"] = rewards
-  
+
   # Storing New State
   states = []
- 
-  if (env.env.env.metadata['name']== 'waterworld_v3') or (env.env.env.metadata['name']== 'multiwalker_v9'):
-   for ag in env.agents:
-      state = env.observe(ag).tolist()
-      states.append(state)
-  elif (env.env.env.metadata['name'] == 'pursuit_v4'):
-   for ag in env.agents:
-      state = env.observe(ag)
-      state = state.reshape(147)
-      state = state.tolist()
-      states.append(state)
+   
+  if (env.env.env.metadata['name'] == 'pursuit_v4'):
+    for ag in env.agents:
+       state = env.observe(ag)
+       state = state.reshape(147)
+       state = state.tolist()
+       states.append(state)
+  else:
+      for ag in env.agents:
+       state = env.observe(ag).tolist()
+       states.append(state)
 
   s["State"] = states
-   
+
   # Advancing step counter
   step = step + 1
 

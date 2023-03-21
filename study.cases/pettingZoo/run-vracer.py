@@ -7,6 +7,7 @@ from agent import *
 import pdb
 
 ####### Parsing arguments
+####### test
 
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 parser = argparse.ArgumentParser()
@@ -22,13 +23,14 @@ parser.add_argument('--exp', help='Max experiences', required=False, type=int, d
 parser.add_argument('--model', help='Model Number', required=False, type=str, default = '')
 
 """
-model '0' or '' conditional dynamics individualist 
+model '0' or '' conditional dynamics individualist
 model '1' full dynamics individualist
-model '2' conditional dynamics cooperation  
+model '2' conditional dynamics cooperation
 model '3' full dynamics cooperation
 model '4' Baseline (Individual) [1 update/experience]
 model '5' Baseline (Individual) [1 update/observation]
 model '6' Baseline (Individual) [1 update/observation, minibatch 256/numAgents ~ effective miniBatchSize = 256]
+model '7' Competitive environment
 """
 
 args = parser.parse_args()
@@ -50,7 +52,7 @@ e.loadState(resultFolder + '/latest');
 
 numAgents = initEnvironment(e, args.env, args.multpolicies)
 
-### Defining Agent Configuration 
+### Defining Agent Configuration
 
 e["Solver"]["Type"] = "Agent / Continuous / VRACER"
 e["Solver"]["Mode"] = "Training"
@@ -83,6 +85,8 @@ elif(args.model == '6'):
 	e["Solver"]["Multi Agent Sampling"] = "Baseline"
 	e["Solver"]["Experiences Between Policy Updates"] = 1/numAgents
 	e["Solver"]["Mini Batch"]["Size"] = 256 // numAgents
+elif(args.model == '7'):
+	e["Solver"]["Multi Agent Relationship"] = "Competition"
 
 ### Setting Experience Replay and REFER settings
 
@@ -90,6 +94,8 @@ if (args.env == 'Waterworld'):
 	numAg = 5
 elif (args.env == 'Multiwalker'):
 	numAg = 3
+elif(args.env == 'Simpletag'):
+	numAg = 2
 else:
 	print("Environment '{}' not recognized! Exit..".format(args.env))
 	sys.exit()
@@ -104,7 +110,7 @@ e["Solver"]["Experience Replay"]["Off Policy"]["Target"] = args.opt
 e["Solver"]["Policy"]["Distribution"] = args.dis
 e["Solver"]["State Rescaling"]["Enabled"] = True
 e["Solver"]["Reward"]["Rescaling"]["Enabled"] = True
-  
+
 ### Configuring the neural network and its hidden layers
 
 e["Solver"]["Neural Network"]["Engine"] = "OneDNN"
