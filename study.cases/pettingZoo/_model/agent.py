@@ -101,16 +101,22 @@ def agent(s, env):
  states = []
 
 # add MPE here
- if (env.env.env.metadata['name']== 'waterworld_v3') or (env.env.env.metadata['name']== 'multiwalker_v9'):
-   for ag in env.agents:
-      state = env.observe(ag).tolist()
-      states.append(state)
- elif (env.env.env.metadata['name'] == 'pursuit_v4'):
-   for ag in env.agents:
-      state = env.observe(ag)
-      state = state.reshape(147)
-      state = state.tolist()
-      states.append(state)
+ if (env.env.env.metadata['name'] == 'pursuit_v4'):
+    for ag in env.agents:
+       state = env.observe(ag)
+       state = state.reshape(147)
+       state = state.tolist()
+       states.append(state)
+elif (env.env.env.metadata['name'] == 'simple_tag_v2'):
+    for ag in env.agents:
+       state = env.observe(ag)
+       state = state.reshape(62)
+       state = state.tolist()
+       states.append(state)
+ else:
+    for ag in env.agents:
+       state = env.observe(ag).tolist()
+       states.append(state)
 
  s["State"] = states
 
@@ -176,6 +182,12 @@ def agent(s, env):
     for ag in env.agents:
        state = env.observe(ag)
        state = state.reshape(147)
+       state = state.tolist()
+       states.append(state)
+  elif (env.env.env.metadata['name'] == 'simple_tag_v2'):
+    for ag in env.agents:
+       state = env.observe(ag)
+       state = state.reshape(62)
        state = state.tolist()
        states.append(state)
   else:
