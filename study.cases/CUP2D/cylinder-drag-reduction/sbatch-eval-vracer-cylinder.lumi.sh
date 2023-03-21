@@ -24,7 +24,7 @@ cat <<EOF >lumi_sbatch_testing
 #SBATCH hetjob
 #SBATCH --partition=standard
 #SBATCH --nodes=1 --ntasks-per-node=1 --cpus-per-task=8
-srun --het-group=0,1 ./eval-vracer-cylinder -eval $EVAL -task 0 -nAgents 1 -nRanks $(( $NRANKS * $NUMCORES ))
+srun --het-group=0,1 ./eval-vracer-cylinder -nRanks $(( $NRANKS * $NUMCORES ))
 EOF
 chmod 755 lumi_sbatch_testing
 sbatch lumi_sbatch_testing

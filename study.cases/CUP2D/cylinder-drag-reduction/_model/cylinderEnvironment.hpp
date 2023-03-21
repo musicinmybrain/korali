@@ -1,5 +1,5 @@
 //  Korali environment for CubismUP-2D
-//  Copyright (c) 2020 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2023 CSE-Lab, ETH Zurich, Switzerland.
 
 #include "korali.hpp"
 #include <algorithm>
@@ -12,6 +12,6 @@
 extern int _argc;
 extern char **_argv;
 
-const size_t NUMACTIONS = 8;
+const size_t NUMACTIONS = 16;
 
 void runEnvironment(korali::Sample &s);

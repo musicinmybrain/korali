@@ -12,14 +12,9 @@ int main(int argc, char *argv[])
     exit(-1);
   }
 
-  // retreiving number of task, agents, and ranks
-  int task    = atoi(argv[argc-5]);
-  int nAgents = atoi(argv[argc-3]);
-  int nRanks  = atoi(argv[argc-1]);
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  if (rank == 0)
-	  std::cout << "Running task : " << task << " with nAgents=" << nAgents << std::endl;
+  // retreiving number of ranks
+  const int nRanks  = atoi(argv[argc-1]);
+  const int nAgents = 1;
 
   // Storing parameters for environment
   _argc = argc;
@@ -55,11 +50,9 @@ int main(int argc, char *argv[])
   // Setting results path and dumping frequency in CUP
   e["Problem"]["Custom Settings"]["Dump Frequency"] = 0.0;
   e["Problem"]["Custom Settings"]["Dump Path"] = trainingResultsPath;
-  // e["Problem"]["Actions Between Policy Updates"] = 1;
 
   // Setting up the state variables
-  //const size_t numStates = NUMACTIONS*3+3;
-  const size_t numStates = 596;
+  const size_t numStates = NUMACTIONS*3+3;
 
   size_t curVariable = 0;
   for (; curVariable < numStates; curVariable++)
@@ -68,7 +61,7 @@ int main(int argc, char *argv[])
     e["Variables"][curVariable]["Type"] = "State";
   }
 
-  const double q = 0.5;
+  const double q = 1.0; //action bounds
   for (size_t idx = 0 ; idx < NUMACTIONS; idx ++)
   {
     e["Variables"][curVariable]["Name"] = "Nozzle" + std::to_string(idx);
@@ -88,7 +81,6 @@ int main(int argc, char *argv[])
   e["Solver"]["Learning Rate"] = 1e-4;
   e["Solver"]["Discount Factor"] = 0.95;
   e["Solver"]["Mini Batch"]["Size"] =  128;
-  // e["Solver"]["Multi Agent Relationship"] = "Competition";
 
   /// Defining the configuration of replay memory
   e["Solver"]["Experience Replay"]["Start Size"] = 128;
@@ -123,7 +115,7 @@ int main(int argc, char *argv[])
   e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tanh";
 
   ////// Defining Termination Criteria
-  e["Solver"]["Termination Criteria"]["Max Experiences"] = 5e8;
+  e["Solver"]["Termination Criteria"]["Max Experiences"] = 1e10;
 
   ////// Setting Korali output configuration
   e["Console Output"]["Verbosity"] = "Normal";

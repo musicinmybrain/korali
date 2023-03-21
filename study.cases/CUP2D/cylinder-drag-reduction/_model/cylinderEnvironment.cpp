@@ -1,5 +1,5 @@
 //  Korali environment for CubismUP-2D
-//  Copyright (c) 2020 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2023 CSE-Lab, ETH Zurich, Switzerland.
 
 #include "cylinderEnvironment.hpp"
 #include <iostream>
@@ -91,9 +91,7 @@ void runEnvironment(korali::Sample &s)
   auto curPath = fs::current_path();
   fs::current_path(resDir);
 
-  // Get task and number of agents from command line argument
-  const int nAgents = atoi(_argv[_argc-3]);
-  const int task    = atoi(_argv[_argc-5]);
+  const int nAgents = 1;
 
   // Argument string to inititialize Simulation
   std::string argumentString = "CUP-RL " + (s["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
@@ -266,8 +264,7 @@ void runEnvironment(korali::Sample &s)
   logger.flush();
 
   // Closing log file
-  if( rank == 0 )
-    fclose(logFile);
+  if( rank == 0 ) fclose(logFile);
 
   // delete simulation class
   delete _environment;

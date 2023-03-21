@@ -20,10 +20,9 @@ cat <<EOF >daint_sbatch_testing
 #SBATCH --constraint=gpu
 #SBATCH --job-name="${RUNNAME}"
 #SBATCH --time=00:30:00
-##SBATCH --partition=debug
-#SBATCH --partition=normal
+#SBATCH --partition=debug
 #SBATCH --nodes=$((NNODES+1))
-srun --nodes=$NNODES --ntasks-per-node=1 --cpus-per-task=12 --threads-per-core=1 ./eval-vracer-cylinder -eval 1 -task 0 -nAgents 1 -nRanks $NRANKS : --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 --threads-per-core=1 ./eval-vracer-cylinder -eval 1 -task 0 -nAgents 1 -nRanks $NRANKS
+srun --nodes=$NNODES --ntasks-per-node=1 --cpus-per-task=12 --threads-per-core=1 ./eval-vracer-cylinder -nRanks $NRANKS : --nodes=1 --ntasks-per-node=1 --cpus-per-task=12 --threads-per-core=1 ./eval-vracer-cylinder -nRanks $NRANKS
 EOF
 
 chmod 755 daint_sbatch_testing
