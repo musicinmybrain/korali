@@ -343,7 +343,7 @@ void runEnvironmentCMAES(korali::Sample &s)
   fs::current_path(resDir);
 
   // Argument string to inititialize Simulation
-  std::string argumentString = "CUP-RL " + (s["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
+  std::string argumentString = "CUP-RL " + (s["Custom Settings"]["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
   argumentString += " -nu " + std::to_string(nu_ic);
   argumentString += " -shapes cylinderNozzle xpos=0.5 bForced=1 bFixed=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 radius=0.1 dumpSurf=1";
 

@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 
   // Configuring Experiment
   e["Problem"]["Type"] = "Optimization";
-  e["Problem"]["Objective Function"] = &runEnvironment;
+  e["Problem"]["Objective Function"] = &runEnvironmentCMAES;
   e["Problem"]["Custom Settings"]["Dump Frequency"] = 0.0;
   e["Problem"]["Custom Settings"]["Dump Path"] = trainingResultsPath;
   e["Problem"]["Custom Settings"]["Mode"] = "Training";
@@ -51,7 +51,6 @@ int main(int argc, char *argv[])
   for (size_t idx = 0 ; idx < numParams; idx ++)
   {
     e["Variables"][idx]["Name"] = "Nozzle" + std::to_string(idx);
-    e["Variables"][idx]["Type"] = "Action";
     e["Variables"][idx]["Lower Bound"] = -q;
     e["Variables"][idx]["Upper Bound"] = +q;
   }
