@@ -40,6 +40,10 @@ class Optimization : public Problem
   */
    std::vector<std::uint64_t> _constraints;
   /**
+  * @brief Any used-defined settings required by the environment.
+  */
+   knlohmann::json _customSettings;
+  /**
   * @brief [Internal Use] Flag indicating if at least one of the variables is discrete.
   */
    int _hasDiscreteVariables;
