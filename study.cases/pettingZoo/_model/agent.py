@@ -12,7 +12,7 @@ def initEnvironment(e, envName, multPolicies):
 
  # Creating environment
  if (envName ==  'Waterworld'):
-    from pettingzoo.sisl import waterworld_v3
+    from pettingzoo.sisl import waterworld_v4
     env = waterworld_v3.env()
     stateVariableCount = 242
     actionVariableCount = 2
@@ -37,7 +37,7 @@ def initEnvironment(e, envName, multPolicies):
  elif (envName == 'Simpletag'):
    from pettingzoo.mpe import simple_tag_v2
    env = simple_tag_v2.env(num_good=1, num_adversaries=1,continuous_actions=True)
-   stateVariableCount = 62
+   stateVariableCount = 16
    actionVariableCount = 5
    ac_upper = 1
    ac_low = 0
@@ -107,12 +107,6 @@ def agent(s, env):
        state = state.reshape(147)
        state = state.tolist()
        states.append(state)
-elif (env.env.env.metadata['name'] == 'simple_tag_v2'):
-    for ag in env.agents:
-       state = env.observe(ag)
-       state = state.reshape(62)
-       state = state.tolist()
-       states.append(state)
  else:
     for ag in env.agents:
        state = env.observe(ag).tolist()
@@ -164,13 +158,13 @@ elif (env.env.env.metadata['name'] == 'simple_tag_v2'):
    if done and (env.env.env.metadata['name']== 'multiwalker_v9'):
     continue
 
-   if (env.env.env.metadata['name']== 'waterworld_v3') or (env.env.env.metadata['name']== 'multiwalker_v9'):
-      env.step(np.array(action,dtype= 'float32'))
-   else: # Pursuit
+   if (env.env.env.metadata['name']== 'pursuit_v4'):
       if done:
          #if persuit is done only action is NONE
          continue
       env.step(action[0])
+   else: # Pursuit
+      env.step(np.array(action,dtype= 'float32'))
 
   # Getting Reward
   s["Reward"] = rewards
@@ -182,12 +176,6 @@ elif (env.env.env.metadata['name'] == 'simple_tag_v2'):
     for ag in env.agents:
        state = env.observe(ag)
        state = state.reshape(147)
-       state = state.tolist()
-       states.append(state)
-  elif (env.env.env.metadata['name'] == 'simple_tag_v2'):
-    for ag in env.agents:
-       state = env.observe(ag)
-       state = state.reshape(62)
        state = state.tolist()
        states.append(state)
   else:
