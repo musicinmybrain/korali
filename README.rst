@@ -10,9 +10,10 @@ High-performance framework for uncertainty quantification, optimization and rein
 .. image:: https://readthedocs.org/projects/korali/badge/?version=master
     :target: https://korali.readthedocs.io/en/master/?badge=master
     :alt: Documentation Status
-.. image:: https://codecov.io/gh/cselab/korali/branch/master/graph/badge.svg?token=yyY5Ew6T8N
-    :target: https://codecov.io/gh/cselab/korali
-    :alt: Code Coverage
+..
+    .. image:: https://codecov.io/gh/cselab/korali/branch/master/graph/badge.svg?token=yyY5Ew6T8N
+        :target: https://codecov.io/gh/cselab/korali
+        :alt: Code Coverage
 
 Korali is a high-performance framework for Bayesian UQ, optimization, and reinforcement learning. Korali's multi-language interface allows the execution of any type of computational model, either sequential or distributed (MPI), C++ or Python, and even pre-compiled/legacy applications. Korali's execution engine enables scalable sampling on large-scale HPC systems. 
 

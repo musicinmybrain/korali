@@ -87,10 +87,10 @@ void __className__::createForwardPipeline()
 
     if (_function == "Elementwise/Clip") activationMode = CUDNN_ACTIVATION_CLIPPED_RELU;
     if (_function == "Elementwise/Linear") activationMode = CUDNN_ACTIVATION_IDENTITY;
-    if (_function == "Elementwise/Log") KORALI_LOG_ERROR("Activation function not supported: %s.\n", _function.c_str());
+    if (_function == "Elementwise/Log") KORALI_LOG_ERROR("CUDNN does not support activation functions of type 'Elementwise/Log'.");
     if (_function == "Elementwise/Logistic") activationMode = CUDNN_ACTIVATION_SIGMOID;
     if (_function == "Elementwise/ReLU") activationMode = CUDNN_ACTIVATION_RELU;
-    if (_function == "Elementwise/SoftReLU") KORALI_LOG_ERROR("CUDNN does not support activation functions of type 'Elementwise/SoftSign'.");
+    if (_function == "Elementwise/SoftReLU") KORALI_LOG_ERROR("CUDNN does not support activation functions of type 'Elementwise/SoftReLU'.");
     if (_function == "Elementwise/SoftSign") KORALI_LOG_ERROR("CUDNN does not support activation functions of type 'Elementwise/SoftSign'.");
     if (_function == "Elementwise/Tanh") activationMode = CUDNN_ACTIVATION_TANH;
     if (_function == "Softmax") activationMode = CUDNN_ACTIVATION_IDENTITY;
