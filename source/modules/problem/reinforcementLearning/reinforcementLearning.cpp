@@ -44,20 +44,30 @@ void ReinforcementLearning::initialize()
   // Processing state/action variable configuration
   _stateVectorIndexes.clear();
   _actionVectorIndexes.clear();
+
   for (size_t i = 0; i < _k->_variables.size(); i++)
   {
-    if (_k->_variables[i]->_type == "State") _stateVectorIndexes.push_back(i);
-    if (_k->_variables[i]->_type == "Action") _actionVectorIndexes.push_back(i);
+    if (_k->_variables[i]->_type == "State") _stateVectorIndexes[_k->_variables[i]->_teamIndex].push_back(i);
+    if (_k->_variables[i]->_type == "Action") _actionVectorIndexes[_k->_variables[i]->_teamIndex].push_back(i);
   }
-
-  _actionVectorSize = _actionVectorIndexes.size();
-  _stateVectorSize = _stateVectorIndexes.size();
-
-  if (_actionVectorSize == 0) KORALI_LOG_ERROR("No action variables have been defined.\n");
-  if (_stateVectorSize == 0) KORALI_LOG_ERROR("No state variables have been defined.\n");
-  if ((_policiesPerEnvironment != _agentsPerEnvironment) && (_policiesPerEnvironment != 1))
-    KORALI_LOG_ERROR("Number of Policies: %lu is neither 1 nor %lu.\n", _policiesPerEnvironment, _agentsPerEnvironment);
-
+  
+  for (size_t i = 0; i < _agentsPerTeam.size(); i++)
+  {
+    _actionVectorSize.push_back(_actionVectorIndexes[i].size());
+    _stateVectorSize.push_back(_stateVectorIndexes[i].size());
+  }
+  
+  for (size_t i = 0; i < _agentsPerTeam.size(); i++)
+  {
+    if (_actionVectorSize[i] == 0) KORALI_LOG_ERROR("No action variables have been defined for team %lu.\n", i);
+    if (_stateVectorSize[i] == 0) KORALI_LOG_ERROR("No state variables have been defined for team %lu.\n", i);
+  }
+  
+  /**
+  * if ((_policiesPerEnvironment != _agentsPerEnvironment) && (_policiesPerEnvironment != 1))
+  * KORALI_LOG_ERROR("Number of Policies: %lu is neither 1 nor %lu.\n", _policiesPerEnvironment, _agentsPerEnvironment);
+  */
+  
   // Setting initial launch id (0)
   _launchId = 0;
 }
@@ -461,7 +471,7 @@ void ReinforcementLearning::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Action Vector Size"))
  {
- try { _actionVectorSize = js["Action Vector Size"].get<size_t>();
+ try { _actionVectorSize = js["Action Vector Size"].get<std::vector<size_t>>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ reinforcementLearning ] \n + Key:    ['Action Vector Size']\n%s", e.what()); } 
    eraseValue(js, "Action Vector Size");
@@ -469,7 +479,7 @@ void ReinforcementLearning::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "State Vector Size"))
  {
- try { _stateVectorSize = js["State Vector Size"].get<size_t>();
+ try { _stateVectorSize = js["State Vector Size"].get<std::vector<size_t>>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ reinforcementLearning ] \n + Key:    ['State Vector Size']\n%s", e.what()); } 
    eraseValue(js, "State Vector Size");
@@ -477,7 +487,7 @@ void ReinforcementLearning::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Action Vector Indexes"))
  {
- try { _actionVectorIndexes = js["Action Vector Indexes"].get<std::vector<size_t>>();
+ try { _actionVectorIndexes = js["Action Vector Indexes"].get<std::vector<std::vector<size_t>>>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ reinforcementLearning ] \n + Key:    ['Action Vector Indexes']\n%s", e.what()); } 
    eraseValue(js, "Action Vector Indexes");
@@ -485,7 +495,7 @@ void ReinforcementLearning::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "State Vector Indexes"))
  {
- try { _stateVectorIndexes = js["State Vector Indexes"].get<std::vector<size_t>>();
+ try { _stateVectorIndexes = js["State Vector Indexes"].get<std::vector<std::vector<size_t>>>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ reinforcementLearning ] \n + Key:    ['State Vector Indexes']\n%s", e.what()); } 
    eraseValue(js, "State Vector Indexes");
@@ -493,7 +503,7 @@ void ReinforcementLearning::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Action Count"))
  {
- try { _actionCount = js["Action Count"].get<size_t>();
+ try { _actionCount = js["Action Count"].get<std::vector<size_t>>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ reinforcementLearning ] \n + Key:    ['Action Count']\n%s", e.what()); } 
    eraseValue(js, "Action Count");
@@ -516,6 +526,15 @@ void ReinforcementLearning::setConfiguration(knlohmann::json& js)
    eraseValue(js, "Policies Per Environment");
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Policies Per Environment'] required by reinforcementLearning.\n"); 
+
+ if (isDefined(js, "Agents Per Team"))
+ {
+ try { _agentsPerTeam = js["Agents Per Team"].get<std::vector<size_t>>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ reinforcementLearning ] \n + Key:    ['Agents Per Team']\n%s", e.what()); } 
+   eraseValue(js, "Agents Per Team");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Agents Per Team'] required by reinforcementLearning.\n"); 
 
  if (isDefined(js, "Environment Count"))
  {
@@ -605,6 +624,15 @@ void ReinforcementLearning::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Upper Bound'] required by reinforcementLearning.\n"); 
 
+ if (isDefined(_k->_js["Variables"][i], "Team Index"))
+ {
+ try { _k->_variables[i]->_teamIndex = _k->_js["Variables"][i]["Team Index"].get<size_t>();
+} catch (const std::exception& e)
+ { KORALI_LOG_ERROR(" + Object: [ reinforcementLearning ] \n + Key:    ['Team Index']\n%s", e.what()); } 
+   eraseValue(_k->_js["Variables"][i], "Team Index");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Team Index'] required by reinforcementLearning.\n"); 
+
  } 
   bool detectedCompatibleSolver = false; 
   std::string solverName = toLower(_k->_js["Solver"]["Type"]); 
@@ -627,6 +655,7 @@ void ReinforcementLearning::getConfiguration(knlohmann::json& js)
  js["Type"] = _type;
    js["Agents Per Environment"] = _agentsPerEnvironment;
    js["Policies Per Environment"] = _policiesPerEnvironment;
+   js["Agents Per Team"] = _agentsPerTeam;
    js["Environment Count"] = _environmentCount;
    js["Environment Function"] = _environmentFunction;
    js["Actions Between Policy Updates"] = _actionsBetweenPolicyUpdates;
@@ -642,6 +671,7 @@ void ReinforcementLearning::getConfiguration(knlohmann::json& js)
    _k->_js["Variables"][i]["Type"] = _k->_variables[i]->_type;
    _k->_js["Variables"][i]["Lower Bound"] = _k->_variables[i]->_lowerBound;
    _k->_js["Variables"][i]["Upper Bound"] = _k->_variables[i]->_upperBound;
+   _k->_js["Variables"][i]["Team Index"] = _k->_variables[i]->_teamIndex;
  } 
  Problem::getConfiguration(js);
 } 
@@ -649,7 +679,7 @@ void ReinforcementLearning::getConfiguration(knlohmann::json& js)
 void ReinforcementLearning::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Agents Per Environment\": 1, \"Policies Per Environment\": 1, \"Testing Frequency\": 0, \"Policy Testing Episodes\": 10, \"Environment Count\": 1, \"Actions Between Policy Updates\": 0, \"Custom Settings\": {}}";
+ std::string defaultString = "{\"Agents Per Environment\": 1, \"Policies Per Environment\": 1, \"Testing Frequency\": 0, \"Policy Testing Episodes\": 10, \"Environment Count\": 1, \"Actions Between Policy Updates\": 0, \"Custom Settings\": {}, \"Agents Per Team\": [1]}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Problem::applyModuleDefaults(js);
@@ -658,7 +688,7 @@ void ReinforcementLearning::applyModuleDefaults(knlohmann::json& js)
 void ReinforcementLearning::applyVariableDefaults() 
 {
 
- std::string defaultString = "{\"Type\": \"State\", \"Lower Bound\": -Infinity, \"Upper Bound\": Infinity}";
+ std::string defaultString = "{\"Type\": \"State\", \"Lower Bound\": -Infinity, \"Upper Bound\": Infinity, \"Team Index\": 0}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  if (isDefined(_k->_js.getJson(), "Variables"))
   for (size_t i = 0; i < _k->_js["Variables"].size(); i++) 

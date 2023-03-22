@@ -42,6 +42,7 @@ def initEnvironment(e, envName, multPolicies):
    ac_upper = 1
    ac_low = 0
    numIndividuals = 2
+   agentsPerTeam = [1,1]
  else:
    print("Environment '{}' not recognized! Exit..".format(envName))
    sys.exit()
@@ -89,6 +90,12 @@ def initEnvironment(e, envName, multPolicies):
     if (multPolicies == 1) :
        e["Problem"]["Policies Per Environment"] = numIndividuals
 
+ ## Defining the new variable Agents per Team for each environment
+ if (envName == 'Waterworld') or (envName == 'Multiwalker') or (envName == 'Pursuit'):
+   e["Problem"]["Agents Per Team"] = [numIndividuals]
+ else:
+   e["Problem"]["Agents Per Team"] = agentsPerTeam
+
  if (envName == 'Waterworld') or (envName == 'Multiwalker'):
    # Defining Action Variables
     for i in range(actionVariableCount):
@@ -104,12 +111,12 @@ def initEnvironment(e, envName, multPolicies):
  else:
     for i in range(len(actionVariableCount)):
        for j in range(actionVariableCount[i]):
-          e["Variables"][sum(actionVariableCount[:i]) + j]["Name"] = "Action Variable " + str(j)
-          e["Variables"][sum(actionVariableCount[:i]) + j]["Type"] = "Action"
-          e["Variables"][sum(actionVariableCount[:i]) + j]["Lower Bound"] = float(ac_low)
-          e["Variables"][sum(actionVariableCount[:i]) + j]["Upper Bound"] = float(ac_upper)
-          e["Variables"][sum(actionVariableCount[:i]) + j]["Initial Exploration Noise"] = math.sqrt(0.2) * (ac_upper - ac_low)
-          e["Variables"][sum(actionVariableCount[:i]) + j]["Team Index"] = i
+          e["Variables"][sum(stateVariableCount) + sum(actionVariableCount[:i]) + j]["Name"] = "Action Variable " + str(j)
+          e["Variables"][sum(stateVariableCount) + sum(actionVariableCount[:i]) + j]["Type"] = "Action"
+          e["Variables"][sum(stateVariableCount) + sum(actionVariableCount[:i]) + j]["Lower Bound"] = float(ac_low)
+          e["Variables"][sum(stateVariableCount) + sum(actionVariableCount[:i]) + j]["Upper Bound"] = float(ac_upper)
+          e["Variables"][sum(stateVariableCount) + sum(actionVariableCount[:i]) + j]["Initial Exploration Noise"] = math.sqrt(0.2) * (ac_upper - ac_low)
+          e["Variables"][sum(stateVariableCount) + sum(actionVariableCount[:i]) + j]["Team Index"] = i
 
  return numIndividuals
 

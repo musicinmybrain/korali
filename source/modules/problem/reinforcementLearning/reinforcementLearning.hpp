@@ -33,9 +33,13 @@ class ReinforcementLearning : public Problem
   */
    size_t _agentsPerEnvironment;
   /**
-  * @brief Number of policies in a given environment. 
+  * @brief Number of policies in a given environment.
   */
    size_t _policiesPerEnvironment;
+  /**
+  * @brief Number of agents in a given team.
+  */
+   std::vector<size_t> _agentsPerTeam;
   /**
   * @brief Maximum number of different types of environments.
   */

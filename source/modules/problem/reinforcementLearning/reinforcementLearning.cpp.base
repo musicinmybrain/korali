@@ -40,20 +40,30 @@ void __className__::initialize()
   // Processing state/action variable configuration
   _stateVectorIndexes.clear();
   _actionVectorIndexes.clear();
+
   for (size_t i = 0; i < _k->_variables.size(); i++)
   {
-    if (_k->_variables[i]->_type == "State") _stateVectorIndexes.push_back(i);
-    if (_k->_variables[i]->_type == "Action") _actionVectorIndexes.push_back(i);
+    if (_k->_variables[i]->_type == "State") _stateVectorIndexes[_k->_variables[i]->_teamIndex].push_back(i);
+    if (_k->_variables[i]->_type == "Action") _actionVectorIndexes[_k->_variables[i]->_teamIndex].push_back(i);
   }
-
-  _actionVectorSize = _actionVectorIndexes.size();
-  _stateVectorSize = _stateVectorIndexes.size();
-
-  if (_actionVectorSize == 0) KORALI_LOG_ERROR("No action variables have been defined.\n");
-  if (_stateVectorSize == 0) KORALI_LOG_ERROR("No state variables have been defined.\n");
-  if ((_policiesPerEnvironment != _agentsPerEnvironment) && (_policiesPerEnvironment != 1))
-    KORALI_LOG_ERROR("Number of Policies: %lu is neither 1 nor %lu.\n", _policiesPerEnvironment, _agentsPerEnvironment);
-
+  
+  for (size_t i = 0; i < _agentsPerTeam.size(); i++)
+  {
+    _actionVectorSize.push_back(_actionVectorIndexes[i].size());
+    _stateVectorSize.push_back(_stateVectorIndexes[i].size());
+  }
+  
+  for (size_t i = 0; i < _agentsPerTeam.size(); i++)
+  {
+    if (_actionVectorSize[i] == 0) KORALI_LOG_ERROR("No action variables have been defined for team %lu.\n", i);
+    if (_stateVectorSize[i] == 0) KORALI_LOG_ERROR("No state variables have been defined for team %lu.\n", i);
+  }
+  
+  /**
+  * if ((_policiesPerEnvironment != _agentsPerEnvironment) && (_policiesPerEnvironment != 1))
+  * KORALI_LOG_ERROR("Number of Policies: %lu is neither 1 nor %lu.\n", _policiesPerEnvironment, _agentsPerEnvironment);
+  */
+  
   // Setting initial launch id (0)
   _launchId = 0;
 }
