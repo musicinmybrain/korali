@@ -37,8 +37,8 @@ def initEnvironment(e, envName, multPolicies):
  elif (envName == 'Simpletag'):
    from pettingzoo.mpe import simple_tag_v2
    env = simple_tag_v2.env(num_good=1, num_adversaries=1,continuous_actions=True)
-   stateVariableCount = 16
-   actionVariableCount = 5
+   stateVariableCount = [14, 16]
+   actionVariableCount = [5, 5]
    ac_upper = 1
    ac_low = 0
    numIndividuals = 2
@@ -50,42 +50,66 @@ def initEnvironment(e, envName, multPolicies):
  ## Defining State Variables
 
  ## what should we do with two different state variable counts in one environment
- for i in range(stateVariableCount):
-   e["Variables"][i]["Name"] = "State Variable " + str(i)
-   e["Variables"][i]["Type"] = "State"
+#  for i in range(stateVariableCount):
+#     e["Variables"][i]["Name"] = "State Variable " + str(i)
+#     e["Variables"][i]["Type"] = "State"
+ 
+#  ## Defining Action Variables
+#  for i in range(actionVariableCount):
+#     e["Variables"][stateVariableCount + i]["Name"] = "Action Variable " + str(i)
+#     e["Variables"][stateVariableCount + i]["Type"] = "Action"
 
- ## Defining Action Variables
- for i in range(actionVariableCount):
-   e["Variables"][stateVariableCount + i]["Name"] = "Action Variable " + str(i)
-   e["Variables"][stateVariableCount + i]["Type"] = "Action"
+ if (envName == 'Simpletag'):
+    for i in range(len(stateVariableCount)):
+       for j in range(stateVariableCount[i]):
+          e["Variables"][sum(stateVariableCount[:i]) + j]["Name"] = "State Variable " + str(j)
+          e["Variables"][sum(stateVariableCount[:i]) + j]["Type"] = "State"
+          e["Variables"][sum(stateVariableCount[:i]) + j]["Team Index"] = i
+ else:
+    for i in range(stateVariableCount):
+       e["Variables"][i]["Name"] = "State Variable " + str(i)
+       e["Variables"][i]["Type"] = "State"
 
-# add the MPE to the continuous environment sets
+ 
  if (envName == 'Waterworld') or (envName == 'Multiwalker') or (envName == 'Simpletag'):
    ### Defining problem configuration for continuous environments
-   e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
-   e["Problem"]["Environment Function"] = lambda x : agent(x, env)
-   e["Problem"]["Custom Settings"]["Print Step Information"] = "Disabled"
-   e["Problem"]["Agents Per Environment"] = numIndividuals
-   if (multPolicies == 1) :
-      e["Problem"]["Policies Per Environment"] = numIndividuals
+    e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
+    e["Problem"]["Environment Function"] = lambda x : agent(x, env)
+    e["Problem"]["Custom Settings"]["Print Step Information"] = "Disabled"
+    e["Problem"]["Agents Per Environment"] = numIndividuals
+    if (multPolicies == 1) :
+       e["Problem"]["Policies Per Environment"] = numIndividuals
+ else:
+    ### Defining problem configuration for discrete environments
+    e["Problem"]["Type"] = "Reinforcement Learning / Discrete"
+    e["Problem"]["Environment Function"] = lambda x : agent(x, env)
+    e["Problem"]["Custom Settings"]["Print Step Information"] = "Disabled"
+    e["Problem"]["Possible Actions"] = possibleActions
+    e["Problem"]["Agents Per Environment"] = numIndividuals
+    if (multPolicies == 1) :
+       e["Problem"]["Policies Per Environment"] = numIndividuals
 
+ if (envName == 'Waterworld') or (envName == 'Multiwalker'):
    # Defining Action Variables
-   for i in range(actionVariableCount):
-      e["Variables"][stateVariableCount + i]["Name"] = "Action Variable " + str(i)
-      e["Variables"][stateVariableCount + i]["Type"] = "Action"
-      e["Variables"][stateVariableCount + i]["Lower Bound"] = float(ac_low)
-      e["Variables"][stateVariableCount + i]["Upper Bound"] = float(ac_upper)
-      e["Variables"][stateVariableCount + i]["Initial Exploration Noise"] = math.sqrt(0.2) * (ac_upper - ac_low)
-
+    for i in range(actionVariableCount):
+       e["Variables"][stateVariableCount + i]["Name"] = "Action Variable " + str(i)
+       e["Variables"][stateVariableCount + i]["Type"] = "Action"
+       e["Variables"][stateVariableCount + i]["Lower Bound"] = float(ac_low)
+       e["Variables"][stateVariableCount + i]["Upper Bound"] = float(ac_upper)
+       e["Variables"][stateVariableCount + i]["Initial Exploration Noise"] = math.sqrt(0.2) * (ac_upper - ac_low)
  elif (envName ==  'Pursuit'):
-   ### Defining problem configuration for discrete environments
-   e["Problem"]["Type"] = "Reinforcement Learning / Discrete"
-   e["Problem"]["Environment Function"] = lambda x : agent(x, env)
-   e["Problem"]["Custom Settings"]["Print Step Information"] = "Disabled"
-   e["Problem"]["Possible Actions"] = possibleActions
-   e["Problem"]["Agents Per Environment"] = numIndividuals
-   if (multPolicies == 1) :
-      e["Problem"]["Policies Per Environment"] = numIndividuals
+    for i in range(actionVariableCount):
+       e["Variables"][stateVariableCount + i]["Name"] = "Action Variable " + str(i)
+       e["Variables"][stateVariableCount + i]["Type"] = "Action"
+ else:
+    for i in range(len(actionVariableCount)):
+       for j in range(actionVariableCount[i]):
+          e["Variables"][sum(actionVariableCount[:i]) + j]["Name"] = "Action Variable " + str(j)
+          e["Variables"][sum(actionVariableCount[:i]) + j]["Type"] = "Action"
+          e["Variables"][sum(actionVariableCount[:i]) + j]["Lower Bound"] = float(ac_low)
+          e["Variables"][sum(actionVariableCount[:i]) + j]["Upper Bound"] = float(ac_upper)
+          e["Variables"][sum(actionVariableCount[:i]) + j]["Initial Exploration Noise"] = math.sqrt(0.2) * (ac_upper - ac_low)
+          e["Variables"][sum(actionVariableCount[:i]) + j]["Team Index"] = i
 
  return numIndividuals
 

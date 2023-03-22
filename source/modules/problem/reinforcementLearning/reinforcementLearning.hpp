@@ -33,7 +33,7 @@ class ReinforcementLearning : public Problem
   */
    size_t _agentsPerEnvironment;
   /**
-  * @brief Number of policies in a given environment. All agents share the same policy or all have individual policy.
+  * @brief Number of policies in a given environment. 
   */
    size_t _policiesPerEnvironment;
   /**
@@ -63,23 +63,23 @@ class ReinforcementLearning : public Problem
   /**
   * @brief [Internal Use] Stores the dimension of the action space.
   */
-   size_t _actionVectorSize;
+   std::vector<size_t> _actionVectorSize;
   /**
   * @brief [Internal Use] Stores the dimension of the state space.
   */
-   size_t _stateVectorSize;
+   std::vector<size_t> _stateVectorSize;
   /**
   * @brief [Internal Use] Stores the indexes of the variables that constitute the action vector.
   */
-   std::vector<size_t> _actionVectorIndexes;
+   std::vector<std::vector<size_t>> _actionVectorIndexes;
   /**
   * @brief [Internal Use] Stores the indexes of the variables that constitute the action vector.
   */
-   std::vector<size_t> _stateVectorIndexes;
+   std::vector<std::vector<size_t>> _stateVectorIndexes;
   /**
   * @brief [Internal Use] The maximum number of actions an agent can take (only relevant for discrete).
   */
-   size_t _actionCount;
+   std::vector<size_t> _actionCount;
   
  
   /**
