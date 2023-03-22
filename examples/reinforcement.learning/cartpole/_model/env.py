@@ -34,6 +34,7 @@ def env(sample):
      print(miniBatch.shape)
 
      stateSequenceBatch = np.array(sample["State Sequence Batch"])
+     print(stateSequenceBatch.shape)
      numBatch, effectiveMiniBatchSize, numStates, _ = stateSequenceBatch.shape
 
      policyParams = np.empty(shape = (numBatch, effectiveMiniBatchSize, 2*numActions), dtype=float)
