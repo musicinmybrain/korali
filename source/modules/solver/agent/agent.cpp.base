@@ -24,17 +24,28 @@ void __className__::initialize()
   _trainingRewardHistory.resize(numAgents);
 
   // Allocating and obtaining action bounds information
-  _actionLowerBounds.resize(_problem->_actionVectorSize);
-  _actionUpperBounds.resize(_problem->_actionVectorSize);
+  
+  _actionLowerBounds.resize(_problem->_agentsPerTeam.size());
+  _actionUpperBounds.resize(_problem->_agentsPerTeam.size());
 
-  for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+  for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
   {
-    auto varIdx = _problem->_actionVectorIndexes[i];
-    _actionLowerBounds[i] = _k->_variables[varIdx]->_lowerBound;
-    _actionUpperBounds[i] = _k->_variables[varIdx]->_upperBound;
-
-    if (_actionUpperBounds[i] - _actionLowerBounds[i] <= 0.0) KORALI_LOG_ERROR("Upper (%f) and Lower Bound (%f) of action variable %lu invalid.\n", _actionUpperBounds[i], _actionLowerBounds[i], i);
+    _actionLowerBounds[i].resize(_problem->_actionVectorSize[i]);
+    _actionUpperBounds[i].resize(_problem->_actionVectorSize[i]);
   }
+  
+  for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
+  {
+    for (size_t j = 0; j < _problem->_actionVectorSize[i]; j++)
+    {
+      auto varIdx = _problem->_actionVectorIndexes[i][j];
+      _actionLowerBounds[i][j] = _k->_variables[varIdx]->_lowerBound;
+      _actionUpperBounds[i][j] = _k->_variables[varIdx]->_upperBound;
+
+      if (_actionUpperBounds[i][j] - _actionLowerBounds[i][j] <= 0.0) KORALI_LOG_ERROR("Upper (%f) and Lower Bound (%f) of action variable %lu invalid.\n", _actionUpperBounds[i][j], _actionLowerBounds[i][j], sum(_problem->_agentsPerTeam[:i])+j);
+    }
+  }
+  
 
   if (_episodesPerGeneration < 1)
     KORALI_LOG_ERROR("Episodes Per Generation must be larger equal 1 (is %zu)", _episodesPerGeneration);

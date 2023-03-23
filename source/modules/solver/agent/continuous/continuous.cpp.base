@@ -15,80 +15,114 @@ void __className__::initializeAgent()
   _problem->_actionCount = 0;
 
   // Obtaining action shift and scales for bounded distributions
-  _actionShifts.resize(_problem->_actionVectorSize);
-  _actionScales.resize(_problem->_actionVectorSize);
 
-  for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+  _actionShifts.resize(_problem->_agentsperTeam.size());
+  _actionScales.resize(_problem->_agentsperTeam.size());
+  
+  for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
   {
-    // For bounded distributions, infinite bounds should result in an error message
-    if (_policyDistribution == "Squashed Normal" || _policyDistribution == "Beta" || _policyDistribution == "Clipped Normal" || _policyDistribution == "Truncated Normal")
+    _actionShifts[i].resize(_problem->_actionVectorSize[i]);
+    _actionScales[i].resize(_problem->_actionVectorSize[i]);
+  }
+
+  
+  
+  for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
+  {
+    for (size_t j = 0; j < _problem->_actionVectorSize[i]; j++)
     {
-      if (isfinite(_actionLowerBounds[i]) == false)
-        KORALI_LOG_ERROR("Provided lower bound (%f) for action variable %lu is non-finite, but the distribution (%s) is bounded.\n", _actionLowerBounds[i], i, _policyDistribution.c_str());
+     // For bounded distributions, infinite bounds should result in an error message
+     if (_policyDistribution == "Squashed Normal" || _policyDistribution == "Beta" || _policyDistribution == "Clipped Normal" || _policyDistribution == "Truncated Normal")
+     {
+       if (isfinite(_actionLowerBounds[i]) == false)
+        KORALI_LOG_ERROR("Provided lower bound (%f) for action variable %lu is non-finite, but the distribution (%s) is bounded.\n", _actionLowerBounds[i][j], sum(_problem->_agentsPerTeam[:i])+j, _policyDistribution.c_str());
 
-      if (isfinite(_actionUpperBounds[i]) == false)
-        KORALI_LOG_ERROR("Provided upper bound (%f) for action variable %lu is non-finite, but the distribution (%s) is bounded.\n", _actionUpperBounds[i], i, _policyDistribution.c_str());
+       if (isfinite(_actionUpperBounds[i]) == false)
+        KORALI_LOG_ERROR("Provided upper bound (%f) for action variable %lu is non-finite, but the distribution (%s) is bounded.\n", _actionUpperBounds[i][j], sum(_problem->_agentsPerTeam[:i])+j, _policyDistribution.c_str());
 
-      _actionShifts[i] = (_actionUpperBounds[i] + _actionLowerBounds[i]) * 0.5f;
-      _actionScales[i] = (_actionUpperBounds[i] - _actionLowerBounds[i]) * 0.5f;
+       _actionShifts[i][j] = (_actionUpperBounds[i][j] + _actionLowerBounds[i][j]) * 0.5f;
+       _actionScales[i][j] = (_actionUpperBounds[i][j] - _actionLowerBounds[i][j]) * 0.5f;
+     }
     }
   }
+  
 
   // Obtaining policy parameter transformations (depends on which policy distribution chosen)
   if (_policyDistribution == "Normal" || _policyDistribution == "Squashed Normal" || _policyDistribution == "Clipped Normal" || _policyDistribution == "Truncated Normal")
   {
-    _policyParameterCount = 2 * _problem->_actionVectorSize; // Mus and Sigmas
+    _policyParameterTransformationMasks.resize(_agentsPerTeam.size());
+    _policyParameterScaling.resize(_agentsPerTeam.size());
+    _policyParameterShifting.resize(_agentsPerTeam.size());
 
-    _policyParameterTransformationMasks.resize(_policyParameterCount);
-    _policyParameterScaling.resize(_policyParameterCount);
-    _policyParameterShifting.resize(_policyParameterCount);
-
-    // Establishing transformations for the Normal policy
-    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
     {
-      const auto varIdx = _problem->_actionVectorIndexes[i];
-      const float sigma = _k->_variables[varIdx]->_initialExplorationNoise;
+      _policyParameterCount.push_back(2 * _problem->_actionVectorSize[i]); // Mus and Sigmas
 
-      // Checking correct noise configuration
-      if (sigma <= 0.0f) KORALI_LOG_ERROR("Provided initial noise (%f) for action variable %lu is not defined or negative.\n", sigma, varIdx);
+      _policyParameterTransformationMasks[i].resize(_policyParameterCount[i]);
+      _policyParameterScaling[i].resize(_policyParameterCount[i]);
+      _policyParameterShifting[i].resize(_policyParameterCount[i]);
+    }
+    
+    // Establishing transformations for the Normal policy
+    for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
+    {
+      for (size_t j = 0; j < _problem->_actionVectorSize[i]; j++)
+      {
+        const auto varIdx = _problem->_actionVectorIndexes[i][j];
+        const float sigma = _k->_variables[varIdx]->_initialExplorationNoise;
 
-      // Identity mask for Means
-      _policyParameterTransformationMasks[i] = "Identity";
-      _policyParameterScaling[i] = 1.0; //_actionScales[i];
-      _policyParameterShifting[i] = _actionShifts[i];
+        // Checking correct noise configuration
+        if (sigma <= 0.0f) KORALI_LOG_ERROR("Provided initial noise (%f) for action variable %lu is not defined or negative.\n", sigma, varIdx);
 
-      // Softplus mask for Sigmas
-      _policyParameterTransformationMasks[_problem->_actionVectorSize + i] = "Softplus"; // f(x) = 0.5 * (x + std::sqrt(1. + x * x));
-      _policyParameterScaling[_problem->_actionVectorSize + i] = 2.0f * sigma;
-      _policyParameterShifting[_problem->_actionVectorSize + i] = 0.0f;
+        // Identity mask for Means
+        _policyParameterTransformationMasks[i][j] = "Identity";
+        _policyParameterScaling[i][j] = 1.0; //_actionScales[i][j];
+        _policyParameterShifting[i][j] = _actionShifts[i][j];
+
+        // Softplus mask for Sigmas
+        _policyParameterTransformationMasks[_problem->_actionVectorSize + i] = "Softplus"; // f(x) = 0.5 * (x + std::sqrt(1. + x * x));
+        _policyParameterScaling[i][_problem->_actionVectorSize[i] + j] = 2.0f * sigma;
+        _policyParameterShifting[i][_problem->_actionVectorSize[i] + j] = 0.0f;
+      }
     }
   }
 
   if (_policyDistribution == "Beta")
   {
-    _policyParameterCount = 2 * _problem->_actionVectorSize; // Mu and Variance
-    _policyParameterTransformationMasks.resize(_policyParameterCount);
-    _policyParameterScaling.resize(_policyParameterCount);
-    _policyParameterShifting.resize(_policyParameterCount);
+    _policyParameterTransformationMasks.resize(_agentsPerTeam.size());
+    _policyParameterScaling.resize(_agentsPerTeam.size());
+    _policyParameterShifting.resize(_agentsPerTeam.size());
+
+    for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
+    {
+      _policyParameterCount.push_back(2 * _problem->_actionVectorSize[i]); // Mus and Variance
+
+      _policyParameterTransformationMasks[i].resize(_policyParameterCount[i]);
+      _policyParameterScaling[i].resize(_policyParameterCount[i]);
+      _policyParameterShifting[i].resize(_policyParameterCount[i]);
+    }
 
     // Establishing transformations for the Normal policy
-    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
     {
-      const size_t varIdx = _problem->_actionVectorIndexes[i];
-      const float sigma = _k->_variables[varIdx]->_initialExplorationNoise;
+      for (size_t j = 0; j < _problem->_actionVectorSize[i]; j++)
+      {
+        const size_t varIdx = _problem->_actionVectorIndexes[i][j];
+        const float sigma = _k->_variables[varIdx]->_initialExplorationNoise;
 
-      // Checking correct noise configuration
-      if (sigma <= 0.0f) KORALI_LOG_ERROR("Provided initial noise (%f) for action variable %lu is not defined or negative.\n", sigma, varIdx);
+        // Checking correct noise configuration
+        if (sigma <= 0.0f) KORALI_LOG_ERROR("Provided initial noise (%f) for action variable %lu is not defined or negative.\n", sigma, varIdx);
 
-      // Identity mask for Means
-      _policyParameterScaling[i] = 1.0f;
-      _policyParameterShifting[i] = _actionShifts[i];
-      _policyParameterTransformationMasks[i] = "Identity";
+        // Identity mask for Means
+        _policyParameterScaling[i][j] = 1.0f;
+        _policyParameterShifting[i][j] = _actionShifts[i][j];
+        _policyParameterTransformationMasks[i][j] = "Identity";
 
-      // Sigmoid Mask for Variance
-      _policyParameterTransformationMasks[_problem->_actionVectorSize + i] = "Sigmoid";
-      _policyParameterScaling[_problem->_actionVectorSize + i] = 2.0f * sigma;
-      _policyParameterShifting[_problem->_actionVectorSize + i] = 0.0f;
+        // Sigmoid Mask for Variance
+        _policyParameterTransformationMasks[i][_problem->_actionVectorSize[i] + j] = "Sigmoid";
+        _policyParameterScaling[i][_problem->_actionVectorSize[i] + j] = 2.0f * sigma;
+        _policyParameterShifting[i][_problem->_actionVectorSize[i] + j] = 0.0f;
+      }  
     }
   }
 }
