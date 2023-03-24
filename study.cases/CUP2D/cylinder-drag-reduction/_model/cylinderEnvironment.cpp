@@ -8,12 +8,12 @@
 #include <exception>
 
 //For Re=400
-//std::string OPTIONS_testing = "-restart 1 -poissonSolver cuda_iterative -bMeanConstraint 2 -CFL 0.5 -bpdx 8 -bpdy 4 -levelMax 6 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 4. -tdump 0 -tend 0. -muteAll 0 -verbose 0 -poissonTol 0. -poissonTolRel 1e-4 -bAdaptChiGradient 1";
-//std::string OPTIONS         = "-restart 1 -poissonSolver cuda_iterative -bMeanConstraint 2 -CFL 0.5 -bpdx 8 -bpdy 4 -levelMax 5 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 4. -tdump 0 -tend 0. -muteAll 0 -verbose 0 -poissonTol 0. -poissonTolRel 1e-4 -bAdaptChiGradient 1";
+//std::string OPTIONS_testing = "-restart 1 -poissonSolver iterative -bMeanConstraint 2 -CFL 0.5 -bpdx 8 -bpdy 4 -levelMax 6 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 4. -tdump 0 -tend 0. -muteAll 0 -verbose 0 -poissonTol 0. -poissonTolRel 1e-4 -bAdaptChiGradient 1";
+//std::string OPTIONS         = "-restart 1 -poissonSolver iterative -bMeanConstraint 2 -CFL 0.5 -bpdx 8 -bpdy 4 -levelMax 5 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 4. -tdump 0 -tend 0. -muteAll 0 -verbose 0 -poissonTol 0. -poissonTolRel 1e-4 -bAdaptChiGradient 1";
 
 //For Re=4000
-std::string OPTIONS_testing = "-restart 1 -bMeanConstraint 0 -bpdx 8 -bpdy 4 -levelMax 6 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 2 -CFL 0.50 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-7 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver cuda_iterative";
-std::string OPTIONS         = "-restart 1 -bMeanConstraint 0 -bpdx 8 -bpdy 4 -levelMax 5 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 2 -CFL 0.50 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-7 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver cuda_iterative";
+std::string OPTIONS_testing = "-restart 1 -bMeanConstraint 2 -bpdx 8 -bpdy 4 -levelMax 6 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 2 -CFL 0.50 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-7 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
+std::string OPTIONS         = "-restart 1 -bMeanConstraint 2 -bpdx 8 -bpdy 4 -levelMax 5 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 2 -CFL 0.50 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-7 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
 
 int _argc;
 char **_argv;
@@ -92,11 +92,12 @@ void runEnvironment(korali::Sample &s)
   fs::current_path(resDir);
 
   const int nAgents = 1;
+  const double reg = std::stod((_argv[_argc-3]));
 
   // Argument string to inititialize Simulation
   std::string argumentString = "CUP-RL " + (s["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
   argumentString += " -nu " + std::to_string(nu_ic);
-  argumentString += " -shapes cylinderNozzle xpos=0.5 bForced=1 bFixed=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 radius=0.1 dumpSurf=1";
+  argumentString += " -shapes cylinderNozzle xpos=0.5 bForced=1 bFixed=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 radius=0.1 dumpSurf=1 regularizer=" + std::to_string(reg);
 
   // Create argc / argv to pass to CUP
   std::stringstream ss(argumentString);

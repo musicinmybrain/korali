@@ -1,12 +1,13 @@
 #! /usr/bin/env bash
 
-if [ $# -lt 3 ] ; then
-	echo "Usage: ./sbatch-run-vracer-cylinder.sh [name of run] [number of workers] [number of nodes per worker]"
+if [ $# -lt 4 ] ; then
+	echo "Usage: ./sbatch-run-vracer-cylinder.sh [name of run] [number of workers] [number of nodes per worker] [regularizer value]"
 	exit 1
 fi
 RUNNAME=$1
 NWORKER=$2
 NRANKS=$3
+REG=$4
 NNODES=$(( $NWORKER * $NRANKS ))
 NUMCORES=128
 
@@ -30,7 +31,7 @@ cat <<EOF >lumi_sbatch
 #SBATCH hetjob
 #SBATCH --partition=standard
 #SBATCH --nodes=1 --ntasks-per-node=1 --cpus-per-task=8
-srun --het-group=0,1 ./run-vracer-cylinder -task 0 -nAgents 1 -nRanks $(( $NRANKS * $NUMCORES ))
+srun --het-group=0,1 ./run-vracer-cylinder -nRanks $(( $NRANKS * $NUMCORES )) -reg $REG
 EOF
 
 chmod 755 lumi_sbatch
