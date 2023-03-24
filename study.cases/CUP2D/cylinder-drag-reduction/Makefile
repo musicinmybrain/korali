@@ -1,4 +1,4 @@
-CYLINDER = run-vracer-cylinder eval-vracer-cylinder
+CYLINDER = run-vracer-cylinder eval-vracer-cylinder run-cmaes-cylinder
 KORALICXX=${CXX}
 KORALICFLAGS=`python3 -m korali.cxx --cflags`
 KORALILIBS=`python3 -m korali.cxx --libs`

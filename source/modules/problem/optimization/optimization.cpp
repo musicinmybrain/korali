@@ -14,6 +14,8 @@ void Optimization::initialize()
 
 void Optimization::evaluateConstraints(Sample &sample)
 {
+  sample["Custom Settings"] = _customSettings;
+
   for (size_t i = 0; i < _constraints.size(); i++)
   {
     sample.run(_constraints[i]);
@@ -29,6 +31,8 @@ void Optimization::evaluateConstraints(Sample &sample)
 
 void Optimization::evaluate(Sample &sample)
 {
+  sample["Custom Settings"] = _customSettings;
+
   sample.run(_objectiveFunction);
 
   auto evaluation = KORALI_GET(double, sample, "F(x)");
@@ -39,6 +43,8 @@ void Optimization::evaluate(Sample &sample)
 
 void Optimization::evaluateMultiple(Sample &sample)
 {
+  sample["Custom Settings"] = _customSettings;
+
   sample.run(_objectiveFunction);
 
   auto evaluation = KORALI_GET(std::vector<double>, sample, "F(x)");
@@ -50,6 +56,8 @@ void Optimization::evaluateMultiple(Sample &sample)
 
 void Optimization::evaluateWithGradients(Sample &sample)
 {
+  sample["Custom Settings"] = _customSettings;
+
   sample.run(_objectiveFunction);
 
   auto evaluation = KORALI_GET(double, sample, "F(x)");
@@ -105,6 +113,14 @@ void Optimization::setConfiguration(knlohmann::json& js)
  }
   else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Constraints'] required by optimization.\n"); 
 
+ if (isDefined(js, "Custom Settings"))
+ {
+ _customSettings = js["Custom Settings"].get<knlohmann::json>();
+
+   eraseValue(js, "Custom Settings");
+ }
+  else   KORALI_LOG_ERROR(" + No value provided for mandatory setting: ['Custom Settings'] required by optimization.\n"); 
+
  if (isDefined(_k->_js.getJson(), "Variables"))
  for (size_t i = 0; i < _k->_js["Variables"].size(); i++) { 
  } 
@@ -130,6 +146,7 @@ void Optimization::getConfiguration(knlohmann::json& js)
    js["Num Objectives"] = _numObjectives;
    js["Objective Function"] = _objectiveFunction;
    js["Constraints"] = _constraints;
+   js["Custom Settings"] = _customSettings;
    js["Has Discrete Variables"] = _hasDiscreteVariables;
  for (size_t i = 0; i <  _k->_variables.size(); i++) { 
  } 
@@ -139,7 +156,7 @@ void Optimization::getConfiguration(knlohmann::json& js)
 void Optimization::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Num Objectives\": 1, \"Has Discrete Variables\": false, \"Constraints\": []}";
+ std::string defaultString = "{\"Num Objectives\": 1, \"Has Discrete Variables\": false, \"Constraints\": [], \"Custom Settings\": {}}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Problem::applyModuleDefaults(js);

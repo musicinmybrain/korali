@@ -10,6 +10,8 @@ void __className__::initialize()
 
 void __className__::evaluateConstraints(Sample &sample)
 {
+  sample["Custom Settings"] = _customSettings;
+
   for (size_t i = 0; i < _constraints.size(); i++)
   {
     sample.run(_constraints[i]);
@@ -25,6 +27,8 @@ void __className__::evaluateConstraints(Sample &sample)
 
 void __className__::evaluate(Sample &sample)
 {
+  sample["Custom Settings"] = _customSettings;
+
   sample.run(_objectiveFunction);
 
   auto evaluation = KORALI_GET(double, sample, "F(x)");
@@ -35,6 +39,8 @@ void __className__::evaluate(Sample &sample)
 
 void __className__::evaluateMultiple(Sample &sample)
 {
+  sample["Custom Settings"] = _customSettings;
+
   sample.run(_objectiveFunction);
 
   auto evaluation = KORALI_GET(std::vector<double>, sample, "F(x)");
@@ -46,6 +52,8 @@ void __className__::evaluateMultiple(Sample &sample)
 
 void __className__::evaluateWithGradients(Sample &sample)
 {
+  sample["Custom Settings"] = _customSettings;
+
   sample.run(_objectiveFunction);
 
   auto evaluation = KORALI_GET(double, sample, "F(x)");
