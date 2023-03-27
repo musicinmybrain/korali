@@ -1,5 +1,4 @@
 #! /usr/bin/env bash
-
 if [ $# -lt 3 ] ; then
 	echo "Usage: ./sbatch-run-vracer-naca.sh [name of run] [number of workers] [number of nodes per worker]"
 	exit 1
