@@ -8,7 +8,7 @@
 #include <exception>
 
 //For Re=1000
-std::string OPTIONS         = "-poissonSolver iterative -bpdx 4 -bpdy 2 -levelMax 6 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 2 -CFL 0.5 -poissonTol 1e-6 -poissonTolRel 1e-4 -bMeanConstraint 2 -bAdaptChiGradient 0 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 ";
+std::string OPTIONS         = "-poissonSolver iterative -bpdx 4 -bpdy 2 -levelMax 6 -levelStart 4 -Rtol 5.0 -Ctol 1.0 -extent 2 -CFL 0.5 -poissonTol 1e-6 -poissonTolRel 1e-4 -bMeanConstraint 2 -bAdaptChiGradient 0 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 ";
 std::string OPTIONS_testing = "-poissonSolver iterative -bpdx 4 -bpdy 2 -levelMax 7 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 2 -CFL 0.5 -poissonTol 1e-6 -poissonTolRel 1e-4 -bMeanConstraint 2 -bAdaptChiGradient 0 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 ";
 
 int _argc;
@@ -89,8 +89,8 @@ void runEnvironment(korali::Sample &s)
   // Argument string to inititialize Simulation
   std::string argumentString = "CUP-RL " + (s["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
   argumentString += " -nu " + std::to_string(nu_ic);
-  //argumentString += " -shapes SmartNACA L=0.12 xpos=0.5 angle=0 fixedCenterDist=0.3 bFixedx=1 xvel=0.1 Apitch=0.0 Fpitch=0. tAccel=1.0 Aheave=0.0 Fheave=0.0 Nactuators="+std::to_string(NUMACTIONS)+ "actuatords=0.1";
-  argumentString += " -shapes SmartNACA L=0.12 xpos=0.5 angle=0 fixedCenterDist=0.3 bFixedx=1 xvel=0.1 Apitch=13.15 Fpitch=0.715 tAccel=1.0 Aheave=0.0 Fheave=0.0 Nactuators="+std::to_string(NUMACTIONS)+ "actuatords=0.1";
+  argumentString += " -shapes SmartNACA L=0.12 xpos=0.5 bFixed=1 xvel=0.1 Nactuators="+std::to_string(NUMACTIONS)+ " actuatords=0.1";
+  //argumentString += " -shapes SmartNACA L=0.12 xpos=0.5 angle=0 fixedCenterDist=0.3 bFixedx=1 xvel=0.1 Apitch=13.15 Fpitch=0.715 tAccel=-1.0 Aheave=0.0 Fheave=0.0 Nactuators="+std::to_string(NUMACTIONS)+ " actuatords=0.1";
 
   // Create argc / argv to pass to CUP
   std::stringstream ss(argumentString);
@@ -135,7 +135,7 @@ void runEnvironment(korali::Sample &s)
   double tNextAct = t;               // Time of next action
 
   // Setting maximum number of steps before truncation
-  const size_t maxSteps = ( s["Mode"] == "Training" ) ? 500 : 5000; //simulate 500*0.1 = 50T
+  const size_t maxSteps = ( s["Mode"] == "Training" ) ? 50 : 500; //simulate 500*0.1 = 50T
 
   // Container for actions
   std::vector<std::vector<double>> actions(nAgents, std::vector<double>(NUMACTIONS));
@@ -193,10 +193,10 @@ void runEnvironment(korali::Sample &s)
     }
 
     // Run the simulation until next action is required
-    //dtAct = 1.0;
-    dtAct = 0.10;
+    dtAct = 1.0;
+    //dtAct = 0.10;
     tNextAct += dtAct;
-    tNextAct = std::max(5.0,tNextAct);
+    //tNextAct = std::max(5.0,tNextAct);
     while ( t < tNextAct && done == false )
     {
       const double dt = std::min(_environment->calcMaxTimestep(), dtAct);

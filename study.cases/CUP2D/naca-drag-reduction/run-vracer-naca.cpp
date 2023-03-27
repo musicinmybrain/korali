@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
     e["Variables"][curVariable]["Type"] = "State";
   }
 
-  const double q = 1.0; //action bounds
+  const double q = 0.5; //action bounds
   for (size_t idx = 0 ; idx < NUMACTIONS; idx ++)
   {
     e["Variables"][curVariable]["Name"] = "Nozzle" + std::to_string(idx);
