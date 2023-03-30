@@ -115,7 +115,7 @@ void __className__::runTrainingEpisode(Sample &worker)
   worker["Termination"] = "Non Terminal";
 
   // Getting first state
-  if (worker["Termination"] == "Non Terminal")
+  if(worker["Termination"] == "Non Terminal")
     runEnvironment(worker);
 
   // If this is not the leader rank within the worker group, return immediately
@@ -128,20 +128,21 @@ void __className__::runTrainingEpisode(Sample &worker)
   // Saving experiences
   while (worker["Termination"] == "Non Terminal")
   {
-    // Getting current state
-    const auto state = worker["State"].get<std::vector<std::vector<float>>>();
+	// Getting current state
+	const auto state = worker["State"].get<std::vector<std::vector<float>>>();
 
-    std::vector<float> stateValue(_agentsPerEnvironment);
-    // Get action for all the agents in the environment
-    for (size_t i = 0; i < _agentsPerEnvironment; i++)
-    {
-      // Forward state sequence to get the Gaussian means and sigmas from policy
-      // in case of multiple polices it runs the i-th policy otherwise standard
-      if (_policiesPerEnvironment == 1)
-        stateValue[i] = _agent->calculateStateValue({state[i]}, 0);
-      else
-        stateValue[i] = _agent->calculateStateValue({state[i]}, i);
-    }
+
+  std::vector<float> stateValue(_agentsPerEnvironment);
+ // Get action for all the agents in the environment
+  for (size_t i = 0; i < _agentsPerEnvironment; i++)
+  {
+    // Forward state sequence to get the Gaussian means and sigmas from policy
+    // in case of multiple polices it runs the i-th policy otherwise standard
+    if (_policiesPerEnvironment == 1)
+      stateValue[i] = _agent->calculateStateValue({state[i]}, 0);
+    else
+      stateValue[i] = _agent->calculateStateValue({state[i]}, i);
+  }
     // Storing the experience's policy
     episode["Experiences"][actionCount]["Policy"]["State Value"] = stateValue;
     episode["Experiences"][actionCount]["Policy"]["Distribution Parameters"] = worker["Distribution Parameters"];
@@ -174,7 +175,7 @@ void __className__::runTrainingEpisode(Sample &worker)
     // Increasing counter for generated actions
     actionCount++;
 
-    // Cleanup sample object
+	// Cleanup sample object
     //worker._js.getJson().erase("Action");
     //worker._js.getJson().erase("Reward");
     //worker._js.getJson().erase("Termination");
@@ -190,7 +191,7 @@ void __className__::runTrainingEpisode(Sample &worker)
 
   // Setting cumulative reward
   worker["Training Rewards"] = trainingRewards;
-
+  
   if (worker.contains("Gradients"))
     worker._js.getJson().erase("Gradients");
 
@@ -221,18 +222,19 @@ void __className__::runTrainingEpisode(Sample &worker)
       KORALI_LOG_ERROR("State sequence not evaluated in environment. Sample object does not contain Distribution Parameters");
     else
     {
-      //const auto miniBatchList = KORALI_GET(std::vector<std::vector<std::pair<size_t, size_t>>>, worker, "Mini Batch");
-      const auto miniBatchList = KORALI_GET(std::vector<std::vector<std::vector<size_t>>>, worker, "Mini Batch");
-      const auto distributionParamsList = KORALI_GET(std::vector<std::vector<std::vector<float>>>, worker, "Distribution Parameters");
+    //const auto miniBatchList = KORALI_GET(std::vector<std::vector<std::pair<size_t, size_t>>>, worker, "Mini Batch");
+    const auto miniBatchList = KORALI_GET(std::vector<std::vector<std::vector<size_t>>>, worker, "Mini Batch");
+    const auto distributionParamsList = KORALI_GET(std::vector<std::vector<std::vector<float>>>, worker, "Distribution Parameters");
 
-      if (miniBatchList.size() != distributionParamsList.size())
+    if (miniBatchList.size() != distributionParamsList.size())
         KORALI_LOG_ERROR("Distribution Parameters length (%zu) does not match Mini Batch length (%zu)", distributionParamsList.size(), miniBatchList.size());
 
-      if (distributionParamsList[0][0].size() != 2 * _actionVectorSize)
-        KORALI_LOG_ERROR("Distribution Parameters must be of size %zu but are of size %zu", 2 * _actionVectorSize, distributionParamsList[0][0].size());
+    if (distributionParamsList[0][0].size() != 2 * _actionVectorSize)
+      KORALI_LOG_ERROR("Distribution Parameters must be of size %zu but are of size %zu", 2 * _actionVectorSize, distributionParamsList[0][0].size());
 
-      message["Mini Batch"] = miniBatchList;
-      message["Distribution Parameters"] = distributionParamsList;
+    message["Mini Batch"] = miniBatchList;
+    message["Distribution Parameters"] = distributionParamsList;
+
     }
 
     // Cleanup
@@ -325,8 +327,8 @@ void __className__::runEnvironment(Sample &worker)
 
   // In case of this being a single worker, preprocess state and reward if necessary
   if (_conduit->isWorkerLeadRank() == false) return;
-
-  if (worker.contains("Mini Batch"))
+  
+  if(worker.contains("Mini Batch"))
     return;
 
   // In case of this being a single agent, support returning state as only vector
@@ -347,6 +349,26 @@ void __className__::runEnvironment(Sample &worker)
     worker._js.getJson().erase("Distribution Parameters");
     worker["Distribution Parameters"][0] = distributionParams;
   }
+  
+  // Checking correct format of state
+  if (worker["Distribution Parameters"].is_array() == false) KORALI_LOG_ERROR("Distribution Parameters variable returned by the environment is not a vector.\n");
+  if (worker["Distribution Parameters"].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Distribution Parameters vector returned with the wrong size: %lu, expected: %lu.\n", worker["Distribution Parameters"].size(), _agentsPerEnvironment);
+
+  /*
+  for (size_t i = 0; i < _agentsPerEnvironment; i++)
+  {
+    if (worker["Distribution Parameters"][i].is_array() == false) KORALI_LOG_ERROR("Distribution Parameters variable returned by the environment is not a vector.\n");
+
+
+
+    for (size_t j = 0; j < _stateVectorSize; j++)
+
+    if (worker["State"][i].size() != _stateVectorSize) KORALI_LOG_ERROR("Agents state vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["State"][i].size(), _stateVectorSize);
+
+    for (size_t j = 0; j < _stateVectorSize; j++)
+      if (std::isfinite(worker["State"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu state variable %lu returned an invalid value: %f\n", i, j, worker["State"][i][j].get<float>());
+  }
+  */
 
   // Checking correct format of state
   if (worker["State"].is_array() == false) KORALI_LOG_ERROR("Agent state variable returned by the environment is not a vector.\n");
