@@ -80,7 +80,7 @@ void __className__::initializeAgent()
         _policyParameterShifting[i][j] = _actionShifts[i][j];
 
         // Softplus mask for Sigmas
-        _policyParameterTransformationMasks[_problem->_actionVectorSize + i] = "Softplus"; // f(x) = 0.5 * (x + std::sqrt(1. + x * x));
+        _policyParameterTransformationMasks[i][_problem->_actionVectorSize[i] + j] = "Softplus"; // f(x) = 0.5 * (x + std::sqrt(1. + x * x));
         _policyParameterScaling[i][_problem->_actionVectorSize[i] + j] = 2.0f * sigma;
         _policyParameterShifting[i][_problem->_actionVectorSize[i] + j] = 0.0f;
       }
@@ -130,113 +130,116 @@ void __className__::initializeAgent()
 void __className__::getAction(korali::Sample &sample)
 {
   // Get action for all the agents in the environment
-  for (size_t i = 0; i < _problem->_agentsPerEnvironment; i++)
+  for (size_t j = 0; j < _problem -> _agentsPerTeam.size(); j++)
   {
-    // Getting current state
+    for (size_t i = 0; i < _problem->_agentsPerTeam[j]; i++)
+    {
+      // Getting current state
 
-    auto state = sample["State"][i];
+      auto state = sample["State"][sum(_agentsPerTeam[:j])+i];
 
-    // Adding state to the state time sequence
-    _stateTimeSequence[i].add(state);
+      // Adding state to the state time sequence
+      _stateTimeSequence[sum(_agentsPerTeam[:j])+i].add(state);
 
-    // Storage for the action to select
-    std::vector<float> action(_problem->_actionVectorSize);
+      // Storage for the action to select
+      std::vector<float> action(_problem->_actionVectorSize[j]);
 
-    // Forward state sequence to get the Gaussian means and sigmas from policy
-    // in case of multiple polices it runs the i-th policy otherwise standard
-    std::vector<policy_t> policy;
-    if (_problem->_policiesPerEnvironment == 1)
-      runPolicy({_stateTimeSequence[i].getVector()}, policy);
-    else
-      runPolicy({_stateTimeSequence[i].getVector()}, policy, i);
+      // Forward state sequence to get the Gaussian means and sigmas from policy
+      // in case of multiple polices it runs the i-th policy otherwise standard
+      std::vector<policy_t> policy;
+      if (_problem->_policiesPerEnvironment == 1)
+        runPolicy({_stateTimeSequence[sum(_agentsPerTeam[:j])+i].getVector()}, policy);
+      else
+        runPolicy({_stateTimeSequence[sum(_agentsPerTeam[:j])+i].getVector()}, policy, sum(_agentsPerTeam[:j])+i);
 
-    /*****************************************************************************
-     * During Training we select action according to policy's probability
-     * distribution
-     ****************************************************************************/
+      /*****************************************************************************
+      * During Training we select action according to policy's probability
+      * distribution
+      ****************************************************************************/
 
-    if (sample["Mode"] == "Training") action = generateTrainingAction(policy[0]);
+      if (sample["Mode"] == "Training") action = generateTrainingAction(policy[0], j);
 
-    /*****************************************************************************
-     * During testing, we select the modes for all
-     * elements of the action vector
-     ****************************************************************************/
+      /*****************************************************************************
+      * During testing, we select the modes for all
+      * elements of the action vector
+      ****************************************************************************/
 
-    if (sample["Mode"] == "Testing") action = generateTestingAction(policy[0]);
+      if (sample["Mode"] == "Testing") action = generateTestingAction(policy[0], j);
 
-    /*****************************************************************************
-     * Storing the action and its policy
-     ****************************************************************************/
+      /*****************************************************************************
+      * Storing the action and its policy
+      ****************************************************************************/
 
-    // Check action
-    for (size_t j = 0; j < _problem->_actionVectorSize; j++)
-      if (std::isfinite(action[j]) == false) KORALI_LOG_ERROR("Agent %lu action %lu returned an invalid value: %f\n", i, j, action[j]);
+      // Check action
+      for (size_t z = 0; z < _problem->_actionVectorSize[j]; z++)
+        if (std::isfinite(action[z]) == false) KORALI_LOG_ERROR("Agent %lu action %lu returned an invalid value: %f\n", sum(_agentsPerTeam[:j])+i, z, action[z]);
 
-    // Write action to sample
-    sample["Action"][i] = action;
-    sample["Policy"]["State Value"][i] = policy[0].stateValue;
-    sample["Policy"]["Unbounded Action"][i] = policy[0].unboundedAction;
-    sample["Policy"]["Distribution Parameters"][i] = policy[0].distributionParameters;
+      // Write action to sample
+      sample["Action"][sum(_agentsPerTeam[:j])+i] = action;
+      sample["Policy"]["State Value"][sum(_agentsPerTeam[:j])+i] = policy[0].stateValue;
+      sample["Policy"]["Unbounded Action"][sum(_agentsPerTeam[:j])+i] = policy[0].unboundedAction;
+      sample["Policy"]["Distribution Parameters"][sum(_agentsPerTeam[:j])+i] = policy[0].distributionParameters;
+    }
   }
 }
 
-std::vector<float> __className__::generateTrainingAction(policy_t &curPolicy)
+std::vector<float> __className__::generateTrainingAction(policy_t &curPolicy, size_t teamIndex)
 {
-  std::vector<float> action(_problem->_actionVectorSize);
+  std::vector<float> action(_problem->_actionVectorSize[teamIndex]);
 
   // Creating the action based on the selected policy
   if (_policyDistribution == "Normal")
   {
-    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    for (size_t i = 0; i < _problem->_actionVectorSize[teamIndex]; i++)
     {
       const float mean = curPolicy.distributionParameters[i];
-      const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+      const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize[teamIndex] + i];
       action[i] = mean + sigma * _normalGenerator->getRandomNumber();
     }
   }
 
   if (_policyDistribution == "Squashed Normal")
   {
-    std::vector<float> unboundedAction(_problem->_actionVectorSize);
-    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    std::vector<float> unboundedAction(_problem->_actionVectorSize[teamIndex]);
+    for (size_t i = 0; i < _problem->_actionVectorSize[teamIndex]; i++)
     {
       const float mu = curPolicy.distributionParameters[i];
-      const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
-      const float scale = _actionScales[i];
-      const float shift = _actionShifts[i];
+      const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize[teamIndex] + i];
+      const float scale = _actionScales[teamIndex][i];
+      const float shift = _actionShifts[teamIndex][i];
 
       unboundedAction[i] = mu + sigma * _normalGenerator->getRandomNumber();
       action[i] = (std::tanh(unboundedAction[i]) * scale) + shift;
 
       // Safety check
-      if (action[i] >= _actionUpperBounds[i]) action[i] = _actionUpperBounds[i];
-      if (action[i] <= _actionLowerBounds[i]) action[i] = _actionLowerBounds[i];
+      if (action[i] >= _actionUpperBounds[teamIndex][i]) action[i] = _actionUpperBounds[teamIndex][i];
+      if (action[i] <= _actionLowerBounds[teamIndex][i]) action[i] = _actionLowerBounds[teamIndex][i];
     }
     curPolicy.unboundedAction = unboundedAction;
   }
 
   if (_policyDistribution == "Clipped Normal")
   {
-    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    for (size_t i = 0; i < _problem->_actionVectorSize[teamIndex]; i++)
     {
       const float mu = curPolicy.distributionParameters[i];
-      const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+      const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize[teamIndex] + i];
       action[i] = mu + sigma * _normalGenerator->getRandomNumber();
 
-      if (action[i] >= _actionUpperBounds[i]) action[i] = _actionUpperBounds[i];
-      if (action[i] <= _actionLowerBounds[i]) action[i] = _actionLowerBounds[i];
+      if (action[i] >= _actionUpperBounds[teamIndex][i]) action[i] = _actionUpperBounds[teamIndex][i];
+      if (action[i] <= _actionLowerBounds[teamIndex][i]) action[i] = _actionLowerBounds[teamIndex][i];
     }
   }
 
   if (_policyDistribution == "Truncated Normal")
   {
-    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    for (size_t i = 0; i < _problem->_actionVectorSize[teamIndex]; i++)
     {
       const float mu = curPolicy.distributionParameters[i];
-      const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
+      const float sigma = curPolicy.distributionParameters[_problem->_actionVectorSize[teamIndex] + i];
 
-      const float alpha = (_actionLowerBounds[i] - mu) / sigma;
-      const float beta = (_actionUpperBounds[i] - mu) / sigma;
+      const float alpha = (_actionLowerBounds[teamIndex][i] - mu) / sigma;
+      const float beta = (_actionUpperBounds[teamIndex][i] - mu) / sigma;
 
       // Sampling via naive inverse sampling (not the safest approach due to numerical precision)
       const float u = _uniformGenerator->getRandomNumber();
@@ -244,43 +247,43 @@ std::vector<float> __className__::generateTrainingAction(policy_t &curPolicy)
       action[i] = mu + M_SQRT2 * ierf(2. * z - 1.) * sigma;
 
       // Safety check
-      if (action[i] >= _actionUpperBounds[i]) action[i] = _actionUpperBounds[i];
-      if (action[i] <= _actionLowerBounds[i]) action[i] = _actionLowerBounds[i];
+      if (action[i] >= _actionUpperBounds[teamIndex][i]) action[i] = _actionUpperBounds[teamIndex][i];
+      if (action[i] <= _actionLowerBounds[teamIndex][i]) action[i] = _actionLowerBounds[teamIndex][i];
     }
   }
 
   if (_policyDistribution == "Beta")
   {
-    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    for (size_t i = 0; i < _problem->_actionVectorSize[teamIndex]; i++)
     {
       const float curMu = curPolicy.distributionParameters[i];
-      const float curVariance = curPolicy.distributionParameters[_problem->_actionVectorSize + i];
-      action[i] = ranBetaAlt(_normalGenerator->_range, curMu, curVariance, _actionLowerBounds[i], _actionUpperBounds[i]);
+      const float curVariance = curPolicy.distributionParameters[_problem->_actionVectorSize[teamIndex] + i];
+      action[i] = ranBetaAlt(_normalGenerator->_range, curMu, curVariance, _actionLowerBounds[teamIndex][i], _actionUpperBounds[teamIndex][i]);
     }
   }
 
   return action;
 }
 
-std::vector<float> __className__::generateTestingAction(const policy_t &curPolicy)
+std::vector<float> __className__::generateTestingAction(const policy_t &curPolicy, size_t teamIndex)
 {
-  std::vector<float> action(_problem->_actionVectorSize);
+  std::vector<float> action(_problem->_actionVectorSize[teamIndex]);
 
   if (_policyDistribution == "Normal")
   {
     // Take only the means without noise
-    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    for (size_t i = 0; i < _problem->_actionVectorSize[teamIndex]; i++)
       action[i] = curPolicy.distributionParameters[i];
   }
 
   if (_policyDistribution == "Squashed Normal")
   {
     // Take only the transformed means without noise
-    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    for (size_t i = 0; i < _problem->_actionVectorSize[teamIndex]; i++)
     {
       const float mu = curPolicy.distributionParameters[i];
-      const float scale = _actionScales[i];
-      const float shift = _actionShifts[i];
+      const float scale = _actionScales[teamIndex][i];
+      const float shift = _actionShifts[teamIndex][i];
       action[i] = (std::tanh(mu) * scale) + shift;
     }
   }
@@ -288,33 +291,33 @@ std::vector<float> __className__::generateTestingAction(const policy_t &curPolic
   if (_policyDistribution == "Clipped Normal")
   {
     // Take only the modes of the Clipped Normal without noise
-    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    for (size_t i = 0; i < _problem->_actionVectorSize[teamIndex]; i++)
     {
       action[i] = curPolicy.distributionParameters[i];
       // Clip mode to bounds
-      if (action[i] >= _actionUpperBounds[i]) action[i] = _actionUpperBounds[i];
-      if (action[i] <= _actionLowerBounds[i]) action[i] = _actionLowerBounds[i];
+      if (action[i] >= _actionUpperBounds[teamIndex][i]) action[i] = _actionUpperBounds[teamIndex][i];
+      if (action[i] <= _actionLowerBounds[teamIndex][i]) action[i] = _actionLowerBounds[teamIndex][i];
     }
   }
 
   if (_policyDistribution == "Truncated Normal")
   {
     // Take only the modes of the Truncated Normal noise
-    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    for (size_t i = 0; i < _problem->_actionVectorSize[teamIndex]; i++)
     {
       action[i] = curPolicy.distributionParameters[i];
       // Clip mode to bounds
-      if (action[i] >= _actionUpperBounds[i]) action[i] = _actionUpperBounds[i];
-      if (action[i] <= _actionLowerBounds[i]) action[i] = _actionLowerBounds[i];
+      if (action[i] >= _actionUpperBounds[teamIndex][i]) action[i] = _actionUpperBounds[teamIndex][i];
+      if (action[i] <= _actionLowerBounds[teamIndex][i]) action[i] = _actionLowerBounds[teamIndex][i];
     }
   }
 
   if (_policyDistribution == "Beta")
   {
     // Take only the modes without noise
-    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    for (size_t i = 0; i < _problem->_actionVectorSize[teamIndex]; i++)
     {
-      action[i] = _actionLowerBounds[i] + 2.0f * _actionScales[i] * curPolicy.distributionParameters[i];
+      action[i] = _actionLowerBounds[teamIndex][i] + 2.0f * _actionScales[teamIndex][i] * curPolicy.distributionParameters[i];
     }
   }
 
