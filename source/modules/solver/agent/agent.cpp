@@ -28,17 +28,28 @@ void Agent::initialize()
   _trainingRewardHistory.resize(numAgents);
 
   // Allocating and obtaining action bounds information
-  _actionLowerBounds.resize(_problem->_actionVectorSize);
-  _actionUpperBounds.resize(_problem->_actionVectorSize);
+  
+  _actionLowerBounds.resize(_problem->_agentsPerTeam.size());
+  _actionUpperBounds.resize(_problem->_agentsPerTeam.size());
 
-  for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+  for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
   {
-    auto varIdx = _problem->_actionVectorIndexes[i];
-    _actionLowerBounds[i] = _k->_variables[varIdx]->_lowerBound;
-    _actionUpperBounds[i] = _k->_variables[varIdx]->_upperBound;
-
-    if (_actionUpperBounds[i] - _actionLowerBounds[i] <= 0.0) KORALI_LOG_ERROR("Upper (%f) and Lower Bound (%f) of action variable %lu invalid.\n", _actionUpperBounds[i], _actionLowerBounds[i], i);
+    _actionLowerBounds[i].resize(_problem->_actionVectorSize[i]);
+    _actionUpperBounds[i].resize(_problem->_actionVectorSize[i]);
   }
+  
+  for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
+  {
+    for (size_t j = 0; j < _problem->_actionVectorSize[i]; j++)
+    {
+      auto varIdx = _problem->_actionVectorIndexes[i][j];
+      _actionLowerBounds[i][j] = _k->_variables[varIdx]->_lowerBound;
+      _actionUpperBounds[i][j] = _k->_variables[varIdx]->_upperBound;
+
+      if (_actionUpperBounds[i][j] - _actionLowerBounds[i][j] <= 0.0) KORALI_LOG_ERROR("Upper (%f) and Lower Bound (%f) of action variable %lu invalid.\n", _actionUpperBounds[i][j], _actionLowerBounds[i][j], sum(_problem->_agentsPerTeam[:i])+j);
+    }
+  }
+  
 
   if (_episodesPerGeneration < 1)
     KORALI_LOG_ERROR("Episodes Per Generation must be larger equal 1 (is %zu)", _episodesPerGeneration);
@@ -1108,6 +1119,20 @@ size_t Agent::getTimeSequenceStartExpId(size_t expId)
     return expId - lookBack;
 }
 
+size_t Agent::getTeamIndex(size_t agentId)
+{
+  size_t bufferTeam;
+
+  if(agentId < _problem->_agentsPerTeam[0]) bufferTeam = 0;
+
+  for(i = 0; i < _problem->_agentsPerTeam.size() - 1; i++)
+  {
+    if((agentId < sum(_problem->_agentsPerTeam[:i+2])) && (agentId > sum(_problem->_agentsPerTeam[:i+1]))) bufferTeam = i+1;
+  }
+
+  return bufferTeam;
+}
+
 void Agent::resetTimeSequence()
 {
   for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
@@ -1425,7 +1450,7 @@ void Agent::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Policy", "Parameter Count"))
  {
- try { _policyParameterCount = js["Policy"]["Parameter Count"].get<size_t>();
+ try { _policyParameterCount = js["Policy"]["Parameter Count"].get<std::vector<size_t>>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Policy']['Parameter Count']\n%s", e.what()); } 
    eraseValue(js, "Policy", "Parameter Count");
@@ -1433,7 +1458,7 @@ void Agent::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Action Lower Bounds"))
  {
- try { _actionLowerBounds = js["Action Lower Bounds"].get<std::vector<float>>();
+ try { _actionLowerBounds = js["Action Lower Bounds"].get<std::vector<std::vector<float>>>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Action Lower Bounds']\n%s", e.what()); } 
    eraseValue(js, "Action Lower Bounds");
@@ -1441,7 +1466,7 @@ void Agent::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Action Upper Bounds"))
  {
- try { _actionUpperBounds = js["Action Upper Bounds"].get<std::vector<float>>();
+ try { _actionUpperBounds = js["Action Upper Bounds"].get<std::vector<std::vector<float>>>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Action Upper Bounds']\n%s", e.what()); } 
    eraseValue(js, "Action Upper Bounds");

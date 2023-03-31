@@ -211,15 +211,15 @@ class Agent : public Solver
   /**
   * @brief [Internal Use] Stores the number of parameters that determine the probability distribution for the current state sequence.
   */
-   size_t _policyParameterCount;
+   std::vector<size_t> _policyParameterCount;
   /**
   * @brief [Internal Use] Lower bounds for actions.
   */
-   std::vector<float> _actionLowerBounds;
+   std::vector<std::vector<float>> _actionLowerBounds;
   /**
   * @brief [Internal Use] Upper bounds for actions.
   */
-   std::vector<float> _actionUpperBounds;
+   std::vector<std::vector<float>> _actionUpperBounds;
   /**
   * @brief [Internal Use] Indicates the current episode being processed.
   */
@@ -693,6 +693,13 @@ class Agent : public Solver
   size_t getTimeSequenceStartExpId(size_t expId);
 
   /**
+   * @brief Calculates the team index for the selected agent
+   * @param agentId The index of the current agent
+   * @return The team index for the current agent
+   */
+  size_t getTeamIndex(size_t agentId);
+
+  /**
    * @brief Gets a vector of states corresponding of time sequence corresponding to the provided second-to-last experience index for which a truncated state exists
    * @param expId The index of the second-to-latest experience in the sequence
    * @param agentId The index of the agent
@@ -705,9 +712,10 @@ class Agent : public Solver
    * @param action The action taken
    * @param curPolicy The current policy
    * @param oldPolicy The old policy, the one used for take the action in the first place
+   * @param teamIndex The index of the team the current agent is a part of
    * @return The importance weight
    */
-  virtual float calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy) = 0;
+  virtual float calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, size_t teamIndex) = 0;
 
   /**
    * @brief Listens to incoming experience from the given agent, sends back policy or terminates the episode depending on what's needed

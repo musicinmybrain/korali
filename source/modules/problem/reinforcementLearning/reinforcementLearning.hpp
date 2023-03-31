@@ -65,23 +65,23 @@ class ReinforcementLearning : public Problem
   */
    knlohmann::json _customSettings;
   /**
-  * @brief [Internal Use] Stores the dimension of the action space.
+  * @brief [Internal Use] Stores the dimension of the action space for each team.
   */
    std::vector<size_t> _actionVectorSize;
   /**
-  * @brief [Internal Use] Stores the dimension of the state space.
+  * @brief [Internal Use] Stores the dimension of the state space for each team.
   */
    std::vector<size_t> _stateVectorSize;
   /**
-  * @brief [Internal Use] Stores the indexes of the variables that constitute the action vector.
+  * @brief [Internal Use] Stores the indexes of the variables that constitute the action vector for each team.
   */
    std::vector<std::vector<size_t>> _actionVectorIndexes;
   /**
-  * @brief [Internal Use] Stores the indexes of the variables that constitute the action vector.
+  * @brief [Internal Use] Stores the indexes of the variables that constitute the action vector for each team.
   */
    std::vector<std::vector<size_t>> _stateVectorIndexes;
   /**
-  * @brief [Internal Use] The maximum number of actions an agent can take (only relevant for discrete).
+  * @brief [Internal Use] The maximum number of actions an agent can take for each team(only relevant for discrete).
   */
    std::vector<size_t> _actionCount;
   
