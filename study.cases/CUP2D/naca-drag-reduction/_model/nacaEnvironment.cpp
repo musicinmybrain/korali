@@ -86,11 +86,23 @@ void runEnvironment(korali::Sample &s)
 
   const int nAgents = 1;
 
+  std::uniform_real_distribution<double> Mpitch_dist(-10.0,0.0);
+  std::uniform_real_distribution<double> Apitch_dist(0.0,5.0);
+  std::uniform_real_distribution<double> Fpitch_dist(0.0,2.0);
+  const double Mpitch = -5.0;//( s["Mode"] == "Training" ) ? Mpitch_dist(_randomGenerator) : -5.0;
+  const double Apitch = 2.5;//( s["Mode"] == "Training" ) ? Apitch_dist(_randomGenerator) :  2.5;
+  const double Fpitch = 1.0;//( s["Mode"] == "Training" ) ? Fpitch_dist(_randomGenerator) :  1.0;
+
   // Argument string to inititialize Simulation
   std::string argumentString = "CUP-RL " + (s["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
   argumentString += " -nu " + std::to_string(nu_ic);
-  argumentString += " -shapes SmartNACA L=0.12 xpos=0.5 bFixed=1 xvel=0.1 Nactuators="+std::to_string(NUMACTIONS)+ " actuatords=0.1";
-  //argumentString += " -shapes SmartNACA L=0.12 xpos=0.5 angle=0 fixedCenterDist=0.3 bFixedx=1 xvel=0.1 Apitch=13.15 Fpitch=0.715 tAccel=-1.0 Aheave=0.0 Fheave=0.0 Nactuators="+std::to_string(NUMACTIONS)+ " actuatords=0.1";
+  //argumentString += " -shapes SmartNACA L=0.12 xpos=0.5 bFixed=1 xvel=0.1 Nactuators="+std::to_string(NUMACTIONS)+ " actuatords=0.1";
+  //argumentString += " -shapes SmartNACA fixedCenterDist=0.25 L=0.12 xpos=0.5 Mpitch=5.0 bFixedx=1 xvel=0.1 Apitch=5.0 Fpitch=1.0 Aheave=0.0 Fheave=0.0 Nactuators="+std::to_string(NUMACTIONS)+ " actuatords=0.1";
+  
+  argumentString += " -shapes SmartNACA fixedCenterDist=0.25 L=0.12 xpos=0.5 bFixedx=1 xvel=0.1 Nactuators="+std::to_string(NUMACTIONS)+ " actuatords=0.05";
+  argumentString += " Mpitch=" + std::to_string(Mpitch);
+  argumentString += " Apitch=" + std::to_string(Apitch);
+  argumentString += " Fpitch=" + std::to_string(Fpitch);
 
   // Create argc / argv to pass to CUP
   std::stringstream ss(argumentString);

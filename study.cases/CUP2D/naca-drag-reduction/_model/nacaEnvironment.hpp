@@ -12,6 +12,6 @@
 extern int _argc;
 extern char **_argv;
 
-const size_t NUMACTIONS = 4;
+const size_t NUMACTIONS = 8;
 
 void runEnvironment(korali::Sample &s);
