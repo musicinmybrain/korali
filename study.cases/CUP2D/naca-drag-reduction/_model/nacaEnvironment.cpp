@@ -92,6 +92,7 @@ void runEnvironment(korali::Sample &s)
   const double Mpitch = -5.0;//( s["Mode"] == "Training" ) ? Mpitch_dist(_randomGenerator) : -5.0;
   const double Apitch = 2.5;//( s["Mode"] == "Training" ) ? Apitch_dist(_randomGenerator) :  2.5;
   const double Fpitch = 1.0;//( s["Mode"] == "Training" ) ? Fpitch_dist(_randomGenerator) :  1.0;
+  const double reg = 0.0;
 
   // Argument string to inititialize Simulation
   std::string argumentString = "CUP-RL " + (s["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
@@ -103,6 +104,7 @@ void runEnvironment(korali::Sample &s)
   argumentString += " Mpitch=" + std::to_string(Mpitch);
   argumentString += " Apitch=" + std::to_string(Apitch);
   argumentString += " Fpitch=" + std::to_string(Fpitch);
+  argumentString += " regularizer=" + std::to_string(reg);
 
   // Create argc / argv to pass to CUP
   std::stringstream ss(argumentString);
