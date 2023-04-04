@@ -197,6 +197,13 @@ void runEnvironment(korali::Sample &s)
           myfile << std::endl;
           myfile.close();
       }
+      ofstream myfile;
+      myfile.open ("actuators.txt",ios::app);
+      myfile << t << " ";
+      for( size_t a = 0; a<NUMACTIONS; a++ )
+        myfile << cylinder->actuators[a] << " ";
+      myfile << std::endl;
+      myfile.close();
     }
 
     // Run the simulation until next action is required
