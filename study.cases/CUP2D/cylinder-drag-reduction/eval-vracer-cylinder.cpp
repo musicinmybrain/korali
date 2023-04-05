@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
   N = (int)(N / nRanks); // Divided by the ranks per worker
 
   std::string trainingResultsPath = "_trainingResults/";
-  std::string testingResultsPath = "_testingResults/";
+  std::string testingResultsPath  = "_testingResults-" +std::to_string(modelDIM)+"D/";
 
   auto e = korali::Experiment();
 

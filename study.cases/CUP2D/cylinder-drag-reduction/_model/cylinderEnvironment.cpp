@@ -12,8 +12,13 @@
 //std::string OPTIONS         = "-restart 1 -poissonSolver iterative -bMeanConstraint 2 -CFL 0.5 -bpdx 8 -bpdy 4 -levelMax 5 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 4. -tdump 0 -tend 0. -muteAll 0 -verbose 0 -poissonTol 0. -poissonTolRel 1e-4 -bAdaptChiGradient 1";
 
 //For Re=4000
+#if modelDIM == 2
 std::string OPTIONS_testing = "-restart 1 -bMeanConstraint 2 -bpdx 8 -bpdy 4 -levelMax 6 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 2 -CFL 0.50 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-7 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
 std::string OPTIONS         = "-restart 1 -bMeanConstraint 2 -bpdx 8 -bpdy 4 -levelMax 5 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 2 -CFL 0.50 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-6 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
+#elif modelDIM == 3
+std::string OPTIONS_testing = "-restart 0 -bMeanConstraint 2 -bpdx 8 -bpdy 4 -bpdz 4 -rampup 0 -levelMax 6 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extentx 2 -CFL 0.50 -dumpP 1 -dumpChi 1 -dumpOmega 1 -dumpOmegaX 1 -dumpOmegaY 1 -dumpOmegaZ 1 -dumpVelocity 1 -dumpVelocityX 1 -dumpVelocityY 1 -dumpVelocityZ 1 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-7 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
+std::string OPTIONS         = "YOU SHOULD NOT BE TRAINING IN 3D";
+#endif
 
 int _argc;
 char **_argv;
@@ -70,21 +75,26 @@ void runEnvironment(korali::Sample &s)
   MPI_Bcast(&index_ic, 1, MPI_INT, 0, comm );
   const double nu_ic = nu_values[index_ic];
 
+  #if modelDIM == 2
   if ( rank == 0 )
   {
     try
     {
-	if ( s["Mode"] == "Training")
-                fs::copy("../IC"+std::to_string(index_ic)+"/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
-	else
-                fs::copy("../ICtesting"+std::to_string(index_ic)+"/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
-                //fs::copy("../customIC25000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
+	   if ( s["Mode"] == "Training") fs::copy("../IC"       +std::to_string(index_ic)+"/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
+	   else                          fs::copy("../ICtesting"+std::to_string(index_ic)+"/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
     }
     catch (std::exception& e)
     {
-        std::cout << e.what();
+      std::cout << e.what();
     }
   }
+  #elif modelDIM == 3
+  if (s["Mode"] == "Training")
+  {
+    std::cerr << "You should not be training in 3D\n";
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+  #endif
 
   // Switch to results directory
   MPI_Barrier(comm);
@@ -92,12 +102,18 @@ void runEnvironment(korali::Sample &s)
   fs::current_path(resDir);
 
   const int nAgents = 1;
-  const double reg = 10.;
+  const double reg = 5.0;
 
   // Argument string to inititialize Simulation
+  #if modelDIM == 2
   std::string argumentString = "CUP-RL " + (s["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
   argumentString += " -nu " + std::to_string(nu_ic);
   argumentString += " -shapes cylinderNozzle xpos=0.5 bForced=1 bFixed=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 radius=0.1 dumpSurf=1 regularizer=" + std::to_string(reg);
+  #elif modelDIM ==3
+  std::string argumentString = "CUP-RL " + (s["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
+  argumentString += " -nu " + std::to_string(nu_ic);
+  argumentString += " -shapes CylinderNozzle xpos=0.5 bFixFrameOfRef=1 bForcedInSimFrame=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 L=0.2  halflength=0.25 regularizer=" + std::to_string(reg);
+  #endif
 
   // Create argc / argv to pass to CUP
   std::stringstream ss(argumentString);
@@ -112,8 +128,13 @@ void runEnvironment(korali::Sample &s)
   argv.push_back(nullptr);
 
   // Create simulation environment
+  #if modelDIM == 2
   Simulation *_environment = new Simulation(argv.size() - 1, argv.data(), comm);
   _environment->init();
+  #elif modelDIM == 3
+  ArgumentParser parser(argv.size()-1, argv.data());
+  Simulation *_environment = new Simulation(comm, parser);
+  #endif
 
   // Get environment's dump frequency
   _environment->sim.dumpTime = s["Custom Settings"]["Dump Frequency"].get<double>();
@@ -283,6 +304,12 @@ void runEnvironment(korali::Sample &s)
 
 void runEnvironmentCMAES(korali::Sample &s)
 {
+  #if modelDIM == 3
+  std::cerr << "CMAES not ready for 3D, aborting...\n";
+  MPI_Abort(MPI_COMM_WORLD,1);
+  #endif
+
+  #if modelDIM == 2
   MPI_Comm comm = *(MPI_Comm*) korali::getWorkerMPIComm();
   int rank, size;
   MPI_Comm_rank(comm, &rank);
@@ -433,4 +460,5 @@ void runEnvironmentCMAES(korali::Sample &s)
 
   // Switching back to experiment directory
   fs::current_path(curPath);
+  #endif
 }

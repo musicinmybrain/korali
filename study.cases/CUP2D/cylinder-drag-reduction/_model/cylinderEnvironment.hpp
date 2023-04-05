@@ -7,6 +7,10 @@
 #include "Obstacles/CylinderNozzle.h"
 #include "Simulation.h"
 #include "Utils/BufferedLogger.h"
+#if modelDIM == 3
+#include <Cubism/ArgumentParser.h>
+using namespace cubismup3d;
+#endif
 
 // command line arguments are read in Korali application
 extern int _argc;
