@@ -28,7 +28,6 @@ int main(int argc, char *argv[])
 
   // Setting results path
   std::string trainingResultsPath = "_trainingResults/";
-  std::string testingResultsPath = "_testingResults/";
 
   // Creating Experiment
   auto e = korali::Experiment();
