@@ -13,7 +13,7 @@
 
 //For Re=4000
 #if modelDIM == 2
-std::string OPTIONS_testing = "-restart 1 -bMeanConstraint 2 -bpdx 8 -bpdy 4 -levelMax 6 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 2 -CFL 0.50 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-7 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
+std::string OPTIONS_testing = "-restart 1 -bMeanConstraint 2 -bpdx 4 -bpdy 2 -levelMax 8 -levelStart 4 -Rtol 5.0 -Ctol 1.0 -extent 4 -CFL 0.50 -tdump 0.1 -tend 100 -muteAll 0 -verbose 0 -poissonTol 1e-7 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
 std::string OPTIONS         = "-restart 1 -bMeanConstraint 2 -bpdx 8 -bpdy 4 -levelMax 5 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 2 -CFL 0.50 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-6 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
 #elif modelDIM == 3
 std::string OPTIONS_testing = "-restart 0 -bMeanConstraint 2 -bpdx 8 -bpdy 4 -bpdz 4 -rampup 0 -levelMax 6 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extentx 2 -CFL 0.50 -dumpP 1 -dumpChi 1 -dumpOmega 1 -dumpOmegaX 1 -dumpOmegaY 1 -dumpOmegaZ 1 -dumpVelocity 1 -dumpVelocityX 1 -dumpVelocityY 1 -dumpVelocityZ 1 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-7 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
@@ -68,12 +68,12 @@ void runEnvironment(korali::Sample &s)
     }
   }
 
-  //sample IC
-  //Re= 400, 4000, 25000
-  const double nu_values [3] = {0.0001,0.00001,0.0000016};
   int index_ic = 1;
-  MPI_Bcast(&index_ic, 1, MPI_INT, 0, comm );
-  const double nu_ic = nu_values[index_ic];
+  //const double nu_ic = 0.000080; //Re= 500
+  //const double nu_ic = 0.000040; //Re=1000
+  //const double nu_ic = 0.000020; //Re=2000
+  const double nu_ic = 0.000010; //Re=4000
+  //const double nu_ic = 0.000005; //Re=8000
 
   #if modelDIM == 2
   if ( rank == 0 )
@@ -81,7 +81,13 @@ void runEnvironment(korali::Sample &s)
     try
     {
 	   if ( s["Mode"] == "Training") fs::copy("../IC"       +std::to_string(index_ic)+"/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
-	   else                          fs::copy("../ICtesting"+std::to_string(index_ic)+"/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
+	   //else                          fs::copy("../ICtesting"+std::to_string(index_ic)+"/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
+	   //else                          fs::copy("../ICtestingnew"+std::to_string(index_ic)+"/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
+	   //else fs::copy("../ICtestingRe0500/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
+	   //else fs::copy("../ICtestingRe1000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
+	   //else fs::copy("../ICtestingRe2000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
+	   else  fs::copy("../ICtestingRe4000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
+	   //else fs::copy("../ICtestingRe8000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
     }
     catch (std::exception& e)
     {
@@ -102,13 +108,16 @@ void runEnvironment(korali::Sample &s)
   fs::current_path(resDir);
 
   const int nAgents = 1;
-  const double reg = 5.0;
+  const double reg = 3.0;
 
   // Argument string to inititialize Simulation
   #if modelDIM == 2
   std::string argumentString = "CUP-RL " + (s["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
   argumentString += " -nu " + std::to_string(nu_ic);
-  argumentString += " -shapes cylinderNozzle xpos=0.5 bForced=1 bFixed=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 radius=0.1 dumpSurf=1 regularizer=" + std::to_string(reg);
+  if (s["Mode"] == "Training")
+	  argumentString += " -shapes cylinderNozzle xpos=0.5 bForced=1 bFixed=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 radius=0.1 dumpSurf=1 regularizer=" + std::to_string(reg);
+  else
+	  argumentString += " -shapes cylinderNozzle xpos=1.0 bForced=1 bFixed=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 radius=0.1 dumpSurf=1 regularizer=" + std::to_string(reg);
   #elif modelDIM ==3
   std::string argumentString = "CUP-RL " + (s["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
   argumentString += " -nu " + std::to_string(nu_ic);
