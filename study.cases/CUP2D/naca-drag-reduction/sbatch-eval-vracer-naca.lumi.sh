@@ -6,10 +6,10 @@ if [ $# -lt 1 ] ; then
 fi
 
 RUNNAME=$1
-NWORKER=1
-NRANKS=3
-NUMCORES=128
-NNODES=$(( $NWORKER * $NRANKS ))
+NNODES=3
+NRANKS=384 #=3*128
+
+# setup run directory and copy necessary files
 RUNPATH="${SCRATCH}/korali/${RUNNAME}"
 cp eval-vracer-naca ${RUNPATH}
 cd ${RUNPATH}
@@ -24,7 +24,8 @@ cat <<EOF >lumi_sbatch_testing
 #SBATCH hetjob
 #SBATCH --partition=standard
 #SBATCH --nodes=1 --ntasks-per-node=1 --cpus-per-task=8
-srun --het-group=0,1 ./eval-vracer-naca -nRanks $(( $NRANKS * $NUMCORES ))
+export SRUN_CPUS_PER_TASK=8 
+srun --het-group=0,1 ./eval-vracer-naca -nRanks $NRANKS
 EOF
 chmod 755 lumi_sbatch_testing
 sbatch lumi_sbatch_testing
