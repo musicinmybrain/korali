@@ -16,8 +16,8 @@
 std::string OPTIONS_testing = "-restart 1 -bMeanConstraint 2 -bpdx 4 -bpdy 2 -levelMax 8 -levelStart 4 -Rtol 5.0 -Ctol 1.0 -extent 4 -CFL 0.50 -tdump 0.1 -tend 100 -muteAll 0 -verbose 0 -poissonTol 1e-7 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
 std::string OPTIONS         = "-restart 1 -bMeanConstraint 2 -bpdx 8 -bpdy 4 -levelMax 5 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 2 -CFL 0.50 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-6 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
 #elif modelDIM == 3
-std::string OPTIONS_testing = "-restart 0 -bMeanConstraint 2 -bpdx 8 -bpdy 4 -bpdz 4 -rampup 0 -levelMax 6 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extentx 2 -CFL 0.50 -dumpP 1 -dumpChi 1 -dumpOmega 1 -dumpOmegaX 1 -dumpOmegaY 1 -dumpOmegaZ 1 -dumpVelocity 1 -dumpVelocityX 1 -dumpVelocityY 1 -dumpVelocityZ 1 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-7 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
 std::string OPTIONS         = "YOU SHOULD NOT BE TRAINING IN 3D";
+std::string OPTIONS_testing = "-bMeanConstraint 2 -poissonTol 1e-7 -poissonTolRel 1e-4 -bpdx 4 -bpdy 2 -bpdz 2 -extentx 4.0 -poissonSolver cuda_iterative -tdump 0.1 -tend 50 -CFL 0.5 -nu 0.00001 -levelMax 8 -levelStart 4 -Rtol 5.0 -Ctol 1.0 -dumpP 1 -dumpChi 1 -dumpOmega 1 -dumpOmegaX 1 -dumpOmegaY 1 -dumpOmegaZ 1 -dumpVelocity 1 -dumpVelocityX 1 -dumpVelocityY 1 -dumpVelocityZ 1 ";
 #endif
 
 int _argc;
@@ -121,7 +121,7 @@ void runEnvironment(korali::Sample &s)
   #elif modelDIM ==3
   std::string argumentString = "CUP-RL " + (s["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
   argumentString += " -nu " + std::to_string(nu_ic);
-  argumentString += " -shapes CylinderNozzle xpos=0.5 bFixFrameOfRef=1 bForcedInSimFrame=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 L=0.2  halflength=0.25 regularizer=" + std::to_string(reg);
+  argumentString += " -shapes CylinderNozzle xpos=1.0 bFixFrameOfRef=1 bForcedInSimFrame=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 L=0.2  halflength=0.25 regularizer=" + std::to_string(reg);
   #endif
 
   // Create argc / argv to pass to CUP
@@ -203,6 +203,9 @@ void runEnvironment(korali::Sample &s)
     }
 
     // Broadcast and apply action(s) [Careful, hardcoded the number of action(s)!]
+    #if modelDIM == 3
+    if (curStep !=0)
+    #endif
     for( int i = 0; i<nAgents; i++ )
     {
       if( actions[i].size() != NUMACTIONS )
@@ -214,7 +217,9 @@ void runEnvironment(korali::Sample &s)
       MPI_Bcast( actions[i].data(), NUMACTIONS, MPI_DOUBLE, 0, comm );
       cylinder->act(actions[i],i);
     }
-
+    #if modelDIM == 3
+    if (curStep !=0)
+    #endif
     if (rank == 0) //Write a file with the actions for every agent
     {
       for( int i = 0; i<nAgents; i++ )
