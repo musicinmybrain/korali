@@ -1,16 +1,15 @@
 #! /usr/bin/env bash
 
 if [ $# -lt 1 ] ; then
-	echo "Usage: ./sbatch-eval-vracer-cylinder.sh RUNNAME REGULARIZER"
+	echo "Usage: ./sbatch-eval-vracer-cylinder.sh RUNNAME "
 	exit 1
 fi
 
 RUNNAME=$1
-NWORKER=1
-NRANKS=3
-NUMCORES=128
-NNODES=$(( $NWORKER * $NRANKS ))
-REG=$2
+NNODES=3
+NRANKS=384 #=3*128
+
+# setup run directory and copy necessary files
 RUNPATH="${SCRATCH}/korali/${RUNNAME}"
 cp eval-vracer-cylinder ${RUNPATH}
 cd ${RUNPATH}
@@ -25,7 +24,8 @@ cat <<EOF >lumi_sbatch_testing
 #SBATCH hetjob
 #SBATCH --partition=standard
 #SBATCH --nodes=1 --ntasks-per-node=1 --cpus-per-task=8
-srun --het-group=0,1 ./eval-vracer-cylinder -nRanks $(( $NRANKS * $NUMCORES )) -reg $2
+export SRUN_CPUS_PER_TASK=8 
+srun --het-group=0,1 ./eval-vracer-cylinder -nRanks $NRANKS
 EOF
 chmod 755 lumi_sbatch_testing
 sbatch lumi_sbatch_testing
