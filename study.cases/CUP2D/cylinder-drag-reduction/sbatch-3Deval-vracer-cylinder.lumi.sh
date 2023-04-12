@@ -9,18 +9,18 @@ RUNNAME=$1
 
 # setup run directory and copy necessary files
 RUNPATH="${SCRATCH}/korali/${RUNNAME}"
-cp eval-vracer-cylinder ${RUNPATH}
+cp eval-vracer-cylinder3D ${RUNPATH}
 cd ${RUNPATH}
 
 cat <<EOF >lumi_sbatch_testing
 #!/bin/bash -l
 #SBATCH --account=${ACCOUNT}
 #SBATCH --job-name="${RUNNAME}"
-#SBATCH --time=04:00:00
-#SBATCH --partition=small
-#SBATCH --nodes=2
+#SBATCH --time=48:00:00
+#SBATCH --partition=standard
+#SBATCH --nodes=8
 #SBATCH --ntasks-per-node=128
-srun ./eval-vracer-cylinder -nRanks 255
+srun ./eval-vracer-cylinder3D -nRanks 1023
 EOF
 chmod 755 lumi_sbatch_testing
 sbatch lumi_sbatch_testing
