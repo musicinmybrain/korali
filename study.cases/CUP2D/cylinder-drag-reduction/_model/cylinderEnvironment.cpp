@@ -81,8 +81,6 @@ void runEnvironment(korali::Sample &s)
     try
     {
 	   if ( s["Mode"] == "Training") fs::copy("../IC"       +std::to_string(index_ic)+"/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
-	   //else                          fs::copy("../ICtesting"+std::to_string(index_ic)+"/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
-	   //else                          fs::copy("../ICtestingnew"+std::to_string(index_ic)+"/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
 	   //else fs::copy("../ICtestingRe0500/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
 	   //else fs::copy("../ICtestingRe1000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
 	   //else fs::copy("../ICtestingRe2000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
