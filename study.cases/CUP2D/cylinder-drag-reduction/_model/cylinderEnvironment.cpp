@@ -17,7 +17,7 @@ std::string OPTIONS_testing = "-restart 1 -bMeanConstraint 2 -bpdx 4 -bpdy 2 -le
 std::string OPTIONS         = "-restart 1 -bMeanConstraint 2 -bpdx 8 -bpdy 4 -levelMax 5 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 2 -CFL 0.50 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-6 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
 #elif modelDIM == 3
 std::string OPTIONS         = "YOU SHOULD NOT BE TRAINING IN 3D";
-std::string OPTIONS_testing = "-bMeanConstraint 2 -poissonTol 1e-7 -poissonTolRel 1e-4 -bpdx 4 -bpdy 2 -bpdz 2 -extentx 4.0 -poissonSolver cuda_iterative -tdump 0.1 -tend 50 -CFL 0.5 -nu 0.00001 -levelMax 8 -levelStart 4 -Rtol 5.0 -Ctol 1.0 -dumpP 1 -dumpChi 1 -dumpOmega 1 -dumpOmegaX 1 -dumpOmegaY 1 -dumpOmegaZ 1 -dumpVelocity 1 -dumpVelocityX 1 -dumpVelocityY 1 -dumpVelocityZ 1 ";
+std::string OPTIONS_testing = "-bMeanConstraint 2 -poissonTol 1e-7 -poissonTolRel 1e-4 -bpdx 4 -bpdy 2 -bpdz 2 -extentx 4.0 -poissonSolver cuda_iterative -tdump 0.1 -tend 50 -CFL 0.5 -nu 0.00001 -levelMax 8 -levelStart 4 -Rtol 5.0 -Ctol 1.0 ";
 #endif
 
 int _argc;
