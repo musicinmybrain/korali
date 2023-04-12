@@ -369,6 +369,7 @@ void runEnvironmentCMAES(korali::Sample &s)
   int index_ic = 1;
   MPI_Bcast(&index_ic, 1, MPI_INT, 0, comm );
   const double nu_ic = nu_values[index_ic];
+  const double reg = 3.0;
 
   if ( rank == 0 )
   {
@@ -394,7 +395,10 @@ void runEnvironmentCMAES(korali::Sample &s)
   // Argument string to inititialize Simulation
   std::string argumentString = "CUP-RL " + (s["Custom Settings"]["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
   argumentString += " -nu " + std::to_string(nu_ic);
-  argumentString += " -shapes cylinderNozzle xpos=0.5 bForced=1 bFixed=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 radius=0.1 dumpSurf=1";
+    if (s["Custom Settings"]["Mode"] == "Training")
+    argumentString += " -shapes cylinderNozzle xpos=0.5 bForced=1 bFixed=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 radius=0.1 dumpSurf=1 regularizer=" + std::to_string(reg);
+  else
+    argumentString += " -shapes cylinderNozzle xpos=1.0 bForced=1 bFixed=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 radius=0.1 dumpSurf=1 regularizer=" + std::to_string(reg);
 
   // Create argc / argv to pass to CUP
   std::stringstream ss(argumentString);
@@ -461,7 +465,7 @@ void runEnvironmentCMAES(korali::Sample &s)
   }
 
   // Set Objective
-  s["F(x)"] = -objective;
+  s["F(x)"] = objective;
 
   // Flush CUP logger
   logger.flush();

@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
   e["Solver"]["Termination Criteria"]["Max Generations"] = 500;
 
   // Setting up the variables
-  const size_t numParams = 16;
+  const size_t numParams = 8;
   const double q = 1.0; //action bounds
   for (size_t idx = 0 ; idx < numParams; idx ++)
   {
