@@ -85,16 +85,16 @@ void dVRACER::initializeAgent()
   }
 }
 
-std::vector<float> dVRACER::trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributionParams)
+std::vector<std::vector<float>> dVRACER::trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributionParams)
 {
   KORALI_LOG_ERROR("dVRACER deprecated");
-  return std::vector<float>(0);
+  return std::vector<std::vector<float>>();
 }
 
-std::vector<float> dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx)
+std::vector<std::vector<float>> dVRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx)
 {
   KORALI_LOG_ERROR("dVRACER deprecated");
-  return std::vector<float>(0);
+  return std::vector<std::vector<float>>();
 
   // Init statistics
   _statisticsAverageInverseTemperature = 0.;

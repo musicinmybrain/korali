@@ -74,7 +74,7 @@ void __className__::initializeAgent()
   _miniBatchPolicyStdDev.resize(_problem->_actionVectorSize);
 }
 
-std::vector<float> __className__::trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributionParams)
+std::vector<std::vector<float>> __className__::trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributionParams)
 {
   // Gathering state sequences for selected minibatch
   const auto stateSequenceBatch = getMiniBatchStateSequence(miniBatch);
@@ -112,7 +112,7 @@ std::vector<float> __className__::trainPolicy(const std::vector<std::pair<size_t
     return policyGradient; 
 }
 
-std::vector<float> __className__::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx)
+std::vector<std::vector<float>> __className__::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx)
 {
   // Resetting statistics
   std::fill(_miniBatchPolicyMean.begin(), _miniBatchPolicyMean.end(), 0.0);
@@ -122,10 +122,10 @@ std::vector<float> __className__::calculatePolicyGradients(const std::vector<std
   
   const size_t numAgents = _problem->_agentsPerEnvironment;
   
-  std::vector<float> gradientPolicyParams(_policyParameterCount, 0.0f);
+  std::vector<std::vector<float>> gradientPolicyParams(miniBatchSize, std::vector<float>(_policyParameterCount, 0.0f));
 
 #pragma omp parallel for schedule(guided, numAgents) reduction(vec_float_plus \
-                                                               : _miniBatchPolicyMean, _miniBatchPolicyStdDev, gradientPolicyParams)
+                                                               : _miniBatchPolicyMean, _miniBatchPolicyStdDev)
   for (size_t b = 0; b < miniBatchSize; b++)
   {
     // Getting index of current experiment
@@ -190,7 +190,7 @@ std::vector<float> __className__::calculatePolicyGradients(const std::vector<std
 
       // Set Gradient of Loss wrt Params
       for (size_t i = 0; i < _policyParameterCount; i++)
-        gradientPolicyParams[i] += _experienceReplayOffPolicyREFERCurrentBeta[agentId] * lossOffPolicy * polGrad[i];
+        gradientPolicyParams[b][i] = _experienceReplayOffPolicyREFERCurrentBeta[agentId] * lossOffPolicy * polGrad[i];
     }
 
     // Compute derivative of KL divergence
@@ -213,14 +213,14 @@ std::vector<float> __className__::calculatePolicyGradients(const std::vector<std
         KORALI_LOG_ERROR("KL gradient returned an invalid value (%f/%f) (exp policy/cur policy): %f\n", expPolicy.distributionParameters[i + _problem->_actionVectorSize], curPolicy.distributionParameters[i + _problem->_actionVectorSize], klGrad[i+_problem->_actionVectorSize]);
       }
 
-      gradientPolicyParams[i] += klGradMultiplier * klGrad[i];
-      gradientPolicyParams[i + _problem->_actionVectorSize] += klGradMultiplier * klGrad[i + _problem->_actionVectorSize];
+      gradientPolicyParams[b][i] += klGradMultiplier * klGrad[i];
+      gradientPolicyParams[b][i + _problem->_actionVectorSize] += klGradMultiplier * klGrad[i + _problem->_actionVectorSize];
 
-      if (std::isfinite(gradientPolicyParams[i]) == false)
-        KORALI_LOG_ERROR("Gradient loss returned an invalid value: %f\n", gradientPolicyParams[i]);
+      if (std::isfinite(gradientPolicyParams[b][i]) == false)
+        KORALI_LOG_ERROR("Gradient loss returned an invalid value: %f\n", gradientPolicyParams[b][i]);
 
-      if (std::isfinite(gradientPolicyParams[i + _problem->_actionVectorSize]) == false)
-        KORALI_LOG_ERROR("Gradient loss returned an invalid value: %f\n", gradientPolicyParams[i + _problem->_actionVectorSize]);
+      if (std::isfinite(gradientPolicyParams[b][i + _problem->_actionVectorSize]) == false)
+        KORALI_LOG_ERROR("Gradient loss returned an invalid value: %f\n", gradientPolicyParams[b][i + _problem->_actionVectorSize]);
     }
 
     // Set Gradient of Loss as Solution

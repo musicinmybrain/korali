@@ -757,7 +757,7 @@ class Agent : public Solver
    * @param miniBatch TODO
    * @param distributionParams evaluated states with external policy
    */
-  virtual std::vector<float> trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributionParams) = 0;
+  virtual std::vector<std::vector<float>> trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributionParams) = 0;
 
   /**
    * @brief Obtains the policy hyperaparamters from the learner for the agent to generate new actions

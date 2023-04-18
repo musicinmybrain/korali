@@ -71,7 +71,7 @@ class VRACER : public Continuous
    * @param miniBatch The indexes of the experience mini batch
    * @param policyIdx The indexes of the policy to compute the gradient for
    */
-  std::vector<float> calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx);
+  std::vector<std::vector<float>> calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx);
 
   float calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx = 0) override;
 
@@ -89,7 +89,7 @@ class VRACER : public Continuous
 
   knlohmann::json getPolicy() override;
   void setPolicy(const knlohmann::json &hyperparameters) override;
-  std::vector<float> trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributioParams) override;
+  std::vector<std::vector<float>> trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributioParams) override;
   void printInformation() override;
   void initializeAgent() override;
 };

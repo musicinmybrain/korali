@@ -226,8 +226,8 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
       KORALI_LOG_ERROR("State sequence not evaluated in environment. Sample object does not contain Distribution Parameters");
     else
     {
-    //const auto miniBatchList = KORALI_GET(std::vector<std::vector<std::pair<size_t, size_t>>>, worker, "Mini Batch");
     const auto miniBatchList = KORALI_GET(std::vector<std::vector<std::vector<size_t>>>, worker, "Mini Batch");
+    const auto stateSequenceList = KORALI_GET(std::vector<std::vector<std::vector<std::vector<float>>>>, worker, "State Sequence Batch");
     const auto distributionParamsList = KORALI_GET(std::vector<std::vector<std::vector<float>>>, worker, "Distribution Parameters");
 
     if (miniBatchList.size() != distributionParamsList.size())
@@ -237,6 +237,7 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
       KORALI_LOG_ERROR("Distribution Parameters must be of size %zu but are of size %zu", 2 * _actionVectorSize, distributionParamsList[0][0].size());
 
     message["Mini Batch"] = miniBatchList;
+    message["State Sequence Batch"] = stateSequenceList;
     message["Distribution Parameters"] = distributionParamsList;
 
     }
@@ -252,6 +253,8 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
   if (message.contains("Mini Batch"))
   {
     worker["Gradients"] = KORALI_RECV_MSG_FROM_ENGINE();
+    worker["Gradients"]["Mini Batch"] = message["Mini Batch"];
+    worker["Gradients"]["State Sequence Batch"] = message["State Sequence Batch"];
   }
 
   // Adding profiling information to worker
