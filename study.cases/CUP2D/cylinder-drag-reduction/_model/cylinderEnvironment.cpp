@@ -13,7 +13,7 @@
 
 //For Re=4000
 #if modelDIM == 2
-std::string OPTIONS_testing = "-restart 1 -bMeanConstraint 2 -bpdx 4 -bpdy 2 -levelMax 8 -levelStart 4 -Rtol 5.0 -Ctol 1.0 -extent 4 -CFL 0.50 -tdump 0.1 -tend 100 -muteAll 0 -verbose 0 -poissonTol 1e-7 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
+std::string OPTIONS_testing = "-restart 1 -bMeanConstraint 2 -bpdx 4 -bpdy 2 -levelMax 8 -levelStart 4 -Rtol 5.0 -Ctol 1.0 -extent 4 -CFL 0.50 -tdump 0.1 -tend 100 -muteAll 0 -verbose 0 -poissonTol 1e-6 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
 std::string OPTIONS         = "-restart 1 -bMeanConstraint 2 -bpdx 8 -bpdy 4 -levelMax 5 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 2 -CFL 0.50 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-6 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
 #elif modelDIM == 3
 std::string OPTIONS         = "YOU SHOULD NOT BE TRAINING IN 3D";
