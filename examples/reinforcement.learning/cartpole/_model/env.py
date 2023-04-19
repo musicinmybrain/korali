@@ -9,16 +9,16 @@ maxSteps = 500
 numActions = 1
 numAgents = 2
 numPolicyParams = 2
-learningRate = 0.0001
-theta = np.random.normal(loc=0., scale=0.0001, size=(2,4))
+theta = np.random.normal(loc=0., scale=0.0001, size=(4,5))
 
 # Primitive policy
 def policy(state):
     global theta
-    # linear
-    muSigma = theta @ state
+    tmp = theta[:,:4] @ state + theta[:,-1]
+    muSigma = np.zeros(numPolicyParams)
+    muSigma[:numActions] = tmp[0] + np.exp(tmp[1]) + np.exp(-tmp[2])
     # sigmoid
-    muSigma[numActions:] = np.exp(muSigma[numActions:]) / (1 + np.exp(muSigma[numActions:]))
+    muSigma[numActions:] = np.exp(tmp[3]) / (1 + np.exp(tmp[3]))
     action = np.random.normal(loc=muSigma[:numActions], scale=muSigma[numActions:])
     return action, muSigma.flatten()
 
@@ -29,37 +29,32 @@ def env(sample):
      #print("TODO: Received gradient, update external policy!")
      global theta
      mb = np.array(sample["Gradients"]["Mini Batch"])
-     #print("MB shape")
-     #print(mb.shape)
      nupdate, nmb, _ = mb.shape
      expstates = np.array(sample["Gradients"]["State Sequence Batch"])[:,:,0,:]
-     #print("SSB shape")
-     #print(expstates[0,0,:])
-     #print(expstates[0,1,:])
-     #print(expstates[0,2,:])
-     #print(expstates[0,3,:])
-     #print(expstates.shape)
      gradients = np.array(sample["Gradients"]["Gradients"])
-     #print(gradients[0,0,:])
-     #print(gradients[0,1,:])
-     #print(gradients[0,2,:])
-     #print(gradients[0,3,:])
-     #print(theta)
-     #print("TH shape")
-     #print(theta.shape)
-     #print(gradients)
-     #print("GRAD shape")
-     #print(gradients.shape)
 
      thetaOld = theta
      for i in range(nupdate):
         for b in range(0, nmb):
+            tmp = thetaOld[:,:4] @ expstates[i,b,:] + thetaOld[:,-1]
+            tmp1 = np.exp(tmp[1])
+            tmp2 = np.exp(-tmp[2])
+            
             # update mu params
-            theta[0,:] += learningRate/nmb * expstates[i,b,:] * gradients[i,b,0]
+            theta[0,:4] += 1./(nmb*numAgents) * expstates[i,b,:] * gradients[i,b,0]
+            theta[0,-1] += 1./(nmb*numAgents) * gradients[i,b,0]
+
+            theta[1,:4] += 1./(nmb*numAgents) * tmp1 * expstates[i,b,:] * gradients[i,b,0]
+            theta[1,-1] += 1./(nmb*numAgents) * tmp1 * gradients[i,b,0]
+            
+            theta[2,:4] += 1./(nmb*numAgents) * tmp2 * -1 * expstates[i,b,:] * gradients[i,b,0]
+            theta[2,-1] += 1./(nmb*numAgents) * tmp2 * -1 * gradients[i,b,0]
+
             # update sig params
-            tmp = np.exp(expstates[i,b,:] @ thetaOld[1,:]) 
-            dsig = tmp * (1. - tmp)
-            theta[1,:] += learningRate/nmb * dsig * expstates[i,b,:] * gradients[i,b,1]
+            tmp3 = np.exp(tmp[3]) / (1+np.exp(tmp[3]))
+            dsig = tmp3 * (1. - tmp3)
+            theta[3,:4] += 1./(nmb*numAgents) * dsig * expstates[i,b,:] * gradients[i,b,1]
+            theta[3,-1] += 1./(nmb*numAgents) * dsig * gradients[i,b,1]
 
  # If sample contains mini-batch, evaluate the state sequence and return distribution params
  if sample.contains("Mini Batch"):

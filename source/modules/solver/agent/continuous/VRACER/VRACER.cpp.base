@@ -190,14 +190,14 @@ std::vector<std::vector<float>> __className__::calculatePolicyGradients(const st
 
       // Set Gradient of Loss wrt Params
       for (size_t i = 0; i < _policyParameterCount; i++)
-        gradientPolicyParams[b][i] = _experienceReplayOffPolicyREFERCurrentBeta[agentId] * lossOffPolicy * polGrad[i];
+        gradientPolicyParams[b][i] = _currentLearningRate * _experienceReplayOffPolicyREFERCurrentBeta[agentId] * lossOffPolicy * polGrad[i];
     }
 
     // Compute derivative of KL divergence
     const auto klGrad = calculateKLDivergenceGradient(expPolicy, curPolicy);
 
     // Compute factor for KL penalization
-    const float klGradMultiplier = -(1.0f - _experienceReplayOffPolicyREFERCurrentBeta[agentId]);
+    const float klGradMultiplier = - _currentLearningRate * (1.0f - _experienceReplayOffPolicyREFERCurrentBeta[agentId]);
 
     // Add KL contribution
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)

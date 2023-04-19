@@ -17,6 +17,12 @@ parser.add_argument(
     help='Maximum Number of generations to run',
     default=50,
     type=int,
+    required=False)
+parser.add_argument(
+    '--maxRunningTime',
+    help='Maximum running time in seconds',
+    default=60,
+    type=int,
     required=False)    
 parser.add_argument(
     '--optimizer',
@@ -71,8 +77,8 @@ e["Solver"]["Mode"] = "Training"
 e["Solver"]["Experiences Between Policy Updates"] = 1
 e["Solver"]["Episodes Per Generation"] = 10
 
-e["Solver"]["Experience Replay"]["Start Size"] = 1000
-e["Solver"]["Experience Replay"]["Maximum Size"] = 10000
+e["Solver"]["Experience Replay"]["Start Size"] = 32000
+e["Solver"]["Experience Replay"]["Maximum Size"] = 64000
 e["Solver"]["Experience Replay"]["Off Policy"]["REFER Beta"]= 0.3
 
 e["Solver"]["Discount Factor"] = 0.99
@@ -93,16 +99,10 @@ e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 32
 e["Solver"]["Neural Network"]["Hidden Layers"][1]["Type"] = "Layer/Activation"
 e["Solver"]["Neural Network"]["Hidden Layers"][1]["Function"] = "Elementwise/Tanh"
 
-e["Solver"]["Neural Network"]["Hidden Layers"][2]["Type"] = "Layer/Linear"
-e["Solver"]["Neural Network"]["Hidden Layers"][2]["Output Channels"] = 32
-
-e["Solver"]["Neural Network"]["Hidden Layers"][3]["Type"] = "Layer/Activation"
-e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tanh"
-
 ### Defining Termination Criteria
 
 e["Solver"]["Termination Criteria"]["Max Generations"] = args.maxGenerations
-e["Solver"]["Termination Criteria"]["Max Running Time"] = 60
+e["Solver"]["Termination Criteria"]["Max Running Time"] = args.maxRunningTime
 
 ### Setting file output configuration
 
