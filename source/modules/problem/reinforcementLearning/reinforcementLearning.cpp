@@ -110,9 +110,6 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
   // Reserving message storage for sending back the episode
   knlohmann::json episode;
 
-  // Storage to keep track of cumulative reward
-  std::vector<float> trainingRewards(_agentsPerEnvironment, 0.0);
-
   // Setting termination status of initial state (and the following ones) to non terminal.
   // The environment will change this at the last state, indicating whether the episodes was
   // "Success" or "Truncated".
@@ -172,10 +169,6 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
       episode["Experiences"][actionCount]["Truncated State"] = worker["State"];
     }
 
-    // Adding to cumulative training rewards
-    for (size_t i = 0; i < _agentsPerEnvironment; i++)
-      trainingRewards[i] += worker["Reward"][i].get<float>();
-
     // Increasing counter for generated actions
     actionCount++;
 
@@ -193,9 +186,6 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
     }
   }
 
-  // Setting cumulative reward
-  worker["Training Rewards"] = trainingRewards;
-  
   if (worker.contains("Gradients"))
     worker._js.getJson().erase("Gradients");
 

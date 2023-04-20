@@ -195,6 +195,7 @@ void Agent::trainingGeneration()
         int i = 0;
         // If we accumulated enough experiences between updates in this session, update now
         if (_experienceCount >= _experienceReplayStartSize)
+        {
           while (_sessionExperienceCount > (_experiencesBetweenPolicyUpdates * _sessionPolicyUpdateCount + _sessionExperiencesUntilStartSize))
           {
             // Generate minibatch
@@ -217,7 +218,7 @@ void Agent::trainingGeneration()
             _policyUpdateCount++;
             _sessionPolicyUpdateCount++;
           }
-
+        }
         KORALI_START(_workers[workerId]);
 
         _isWorkerRunning[workerId] = true;
@@ -321,9 +322,6 @@ void Agent::attendWorker(size_t workerId)
     // Process episode(s) incoming from the agent(s)
     if (message["Action"] == "Send Episodes")
     {
-      // Process every episode received and its experiences (add them to replay memory)
-      processEpisode(message["Episodes"]);
-
       if (isDefined(message, "Mini Batch"))
       {
         const auto beginTime = std::chrono::steady_clock::now(); // Profiling
@@ -358,16 +356,14 @@ void Agent::attendWorker(size_t workerId)
             _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a] + _currentLearningRate;
         }
       }
-
-      // Increasing total experience counters
-      _experienceCount += message["Episodes"]["Experiences"].size();
-      _sessionExperienceCount += message["Episodes"]["Experiences"].size();
+	  else
+      {
+        // Process every episode received and its experiences (add them to replay memory)
+        processEpisode(message["Episodes"]);
+      }
 
       // Waiting for the agent to come back with all the information
       KORALI_WAIT(_workers[workerId]);
-
-      // Getting the training reward of the latest episodes
-      _trainingLastReward = KORALI_GET(std::vector<float>, _workers[workerId], "Training Rewards");
 
       // Keeping training statistics. Updating if exceeded best training policy so far.
       for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
@@ -653,6 +649,14 @@ void Agent::processEpisode(knlohmann::json &episode)
     _rewardRescalingMean = _rewardRescalingSumRewards / (float)_rewardBufferContiguous.size();
     _rewardRescalingSigma = std::sqrt(_rewardRescalingSumSquaredRewards / (float)_rewardBufferContiguous.size());
   }
+
+  // Increasing total experience counters
+  _experienceCount += episode["Experiences"].size();
+  _sessionExperienceCount += episode["Experiences"].size();
+      
+  // Getting the training reward of the latest episodes
+  _trainingLastReward = cumulativeReward;
+
 }
 
 std::vector<std::pair<size_t, size_t>> Agent::generateMiniBatch()

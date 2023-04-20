@@ -5,6 +5,7 @@ import numpy as np
 
 ######## Setup Policy
 import tensorflow as tf
+tf.config.threading.set_inter_op_parallelism_threads(1)
 stateDim = 4
 actionDim = 1
 hiddenLayers = [32,32]
@@ -32,7 +33,7 @@ cart = CartPole()
 maxSteps = 500
 
 numActions = 1
-numAgents = 2
+numAgents = 1
 numPolicyParams = 2
 
 # Primitive policy
@@ -58,7 +59,7 @@ def env(sample):
 
  # If sample contains gradient, do the gradient update
  if sample.contains("Gradients"):
-     print("Received gradient, update external policy!")
+     print("Received gradient, update external policy")
      global policyNetwork
 
      mb = np.array(sample["Gradients"]["Mini Batch"])
@@ -75,7 +76,10 @@ def env(sample):
                 for g in range(len(gradients[i,b,:])):
             	    policyNetwork.trainable_weights[gw].assign(policyNetwork.trainable_weights[gw] + 1./(nmb*numAgents) * gradw[gw] * gradients[i,b,g])
             #print(gw)
-      
+            #print(policyNetwork.trainable_weights[4])
+            #print(1./(nmb*numAgents) * gradw[4] * gradients[i,b,0])
+            #print(policyNetwork.trainable_weights[4] + 10./(nmb*numAgents) * gradw[4] * gradients[i,b,0])
+            #exit()
             policyNetwork.trainable_weights[4].assign(policyNetwork.trainable_weights[4] + 1./(nmb*numAgents) * gradw[4] * gradients[i,b,0])
             policyNetwork.trainable_weights[5].assign(policyNetwork.trainable_weights[5] + 1./(nmb*numAgents) * gradw[5] * gradients[i,b,0])
             policyNetwork.trainable_weights[6].assign(policyNetwork.trainable_weights[6] + 1./(nmb*numAgents) * gradw[6] * gradients[i,b,1])
@@ -83,6 +87,7 @@ def env(sample):
 
  # If sample contains mini-batch, evaluate the state sequence and return distribution params
  if sample.contains("Mini Batch"):
+     print("Received Mini Batch, evaluate state sequence batch!")
      miniBatch = np.array(sample["Mini Batch"])
 
      stateSequenceBatch = np.array(sample["State Sequence Batch"])
@@ -101,7 +106,7 @@ def env(sample):
  # Initializing environment and random seed
  sampleId = sample["Sample Id"]
  cart.reset(sampleId)
- sample["State"] = [cart.getState().tolist(), cart.getState().tolist()]
+ sample["State"] = cart.getState().tolist()
  step = 0
  done = False
 
@@ -109,8 +114,8 @@ def env(sample):
  while not done and step < maxSteps:
   # Calculate policy here and return action
   action, distParams = policy(cart.getState())
-  sample["Action"] = [action, action]
-  sample["Distribution Parameters"] = [distParams, distParams]
+  sample["Action"] = action
+  sample["Distribution Parameters"] = distParams
  
   # Getting new action
   sample.update()
@@ -119,10 +124,10 @@ def env(sample):
   done = cart.advance(action)
   
   # Getting Reward
-  sample["Reward"] = [cart.getReward(), cart.getReward()]
+  sample["Reward"] = cart.getReward()
    
   # Storing New State
-  sample["State"] = [cart.getState().tolist(), cart.getState().tolist()]
+  sample["State"] = cart.getState().tolist()
   
   # Advancing step counter
   step = step + 1
