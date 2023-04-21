@@ -33,7 +33,7 @@ parser.add_argument(
 parser.add_argument(
     '--learningRate',
     help='Learning rate for the selected optimizer',
-    default=3e-3,
+    default=1e-3,
     type=float,
     required=False)
 args = parser.parse_args()
@@ -84,7 +84,7 @@ e["Solver"]["Experience Replay"]["Off Policy"]["REFER Beta"]= 0.3
 e["Solver"]["Discount Factor"] = 0.99
 e["Solver"]["Learning Rate"] = args.learningRate
 e["Solver"]["Mini Batch"]["Size"] = 32
-e["Solver"]["State Rescaling"]["Enabled"] = True
+e["Solver"]["State Rescaling"]["Enabled"] = False
 e["Solver"]["Reward"]["Rescaling"]["Enabled"] = True
 
 ### Configuring the neural network and its hidden layers
@@ -94,17 +94,16 @@ e["Solver"]["Neural Network"]["Optimizer"] = args.optimizer
 e["Solver"]["Policy"]["Distribution"] = "Clipped Normal"
 
 e["Solver"]["Neural Network"]["Hidden Layers"][0]["Type"] = "Layer/Linear"
-e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 8
+e["Solver"]["Neural Network"]["Hidden Layers"][0]["Output Channels"] = 16
 
 e["Solver"]["Neural Network"]["Hidden Layers"][1]["Type"] = "Layer/Activation"
 e["Solver"]["Neural Network"]["Hidden Layers"][1]["Function"] = "Elementwise/Tanh"
 
 e["Solver"]["Neural Network"]["Hidden Layers"][2]["Type"] = "Layer/Linear"
-e["Solver"]["Neural Network"]["Hidden Layers"][2]["Output Channels"] = 8
+e["Solver"]["Neural Network"]["Hidden Layers"][2]["Output Channels"] = 16
 
 e["Solver"]["Neural Network"]["Hidden Layers"][3]["Type"] = "Layer/Activation"
 e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Tanh"
-
 
 ### Defining Termination Criteria
 
