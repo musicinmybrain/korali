@@ -38,7 +38,7 @@ void VRACER::initializeAgent()
 
   for(size_t i = 0; i < _problem->_policiesPerEnvironment; i++)
   {
-     _effectiveMinibatchSize[p] = _miniBatchSize * _agentsPerTeam[p];
+     _effectiveMinibatchSize[i] = _miniBatchSize * _problem->_agentsPerTeam[i];
   }
 
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
@@ -163,7 +163,7 @@ void VRACER::trainPolicy()
 void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx)
 {
   // Resetting statistics
-  for(size_t i = 0; i < _problem->_agentsPerTeam.size(), i++)
+  for(size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
   {
     std::fill(_miniBatchPolicyMean[i].begin(), _miniBatchPolicyMean[i].end(), 0.0);
     std::fill(_miniBatchPolicyStdDev[i].begin(), _miniBatchPolicyStdDev[i].end(), 0.0);
@@ -172,6 +172,8 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
   const size_t miniBatchSize = miniBatch.size();
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
+// Does the schedule for pragma omp parallel remain with numAgents ?
+
 #pragma omp parallel for schedule(guided, numAgents) reduction(vec_float_plus \
                                                                : _miniBatchPolicyMean, _miniBatchPolicyStdDev)
   for (size_t b = 0; b < miniBatchSize; b++)
@@ -179,7 +181,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     // Getting index of current experiment
     const size_t expId = miniBatch[b].first;
     const size_t agentId = miniBatch[b].second;
-    size_t teamId = getTeamIndex(agentId)
+    size_t teamId = getTeamIndex(agentId);
 
     // Get policy and action for this experience
     const auto &expPolicy = _expPolicyBuffer[expId][agentId];
@@ -257,7 +259,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       if (std::isfinite(gradientLoss[i + 1]) == false)
         KORALI_LOG_ERROR("Gradient loss returned an invalid value: %f\n", gradientLoss[i + 1]);
 
-      if (std::isfinite(gradientLoss[i + 1 + _problem->_actionVectorSize]) == false)
+      if (std::isfinite(gradientLoss[i + 1 + _problem->_actionVectorSize[teamId]]) == false)
         KORALI_LOG_ERROR("Gradient loss returned an invalid value: %f\n", gradientLoss[i + 1 + _problem->_actionVectorSize[teamId]]);
     }
 

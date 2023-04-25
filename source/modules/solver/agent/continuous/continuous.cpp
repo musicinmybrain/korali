@@ -19,7 +19,7 @@ void Continuous::initializeAgent()
   _problem = dynamic_cast<problem::reinforcementLearning::Continuous *>(_k->_problem);
 
   // Only relevant for discrete
-  // _problem->_actionCount = 0;
+  for(size_t i=0; i < _problem->_agentsPerTeam.size(); i++)  _problem->_actionCount[i] = 0;
 
   // Obtaining action shift and scales for bounded distributions
 

@@ -58,13 +58,13 @@ void ReinforcementLearning::initialize()
   }
   
   if(std::accumulate(_agentsPerTeam.begin(), _agentsPerTeam.end(), 0) != _agentsPerEnvironment)
-    KORALI_LOG_ERROR("Defined team sizes do not sum up to total number of agents.")
+    KORALI_LOG_ERROR("Defined team sizes do not sum up to total number of agents.");
   // Processing state/action variable configuration
   _stateVectorIndexes.clear();
   _actionVectorIndexes.clear();
 
-  _stateVectorIndexes.resize(_agentsPerTeam.size())
-  _actionVectorIndexes.resize(_agentsPerTeam.size())
+  _stateVectorIndexes.resize(_agentsPerTeam.size());
+  _actionVectorIndexes.resize(_agentsPerTeam.size());
 
   for (size_t i = 0; i < _k->_variables.size(); i++)
   {
@@ -468,12 +468,17 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
     if (std::isfinite(worker["Reward"][i].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu reward returned an invalid value: %f\n", i, worker["Reward"][i].get<float>());
 
   // If available actions not given, set all 1s
-  std::vector<size_t> availableActions(_actionCount, 1);
+  std::vector<std::vector<size_t>> availableActions;
+  availableActions.resize(_agentsPerTeam.size());
+  for(size_t i = 0; i < _agentsPerTeam.size(); i++)
+    for(size_t j = 0; j < _actionCount[i]; j++)
+      availableActions[i].push_back(1);
+
   if (not isDefined(worker._js.getJson(), "Available Actions"))
   {
     for (size_t i = 0; i < _agentsPerEnvironment; i++)
     {
-      worker["Available Actions"][i] = availableActions;
+      worker["Available Actions"][i] = availableActions[_k->_variables[i]->_teamIndex];
     }
   }
 
@@ -482,7 +487,7 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
 
   for (size_t i = 0; i < _agentsPerEnvironment; i++)
   {
-    if (worker["Available Actions"][i].size() != _actionCount) KORALI_LOG_ERROR("Available Actions vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["Available Actions"][i].size(), _actionCount);
+    if (worker["Available Actions"][i].size() != _actionCount[_k->_variables[i]->_teamIndex]) KORALI_LOG_ERROR("Available Actions vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["Available Actions"][i].size(), _actionCount[_k->_variables[i]->_teamIndex]);
   }
 }
 
