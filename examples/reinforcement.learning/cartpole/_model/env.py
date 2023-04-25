@@ -18,18 +18,16 @@ for i, size in enumerate(hiddenLayers):
     else:
         x = tf.keras.layers.Dense(size, kernel_initializer='glorot_uniform', activation=activationFunction, dtype='float32')(x)
 
-scaledGlorot = lambda shape, dtype : 0.001*tf.keras.initializers.GlorotNormal()(shape)
+scaledGlorot = lambda shape, dtype : 0.0001*tf.keras.initializers.GlorotNormal()(shape)
 
 mean  = tf.keras.layers.Dense(actionDim, kernel_initializer=scaledGlorot, activation = "linear", dtype='float32')(x)
 sigma = tf.keras.layers.Dense(actionDim, kernel_initializer=scaledGlorot, activation = "softplus", dtype='float32')(x)
 
 outputs = tf.keras.layers.Concatenate()([mean, sigma])
 policyNetwork = tf.keras.Model(inputs=inputs, outputs=outputs, name='PolicyNetwork')
-policyNetworkTmp = tf.keras.Model(inputs=inputs, outputs=outputs, name='PolicyNetwork')
-for wtmp, w, in zip(policyNetworkTmp.trainable_weights, policyNetwork.trainable_weights):
-	wtmp.assign(w)
+policyNetwork.compile(optimizer='adam')
 
-optimizer = tf.keras.optimizers.SGD(learning_rate=0.001)
+optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
 
 ######## Defining Environment Storage
 cart = CartPole()
@@ -51,11 +49,13 @@ def policy(state):
 def gradpolicy(state, lossGradient):
     global optimizer
     global policyNetwork
+
+    policyNetworkTmp = tf.keras.Model(inputs=inputs, outputs=outputs, name='PolicyNetwork')
+    for wtmp, w, in zip(policyNetworkTmp.trainable_weights, policyNetwork.trainable_weights):
+        wtmp.assign(w)
     
     # Tmp storage for weight updates
     trainableWeights = policyNetwork.get_weights().copy()
-    for wtmp, w in zip(trainableWeights, policyNetwork.get_weights().copy()):
-        wtmp = w
 
     nup1, mb1, _ = state.shape 
     nup2, mb2, _ = lossGradient.shape 
@@ -79,7 +79,25 @@ def gradpolicy(state, lossGradient):
             trainableWeights[5] += 1./(nmb*numAgents) * gradw[5] * lossGradient[i,b,0]
             trainableWeights[6] += 1./(nmb*numAgents) * gradw[6] * lossGradient[i,b,1]
             trainableWeights[7] += 1./(nmb*numAgents) * gradw[7] * lossGradient[i,b,1]
+            """
+            #print(gradw)
+            for gw in range(nlay-4):
+                gradw[gw] = 1./(nmb*numAgents) * gradw[gw] * lossGradient[i,b,0]
+                gradw[gw] = 1./(nmb*numAgents) * gradw[gw] * lossGradient[i,b,1]
+            gradw[4] = 1./(nmb*numAgents) * gradw[4] * lossGradient[i,b,0]
+            gradw[5] = 1./(nmb*numAgents) * gradw[5] * lossGradient[i,b,0]
+            gradw[6] = 1./(nmb*numAgents) * gradw[6] * lossGradient[i,b,1]
+            gradw[7] = 1./(nmb*numAgents) * gradw[7] * lossGradient[i,b,1]
+ 
+            #print(trainableWeights)
+            optimizer.apply_gradients(zip(gradw, policyNetworkTmp.trainable_weights))
+            #print(trainableWeights)
+            #exit()
 
+    # Copy back variables
+    for wtmp, w, in zip(policyNetworkTmp.trainable_weights, policyNetwork.trainable_weights):
+        w.assign(wtmp)
+    """
     # Copy back variables
     for wtmp, w, in zip(trainableWeights, policyNetwork.trainable_weights):
         w.assign(wtmp)
@@ -93,6 +111,7 @@ def env(sample):
      global optimizer
 
      mb = np.array(sample["Gradients"]["Mini Batch"])
+     #print(mb.shape)
      nupdate, nmb, _ = mb.shape
      expstates = np.array(sample["Gradients"]["State Sequence Batch"])[:,:,0,:]
      lossGradients = np.array(sample["Gradients"]["Gradients"])
@@ -103,7 +122,6 @@ def env(sample):
  if sample.contains("Mini Batch"):
      print("Received Mini Batch, evaluate state sequence batch!")
      miniBatch = np.array(sample["Mini Batch"])
-
      stateSequenceBatch = np.array(sample["State Sequence Batch"])
      numBatch, effectiveMiniBatchSize, numStates, _ = stateSequenceBatch.shape
 
@@ -111,6 +129,7 @@ def env(sample):
      for b, batch in enumerate(stateSequenceBatch):
          for s, states in enumerate(batch):
              _, policyParams[b,s,:] = policy(states[0])
+             
 
      sample["Distribution Parameters"] = policyParams.tolist()
      sample["Termination"] = "Terminal"

@@ -780,6 +780,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
 
     size_t a = 1;
 
+    /*
     // Iterate over experiences with same expId
     while ((miniBatch[b + a].first == miniBatch[b + a - 1].first) && (b + a < miniBatchSize))
     {
@@ -791,6 +792,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
       }
       a++;
     }
+    */
 
     // Increment batch counter by the number of same expIds
     b += a;
@@ -813,6 +815,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
 
     // Get state value
     _stateValueBufferContiguous[expId * numAgents + agentId] = curPolicy.stateValue;
+    //printf("cp %zu %zu: %f %f, sv %f\n", expId, agentId, curPolicy.distributionParameters[0], curPolicy.distributionParameters[1], curPolicy.stateValue);
     if (std::isfinite(curPolicy.stateValue) == false)
       KORALI_LOG_ERROR("Calculated state value returned an invalid value: %f\n", curPolicy.stateValue);
 
@@ -1005,6 +1008,10 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     size_t nextEpisode = _episodeIdBuffer[nextExpId];
     if (curEpisode != nextEpisode) retraceMiniBatch.push_back(currExpId);
   }
+
+  printf("retraceMB %zu\n", retraceMiniBatch.size());
+  printf("updateB %zu\n", updateBatch.size());
+  printf("miniB %zu\n", miniBatch.size());
 
 // Calculating retrace value for the oldest experiences of unique episodes
 #pragma omp parallel for schedule(guided, 1)

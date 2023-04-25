@@ -776,6 +776,7 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
 
     size_t a = 1;
 
+    /*
     // Iterate over experiences with same expId
     while ((miniBatch[b + a].first == miniBatch[b + a - 1].first) && (b + a < miniBatchSize))
     {
@@ -787,6 +788,7 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
       }
       a++;
     }
+    */
 
     // Increment batch counter by the number of same expIds
     b += a;
