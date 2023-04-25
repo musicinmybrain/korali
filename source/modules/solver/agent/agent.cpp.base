@@ -200,7 +200,6 @@ void __className__::trainingGeneration()
 
             if (_gradientQueue.empty() == false)
             {
-              //printf("%zu gradients in queue\n", _gradientQueue.size());
               _workers[workerId]["Gradients"]["Gradients"] = _gradientQueue.front();
               _workers[workerId]["Gradients"]["State Sequence Batch"] = getMiniBatchStateSequence(_miniBatchQueue.front());
               _gradientQueue.pop();

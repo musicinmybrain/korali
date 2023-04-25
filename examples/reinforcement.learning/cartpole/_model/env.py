@@ -1,39 +1,30 @@
 #!/usr/bin/env python3
-from cartpole import *
-import pdb
-import numpy as np
-
-######## Define Policy
 import tensorflow as tf
 tf.config.threading.set_inter_op_parallelism_threads(1)
-stateDim = 4
-actionDim = 1
-hiddenLayers = [32,32]
-activationFunction = 'tanh'
 
+from cartpole import *
+import numpy as np
+import time
+
+######## Define Policy
+numActions = 1
+numAgents = 1
+stateDim = 4
+
+hiddenLayers = [32,32]
 inputs = tf.keras.Input(shape=(stateDim,), dtype='float32')
 for i, size in enumerate(hiddenLayers):
     if i == 0:
-        x = tf.keras.layers.Dense(size, kernel_initializer='glorot_uniform', activation=activationFunction, dtype='float32')(inputs)
+        x = tf.keras.layers.Dense(size, kernel_initializer='glorot_uniform', activation='tanh', dtype='float32')(inputs)
     else:
-        x = tf.keras.layers.Dense(size, kernel_initializer='glorot_uniform', activation=activationFunction, dtype='float32')(x)
+        x = tf.keras.layers.Dense(size, kernel_initializer='glorot_uniform', activation='tanh', dtype='float32')(x)
 
 scaledGlorot = lambda shape, dtype : 0.0001*tf.keras.initializers.GlorotNormal()(shape)
-
-mean  = tf.keras.layers.Dense(actionDim, kernel_initializer=scaledGlorot, activation = "linear", dtype='float32')(x)
-sigma = tf.keras.layers.Dense(actionDim, kernel_initializer=scaledGlorot, activation = "softplus", dtype='float32')(x)
-
+mean  = tf.keras.layers.Dense(numActions, kernel_initializer=scaledGlorot, activation = "linear", dtype='float32')(x)
+sigma = tf.keras.layers.Dense(numActions, kernel_initializer=scaledGlorot, activation = "softplus", dtype='float32')(x)
 outputs = tf.keras.layers.Concatenate()([mean, sigma])
 policyNetwork = tf.keras.Model(inputs=inputs, outputs=outputs, name='PolicyNetwork')
 policyNetwork.compile(optimizer='adam')
-
-######## Defining Environment Storage
-cart = CartPole()
-maxSteps = 500
-
-numActions = 1
-numAgents = 1
-numPolicyParams = 2
 
 # Primitive policy
 def policy(state):
@@ -87,13 +78,29 @@ def policyUpdate(sample):
     for w,wtmp  in zip(policyNetwork.trainable_weights, trainableWeights):
         w.assign(wtmp)
 
-def env(sample):
+######## Defining Environment Storage
+cart = CartPole()
+maxSteps = 500
 
+tstart = time.time()
+tpolupdate = 0.
+tmbeval = 0.
+tenv  = 0.
+
+def env(sample):
+ global tstart
+ global tpolupdate
+ global tmbeval
+ global tenv
+
+ time0  = time.time()
  # If sample contains gradient, update the policy
  if sample.contains("Gradients"):
      #print("Received gradient, update external policy")
      policyUpdate(sample)
 
+ time1  = time.time()
+ tpolupdate += (time1-time0)
  # If sample contains mini-batch, evaluate the state sequence and return distribution params
  if sample.contains("Mini Batch"):
      #print("Received Mini Batch, evaluate state sequence batch!")
@@ -109,6 +116,8 @@ def env(sample):
      sample["Termination"] = "Terminal"
      return # Important: Exit after mini batch evaluation
 
+ time2  = time.time()
+ tmbeval += (time2-time1)
  # Initializing environment and random seed
  sampleId = sample["Sample Id"]
  cart.reset(sampleId)
@@ -145,5 +154,14 @@ def env(sample):
   sample["Termination"] = "Terminal"
  else:
   sample["Termination"] = "Truncated"
+
+ time3 = time.time()
+ tenv += (time3-time2)
+ ttotal = time3 - tstart
  
+ print(f"pct pol update: \t{100*tpolupdate/ttotal:.1f}")
+ print(f"pct mb eval: \t\t{100*tmbeval/ttotal:.1f}")
+ print(f"pct env: \t\t{100*tenv/ttotal:.1f}")
+ print(f"pct py: \t\t{100*(tpolupdate+tmbeval+tenv)/ttotal:.1f}")
+ print(f"ttotal: \t\t{ttotal:.1f}")
  return
