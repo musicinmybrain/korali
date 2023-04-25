@@ -22,8 +22,8 @@ void Continuous::initializeAgent()
 
   // Obtaining action shift and scales for bounded distributions
 
-  _actionShifts.resize(_problem->_agentsperTeam.size());
-  _actionScales.resize(_problem->_agentsperTeam.size());
+  _actionShifts.resize(_problem->_agentsPerTeam.size());
+  _actionScales.resize(_problem->_agentsPerTeam.size());
   
   for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
   {
@@ -56,9 +56,9 @@ void Continuous::initializeAgent()
   // Obtaining policy parameter transformations (depends on which policy distribution chosen)
   if (_policyDistribution == "Normal" || _policyDistribution == "Squashed Normal" || _policyDistribution == "Clipped Normal" || _policyDistribution == "Truncated Normal")
   {
-    _policyParameterTransformationMasks.resize(_agentsPerTeam.size());
-    _policyParameterScaling.resize(_agentsPerTeam.size());
-    _policyParameterShifting.resize(_agentsPerTeam.size());
+    _policyParameterTransformationMasks.resize(_problem->_agentsPerTeam.size());
+    _policyParameterScaling.resize(_problem->_agentsPerTeam.size());
+    _policyParameterShifting.resize(_problem->_agentsPerTeam.size());
 
     for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
     {
@@ -95,9 +95,9 @@ void Continuous::initializeAgent()
 
   if (_policyDistribution == "Beta")
   {
-    _policyParameterTransformationMasks.resize(_agentsPerTeam.size());
-    _policyParameterScaling.resize(_agentsPerTeam.size());
-    _policyParameterShifting.resize(_agentsPerTeam.size());
+    _policyParameterTransformationMasks.resize(_problem->_agentsPerTeam.size());
+    _policyParameterScaling.resize(_problem->_agentsPerTeam.size());
+    _policyParameterShifting.resize(_problem->_agentsPerTeam.size());
 
     for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
     {
@@ -136,16 +136,16 @@ void Continuous::initializeAgent()
 void Continuous::getAction(korali::Sample &sample)
 {
   // Get action for all the agents in the environment
-  for (size_t j = 0; j < _problem -> _agentsPerTeam.size(); j++)
+  for (size_t j = 0; j < _problem->_agentsPerTeam.size(); j++)
   {
     for (size_t i = 0; i < _problem->_agentsPerTeam[j]; i++)
     {
       // Getting current state
 
-      auto state = sample["State"][sum(_agentsPerTeam[:j])+i];
+      auto state = sample["State"][sum(_problem->_agentsPerTeam[:j])+i];
 
       // Adding state to the state time sequence
-      _stateTimeSequence[sum(_agentsPerTeam[:j])+i].add(state);
+      _stateTimeSequence[sum(_problem->_agentsPerTeam[:j])+i].add(state);
 
       // Storage for the action to select
       std::vector<float> action(_problem->_actionVectorSize[j]);
@@ -154,9 +154,9 @@ void Continuous::getAction(korali::Sample &sample)
       // in case of multiple polices it runs the i-th policy otherwise standard
       std::vector<policy_t> policy;
       if (_problem->_policiesPerEnvironment == 1)
-        runPolicy({_stateTimeSequence[sum(_agentsPerTeam[:j])+i].getVector()}, policy);
+        runPolicy({_stateTimeSequence[sum(_problem->_agentsPerTeam[:j])+i].getVector()}, policy);
       else
-        runPolicy({_stateTimeSequence[sum(_agentsPerTeam[:j])+i].getVector()}, policy, sum(_agentsPerTeam[:j])+i);
+        runPolicy({_stateTimeSequence[sum(_problem->_agentsPerTeam[:j])+i].getVector()}, policy, sum(_problem->_agentsPerTeam[:j])+i);
 
       /*****************************************************************************
       * During Training we select action according to policy's probability
@@ -178,13 +178,13 @@ void Continuous::getAction(korali::Sample &sample)
 
       // Check action
       for (size_t z = 0; z < _problem->_actionVectorSize[j]; z++)
-        if (std::isfinite(action[z]) == false) KORALI_LOG_ERROR("Agent %lu action %lu returned an invalid value: %f\n", sum(_agentsPerTeam[:j])+i, z, action[z]);
+        if (std::isfinite(action[z]) == false) KORALI_LOG_ERROR("Agent %lu action %lu returned an invalid value: %f\n", sum(_problem->_agentsPerTeam[:j])+i, z, action[z]);
 
       // Write action to sample
-      sample["Action"][sum(_agentsPerTeam[:j])+i] = action;
-      sample["Policy"]["State Value"][sum(_agentsPerTeam[:j])+i] = policy[0].stateValue;
-      sample["Policy"]["Unbounded Action"][sum(_agentsPerTeam[:j])+i] = policy[0].unboundedAction;
-      sample["Policy"]["Distribution Parameters"][sum(_agentsPerTeam[:j])+i] = policy[0].distributionParameters;
+      sample["Action"][sum(_problem->_agentsPerTeam[:j])+i] = action;
+      sample["Policy"]["State Value"][sum(_problem->_agentsPerTeam[:j])+i] = policy[0].stateValue;
+      sample["Policy"]["Unbounded Action"][sum(_problem->_agentsPerTeam[:j])+i] = policy[0].unboundedAction;
+      sample["Policy"]["Distribution Parameters"][sum(_problem->_agentsPerTeam[:j])+i] = policy[0].distributionParameters;
     }
   }
 }
@@ -271,7 +271,7 @@ std::vector<float> Continuous::generateTrainingAction(policy_t &curPolicy, size_
   return action;
 }
 
-std::vector<float> Continuous::generateTestingAction(const policy_t &curPolicy, size_t teamIndex)
+std::vector<float> Continuous::generateTestingAction(const policy_t &curPolicy,const size_t teamIndex)
 {
   std::vector<float> action(_problem->_actionVectorSize[teamIndex]);
 
@@ -330,7 +330,7 @@ std::vector<float> Continuous::generateTestingAction(const policy_t &curPolicy, 
   return action;
 }
 
-float Continuous::calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, size_t teamIndex)
+float Continuous::calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, const size_t teamIndex)
 {
   float logpCurPolicy = 0.0f;
   float logpOldPolicy = 0.0f;
@@ -451,10 +451,10 @@ float Continuous::calculateImportanceWeight(const std::vector<float> &action, co
   return importanceWeight;
 }
 
-std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, const float importanceWeight, size_t teamIndex)
+std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, const float importanceWeight, const size_t teamIndex)
 {
   // Storage for importance weight gradients
-  std::vector<float> importanceWeightGradients(_policyParameterCount, 0.);
+  std::vector<float> importanceWeightGradients(_policyParameterCount[teamIndex], 0.);
 
   if (_policyDistribution == "Normal")
   {
@@ -561,7 +561,7 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
     }
 
     // Scale by importance weight to get gradient
-    for (size_t i = 0; i < _policyParameterCount; i++)
+    for (size_t i = 0; i < _policyParameterCount[teamIndex]; i++)
       importanceWeightGradients[i] *= importanceWeight;
   }
 
@@ -684,10 +684,10 @@ std::vector<float> Continuous::calculateImportanceWeightGradient(const std::vect
   return importanceWeightGradients;
 }
 
-std::vector<float> Continuous::calculateKLDivergenceGradient(const policy_t &oldPolicy, const policy_t &curPolicy, size_t teamIndex)
+std::vector<float> Continuous::calculateKLDivergenceGradient(const policy_t &oldPolicy, const policy_t &curPolicy, const size_t teamIndex)
 {
   // Storage for KL Divergence Gradients
-  std::vector<float> KLDivergenceGradients(_policyParameterCount, 0.0);
+  std::vector<float> KLDivergenceGradients(_policyParameterCount[teamIndex], 0.0);
 
   if (_policyDistribution == "Normal" || _policyDistribution == "Squashed Normal")
   {

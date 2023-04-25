@@ -503,7 +503,7 @@ void ReinforcementLearning::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Action Count"))
  {
- try { _actionCount = js["Action Count"].get<std::vector<size_t>>();
+ try { _actionCount = js["Action Count"].get<size_t>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ reinforcementLearning ] \n + Key:    ['Action Count']\n%s", e.what()); } 
    eraseValue(js, "Action Count");

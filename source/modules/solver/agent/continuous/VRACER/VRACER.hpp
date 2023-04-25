@@ -80,12 +80,12 @@ class VRACER : public Continuous
   /**
    * @brief [Statistics] Keeps track of the mu of the current minibatch for each action variable
    */
-  std::vector<float> _miniBatchPolicyMean;
+  std::vector<std::vector<float>> _miniBatchPolicyMean;
 
   /**
    * @brief [Statistics] Keeps track of the sigma of the current minibatch for each action variable
    */
-  std::vector<float> _miniBatchPolicyStdDev;
+  std::vector<std::vector<float>> _miniBatchPolicyStdDev;
 
   knlohmann::json getPolicy() override;
   void setPolicy(const knlohmann::json &hyperparameters) override;

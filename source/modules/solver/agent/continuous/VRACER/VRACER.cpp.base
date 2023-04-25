@@ -26,10 +26,12 @@ void __className__::initializeAgent()
   _criticPolicyExperiment.resize(_problem->_policiesPerEnvironment);
   _criticPolicyProblem.resize(_problem->_policiesPerEnvironment);
 
-  _effectiveMinibatchSize = _miniBatchSize * _problem->_agentsPerEnvironment;
+  // _effectiveMinibatchSize = _miniBatchSize * _problem->_agentsPerEnvironment;
 
-  if (_multiAgentRelationship == "Competition")
-    _effectiveMinibatchSize = _miniBatchSize;
+  for(size_t i = 0; i < _problem->_policiesPerEnvironment; i++)
+  {
+     _effectiveMinibatchSize[p] = _miniBatchSize * _agentsPerTeam[p];
+  }
 
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
@@ -37,10 +39,10 @@ void __className__::initializeAgent()
 
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
     _criticPolicyExperiment[p]["Problem"]["Max Timesteps"] = _timeSequenceLength;
-    _criticPolicyExperiment[p]["Problem"]["Training Batch Size"] = _effectiveMinibatchSize;
+    _criticPolicyExperiment[p]["Problem"]["Training Batch Size"] = _effectiveMinibatchSize[p];
     _criticPolicyExperiment[p]["Problem"]["Testing Batch Size"] = 1;
     _criticPolicyExperiment[p]["Problem"]["Input"]["Size"] = _problem->_stateVectorSize[p];
-    _criticPolicyExperiment[p]["Problem"]["Solution"]["Size"] = 1 + _policyParameterCount;
+    _criticPolicyExperiment[p]["Problem"]["Solution"]["Size"] = 1 + _policyParameterCount[p];
 
     _criticPolicyExperiment[p]["Solver"]["Type"] = "DeepSupervisor";
     _criticPolicyExperiment[p]["Solver"]["Mode"] = "Training";
@@ -59,7 +61,7 @@ void __className__::initializeAgent()
     _criticPolicyExperiment[p]["Solver"]["Neural Network"]["Output Layer"]["Shift"][0] = 0.0f;
 
     // Setting transformations for the selected policy distribution output
-    for (size_t i = 0; i < _policyParameterCount; i++)
+    for (size_t i = 0; i < _policyParameterCount[p]; i++)
     {
       _criticPolicyExperiment[p]["Solver"]["Neural Network"]["Output Layer"]["Transformation Mask"][i + 1] = _policyParameterTransformationMasks[p][i];
       _criticPolicyExperiment[p]["Solver"]["Neural Network"]["Output Layer"]["Scale"][i + 1] = _policyParameterScaling[p][i];
@@ -73,8 +75,8 @@ void __className__::initializeAgent()
     _criticPolicyLearner[p] = dynamic_cast<solver::DeepSupervisor *>(_criticPolicyExperiment[p]._solver);
 
     // Preallocating space in the underlying supervised problem's input and solution data structures (for performance, we don't reinitialize it every time)
-    _criticPolicyProblem[p]->_inputData.resize(_effectiveMinibatchSize);
-    _criticPolicyProblem[p]->_solutionData.resize(_effectiveMinibatchSize);
+    _criticPolicyProblem[p]->_inputData.resize(_effectiveMinibatchSize[p]);
+    _criticPolicyProblem[p]->_solutionData.resize(_effectiveMinibatchSize[p]);
   }
 
   // Minibatch statistics
@@ -116,8 +118,8 @@ void __className__::trainPolicy()
       std::vector<std::vector<std::vector<float>>> stateSequenceCompetition(_miniBatchSize);
       for (size_t i = 0; i < _miniBatchSize; i++)
       {
-        miniBatchCompetition[i] = miniBatch[i * _problem->_agentsPerEnvironment + p];
-        stateSequenceCompetition[i] = stateSequenceBatch[i * _problem->_agentsPerEnvironment + p];
+        miniBatchCompetition[i] = miniBatch[i * _problem->_agentsPerTeam[p] + p];
+        stateSequenceCompetition[i] = stateSequenceBatch[i * _problem->_agentsPerTeam[p] + p];
       }
       miniBatchCopy = miniBatchCompetition;
       stateSequenceBatchCopy = stateSequenceCompetition;

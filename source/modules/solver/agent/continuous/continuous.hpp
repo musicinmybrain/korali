@@ -100,7 +100,7 @@ class Continuous : public Agent
    * @param teamIndex The team index the current agent is a part of
    * @return gradient of policy wrt curParamsOne and curParamsTwo
    */
-  std::vector<float> calculateImportanceWeightGradient(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, const float importanceWeight, size_t teamIndex);
+  std::vector<float> calculateImportanceWeightGradient(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, const float importanceWeight, const size_t teamIndex);
 
   /**
    * @brief Calculates the gradient of KL(p_old, p_cur) wrt to the parameter of the 2nd (current) distribution.
@@ -109,7 +109,7 @@ class Continuous : public Agent
    * @param teamIndex The team index the current agent is a part of
    * @return
    */
-  std::vector<float> calculateKLDivergenceGradient(const policy_t &oldPolicy, const policy_t &curPolicy, size_t teamIndex);
+  std::vector<float> calculateKLDivergenceGradient(const policy_t &oldPolicy, const policy_t &curPolicy, const size_t teamIndex);
 
   /**
    * @brief Function to generate randomized actions from neural network output.
@@ -125,7 +125,7 @@ class Continuous : public Agent
    * @param teamIndex The team of which the current agent is a part of
    * @return An action vector
    */
-  std::vector<float> generateTestingAction(const policy_t &curPolicy, size_t teamIndex);
+  std::vector<float> generateTestingAction(const policy_t &curPolicy, const size_t teamIndex);
 
   float calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy) override;
   virtual void getAction(korali::Sample &sample) override;

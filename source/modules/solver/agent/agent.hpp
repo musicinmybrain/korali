@@ -697,7 +697,7 @@ class Agent : public Solver
    * @param agentId The index of the current agent
    * @return The team index for the current agent
    */
-  size_t getTeamIndex(size_t agentId);
+  size_t getTeamIndex(const size_t agentId);
 
   /**
    * @brief Gets a vector of states corresponding of time sequence corresponding to the provided second-to-last experience index for which a truncated state exists
@@ -715,7 +715,7 @@ class Agent : public Solver
    * @param teamIndex The index of the team the current agent is a part of
    * @return The importance weight
    */
-  virtual float calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, size_t teamIndex) = 0;
+  virtual float calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, const size_t teamIndex) = 0;
 
   /**
    * @brief Listens to incoming experience from the given agent, sends back policy or terminates the episode depending on what's needed

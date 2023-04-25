@@ -2,6 +2,7 @@
 #include "modules/problem/reinforcementLearning/reinforcementLearning.hpp"
 #include "modules/solver/agent/agent.hpp"
 #include "sample/sample.hpp"
+#include <numeric>
 
 __startNamespace__;
 
@@ -37,9 +38,29 @@ size_t _launchId;
 
 void __className__::initialize()
 {
+  if(_agentsPerTeam.empty())
+  {
+    if(_policiesPerEnvironment == 1)
+    {
+      _agentsPerTeam.resize(1);
+      _agentsPerTeam[0] = _agentsPerEnvironment;
+    }
+    elif(_policiesPerEnvironment == _agentsPerEnvironment)
+    {
+      _agentsPerTeam.resize(_agentsPerEnvironment)
+      std::fill(_agentsPerTeam.begin(), _agentsPerTeam.end(), 1);
+    }
+    else KORALI_LOG_ERROR("Environment is neither cooperative nor fully competitive, team sizes need to be provided.")
+  }
+  
+  if(std::accumulate(_agentsPerTeam.begin(), _agentsPerTeam.end(), 0) != _agentsPerEnvironment)
+    KORALI_LOG_ERROR("Defined team sizes do not sum up to total number of agents.")
   // Processing state/action variable configuration
   _stateVectorIndexes.clear();
   _actionVectorIndexes.clear();
+
+  _stateVectorIndexes.resize(_agentsPerTeam.size())
+  _actionVectorIndexes.resize(_agentsPerTeam.size())
 
   for (size_t i = 0; i < _k->_variables.size(); i++)
   {
