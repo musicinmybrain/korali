@@ -119,6 +119,12 @@ class ReinforcementLearning : public Problem
   void runTrainingEpisode(korali::Sample &agent);
 
   /**
+   * @brief TODO
+   * @param agent TODO
+   */
+  void runPolicyUpdate(korali::Sample &agent);
+
+  /**
    * @brief Initializes the environment and agent configuration
    * @param agent Sample containing current agent/state information.
    */
@@ -140,6 +146,12 @@ class ReinforcementLearning : public Problem
    * @param agent Sample containing current agent/state information.
    */
   void requestNewPolicy(Sample &agent);
+
+  /**
+   * @brief Communicates with the Engine and ask for policy update
+   * @param agent Sample containing current agent/state information.
+   */
+  void trainPolicy(Sample &agent);
 
   /**
    * @brief Runs the policy on the current state to get the action

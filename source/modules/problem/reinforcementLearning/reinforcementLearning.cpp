@@ -116,7 +116,7 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
   worker["Termination"] = "Non Terminal";
 
   // Getting first state
-  if(worker["Termination"] == "Non Terminal")
+  if (worker["Termination"] == "Non Terminal")
     runEnvironment(worker);
 
   // If this is not the leader rank within the worker group, return immediately
@@ -129,21 +129,20 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
   // Saving experiences
   while (worker["Termination"] == "Non Terminal")
   {
-	// Getting current state
-	const auto state = worker["State"].get<std::vector<std::vector<float>>>();
+    // Getting current state
+    const auto state = worker["State"].get<std::vector<std::vector<float>>>();
 
-
-  std::vector<float> stateValue(_agentsPerEnvironment);
- // Get action for all the agents in the environment
-  for (size_t i = 0; i < _agentsPerEnvironment; i++)
-  {
-    // Forward state sequence to get the Gaussian means and sigmas from policy
-    // in case of multiple polices it runs the i-th policy otherwise standard
-    if (_policiesPerEnvironment == 1)
-      stateValue[i] = _agent->calculateStateValue({state[i]}, 0);
-    else
-      stateValue[i] = _agent->calculateStateValue({state[i]}, i);
-  }
+    std::vector<float> stateValue(_agentsPerEnvironment);
+    // Get action for all the agents in the environment
+    for (size_t i = 0; i < _agentsPerEnvironment; i++)
+    {
+      // Forward state sequence to get the Gaussian means and sigmas from policy
+      // in case of multiple polices it runs the i-th policy otherwise standard
+      if (_policiesPerEnvironment == 1)
+        stateValue[i] = _agent->calculateStateValue({state[i]}, 0);
+      else
+        stateValue[i] = _agent->calculateStateValue({state[i]}, i);
+    }
     // Storing the experience's policy
     episode["Experiences"][actionCount]["Policy"]["State Value"] = stateValue;
     episode["Experiences"][actionCount]["Policy"]["Distribution Parameters"] = worker["Distribution Parameters"];
@@ -172,11 +171,6 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
     // Increasing counter for generated actions
     actionCount++;
 
-	// Cleanup sample object
-    //worker._js.getJson().erase("Action");
-    //worker._js.getJson().erase("Reward");
-    //worker._js.getJson().erase("Termination");
-
     // Checking if we requested the given number of actions in between policy updates and it is not a terminal state
     if ((_actionsBetweenPolicyUpdates > 0) &&
         (worker["Termination"] == "Non Terminal") &&
@@ -185,9 +179,6 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
       requestNewPolicy(worker);
     }
   }
-
-  if (worker.contains("Gradients"))
-    worker._js.getJson().erase("Gradients");
 
   // Finalizing Environment
   finalizeEnvironment();
@@ -206,7 +197,69 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
   message["Sample Id"] = worker["Sample Id"];
   message["Episodes"] = episode;
 
+  KORALI_SEND_MSG_TO_ENGINE(message);
+
+  // Adding profiling information to worker
+  worker["Computation Time"] = _agentComputationTime;
+  worker["Communication Time"] = _agentCommunicationTime;
+  worker["Policy Evaluation Time"] = _agentPolicyEvaluationTime;
+}
+
+void ReinforcementLearning::runPolicyUpdate(korali::Sample &worker)
+{
+  // Initializing environment configuration
+  initializeEnvironment(worker);
+
+  // Setting mode to traing to add exploratory noise or random actions
+  worker["Mode"] = "Training";
+
+  // Switching back to the environment's thread
+  auto beginTime = std::chrono::steady_clock::now(); // Profiling
+
+  co_switch(_envThread);
+  auto endTime = std::chrono::steady_clock::now();                                                            // Profiling
+  _agentComputationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
+
+  // In case of this being a single worker, preprocess state and reward if necessary
+  if (_conduit->isWorkerLeadRank() == false) return;
+
+  if (worker.contains("Mini Batch") == false)
+    KORALI_LOG_ERROR("Mini Batch missing, sth went wrong.");
+
+  const auto miniBatch = worker["Mini Batch"].get<std::vector<std::pair<size_t, size_t>>>();
+  const auto distParams = KORALI_GET(std::vector<std::vector<float>>, worker, "Distribution Parameters");
+  // TODO check dis t param size
+
+  // Cleanup
+  worker._js.getJson().erase("Mini Batch");
+  worker._js.getJson().erase("Distribution Parameters");
+  if (worker.contains("Gradients") == true)
+    worker._js.getJson().erase("Gradients");
+
+  // If this is not the leader rank within the worker group, return immediately
+  if (_k->_engine->_conduit->isWorkerLeadRank() == false)
+  {
+    finalizeEnvironment();
+    return;
+  }
+
+  // Finalizing Environment
+  finalizeEnvironment();
+
+  // Setting tested policy flag to false, unless we do testing
+  worker["Tested Policy"] = false;
+
+  // Sending last experience last (after testing)
+  // This is important to prevent the engine for block-waiting for the return of the sample
+  // while the testing runs are being performed.
+  knlohmann::json message;
+  message["Action"] = "Train Policy";
+  message["Sample Id"] = worker["Sample Id"];
+  message["Mini Batch"] = miniBatch;
+  message["Distribution Parameters"] = distParams;
+
   // Sending evaluated mini batches
+  /*
   if (worker.contains("Mini Batch"))
   {
     if (worker.contains("State Sequence Batch") == false)
@@ -237,15 +290,18 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
     worker._js.getJson().erase("State Sequence Batch");
     //worker._js.getJson().erase("Distribution Parameters");
   }
+  */
 
   KORALI_SEND_MSG_TO_ENGINE(message);
 
+  /*
   if (message.contains("Mini Batch"))
   {
     worker["Gradients"] = KORALI_RECV_MSG_FROM_ENGINE();
     worker["Gradients"]["Mini Batch"] = message["Mini Batch"];
     worker["Gradients"]["State Sequence Batch"] = message["State Sequence Batch"];
   }
+  */
 
   // Adding profiling information to worker
   worker["Computation Time"] = _agentComputationTime;
@@ -313,6 +369,30 @@ void ReinforcementLearning::requestNewPolicy(Sample &worker)
   _agentCommunicationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count(); // Profiling
 }
 
+void ReinforcementLearning::trainPolicy(Sample &worker)
+{
+  auto t0 = std::chrono::steady_clock::now(); // Profiling
+
+  // Reserving message storage for requesting new policy
+  knlohmann::json message;
+
+  // Sending request to engine
+  message["Sample Id"] = worker["Sample Id"];
+  message["Action"] = "Train Policy";
+  KORALI_SEND_MSG_TO_ENGINE(message);
+
+  // If requested new policy, wait for incoming message containing new hyperparameters
+  worker["Mini Batch"] = KORALI_RECV_MSG_FROM_ENGINE();
+  if (worker.contains("Mini Batch"))
+  {
+    //auto mb =  KORALI_GET(std::vector<std::pair<size_t, size_t>>, worker, "Mini Batch");
+    auto mb = worker["Mini Batch"]["Mini Batch"].get<std::vector<std::pair<size_t, size_t>>>();
+  }
+
+  auto t1 = std::chrono::steady_clock::now();                                                       // Profiling
+  _agentCommunicationTime += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count(); // Profiling
+}
+
 void ReinforcementLearning::runEnvironment(Sample &worker)
 {
   // Switching back to the environment's thread
@@ -324,9 +404,12 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
 
   // In case of this being a single worker, preprocess state and reward if necessary
   if (_conduit->isWorkerLeadRank() == false) return;
-  
-  if(worker.contains("Mini Batch"))
+
+  if (worker.contains("Mini Batch"))
+  {
+    worker._js.getJson().erase("Mini Batch");
     return;
+  }
 
   // In case of this being a single agent, support returning state as only vector
   if (_agentsPerEnvironment == 1)
@@ -346,7 +429,7 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
     worker._js.getJson().erase("Distribution Parameters");
     worker["Distribution Parameters"][0] = distributionParams;
   }
-  
+
   // Checking correct format of state
   if (worker["Distribution Parameters"].is_array() == false) KORALI_LOG_ERROR("Distribution Parameters variable returned by the environment is not a vector.\n");
   if (worker["Distribution Parameters"].size() != _agentsPerEnvironment) KORALI_LOG_ERROR("Distribution Parameters vector returned with the wrong size: %lu, expected: %lu.\n", worker["Distribution Parameters"].size(), _agentsPerEnvironment);
@@ -639,6 +722,12 @@ bool ReinforcementLearning::runOperation(std::string operation, korali::Sample& 
  if (operation == "Run Training Episode")
  {
   runTrainingEpisode(sample);
+  return true;
+ }
+
+ if (operation == "Run Policy Update")
+ {
+  runPolicyUpdate(sample);
   return true;
  }
 

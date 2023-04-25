@@ -46,9 +46,12 @@ def policy(state):
     action = np.clip(np.random.normal(loc=meanSigma[0][:numActions], scale=meanSigma[0][numActions:]), a_min=-10, a_max=10)
     return action.tolist(), meanSigma[0]
 
-def gradpolicy(state, lossGradient):
+def gradpolicy(sample):
     global optimizer
     global policyNetwork
+
+    states = np.array(sample["Gradients"]["State Sequence Batch"])[:,0,:]
+    lossGradients = np.array(sample["Gradients"]["Gradients"])
 
     policyNetworkTmp = tf.keras.Model(inputs=inputs, outputs=outputs, name='PolicyNetwork')
     for wtmp, w, in zip(policyNetworkTmp.trainable_weights, policyNetwork.trainable_weights):
@@ -57,47 +60,26 @@ def gradpolicy(state, lossGradient):
     # Tmp storage for weight updates
     trainableWeights = policyNetwork.get_weights().copy()
 
-    nup1, mb1, _ = state.shape 
-    nup2, mb2, _ = lossGradient.shape 
-    assert(nup1==nup2)
-    assert(mb1==mb2)
-    nmb = mb1
-    for i in range(nup1):
-        for b in range(mb1):
-            tfstate = tf.convert_to_tensor([state[i,b,:]])
-            with tf.GradientTape() as tape:
-                tape.watch(policyNetwork.trainable_weights)
-                meanSigma = policyNetwork(tfstate)
+    mb1, _ = states.shape 
+    mb2, _ = lossGradients.shape 
+    assert(mb1 == mb2)
+    for b in range(mb1):
+        tfstate = tf.convert_to_tensor([states[b,:]])
+        with tf.GradientTape() as tape:
+            tape.watch(policyNetwork.trainable_weights)
+            meanSigma = policyNetwork(tfstate)
 
-            gradw = tape.gradient(meanSigma,policyNetwork.trainable_weights)
-            nlay = len(gradw)
+        gradw = tape.gradient(meanSigma,policyNetwork.trainable_weights)
+        nlay = len(gradw)
 
-            for gw in range(nlay-4):
-                trainableWeights[gw] += 1./(nmb*numAgents) * gradw[gw] * lossGradient[i,b,0]
-                trainableWeights[gw] += 1./(nmb*numAgents) * gradw[gw] * lossGradient[i,b,1]
-            trainableWeights[4] += 1./(nmb*numAgents) * gradw[4] * lossGradient[i,b,0]
-            trainableWeights[5] += 1./(nmb*numAgents) * gradw[5] * lossGradient[i,b,0]
-            trainableWeights[6] += 1./(nmb*numAgents) * gradw[6] * lossGradient[i,b,1]
-            trainableWeights[7] += 1./(nmb*numAgents) * gradw[7] * lossGradient[i,b,1]
-            """
-            #print(gradw)
-            for gw in range(nlay-4):
-                gradw[gw] = 1./(nmb*numAgents) * gradw[gw] * lossGradient[i,b,0]
-                gradw[gw] = 1./(nmb*numAgents) * gradw[gw] * lossGradient[i,b,1]
-            gradw[4] = 1./(nmb*numAgents) * gradw[4] * lossGradient[i,b,0]
-            gradw[5] = 1./(nmb*numAgents) * gradw[5] * lossGradient[i,b,0]
-            gradw[6] = 1./(nmb*numAgents) * gradw[6] * lossGradient[i,b,1]
-            gradw[7] = 1./(nmb*numAgents) * gradw[7] * lossGradient[i,b,1]
- 
-            #print(trainableWeights)
-            optimizer.apply_gradients(zip(gradw, policyNetworkTmp.trainable_weights))
-            #print(trainableWeights)
-            #exit()
-
-    # Copy back variables
-    for wtmp, w, in zip(policyNetworkTmp.trainable_weights, policyNetwork.trainable_weights):
-        w.assign(wtmp)
-    """
+        for gw in range(nlay-4):
+            trainableWeights[gw] += 1./(numAgents) * gradw[gw] * lossGradients[b,0]
+            trainableWeights[gw] += 1./(numAgents) * gradw[gw] * lossGradients[b,1]
+        trainableWeights[4] += 1./(numAgents) * gradw[4] * lossGradients[b,0]
+        trainableWeights[5] += 1./(numAgents) * gradw[5] * lossGradients[b,0]
+        trainableWeights[6] += 1./(numAgents) * gradw[6] * lossGradients[b,1]
+        trainableWeights[7] += 1./(numAgents) * gradw[7] * lossGradients[b,1]
+    
     # Copy back variables
     for wtmp, w, in zip(trainableWeights, policyNetwork.trainable_weights):
         w.assign(wtmp)
@@ -106,35 +88,25 @@ def env(sample):
 
  # If sample contains gradient, do the gradient update
  if sample.contains("Gradients"):
-     print("Received gradient, update external policy")
-     global policyNetwork
-     global optimizer
-
-     mb = np.array(sample["Gradients"]["Mini Batch"])
-     #print(mb.shape)
-     nupdate, nmb, _ = mb.shape
-     expstates = np.array(sample["Gradients"]["State Sequence Batch"])[:,:,0,:]
-     lossGradients = np.array(sample["Gradients"]["Gradients"])
-  
-     gradpolicy(expstates, lossGradients)
+     #print("Received gradient, update external policy")
+     gradpolicy(sample)
 
  # If sample contains mini-batch, evaluate the state sequence and return distribution params
  if sample.contains("Mini Batch"):
-     print("Received Mini Batch, evaluate state sequence batch!")
+     #print("Received Mini Batch, evaluate state sequence batch!")
      miniBatch = np.array(sample["Mini Batch"])
      stateSequenceBatch = np.array(sample["State Sequence Batch"])
-     numBatch, effectiveMiniBatchSize, numStates, _ = stateSequenceBatch.shape
+     effectiveMiniBatchSize, numStates, _ = stateSequenceBatch.shape
 
-     policyParams = np.empty(shape = (numBatch, effectiveMiniBatchSize, 2*numActions), dtype=float)
-     for b, batch in enumerate(stateSequenceBatch):
-         for s, states in enumerate(batch):
-             _, policyParams[b,s,:] = policy(states[0])
+     policyParams = np.empty(shape = (effectiveMiniBatchSize, 2*numActions), dtype=float)
+     for s, states in enumerate(stateSequenceBatch):
+         _, policyParams[s,:] = policy(states[0])
              
 
      sample["Distribution Parameters"] = policyParams.tolist()
      sample["Termination"] = "Terminal"
      return
- 
+
  # Initializing environment and random seed
  sampleId = sample["Sample Id"]
  cart.reset(sampleId)

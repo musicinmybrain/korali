@@ -418,6 +418,12 @@ class Agent : public Solver
   std::vector<problem::SupervisedLearning *> _criticPolicyProblem;
 
   /**
+   * @brief Queues for external policy update
+   */
+  std::queue<std::vector<std::vector<float>>> _gradientQueue;
+  std::queue<std::vector<std::pair<size_t, size_t>>> _miniBatchQueue;
+
+  /**
    * @brief Session-specific experience count. This is useful in case of restart: counters from the old session won't count
    */
   size_t _sessionExperienceCount;

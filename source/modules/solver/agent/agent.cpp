@@ -95,6 +95,7 @@ void Agent::initialize()
     _testingWorstReward = -korali::Inf;
     _testingBestAverageReward = -korali::Inf;
     _testingBestEpisodeId = 0;
+    _trainingLastReward.resize(numAgents, -korali::Inf);
     _trainingBestReward.resize(numAgents, -korali::Inf);
     _trainingBestEpisodeId.resize(numAgents, 0);
     _trainingAverageReward.resize(numAgents, -korali::Inf);
@@ -182,6 +183,42 @@ void Agent::trainingGeneration()
   {
     // Launching (or re-launching) agents
     for (size_t workerId = 0; workerId < _concurrentWorkers; workerId++)
+    {
+      if (_experienceCount >= _experienceReplayStartSize)
+      {
+        if (_sessionExperienceCount > (_experiencesBetweenPolicyUpdates * _sessionPolicyUpdateCount + _sessionExperiencesUntilStartSize))
+        {
+          if (_isWorkerRunning[workerId] == false)
+          {
+            _workers[workerId]["Sample Id"] = _currentEpisode;
+            _workers[workerId]["Module"] = "Problem";
+            _workers[workerId]["Operation"] = "Run Policy Update";
+            for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+              _workers[workerId]["Policy Hyperparameters"][p] = _trainingCurrentPolicies["Policy Hyperparameters"][p];
+            _workers[workerId]["State Rescaling"]["Means"] = _stateRescalingMeans;
+            _workers[workerId]["State Rescaling"]["Standard Deviations"] = _stateRescalingSigmas;
+            const auto miniBatch = generateMiniBatch();
+            _workers[workerId]["Mini Batch"] = miniBatch;
+            _workers[workerId]["State Sequence Batch"] = getMiniBatchStateSequence(miniBatch);
+
+            if (_gradientQueue.empty() == false)
+            {
+              //printf("%zu gradients in queue\n", _gradientQueue.size());
+              _workers[workerId]["Gradients"]["Gradients"] = _gradientQueue.front();
+              _workers[workerId]["Gradients"]["State Sequence Batch"] = getMiniBatchStateSequence(_miniBatchQueue.front());
+              _gradientQueue.pop();
+              _miniBatchQueue.pop();
+            }
+
+            KORALI_START(_workers[workerId]);
+            _isWorkerRunning[workerId] = true;
+
+            _policyUpdateCount++;
+            _sessionPolicyUpdateCount++;
+          }
+        }
+      }
+
       if (_isWorkerRunning[workerId] == false)
       {
         _workers[workerId]["Sample Id"] = _currentEpisode++;
@@ -192,8 +229,14 @@ void Agent::trainingGeneration()
         _workers[workerId]["State Rescaling"]["Means"] = _stateRescalingMeans;
         _workers[workerId]["State Rescaling"]["Standard Deviations"] = _stateRescalingSigmas;
 
-        int i = 0;
+        if (_stateRescalingEnabled == true)
+          if (_experienceCount >= _experienceReplayStartSize)
+            if (_policyUpdateCount == 0)
+              rescaleStates();
+
         // If we accumulated enough experiences between updates in this session, update now
+        /*
+        int i = 0;
         if (_experienceCount >= _experienceReplayStartSize)
         {
           while (_sessionExperienceCount > (_experiencesBetweenPolicyUpdates * _sessionPolicyUpdateCount + _sessionExperiencesUntilStartSize))
@@ -219,10 +262,12 @@ void Agent::trainingGeneration()
             _sessionPolicyUpdateCount++;
           }
         }
+        */
         KORALI_START(_workers[workerId]);
 
         _isWorkerRunning[workerId] = true;
       }
+    }
 
     // Listening to _workers for incoming experiences
     KORALI_LISTEN(_workers);
@@ -319,52 +364,45 @@ void Agent::attendWorker(size_t workerId)
       KORALI_SEND_MSG_TO_SAMPLE(_workers[workerId], _trainingCurrentPolicies["Policy Hyperparameters"]);
     }
 
+    if (message["Action"] == "Train Policy")
+    {
+      const auto beginTime = std::chrono::steady_clock::now(); // Profiling
+
+      const auto miniBatch = message["Mini Batch"].get<std::vector<std::pair<size_t, size_t>>>();
+      const auto distributionParams = message["Distribution Parameters"].get<std::vector<std::vector<float>>>();
+
+      _gradientQueue.push(trainPolicy(miniBatch, distributionParams));
+      _miniBatchQueue.push(miniBatch);
+
+      const auto endTime = std::chrono::steady_clock::now();                                                            // Profiling
+      _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling
+      _generationPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
+
+      // Updating the off policy cutoff
+      _experienceReplayOffPolicyCurrentCutoff = _experienceReplayOffPolicyCutoffScale / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
+
+      for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
+      {
+        // Updating REFER learning rate and beta parameters
+        _currentLearningRate = _learningRate / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
+        if (_experienceReplayOffPolicyRatio[a] > _experienceReplayOffPolicyTarget)
+          _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a];
+        else
+          _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a] + _currentLearningRate;
+      }
+    }
+
     // Process episode(s) incoming from the agent(s)
     if (message["Action"] == "Send Episodes")
     {
-      if (isDefined(message, "Mini Batch"))
-      {
-        const auto beginTime = std::chrono::steady_clock::now(); // Profiling
+      processEpisode(message["Episodes"]);
+    }
 
-        const auto miniBatchList = message["Mini Batch"].get<std::vector<std::vector<std::pair<size_t, size_t>>>>();
-        const auto distributionParamsList = message["Distribution Parameters"].get<std::vector<std::vector<std::vector<float>>>>();
+    // Waiting for the agent to come back with all the information
+    KORALI_WAIT(_workers[workerId]);
 
-        knlohmann::json msgJson;
-
-        // Train policy for all mini batches
-        for (size_t i = 0; i < miniBatchList.size(); ++i)
-        {
-          msgJson["Gradients"][i] = trainPolicy(miniBatchList[i], distributionParamsList[i]);
-        }
-
-        KORALI_SEND_MSG_TO_SAMPLE(_workers[workerId], msgJson);
-
-        const auto endTime = std::chrono::steady_clock::now();                                                            // Profiling
-        _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling
-        _generationPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
-
-        // Updating the off policy cutoff
-        _experienceReplayOffPolicyCurrentCutoff = _experienceReplayOffPolicyCutoffScale / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
-
-        for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
-        {
-          // Updating REFER learning rate and beta parameters
-          _currentLearningRate = _learningRate / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
-          if (_experienceReplayOffPolicyRatio[a] > _experienceReplayOffPolicyTarget)
-            _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a];
-          else
-            _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a] + _currentLearningRate;
-        }
-      }
-	  else
-      {
-        // Process every episode received and its experiences (add them to replay memory)
-        processEpisode(message["Episodes"]);
-      }
-
-      // Waiting for the agent to come back with all the information
-      KORALI_WAIT(_workers[workerId]);
-
+    if (message["Action"] == "Send Episodes")
+    {
       // Keeping training statistics. Updating if exceeded best training policy so far.
       for (size_t a = 0; a < _problem->_agentsPerEnvironment; a++)
       {
@@ -386,13 +424,13 @@ void Agent::attendWorker(size_t workerId)
       _generationWorkerCommunicationTime += KORALI_GET(double, _workers[workerId], "Communication Time");
       _generationPolicyEvaluationTime += KORALI_GET(double, _workers[workerId], "Policy Evaluation Time");
 
-      // Set agent as finished
-      _isWorkerRunning[workerId] = false;
-
       // Increasing session episode count
       _sessionEpisodeCount++;
     }
   }
+
+  // Set agent as finished
+  _isWorkerRunning[workerId] = false;
 
   auto endTime = std::chrono::steady_clock::now();                                                                     // Profiling
   _sessionWorkerAttendingTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling
@@ -653,10 +691,9 @@ void Agent::processEpisode(knlohmann::json &episode)
   // Increasing total experience counters
   _experienceCount += episode["Experiences"].size();
   _sessionExperienceCount += episode["Experiences"].size();
-      
+
   // Getting the training reward of the latest episodes
   _trainingLastReward = cumulativeReward;
-
 }
 
 std::vector<std::pair<size_t, size_t>> Agent::generateMiniBatch()
@@ -815,7 +852,6 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
 
     // Get state value
     _stateValueBufferContiguous[expId * numAgents + agentId] = curPolicy.stateValue;
-    //printf("cp %zu %zu: %f %f, sv %f\n", expId, agentId, curPolicy.distributionParameters[0], curPolicy.distributionParameters[1], curPolicy.stateValue);
     if (std::isfinite(curPolicy.stateValue) == false)
       KORALI_LOG_ERROR("Calculated state value returned an invalid value: %f\n", curPolicy.stateValue);
 
@@ -1009,10 +1045,6 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     if (curEpisode != nextEpisode) retraceMiniBatch.push_back(currExpId);
   }
 
-  printf("retraceMB %zu\n", retraceMiniBatch.size());
-  printf("updateB %zu\n", updateBatch.size());
-  printf("miniB %zu\n", miniBatch.size());
-
 // Calculating retrace value for the oldest experiences of unique episodes
 #pragma omp parallel for schedule(guided, 1)
   for (size_t i = 0; i < retraceMiniBatch.size(); i++)
@@ -1204,6 +1236,10 @@ void Agent::serializeExperienceReplay()
   // Serialize the optimizer
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
     _criticPolicyLearner[p]->_optimizer->getConfiguration(stateJson["Optimizer"][p]);
+
+  // Init wmpty gradient queue
+  _gradientQueue = std::queue<std::vector<std::vector<float>>>();
+  _miniBatchQueue = std::queue<std::vector<std::pair<size_t, size_t>>>();
 
   // If results directory doesn't exist, create it
   if (!dirExists(_k->_fileOutputPath)) mkdir(_k->_fileOutputPath);

@@ -50,6 +50,7 @@ e = korali.Experiment()
 e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
 e["Problem"]["Environment Function"] = env
 e["Problem"]["Agents Per Environment"] = 1
+#e["Problem"]["Actions Between Policy Updates"] = 50
 e["Problem"]["Testing Frequency"] = 100
 
 e["Variables"][0]["Name"] = "Cart Position"
@@ -77,7 +78,7 @@ e["Solver"]["Mode"] = "Training"
 e["Solver"]["Experiences Between Policy Updates"] = 1
 e["Solver"]["Episodes Per Generation"] = 10
 
-e["Solver"]["Experience Replay"]["Start Size"] = 5000 
+e["Solver"]["Experience Replay"]["Start Size"] = 5000
 e["Solver"]["Experience Replay"]["Maximum Size"] = 10000
 e["Solver"]["Experience Replay"]["Off Policy"]["REFER Beta"]= 0.3
 
