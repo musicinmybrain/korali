@@ -2,6 +2,7 @@
 #include "modules/problem/reinforcementLearning/reinforcementLearning.hpp"
 #include "modules/solver/agent/agent.hpp"
 #include "sample/sample.hpp"
+#include <numeric>
 
 namespace korali
 {
@@ -41,9 +42,29 @@ size_t _launchId;
 
 void ReinforcementLearning::initialize()
 {
+  if(_agentsPerTeam.empty())
+  {
+    if(_policiesPerEnvironment == 1)
+    {
+      _agentsPerTeam.resize(1);
+      _agentsPerTeam[0] = _agentsPerEnvironment;
+    }
+    else if(_policiesPerEnvironment == _agentsPerEnvironment)
+    {
+      _agentsPerTeam.resize(_agentsPerEnvironment);
+      std::fill(_agentsPerTeam.begin(), _agentsPerTeam.end(), 1);
+    }
+    else KORALI_LOG_ERROR("Environment is neither cooperative nor fully competitive, team sizes need to be provided.");
+  }
+  
+  if(std::accumulate(_agentsPerTeam.begin(), _agentsPerTeam.end(), 0) != _agentsPerEnvironment)
+    KORALI_LOG_ERROR("Defined team sizes do not sum up to total number of agents.")
   // Processing state/action variable configuration
   _stateVectorIndexes.clear();
   _actionVectorIndexes.clear();
+
+  _stateVectorIndexes.resize(_agentsPerTeam.size())
+  _actionVectorIndexes.resize(_agentsPerTeam.size())
 
   for (size_t i = 0; i < _k->_variables.size(); i++)
   {
@@ -419,9 +440,9 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
   for (size_t i = 0; i < _agentsPerEnvironment; i++)
   {
     if (worker["State"][i].is_array() == false) KORALI_LOG_ERROR("Agent state variable returned by the environment is not a vector.\n");
-    if (worker["State"][i].size() != _stateVectorSize) KORALI_LOG_ERROR("Agents state vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["State"][i].size(), _stateVectorSize);
+    if (worker["State"][i].size() != _stateVectorSize[_k->_variables[i]->_teamIndex]) KORALI_LOG_ERROR("Agents state vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["State"][i].size(), _stateVectorSize[_k->_variables[i]->_teamIndex]);
 
-    for (size_t j = 0; j < _stateVectorSize; j++)
+    for (size_t j = 0; j < _stateVectorSize[_k->_variables[i]->_teamIndex]; j++)
       if (std::isfinite(worker["State"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu state variable %lu returned an invalid value: %f\n", i, j, worker["State"][i][j].get<float>());
   }
 
@@ -431,7 +452,7 @@ void ReinforcementLearning::runEnvironment(Sample &worker)
     auto state = worker["State"][i].get<std::vector<float>>();
 
     // Scale the state
-    for (size_t d = 0; d < _stateVectorSize; ++d)
+    for (size_t d = 0; d < _stateVectorSize[_k->_variables[i]->_teamIndex]; ++d)
       state[d] = (state[d] - _stateRescalingMeans[i][d]) / _stateRescalingSdevs[i][d];
 
     // Re-storing state into worker
@@ -503,7 +524,7 @@ void ReinforcementLearning::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Action Count"))
  {
- try { _actionCount = js["Action Count"].get<size_t>();
+ try { _actionCount = js["Action Count"].get<std::vector<size_t>>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ reinforcementLearning ] \n + Key:    ['Action Count']\n%s", e.what()); } 
    eraseValue(js, "Action Count");
@@ -679,7 +700,7 @@ void ReinforcementLearning::getConfiguration(knlohmann::json& js)
 void ReinforcementLearning::applyModuleDefaults(knlohmann::json& js) 
 {
 
- std::string defaultString = "{\"Agents Per Environment\": 1, \"Policies Per Environment\": 1, \"Testing Frequency\": 0, \"Policy Testing Episodes\": 10, \"Environment Count\": 1, \"Actions Between Policy Updates\": 0, \"Custom Settings\": {}, \"Agents Per Team\": [1]}";
+ std::string defaultString = "{\"Agents Per Environment\": 1, \"Policies Per Environment\": 1, \"Testing Frequency\": 0, \"Policy Testing Episodes\": 10, \"Environment Count\": 1, \"Actions Between Policy Updates\": 0, \"Custom Settings\": {}, \"Agents Per Team\": []}";
  knlohmann::json defaultJs = knlohmann::json::parse(defaultString);
  mergeJson(js, defaultJs); 
  Problem::applyModuleDefaults(js);

@@ -83,7 +83,7 @@ class ReinforcementLearning : public Problem
   /**
   * @brief [Internal Use] The maximum number of actions an agent can take for each team(only relevant for discrete).
   */
-   size_t _actionCount;
+   std::vector<size_t> _actionCount;
   
  
   /**

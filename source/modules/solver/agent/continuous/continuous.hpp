@@ -127,7 +127,7 @@ class Continuous : public Agent
    */
   std::vector<float> generateTestingAction(const policy_t &curPolicy, const size_t teamIndex);
 
-  float calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy) override;
+  float calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, const size_t teamIndex) override;
   virtual void getAction(korali::Sample &sample) override;
   virtual void initializeAgent() override;
 };

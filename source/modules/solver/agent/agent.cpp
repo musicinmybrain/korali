@@ -3,6 +3,8 @@
 #include "modules/solver/agent/agent.hpp"
 #include "sample/sample.hpp"
 #include <chrono>
+#include <numeric>
+#include <algorithm>
 
 namespace korali
 {
@@ -38,15 +40,18 @@ void Agent::initialize()
     _actionUpperBounds[i].resize(_problem->_actionVectorSize[i]);
   }
   
-  for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
+  for(size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
   {
-    for (size_t j = 0; j < _problem->_actionVectorSize[i]; j++)
+    for(size_t j = 0; j < _problem->_actionVectorSize[i]; j++)
     {
       auto varIdx = _problem->_actionVectorIndexes[i][j];
       _actionLowerBounds[i][j] = _k->_variables[varIdx]->_lowerBound;
       _actionUpperBounds[i][j] = _k->_variables[varIdx]->_upperBound;
 
-      if (_actionUpperBounds[i][j] - _actionLowerBounds[i][j] <= 0.0) KORALI_LOG_ERROR("Upper (%f) and Lower Bound (%f) of action variable %lu invalid.\n", _actionUpperBounds[i][j], _actionLowerBounds[i][j], sum(_problem->_agentsPerTeam[:i])+j);
+      size_t currentIndex; 
+      currentIndex = std::accumulate(_problem->_agentsPerTeam.begin(), _problem->_agentsPerTeam.begin() + i, 0);
+
+      if (_actionUpperBounds[i][j] - _actionLowerBounds[i][j] <= 0.0) KORALI_LOG_ERROR("Upper (%f) and Lower Bound (%f) of action variable %lu invalid.\n", _actionUpperBounds[i][j], _actionLowerBounds[i][j], currentIndex + j);
     }
   }
   
@@ -58,7 +63,11 @@ void Agent::initialize()
 
   // If not set, using heurisitc for maximum size
   if (_experienceReplayMaximumSize == 0)
-    _experienceReplayMaximumSize = std::pow(2, 14) * std::sqrt(max_element(_problem->_stateVectorSize.begin(),_problem->_stateVectorSize.end()) + max_element(_problem->_actionVectorSize.begin(),_problem->_actionVectorSize.end()));
+  {
+    auto max_stateVectorSize = *max_element(_problem->_stateVectorSize.begin(),_problem->_stateVectorSize.end());
+    auto max_actionVectorSize = *max_element(_problem->_actionVectorSize.begin(),_problem->_actionVectorSize.end());
+    _experienceReplayMaximumSize = std::pow(2, 14) * std::sqrt(max_actionVectorSize + max_stateVectorSize);
+  }
 
   // If not set, filling ER before learning
   if (_experienceReplayStartSize == 0)
@@ -375,7 +384,7 @@ void Agent::rescaleStates()
   sumStates.resize(_problem->_agentsPerEnvironment);
   squaredSumStates.resize(_problem->_agentsPerEnvironment);
 
-  for(size_t i = 0; i < _agentsPerEnvironment; i++)
+  for(size_t i = 0; i < _problem->_agentsPerEnvironment; i++)
   {
     size_t teamId = getTeamIndex(i);
     sumStates[i].resize(_problem->_stateVectorSize[teamId]);
@@ -383,17 +392,22 @@ void Agent::rescaleStates()
   }
 
   for (size_t i = 0; i < _stateBuffer.size(); ++i)
-    for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
+  {
+     for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
+     {
       size_t teamId = getTeamIndex(a);
       for (size_t d = 0; d < _problem->_stateVectorSize[teamId]; ++d)
       {
         sumStates[a][d] += _stateBuffer[i][a][d];
         squaredSumStates[a][d] += _stateBuffer[i][a][d] * _stateBuffer[i][a][d];
       }
+     }
+  }
 
   _k->_logger->logInfo("Detailed", " + Using State Normalization N(Mean, Sigma):\n");
 
   for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
+  {
     size_t teamId = getTeamIndex(a);
     for (size_t d = 0; d < _problem->_stateVectorSize[teamId]; ++d)
     {
@@ -406,13 +420,16 @@ void Agent::rescaleStates()
 
       _k->_logger->logInfo("Detailed", " + State [%zu]: N(%f, %f)\n", d, _stateRescalingMeans[a][d], _stateRescalingSigmas[a][d]);
     }
+  }
 
   // Actual rescaling of initial states
   for (size_t i = 0; i < _stateBuffer.size(); ++i)
     for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
+    {
       size_t teamId = getTeamIndex(a);
       for (size_t d = 0; d < _problem->_stateVectorSize[teamId]; ++d)
         _stateBuffer[i][a][d] = (_stateBuffer[i][a][d] - _stateRescalingMeans[a][d]) / _stateRescalingSigmas[a][d];
+    }
 }
 
 void Agent::attendWorker(size_t workerId)
@@ -818,7 +835,7 @@ std::vector<std::vector<std::vector<float>>> Agent::getMiniBatchStateSequence(co
     // Getting current expId and agentId
     const size_t expId = miniBatch[b].first;
     const size_t agentId = miniBatch[b].second;
-    size_t teamId = getTeamIndex(agentId);
+    const size_t teamId = getTeamIndex(agentId);
 
     // Getting starting expId
     const size_t startId = getTimeSequenceStartExpId(expId);
@@ -891,7 +908,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     // Get current expId and agentId
     const size_t expId = updateMinibatch[i].first;
     const size_t agentId = updateMinibatch[i].second;
-    size_t teamId = getTeamIndex(agentId)
+    const size_t teamId = getTeamIndex(agentId);
 
     // Get and set current policy
     const auto &curPolicy = updatePolicyData[i];
@@ -1155,12 +1172,19 @@ size_t Agent::getTimeSequenceStartExpId(size_t expId)
 size_t Agent::getTeamIndex(const size_t agentId)
 {
   size_t bufferTeam;
+  size_t bufferSum;
 
-  if(agentId < _problem->_agentsPerTeam[0]) bufferTeam = 0;
+  bufferSum = _problem->_agentsPerTeam[0];
 
-  for(i = 0; i < _problem->_agentsPerTeam.size() - 1; i++)
+  if(agentId < bufferSum) bufferTeam = 0;
+  
+  // Question: Does agentId start at 0 or 1 ? Adapt for loop accordingly 
+
+  for (size_t i = 0; i < _problem->_agentsPerTeam.size() - 1; i++)
   {
-    if((agentId < sum(_problem->_agentsPerTeam[:i+2])) && (agentId > sum(_problem->_agentsPerTeam[:i+1]))) bufferTeam = i+1;
+    if((agentId < (bufferSum + _problem->_agentsPerTeam[i+1])) && (agentId > bufferSum - 1)) 
+      bufferTeam = i+1;
+    bufferSum += _problem->_agentsPerTeam[i+1];
   }
 
   return bufferTeam;
@@ -1745,7 +1769,7 @@ void Agent::setConfiguration(knlohmann::json& js)
 
  if (isDefined(js, "Effective Minibatch Size"))
  {
- try { _effectiveMinibatchSize = js["Effective Minibatch Size"].get<size_t>();
+ try { _effectiveMinibatchSize = js["Effective Minibatch Size"].get<std::vector<size_t>>();
 } catch (const std::exception& e)
  { KORALI_LOG_ERROR(" + Object: [ agent ] \n + Key:    ['Effective Minibatch Size']\n%s", e.what()); } 
    eraseValue(js, "Effective Minibatch Size");

@@ -1,6 +1,7 @@
 #include "engine.hpp"
 #include "modules/solver/agent/continuous/continuous.hpp"
 #include "sample/sample.hpp"
+#include <numeric>
 
 #include <gsl/gsl_sf_psi.h>
 
@@ -18,7 +19,7 @@ void Continuous::initializeAgent()
   _problem = dynamic_cast<problem::reinforcementLearning::Continuous *>(_k->_problem);
 
   // Only relevant for discrete
-  _problem->_actionCount = 0;
+  // _problem->_actionCount = 0;
 
   // Obtaining action shift and scales for bounded distributions
 
@@ -35,16 +36,18 @@ void Continuous::initializeAgent()
   
   for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
   {
+    size_t currentIndex;
+    currentIndex = std::accumulate(_problem->_agentsPerTeam.begin(), _problem->_agentsPerTeam.begin() + i, 0);
     for (size_t j = 0; j < _problem->_actionVectorSize[i]; j++)
     {
      // For bounded distributions, infinite bounds should result in an error message
      if (_policyDistribution == "Squashed Normal" || _policyDistribution == "Beta" || _policyDistribution == "Clipped Normal" || _policyDistribution == "Truncated Normal")
      {
-       if (isfinite(_actionLowerBounds[i]) == false)
-        KORALI_LOG_ERROR("Provided lower bound (%f) for action variable %lu is non-finite, but the distribution (%s) is bounded.\n", _actionLowerBounds[i][j], sum(_problem->_agentsPerTeam[:i])+j, _policyDistribution.c_str());
+       if (isfinite(_actionLowerBounds[i][j]) == false)
+        KORALI_LOG_ERROR("Provided lower bound (%f) for action variable %lu is non-finite, but the distribution (%s) is bounded.\n", _actionLowerBounds[i][j], currentIndex+j, _policyDistribution.c_str());
 
-       if (isfinite(_actionUpperBounds[i]) == false)
-        KORALI_LOG_ERROR("Provided upper bound (%f) for action variable %lu is non-finite, but the distribution (%s) is bounded.\n", _actionUpperBounds[i][j], sum(_problem->_agentsPerTeam[:i])+j, _policyDistribution.c_str());
+       if (isfinite(_actionUpperBounds[i][j]) == false)
+        KORALI_LOG_ERROR("Provided upper bound (%f) for action variable %lu is non-finite, but the distribution (%s) is bounded.\n", _actionUpperBounds[i][j], currentIndex+j, _policyDistribution.c_str());
 
        _actionShifts[i][j] = (_actionUpperBounds[i][j] + _actionLowerBounds[i][j]) * 0.5f;
        _actionScales[i][j] = (_actionUpperBounds[i][j] - _actionLowerBounds[i][j]) * 0.5f;
@@ -138,14 +141,16 @@ void Continuous::getAction(korali::Sample &sample)
   // Get action for all the agents in the environment
   for (size_t j = 0; j < _problem->_agentsPerTeam.size(); j++)
   {
+    size_t currentIndex;
+    currentIndex = std::accumulate(_problem->_agentsPerTeam.begin(), _problem->_agentsPerTeam.begin() + j, 0);
     for (size_t i = 0; i < _problem->_agentsPerTeam[j]; i++)
     {
       // Getting current state
 
-      auto state = sample["State"][sum(_problem->_agentsPerTeam[:j])+i];
+      auto state = sample["State"][currentIndex+i];
 
       // Adding state to the state time sequence
-      _stateTimeSequence[sum(_problem->_agentsPerTeam[:j])+i].add(state);
+      _stateTimeSequence[currentIndex+i].add(state);
 
       // Storage for the action to select
       std::vector<float> action(_problem->_actionVectorSize[j]);
@@ -154,9 +159,9 @@ void Continuous::getAction(korali::Sample &sample)
       // in case of multiple polices it runs the i-th policy otherwise standard
       std::vector<policy_t> policy;
       if (_problem->_policiesPerEnvironment == 1)
-        runPolicy({_stateTimeSequence[sum(_problem->_agentsPerTeam[:j])+i].getVector()}, policy);
+        runPolicy({_stateTimeSequence[currentIndex+i].getVector()}, policy);
       else
-        runPolicy({_stateTimeSequence[sum(_problem->_agentsPerTeam[:j])+i].getVector()}, policy, sum(_problem->_agentsPerTeam[:j])+i);
+        runPolicy({_stateTimeSequence[currentIndex+i].getVector()}, policy, currentIndex+i);
 
       /*****************************************************************************
       * During Training we select action according to policy's probability
@@ -178,13 +183,13 @@ void Continuous::getAction(korali::Sample &sample)
 
       // Check action
       for (size_t z = 0; z < _problem->_actionVectorSize[j]; z++)
-        if (std::isfinite(action[z]) == false) KORALI_LOG_ERROR("Agent %lu action %lu returned an invalid value: %f\n", sum(_problem->_agentsPerTeam[:j])+i, z, action[z]);
+        if (std::isfinite(action[z]) == false) KORALI_LOG_ERROR("Agent %lu action %lu returned an invalid value: %f\n", currentIndex+i, z, action[z]);
 
       // Write action to sample
-      sample["Action"][sum(_problem->_agentsPerTeam[:j])+i] = action;
-      sample["Policy"]["State Value"][sum(_problem->_agentsPerTeam[:j])+i] = policy[0].stateValue;
-      sample["Policy"]["Unbounded Action"][sum(_problem->_agentsPerTeam[:j])+i] = policy[0].unboundedAction;
-      sample["Policy"]["Distribution Parameters"][sum(_problem->_agentsPerTeam[:j])+i] = policy[0].distributionParameters;
+      sample["Action"][currentIndex+i] = action;
+      sample["Policy"]["State Value"][currentIndex+i] = policy[0].stateValue;
+      sample["Policy"]["Unbounded Action"][currentIndex+i] = policy[0].unboundedAction;
+      sample["Policy"]["Distribution Parameters"][currentIndex+i] = policy[0].distributionParameters;
     }
   }
 }
@@ -723,7 +728,7 @@ std::vector<float> Continuous::calculateKLDivergenceGradient(const policy_t &old
 
   if (_policyDistribution == "Clipped Normal")
   {
-    for (size_t i = 0; i < _problem->_actionVectorSize; ++i)
+    for (size_t i = 0; i < _problem->_actionVectorSize[teamIndex]; ++i)
     {
       // Getting parameters from the new and old policies
       const float oldMu = oldPolicy.distributionParameters[i];
@@ -773,7 +778,7 @@ std::vector<float> Continuous::calculateKLDivergenceGradient(const policy_t &old
 
   if (_policyDistribution == "Truncated Normal")
   {
-    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    for (size_t i = 0; i < _problem->_actionVectorSize[teamIndex]; i++)
     {
       // Getting parameters from the new and old policies
       const float oldMu = oldPolicy.distributionParameters[i];

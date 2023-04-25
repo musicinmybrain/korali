@@ -343,7 +343,7 @@ class Agent : public Solver
   /**
   * @brief [Internal Use] Effective Minibatch Size in the context of MARL.
   */
-   size_t _effectiveMinibatchSize;
+   std::vector<size_t> _effectiveMinibatchSize;
   /**
   * @brief [Termination Criteria] The solver will stop when the given number of episodes have been run.
   */

@@ -45,16 +45,16 @@ void __className__::initialize()
       _agentsPerTeam.resize(1);
       _agentsPerTeam[0] = _agentsPerEnvironment;
     }
-    elif(_policiesPerEnvironment == _agentsPerEnvironment)
+    else if(_policiesPerEnvironment == _agentsPerEnvironment)
     {
-      _agentsPerTeam.resize(_agentsPerEnvironment)
+      _agentsPerTeam.resize(_agentsPerEnvironment);
       std::fill(_agentsPerTeam.begin(), _agentsPerTeam.end(), 1);
     }
-    else KORALI_LOG_ERROR("Environment is neither cooperative nor fully competitive, team sizes need to be provided.")
+    else KORALI_LOG_ERROR("Environment is neither cooperative nor fully competitive, team sizes need to be provided.");
   }
   
   if(std::accumulate(_agentsPerTeam.begin(), _agentsPerTeam.end(), 0) != _agentsPerEnvironment)
-    KORALI_LOG_ERROR("Defined team sizes do not sum up to total number of agents.")
+    KORALI_LOG_ERROR("Defined team sizes do not sum up to total number of agents.");
   // Processing state/action variable configuration
   _stateVectorIndexes.clear();
   _actionVectorIndexes.clear();
@@ -436,9 +436,9 @@ void __className__::runEnvironment(Sample &worker)
   for (size_t i = 0; i < _agentsPerEnvironment; i++)
   {
     if (worker["State"][i].is_array() == false) KORALI_LOG_ERROR("Agent state variable returned by the environment is not a vector.\n");
-    if (worker["State"][i].size() != _stateVectorSize) KORALI_LOG_ERROR("Agents state vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["State"][i].size(), _stateVectorSize);
+    if (worker["State"][i].size() != _stateVectorSize[_k->_variables[i]->_teamIndex]) KORALI_LOG_ERROR("Agents state vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["State"][i].size(), _stateVectorSize[_k->_variables[i]->_teamIndex]);
 
-    for (size_t j = 0; j < _stateVectorSize; j++)
+    for (size_t j = 0; j < _stateVectorSize[_k->_variables[i]->_teamIndex]; j++)
       if (std::isfinite(worker["State"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu state variable %lu returned an invalid value: %f\n", i, j, worker["State"][i][j].get<float>());
   }
 
@@ -448,7 +448,7 @@ void __className__::runEnvironment(Sample &worker)
     auto state = worker["State"][i].get<std::vector<float>>();
 
     // Scale the state
-    for (size_t d = 0; d < _stateVectorSize; ++d)
+    for (size_t d = 0; d < _stateVectorSize[_k->_variables[i]->_teamIndex]; ++d)
       state[d] = (state[d] - _stateRescalingMeans[i][d]) / _stateRescalingSdevs[i][d];
 
     // Re-storing state into worker

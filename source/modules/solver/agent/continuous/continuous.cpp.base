@@ -13,7 +13,7 @@ void __className__::initializeAgent()
   _problem = dynamic_cast<problem::reinforcementLearning::Continuous *>(_k->_problem);
 
   // Only relevant for discrete
-  _problem->_actionCount = 0;
+  // _problem->_actionCount = 0;
 
   // Obtaining action shift and scales for bounded distributions
 
@@ -37,10 +37,10 @@ void __className__::initializeAgent()
      // For bounded distributions, infinite bounds should result in an error message
      if (_policyDistribution == "Squashed Normal" || _policyDistribution == "Beta" || _policyDistribution == "Clipped Normal" || _policyDistribution == "Truncated Normal")
      {
-       if (isfinite(_actionLowerBounds[i]) == false)
+       if (isfinite(_actionLowerBounds[i][j]) == false)
         KORALI_LOG_ERROR("Provided lower bound (%f) for action variable %lu is non-finite, but the distribution (%s) is bounded.\n", _actionLowerBounds[i][j], currentIndex+j, _policyDistribution.c_str());
 
-       if (isfinite(_actionUpperBounds[i]) == false)
+       if (isfinite(_actionUpperBounds[i][j]) == false)
         KORALI_LOG_ERROR("Provided upper bound (%f) for action variable %lu is non-finite, but the distribution (%s) is bounded.\n", _actionUpperBounds[i][j], currentIndex+j, _policyDistribution.c_str());
 
        _actionShifts[i][j] = (_actionUpperBounds[i][j] + _actionLowerBounds[i][j]) * 0.5f;
@@ -722,7 +722,7 @@ std::vector<float> __className__::calculateKLDivergenceGradient(const policy_t &
 
   if (_policyDistribution == "Clipped Normal")
   {
-    for (size_t i = 0; i < _problem->_actionVectorSize; ++i)
+    for (size_t i = 0; i < _problem->_actionVectorSize[teamIndex]; ++i)
     {
       // Getting parameters from the new and old policies
       const float oldMu = oldPolicy.distributionParameters[i];
@@ -772,7 +772,7 @@ std::vector<float> __className__::calculateKLDivergenceGradient(const policy_t &
 
   if (_policyDistribution == "Truncated Normal")
   {
-    for (size_t i = 0; i < _problem->_actionVectorSize; i++)
+    for (size_t i = 0; i < _problem->_actionVectorSize[teamIndex]; i++)
     {
       // Getting parameters from the new and old policies
       const float oldMu = oldPolicy.distributionParameters[i];

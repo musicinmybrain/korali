@@ -34,10 +34,12 @@ void VRACER::initializeAgent()
   _criticPolicyExperiment.resize(_problem->_policiesPerEnvironment);
   _criticPolicyProblem.resize(_problem->_policiesPerEnvironment);
 
-  _effectiveMinibatchSize = _miniBatchSize * _problem->_agentsPerEnvironment;
+  // _effectiveMinibatchSize = _miniBatchSize * _problem->_agentsPerEnvironment;
 
-  if (_multiAgentRelationship == "Competition")
-    _effectiveMinibatchSize = _miniBatchSize;
+  for(size_t i = 0; i < _problem->_policiesPerEnvironment; i++)
+  {
+     _effectiveMinibatchSize[p] = _miniBatchSize * _agentsPerTeam[p];
+  }
 
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
   {
@@ -45,7 +47,7 @@ void VRACER::initializeAgent()
 
     _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
     _criticPolicyExperiment[p]["Problem"]["Max Timesteps"] = _timeSequenceLength;
-    _criticPolicyExperiment[p]["Problem"]["Training Batch Size"] = _effectiveMinibatchSize;
+    _criticPolicyExperiment[p]["Problem"]["Training Batch Size"] = _effectiveMinibatchSize[p];
     _criticPolicyExperiment[p]["Problem"]["Testing Batch Size"] = 1;
     _criticPolicyExperiment[p]["Problem"]["Input"]["Size"] = _problem->_stateVectorSize[p];
     _criticPolicyExperiment[p]["Problem"]["Solution"]["Size"] = 1 + _policyParameterCount[p];
@@ -81,8 +83,8 @@ void VRACER::initializeAgent()
     _criticPolicyLearner[p] = dynamic_cast<solver::DeepSupervisor *>(_criticPolicyExperiment[p]._solver);
 
     // Preallocating space in the underlying supervised problem's input and solution data structures (for performance, we don't reinitialize it every time)
-    _criticPolicyProblem[p]->_inputData.resize(_effectiveMinibatchSize);
-    _criticPolicyProblem[p]->_solutionData.resize(_effectiveMinibatchSize);
+    _criticPolicyProblem[p]->_inputData.resize(_effectiveMinibatchSize[p]);
+    _criticPolicyProblem[p]->_solutionData.resize(_effectiveMinibatchSize[p]);
   }
 
   // Minibatch statistics
@@ -124,8 +126,8 @@ void VRACER::trainPolicy()
       std::vector<std::vector<std::vector<float>>> stateSequenceCompetition(_miniBatchSize);
       for (size_t i = 0; i < _miniBatchSize; i++)
       {
-        miniBatchCompetition[i] = miniBatch[i * _problem->_agentsPerEnvironment + p];
-        stateSequenceCompetition[i] = stateSequenceBatch[i * _problem->_agentsPerEnvironment + p];
+        miniBatchCompetition[i] = miniBatch[i * _problem->_agentsPerTeam[p] + p];
+        stateSequenceCompetition[i] = stateSequenceBatch[i * _problem->_agentsPerTeam[p] + p];
       }
       miniBatchCopy = miniBatchCompetition;
       stateSequenceBatchCopy = stateSequenceCompetition;
