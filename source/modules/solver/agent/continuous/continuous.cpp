@@ -161,7 +161,7 @@ void Continuous::getAction(korali::Sample &sample)
       if (_problem->_policiesPerEnvironment == 1)
         runPolicy({_stateTimeSequence[currentIndex+i].getVector()}, policy);
       else
-        runPolicy({_stateTimeSequence[currentIndex+i].getVector()}, policy, currentIndex+i);
+        runPolicy({_stateTimeSequence[currentIndex+i].getVector()}, policy, j);
 
       /*****************************************************************************
       * During Training we select action according to policy's probability
