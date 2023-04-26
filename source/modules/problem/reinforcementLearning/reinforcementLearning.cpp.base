@@ -182,9 +182,6 @@ void __className__::runTrainingEpisode(Sample &worker)
   // Setting tested policy flag to false, unless we do testing
   worker["Tested Policy"] = false;
 
-  // Get current "true" episode count
-  size_t episodeCount = worker["Sample Id"];
-
   // Sending last experience last (after testing)
   // This is important to prevent the engine for block-waiting for the return of the sample
   // while the testing runs are being performed.
@@ -224,7 +221,12 @@ void __className__::runPolicyUpdate(korali::Sample &worker)
 
   const auto miniBatch = worker["Mini Batch"].get<std::vector<std::pair<size_t, size_t>>>();
   const auto distParams = KORALI_GET(std::vector<std::vector<float>>, worker, "Distribution Parameters");
-  // TODO check dis t param size
+  if(distParams.size() != miniBatch.size())
+      KORALI_LOG_ERROR("Distribution Parameters (%zu) and Mini Batch size (%zu) mismatch during policy update.", distParams.size(), miniBatch.size());
+
+  for(auto& distParam : distParams)
+      if(distParam.size() != 2*_actionVectorSize)
+        KORALI_LOG_ERROR("Distribution Parameter (%zu) length mismatch with action vector size (%zu).", distParam.size(), _actionVectorSize);
 
   // Cleanup
   worker._js.getJson().erase("Mini Batch");

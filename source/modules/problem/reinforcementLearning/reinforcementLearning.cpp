@@ -186,9 +186,6 @@ void ReinforcementLearning::runTrainingEpisode(Sample &worker)
   // Setting tested policy flag to false, unless we do testing
   worker["Tested Policy"] = false;
 
-  // Get current "true" episode count
-  size_t episodeCount = worker["Sample Id"];
-
   // Sending last experience last (after testing)
   // This is important to prevent the engine for block-waiting for the return of the sample
   // while the testing runs are being performed.
@@ -228,7 +225,12 @@ void ReinforcementLearning::runPolicyUpdate(korali::Sample &worker)
 
   const auto miniBatch = worker["Mini Batch"].get<std::vector<std::pair<size_t, size_t>>>();
   const auto distParams = KORALI_GET(std::vector<std::vector<float>>, worker, "Distribution Parameters");
-  // TODO check dis t param size
+  if(distParams.size() != miniBatch.size())
+      KORALI_LOG_ERROR("Distribution Parameters (%zu) and Mini Batch size (%zu) mismatch during policy update.", distParams.size(), miniBatch.size());
+
+  for(auto& distParam : distParams)
+      if(distParam.size() != 2*_actionVectorSize)
+        KORALI_LOG_ERROR("Distribution Parameter (%zu) length mismatch with action vector size (%zu).", distParam.size(), _actionVectorSize);
 
   // Cleanup
   worker._js.getJson().erase("Mini Batch");
@@ -258,50 +260,7 @@ void ReinforcementLearning::runPolicyUpdate(korali::Sample &worker)
   message["Mini Batch"] = miniBatch;
   message["Distribution Parameters"] = distParams;
 
-  // Sending evaluated mini batches
-  /*
-  if (worker.contains("Mini Batch"))
-  {
-    if (worker.contains("State Sequence Batch") == false)
-      KORALI_LOG_ERROR("State sequence not available. Sample object does not conaint State Sequence Batch");
-
-    if (worker.contains("Distribution Parameters") == false)
-      KORALI_LOG_ERROR("State sequence not evaluated in environment. Sample object does not contain Distribution Parameters");
-    else
-    {
-    const auto miniBatchList = KORALI_GET(std::vector<std::vector<std::vector<size_t>>>, worker, "Mini Batch");
-    const auto stateSequenceList = KORALI_GET(std::vector<std::vector<std::vector<std::vector<float>>>>, worker, "State Sequence Batch");
-    const auto distributionParamsList = KORALI_GET(std::vector<std::vector<std::vector<float>>>, worker, "Distribution Parameters");
-
-    if (miniBatchList.size() != distributionParamsList.size())
-        KORALI_LOG_ERROR("Distribution Parameters length (%zu) does not match Mini Batch length (%zu)", distributionParamsList.size(), miniBatchList.size());
-
-    if (distributionParamsList[0][0].size() != 2 * _actionVectorSize)
-      KORALI_LOG_ERROR("Distribution Parameters must be of size %zu but are of size %zu", 2 * _actionVectorSize, distributionParamsList[0][0].size());
-
-    message["Mini Batch"] = miniBatchList;
-    message["State Sequence Batch"] = stateSequenceList;
-    message["Distribution Parameters"] = distributionParamsList;
-
-    }
-
-    // Cleanup
-    worker._js.getJson().erase("Mini Batch");
-    worker._js.getJson().erase("State Sequence Batch");
-    //worker._js.getJson().erase("Distribution Parameters");
-  }
-  */
-
   KORALI_SEND_MSG_TO_ENGINE(message);
-
-  /*
-  if (message.contains("Mini Batch"))
-  {
-    worker["Gradients"] = KORALI_RECV_MSG_FROM_ENGINE();
-    worker["Gradients"]["Mini Batch"] = message["Mini Batch"];
-    worker["Gradients"]["State Sequence Batch"] = message["State Sequence Batch"];
-  }
-  */
 
   // Adding profiling information to worker
   worker["Computation Time"] = _agentComputationTime;

@@ -33,7 +33,7 @@ parser.add_argument(
 parser.add_argument(
     '--learningRate',
     help='Learning rate for the selected optimizer',
-    default=1e-3,
+    default=3e-3,
     type=float,
     required=False)
 args = parser.parse_args()
@@ -115,7 +115,7 @@ e["Solver"]["Termination Criteria"]["Max Running Time"] = args.maxRunningTime
 
 e["File Output"]["Enabled"] = False
 e["File Output"]["Use Multiple Files"] = False
-e["File Output"]["Frequency"] = 5
+e["File Output"]["Frequency"] = 100
 
 ### Running Experiment
 

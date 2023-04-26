@@ -197,13 +197,13 @@ void Agent::trainingGeneration()
               _workers[workerId]["Policy Hyperparameters"][p] = _trainingCurrentPolicies["Policy Hyperparameters"][p];
             _workers[workerId]["State Rescaling"]["Means"] = _stateRescalingMeans;
             _workers[workerId]["State Rescaling"]["Standard Deviations"] = _stateRescalingSigmas;
+
             const auto miniBatch = generateMiniBatch();
             _workers[workerId]["Mini Batch"] = miniBatch;
             _workers[workerId]["State Sequence Batch"] = getMiniBatchStateSequence(miniBatch);
 
             if (_gradientQueue.empty() == false)
             {
-              //printf("%zu gradients in queue\n", _gradientQueue.size());
               _workers[workerId]["Gradients"]["Gradients"] = _gradientQueue.front();
               _workers[workerId]["Gradients"]["State Sequence Batch"] = getMiniBatchStateSequence(_miniBatchQueue.front());
               _gradientQueue.pop();
@@ -234,35 +234,6 @@ void Agent::trainingGeneration()
             if (_policyUpdateCount == 0)
               rescaleStates();
 
-        // If we accumulated enough experiences between updates in this session, update now
-        /*
-        int i = 0;
-        if (_experienceCount >= _experienceReplayStartSize)
-        {
-          while (_sessionExperienceCount > (_experiencesBetweenPolicyUpdates * _sessionPolicyUpdateCount + _sessionExperiencesUntilStartSize))
-          {
-            // Generate minibatch
-            const auto miniBatch = generateMiniBatch();
-
-            // Gathering state sequences for selected minibatch
-            const auto stateSequenceBatch = getMiniBatchStateSequence(miniBatch);
-
-            // Send state sequence to worker
-            _workers[workerId]["Mini Batch"][i] = miniBatch;
-            _workers[workerId]["State Sequence Batch"][i] = stateSequenceBatch;
-            i++;
-
-            // If we accumulated enough experiences, we rescale the states (once)
-            if (_stateRescalingEnabled == true)
-              if (_policyUpdateCount == 0)
-                rescaleStates();
-
-            // Increasing policy update counters
-            _policyUpdateCount++;
-            _sessionPolicyUpdateCount++;
-          }
-        }
-        */
         KORALI_START(_workers[workerId]);
 
         _isWorkerRunning[workerId] = true;
@@ -374,10 +345,6 @@ void Agent::attendWorker(size_t workerId)
       _gradientQueue.push(trainPolicy(miniBatch, distributionParams));
       _miniBatchQueue.push(miniBatch);
 
-      const auto endTime = std::chrono::steady_clock::now();                                                            // Profiling
-      _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling
-      _generationPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
-
       // Updating the off policy cutoff
       _experienceReplayOffPolicyCurrentCutoff = _experienceReplayOffPolicyCutoffScale / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
 
@@ -390,6 +357,11 @@ void Agent::attendWorker(size_t workerId)
         else
           _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a] + _currentLearningRate;
       }
+
+      const auto endTime = std::chrono::steady_clock::now();                                                            // Profiling
+      _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling
+      _generationPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
+
     }
 
     // Process episode(s) incoming from the agent(s)
@@ -817,7 +789,6 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
 
     size_t a = 1;
 
-    /*
     // Iterate over experiences with same expId
     while ((miniBatch[b + a].first == miniBatch[b + a - 1].first) && (b + a < miniBatchSize))
     {
@@ -829,11 +800,11 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
       }
       a++;
     }
-    */
 
     // Increment batch counter by the number of same expIds
     b += a;
   }
+  //printf("%zu %zu %zu\n", updateMinibatch.size(), updateBatch.size(), policyData.size());
 
   // Container to compute offpolicy count difference in minibatch
   std::vector<int> offPolicyCountDelta(numAgents, 0);

@@ -19,7 +19,7 @@ for i, size in enumerate(hiddenLayers):
     else:
         x = tf.keras.layers.Dense(size, kernel_initializer='glorot_uniform', activation='tanh', dtype='float32')(x)
 
-scaledGlorot = lambda shape, dtype : 0.0001*tf.keras.initializers.GlorotNormal()(shape)
+scaledGlorot = lambda shape, dtype : 0.001*tf.keras.initializers.GlorotNormal()(shape)
 mean  = tf.keras.layers.Dense(numActions, kernel_initializer=scaledGlorot, activation = "linear", dtype='float32')(x)
 sigma = tf.keras.layers.Dense(numActions, kernel_initializer=scaledGlorot, activation = "softplus", dtype='float32')(x)
 outputs = tf.keras.layers.Concatenate()([mean, sigma])
@@ -64,28 +64,31 @@ def policyUpdate(sample):
         nlay = len(gradw)
 
         for gw in range(nlay-4):
-            trainableWeights[gw] += 1./(numAgents) * gradw[gw] * lossGradients[b,0]
-            trainableWeights[gw] += 1./(numAgents) * gradw[gw] * lossGradients[b,1]
+            trainableWeights[gw] += 1./mb1 * gradw[gw] * lossGradients[b,0]
+            trainableWeights[gw] += 1./mb1 * gradw[gw] * lossGradients[b,1]
 
         # weight updates last layer for mean output
-        trainableWeights[4] += 1./(numAgents) * gradw[4] * lossGradients[b,0]
-        trainableWeights[5] += 1./(numAgents) * gradw[5] * lossGradients[b,0]
+        trainableWeights[4] += 1./mb1 * gradw[4] * lossGradients[b,0]
+        trainableWeights[5] += 1./mb1 * gradw[5] * lossGradients[b,0]
         # weight updates last layer for sigma output
-        trainableWeights[6] += 1./(numAgents) * gradw[6] * lossGradients[b,1]
-        trainableWeights[7] += 1./(numAgents) * gradw[7] * lossGradients[b,1]
+        trainableWeights[6] += 1./mb1 * gradw[6] * lossGradients[b,1]
+        trainableWeights[7] += 1./mb1 * gradw[7] * lossGradients[b,1]
     
     # Copy back variables
     for w,wtmp  in zip(policyNetwork.trainable_weights, trainableWeights):
         w.assign(wtmp)
 
-######## Defining Environment Storage
-cart = CartPole()
-maxSteps = 500
 
+######## Profiling
 tstart = time.time()
 tpolupdate = 0.
 tmbeval = 0.
 tenv  = 0.
+
+
+######## Defining Environment Storage
+cart = CartPole()
+maxSteps = 500
 
 def env(sample):
  global tstart
@@ -96,14 +99,12 @@ def env(sample):
  time0  = time.time()
  # If sample contains gradient, update the policy
  if sample.contains("Gradients"):
-     #print("Received gradient, update external policy")
      policyUpdate(sample)
 
  time1  = time.time()
  tpolupdate += (time1-time0)
  # If sample contains mini-batch, evaluate the state sequence and return distribution params
  if sample.contains("Mini Batch"):
-     #print("Received Mini Batch, evaluate state sequence batch!")
      miniBatch = np.array(sample["Mini Batch"])
      stateSequenceBatch = np.array(sample["State Sequence Batch"])
      effectiveMiniBatchSize, numStates, _ = stateSequenceBatch.shape
@@ -114,7 +115,8 @@ def env(sample):
 
      sample["Distribution Parameters"] = policyParams.tolist()
      sample["Termination"] = "Terminal"
-     return # Important: Exit after mini batch evaluation
+     # Important: Exit after mini batch evaluation, rest will ignored during policy update
+     return
 
  time2  = time.time()
  tmbeval += (time2-time1)

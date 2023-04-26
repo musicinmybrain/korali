@@ -293,7 +293,7 @@ void VRACER::setPolicy(const knlohmann::json &hyperparameters)
 
 void VRACER::printInformation()
 {
-  _k->_logger->logInfo("Normal", " + [VRACER] Policy Learning Rate: %.3e\n", _currentLearningRate);
+  _k->_logger->logInfo("Detailed", " + [VRACER] Policy Learning Rate: %.3e\n", _currentLearningRate);
   _k->_logger->logInfo("Detailed", " + [VRACER] Policy Parameters (Mu & Sigma):\n");
   for (size_t i = 0; i < _problem->_actionVectorSize; i++)
     _k->_logger->logInfo("Detailed", " + [VRACER] Action %zu: (%.3e,%.3e)\n", i, _miniBatchPolicyMean[i], _miniBatchPolicyStdDev[i]);

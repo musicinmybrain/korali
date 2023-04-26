@@ -341,10 +341,6 @@ void __className__::attendWorker(size_t workerId)
       _gradientQueue.push(trainPolicy(miniBatch, distributionParams));
       _miniBatchQueue.push(miniBatch);
 
-      const auto endTime = std::chrono::steady_clock::now();                                                            // Profiling
-      _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling
-      _generationPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
-
       // Updating the off policy cutoff
       _experienceReplayOffPolicyCurrentCutoff = _experienceReplayOffPolicyCutoffScale / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
 
@@ -357,6 +353,11 @@ void __className__::attendWorker(size_t workerId)
         else
           _experienceReplayOffPolicyREFERCurrentBeta[a] = (1.0f - _currentLearningRate) * _experienceReplayOffPolicyREFERCurrentBeta[a] + _currentLearningRate;
       }
+
+      const auto endTime = std::chrono::steady_clock::now();                                                            // Profiling
+      _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling
+      _generationPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
+
     }
 
     // Process episode(s) incoming from the agent(s)
@@ -784,7 +785,6 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
 
     size_t a = 1;
 
-    /*
     // Iterate over experiences with same expId
     while ((miniBatch[b + a].first == miniBatch[b + a - 1].first) && (b + a < miniBatchSize))
     {
@@ -796,11 +796,11 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
       }
       a++;
     }
-    */
 
     // Increment batch counter by the number of same expIds
     b += a;
   }
+  //printf("%zu %zu %zu\n", updateMinibatch.size(), updateBatch.size(), policyData.size());
 
   // Container to compute offpolicy count difference in minibatch
   std::vector<int> offPolicyCountDelta(numAgents, 0);
