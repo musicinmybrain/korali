@@ -3,6 +3,7 @@ import os
 import sys
 sys.path.append('./_model')
 from env import *
+from marl_env import *
 import argparse
 import numpy as np
 
@@ -46,11 +47,16 @@ import korali
 k = korali.Engine()
 e = korali.Experiment()
 
+numAgents = 2
+
 ### Defining the Cartpole problem's configuration
 e["Problem"]["Type"] = "Reinforcement Learning / Continuous"
-e["Problem"]["Environment Function"] = env
-e["Problem"]["Agents Per Environment"] = 1
-#e["Problem"]["Actions Between Policy Updates"] = 50
+if numAgents == 1:
+    e["Problem"]["Environment Function"] = env
+elif numAgents == 2:
+    e["Problem"]["Environment Function"] = marl_env
+
+e["Problem"]["Agents Per Environment"] = numAgents
 e["Problem"]["Testing Frequency"] = 100
 
 e["Variables"][0]["Name"] = "Cart Position"
