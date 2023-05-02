@@ -693,13 +693,6 @@ class Agent : public Solver
   size_t getTimeSequenceStartExpId(size_t expId);
 
   /**
-   * @brief Calculates the team index for the selected agent
-   * @param agentId The index of the current agent
-   * @return The team index for the current agent
-   */
-  size_t getTeamIndex(const size_t agentId);
-
-  /**
    * @brief Gets a vector of states corresponding of time sequence corresponding to the provided second-to-last experience index for which a truncated state exists
    * @param expId The index of the second-to-latest experience in the sequence
    * @param agentId The index of the agent

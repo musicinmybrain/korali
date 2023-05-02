@@ -37,7 +37,7 @@ def initEnvironment(e, envName, multPolicies):
  elif (envName == 'Simpletag'):
    from pettingzoo.mpe import simple_tag_v2
    env = simple_tag_v2.env(num_good=1, num_adversaries=1,continuous_actions=True)
-   stateVariableCount = [14, 16]
+   stateVariableCount = [12, 10]
    actionVariableCount = [5, 5]
    ac_upper = 1
    ac_low = 0
@@ -91,9 +91,7 @@ def initEnvironment(e, envName, multPolicies):
        e["Problem"]["Policies Per Environment"] = numIndividuals
 
  ## Defining the new variable Agents per Team for each environment
- if (envName == 'Waterworld') or (envName == 'Multiwalker') or (envName == 'Pursuit'):
-   e["Problem"]["Agents Per Team"] = [numIndividuals]
- else:
+ if (envName == 'Simpletag'):
    e["Problem"]["Agents Per Team"] = agentsPerTeam
 
  if (envName == 'Waterworld') or (envName == 'Multiwalker'):
@@ -155,69 +153,65 @@ def agent(s, env):
  if s["Mode"] == "Testing":
    image_count = 0
 
- while not done and step < 500:
+ while not done and step < 25 :
 
-  s.update()
+    s.update()
+  
+    # Printing step information    
+    if (printStep):  print('[Korali] Frame ' + str(step), end = '')
+  
+    actions = s["Action"]
+    rewards = []
+    for agent_id, ag in enumerate(env.agents):
+       if s["Mode"] == "Testing" and (env.env.env.metadata['name']== 'waterworld_v4'):
+          obs=env.env.env.env.render('rgb_array')
+          im = Image.fromarray(obs)
+          fname = os.path.join("/scratch/mzeqiri/korali/examples/study.cases/pettingZoo/images/","image_{0}.png".format(image_count))
+          im.save(fname)
+          image_count += 1
 
-  # Printing step information
-  if (printStep):  print('[Korali] Frame ' + str(step), end = '')
+       observation, reward, done,truncation, info = env.last()
+       rewards.append(reward)
+       action = actions.pop(0)
+     
+       if done and (env.env.env.metadata['name']== 'multiwalker_v9'):
+          continue
 
-  actions = s["Action"]
-  rewards = []
-  for ag in env.agents:
-   if s["Mode"] == "Testing" and (env.env.env.metadata['name']== 'waterworld_v3'):
-      obs=env.env.env.env.render('rgb_array')
-      im = Image.fromarray(obs)
-      fname = os.path.join("/scratch/mzeqiri/korali/examples/study.cases/pettingZoo/images/","image_{0}.png".format(image_count))
-      im.save(fname)
-      image_count += 1
+       if (env.env.env.metadata['name']== 'simple_tag_v2'):
+          if done or truncation:
+             action = None
+             continue
+             
 
-   '''
-   #Doesn't work without a monitor, cannot use on panda
-   elif s["Mode"] == "Testing" and ( env.env.env.metadata['name']== 'multiwalker_v9'):
-      obs = env.env.env.render('rgb_array')
-      im = Image.fromarray(obs)
-      fname = os.path.join("/scratch/mzeqiri/korali/examples/study.cases/pettingZoo/images_multiwalker/","image_{0}.png".format(image_count))
-      im.save(fname)
-      image_count += 1
-   '''
+       if (env.env.env.metadata['name']== 'pursuit_v4'):
+          if done:
+             #if persuit is done only action is NONE
+             continue
+          env.step(action[0])
+       else: # Pursuit
+          env.step(np.array(action,dtype= 'float32'))
 
-   observation, reward, done, truncation, info = env.last()
-   rewards.append(reward)
-   action = actions.pop(0)
-
-   if done and (env.env.env.metadata['name']== 'multiwalker_v9'):
-    continue
-
-   if (env.env.env.metadata['name']== 'pursuit_v4'):
-      if done:
-         #if persuit is done only action is NONE
-         continue
-      env.step(action[0])
-   else: # Pursuit
-      env.step(np.array(action,dtype= 'float32'))
-
-  # Getting Reward
-  s["Reward"] = rewards
-
-  # Storing New State
-  states = []
+    # Getting Reward
+    s["Reward"] = rewards
+ 
+    # Storing New State
+    states = []
    
-  if (env.env.env.metadata['name'] == 'pursuit_v4'):
-    for ag in env.agents:
-       state = env.observe(ag)
-       state = state.reshape(147)
-       state = state.tolist()
-       states.append(state)
-  else:
-      for ag in env.agents:
-       state = env.observe(ag).tolist()
-       states.append(state)
+    if (env.env.env.metadata['name'] == 'pursuit_v4'):
+       for ag in env.agents:
+          state = env.observe(ag)
+          state = state.reshape(147)
+          state = state.tolist()
+          states.append(state)
+    else:
+       for ag in env.agents:
+          state = env.observe(ag).tolist()
+          states.append(state)
+  
+    s["State"] = states
 
-  s["State"] = states
-
-  # Advancing step counter
-  step = step + 1
+    # Advancing step counter
+    step = step + 1
 
  # Setting termination status
  if (not env.agents):

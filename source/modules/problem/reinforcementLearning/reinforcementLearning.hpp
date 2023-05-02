@@ -146,6 +146,13 @@ class ReinforcementLearning : public Problem
   void runEnvironment(Sample &agent);
 
   /**
+   * @brief Calculates the team index for the selected agent
+   * @param agentId The index of the current agent
+   * @return The team index for the current agent
+   */
+  size_t getTeamIndex(const size_t agentId);
+
+  /**
    * @brief Communicates with the Engine to get the latest policy
    * @param agent Sample containing current agent/state information.
    */

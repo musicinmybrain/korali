@@ -62,23 +62,25 @@ class Discrete : public Agent
    */
   problem::reinforcementLearning::Discrete *_problem;
 
-  float calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy) override;
+  float calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, const size_t teamIndex) override;
 
   /**
    * @brief Calculates the gradient of importance weight wrt to NN output
    * @param curPolicy current policy object
    * @param oldPolicy old policy object from RM
+   * @param teamIndex index of current team
    * @return gradient of importance weight wrt NN output (q_i's and inverse temperature)
    */
-  std::vector<float> calculateImportanceWeightGradient(const policy_t &curPolicy, const policy_t &oldPolicy);
+  std::vector<float> calculateImportanceWeightGradient(const policy_t &curPolicy, const policy_t &oldPolicy, const size_t teamIndex);
 
   /**
    * @brief Calculates the gradient of KL(p_old, p_cur) wrt to the NN output.
    * @param oldPolicy current policy object
    * @param curPolicy old policy object from RM
+   * @param teamIndex index of current team
    * @return gradient of KL wrt curent distribution parameter (q_i's and inverse temperature)
    */
-  std::vector<float> calculateKLDivergenceGradient(const policy_t &oldPolicy, const policy_t &curPolicy);
+  std::vector<float> calculateKLDivergenceGradient(const policy_t &oldPolicy, const policy_t &curPolicy, const size_t teamIndex);
 
   void getAction(korali::Sample &sample) override;
   virtual void initializeAgent() override;

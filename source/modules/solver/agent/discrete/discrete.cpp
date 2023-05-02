@@ -14,9 +14,12 @@ void Discrete::initializeAgent()
 {
   // Getting discrete problem pointer
   _problem = dynamic_cast<problem::reinforcementLearning::Discrete *>(_k->_problem);
-
-  _problem->_actionCount = _problem->_possibleActions.size();
-  _policyParameterCount = _problem->_actionCount + 1; // q values and inverseTemperature
+  
+  for(size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
+  {
+     _problem->_actionCount[i] = _problem->_possibleActions[i].size();
+     _policyParameterCount[i] = _problem->_actionCount[i] + 1; // q values and inverseTemperature
+  }
 }
 
 void Discrete::getAction(korali::Sample &sample)
@@ -26,6 +29,9 @@ void Discrete::getAction(korali::Sample &sample)
   {
     // Getting current state
     auto state = sample["State"][i].get<std::vector<float>>();
+
+    // Getting team index
+    const size_t teamId = _problem->getTeamIndex(i);
 
     // Adding state to the state time sequence
     _stateTimeSequence[i].add(state);
@@ -38,7 +44,7 @@ void Discrete::getAction(korali::Sample &sample)
     if (_problem->_policiesPerEnvironment == 1)
       runPolicy({_stateTimeSequence[i].getVector()}, policy);
     else
-      runPolicy({_stateTimeSequence[i].getVector()}, policy, i);
+      runPolicy({_stateTimeSequence[i].getVector()}, policy, teamId);
 
     const auto &qValAndInvTemp = policy[0].distributionParameters;
     const auto &pActions = policy[0].actionProbabilities;
@@ -60,7 +66,7 @@ void Discrete::getAction(korali::Sample &sample)
 
       // Categorical action sampled from action probabilites (from ACER paper [Wang2017])
       float curSum = 0.0;
-      for (actionIdx = 0; actionIdx < _problem->_actionCount - 1; actionIdx++)
+      for (actionIdx = 0; actionIdx < _problem->_actionCount[teamId] - 1; actionIdx++)
       {
         curSum += pActions[actionIdx];
         if (x < curSum) break;
@@ -88,7 +94,7 @@ void Discrete::getAction(korali::Sample &sample)
      ****************************************************************************/
 
     // Storing action itself, its idx, and probabilities
-    sample["Action"][i] = _problem->_possibleActions[actionIdx];
+    sample["Action"][i] = _problem->_possibleActions[teamId][actionIdx];
     sample["Policy"]["State Value"][i] = policy[0].stateValue;
     sample["Policy"]["Action Index"][i] = actionIdx;
     sample["Policy"]["Available Actions"][i] = policy[0].availableActions;
@@ -97,7 +103,7 @@ void Discrete::getAction(korali::Sample &sample)
   }
 }
 
-float Discrete::calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy)
+float Discrete::calculateImportanceWeight(const std::vector<float> &action, const policy_t &curPolicy, const policy_t &oldPolicy, const size_t teamIndex)
 {
   const auto oldActionIdx = oldPolicy.actionIndex;
   const auto pCurPolicy = curPolicy.actionProbabilities[oldActionIdx];
@@ -114,11 +120,11 @@ float Discrete::calculateImportanceWeight(const std::vector<float> &action, cons
   return importanceWeight;
 }
 
-std::vector<float> Discrete::calculateImportanceWeightGradient(const policy_t &curPolicy, const policy_t &oldPolicy)
+std::vector<float> Discrete::calculateImportanceWeightGradient(const policy_t &curPolicy, const policy_t &oldPolicy, const size_t teamIndex)
 {
-  std::vector<float> grad(_problem->_actionCount + 1, 0.0);
+  std::vector<float> grad(_problem->_actionCount[teamIndex] + 1, 0.0);
 
-  const float invTemperature = curPolicy.distributionParameters[_problem->_actionCount];
+  const float invTemperature = curPolicy.distributionParameters[_problem->_actionCount[teamIndex]];
   const auto &curDistParams = curPolicy.distributionParameters;
 
   const size_t oldActionIdx = oldPolicy.actionIndex;
@@ -135,7 +141,7 @@ std::vector<float> Discrete::calculateImportanceWeightGradient(const policy_t &c
 
   float qpSum = 0.;
   // calculate gradient of importance weight wrt. pvals
-  for (size_t i = 0; i < _problem->_actionCount; i++)
+  for (size_t i = 0; i < _problem->_actionCount[teamIndex]; i++)
   {
     if (i == oldActionIdx)
       grad[i] = importanceWeight * (1. - curPolicy.actionProbabilities[i]) * invTemperature;
@@ -146,23 +152,23 @@ std::vector<float> Discrete::calculateImportanceWeightGradient(const policy_t &c
   }
 
   // calculate gradient of importance weight wrt. inverse temperature
-  grad[_problem->_actionCount] = importanceWeight * (curDistParams[oldActionIdx] - qpSum);
+  grad[_problem->_actionCount[teamIndex]] = importanceWeight * (curDistParams[oldActionIdx] - qpSum);
 
   return grad;
 }
 
-std::vector<float> Discrete::calculateKLDivergenceGradient(const policy_t &oldPolicy, const policy_t &curPolicy)
+std::vector<float> Discrete::calculateKLDivergenceGradient(const policy_t &oldPolicy, const policy_t &curPolicy, const size_t teamIndex)
 {
-  const float invTemperature = curPolicy.distributionParameters[_problem->_actionCount];
+  const float invTemperature = curPolicy.distributionParameters[_problem->_actionCount[teamIndex]];
   const auto &curDistParams = curPolicy.distributionParameters;
 
-  std::vector<float> klGrad(_problem->_actionCount + 1, 0.0);
+  std::vector<float> klGrad(_problem->_actionCount[teamIndex] + 1, 0.0);
 
   // Gradient wrt NN output i (qvalue i)
-  for (size_t i = 0; i < _problem->_actionCount; ++i)
+  for (size_t i = 0; i < _problem->_actionCount[teamIndex]; ++i)
   {
     // Iterate over all pvalues
-    for (size_t j = 0; j < _problem->_actionCount; ++j)
+    for (size_t j = 0; j < _problem->_actionCount[teamIndex]; ++j)
     {
       if (i == j)
         klGrad[i] -= invTemperature * oldPolicy.actionProbabilities[j] * (1.0 - curPolicy.actionProbabilities[i]);
@@ -172,12 +178,12 @@ std::vector<float> Discrete::calculateKLDivergenceGradient(const policy_t &oldPo
   }
 
   float qpSum = 0.;
-  for (size_t j = 0; j < _problem->_actionCount; ++j)
+  for (size_t j = 0; j < _problem->_actionCount[teamIndex]; ++j)
     qpSum += curDistParams[j] * curPolicy.actionProbabilities[j];
 
   // Gradient wrt inverse temperature parameter
-  for (size_t j = 0; j < _problem->_actionCount; ++j)
-    klGrad[_problem->_actionCount] -= oldPolicy.actionProbabilities[j] * (curDistParams[j] - qpSum);
+  for (size_t j = 0; j < _problem->_actionCount[teamIndex]; ++j)
+    klGrad[_problem->_actionCount[teamIndex]] -= oldPolicy.actionProbabilities[j] * (curDistParams[j] - qpSum);
 
   return klGrad;
 }

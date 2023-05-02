@@ -48,10 +48,7 @@ void Agent::initialize()
       _actionLowerBounds[i][j] = _k->_variables[varIdx]->_lowerBound;
       _actionUpperBounds[i][j] = _k->_variables[varIdx]->_upperBound;
 
-      size_t currentIndex; 
-      currentIndex = std::accumulate(_problem->_agentsPerTeam.begin(), _problem->_agentsPerTeam.begin() + i, 0);
-
-      if (_actionUpperBounds[i][j] - _actionLowerBounds[i][j] <= 0.0) KORALI_LOG_ERROR("Upper (%f) and Lower Bound (%f) of action variable %lu invalid.\n", _actionUpperBounds[i][j], _actionLowerBounds[i][j], currentIndex + j);
+      if (_actionUpperBounds[i][j] - _actionLowerBounds[i][j] <= 0.0) KORALI_LOG_ERROR("Upper (%f) and Lower Bound (%f) of action variable %lu for team %zu invalid.\n", _actionUpperBounds[i][j], _actionLowerBounds[i][j], varIdx, i);
     }
   }
   
@@ -64,9 +61,9 @@ void Agent::initialize()
   // If not set, using heurisitc for maximum size
   if (_experienceReplayMaximumSize == 0)
   {
-    auto max_stateVectorSize = *max_element(_problem->_stateVectorSize.begin(),_problem->_stateVectorSize.end());
-    auto max_actionVectorSize = *max_element(_problem->_actionVectorSize.begin(),_problem->_actionVectorSize.end());
-    _experienceReplayMaximumSize = std::pow(2, 14) * std::sqrt(max_actionVectorSize + max_stateVectorSize);
+    auto maxStateVectorSize = *max_element(_problem->_stateVectorSize.begin(),_problem->_stateVectorSize.end());
+    auto maxActionVectorSize = *max_element(_problem->_actionVectorSize.begin(),_problem->_actionVectorSize.end());
+    _experienceReplayMaximumSize = std::pow(2, 14) * std::sqrt(maxActionVectorSize + maxStateVectorSize);
   }
 
   // If not set, filling ER before learning
@@ -138,14 +135,14 @@ void Agent::initialize()
     
     for (size_t i = 0; i < numAgents; i++)
     {
-      size_t teamId = getTeamIndex(i);
+      size_t teamId = _problem->getTeamIndex(i);
       _stateRescalingMeans[i].resize(_problem->_stateVectorSize[teamId]);
       _stateRescalingSigmas[i].resize(_problem->_stateVectorSize[teamId]);
     }
 
     for (size_t i = 0; i < numAgents; i++)
     {
-      size_t teamId = getTeamIndex(i);
+      size_t teamId = _problem->getTeamIndex(i);
       for (size_t j = 0; j < _problem->_stateVectorSize[teamId]; j++)
       {
         _stateRescalingSigmas[i][j] = 1.0f;
@@ -386,7 +383,7 @@ void Agent::rescaleStates()
 
   for(size_t i = 0; i < _problem->_agentsPerEnvironment; i++)
   {
-    size_t teamId = getTeamIndex(i);
+    size_t teamId = _problem->getTeamIndex(i);
     sumStates[i].resize(_problem->_stateVectorSize[teamId]);
     squaredSumStates[i].resize(_problem->_stateVectorSize[teamId]);
   }
@@ -395,7 +392,7 @@ void Agent::rescaleStates()
   {
      for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
      {
-      size_t teamId = getTeamIndex(a);
+      size_t teamId = _problem->getTeamIndex(a);
       for (size_t d = 0; d < _problem->_stateVectorSize[teamId]; ++d)
       {
         sumStates[a][d] += _stateBuffer[i][a][d];
@@ -408,7 +405,7 @@ void Agent::rescaleStates()
 
   for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
   {
-    size_t teamId = getTeamIndex(a);
+    size_t teamId = _problem->getTeamIndex(a);
     for (size_t d = 0; d < _problem->_stateVectorSize[teamId]; ++d)
     {
       _stateRescalingMeans[a][d] = sumStates[a][d] / (float)_stateBuffer.size();
@@ -426,7 +423,7 @@ void Agent::rescaleStates()
   for (size_t i = 0; i < _stateBuffer.size(); ++i)
     for (size_t a = 0; a < _problem->_agentsPerEnvironment; ++a)
     {
-      size_t teamId = getTeamIndex(a);
+      size_t teamId = _problem->getTeamIndex(a);
       for (size_t d = 0; d < _problem->_stateVectorSize[teamId]; ++d)
         _stateBuffer[i][a][d] = (_stateBuffer[i][a][d] - _stateRescalingMeans[a][d]) / _stateRescalingSigmas[a][d];
     }
@@ -835,7 +832,7 @@ std::vector<std::vector<std::vector<float>>> Agent::getMiniBatchStateSequence(co
     // Getting current expId and agentId
     const size_t expId = miniBatch[b].first;
     const size_t agentId = miniBatch[b].second;
-    const size_t teamId = getTeamIndex(agentId);
+    const size_t teamId = _problem->getTeamIndex(agentId);
 
     // Getting starting expId
     const size_t startId = getTimeSequenceStartExpId(expId);
@@ -849,8 +846,11 @@ std::vector<std::vector<std::vector<float>>> Agent::getMiniBatchStateSequence(co
     {
       // Now adding states
       const size_t sequenceId = startId + t;
-      stateSequence[b][t].reserve(_problem->_stateVectorSize[teamId]);
-      stateSequence[b][t].insert(stateSequence[b][t].begin(), _stateBuffer[sequenceId][agentId].begin(), _stateBuffer[sequenceId][agentId].end());
+      stateSequence[b][t].resize(_problem->_stateVectorSize[teamId]);
+      for (size_t i = 0; i < _stateBuffer[sequenceId][agentId].size(); i++)
+      {
+        stateSequence[b][t][i] = _stateBuffer[sequenceId][agentId][i];
+      }
     }
   }
 
@@ -908,7 +908,7 @@ void Agent::updateExperienceMetadata(const std::vector<std::pair<size_t, size_t>
     // Get current expId and agentId
     const size_t expId = updateMinibatch[i].first;
     const size_t agentId = updateMinibatch[i].second;
-    const size_t teamId = getTeamIndex(agentId);
+    const size_t teamId = _problem->getTeamIndex(agentId);
 
     // Get and set current policy
     const auto &curPolicy = updatePolicyData[i];
@@ -1167,27 +1167,6 @@ size_t Agent::getTimeSequenceStartExpId(size_t expId)
   else
     // Return time sequence start
     return expId - lookBack;
-}
-
-size_t Agent::getTeamIndex(const size_t agentId)
-{
-  size_t bufferTeam;
-  size_t bufferSum;
-
-  bufferSum = _problem->_agentsPerTeam[0];
-
-  if(agentId < bufferSum) bufferTeam = 0;
-  
-  // Question: Does agentId start at 0 or 1 ? Adapt for loop accordingly 
-
-  for (size_t i = 0; i < _problem->_agentsPerTeam.size() - 1; i++)
-  {
-    if((agentId < (bufferSum + _problem->_agentsPerTeam[i+1])) && (agentId > bufferSum - 1)) 
-      bufferTeam = i+1;
-    bufferSum += _problem->_agentsPerTeam[i+1];
-  }
-
-  return bufferTeam;
 }
 
 void Agent::resetTimeSequence()

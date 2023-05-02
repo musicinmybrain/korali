@@ -1,7 +1,6 @@
 #include "engine.hpp"
 #include "modules/solver/agent/continuous/continuous.hpp"
 #include "sample/sample.hpp"
-#include <numeric>
 
 #include <gsl/gsl_sf_psi.h>
 
@@ -19,6 +18,8 @@ void Continuous::initializeAgent()
   _problem = dynamic_cast<problem::reinforcementLearning::Continuous *>(_k->_problem);
 
   // Only relevant for discrete
+  _problem->_actionCount.clear();
+  _problem->_actionCount.resize(_problem->_agentsPerTeam.size());
   for(size_t i=0; i < _problem->_agentsPerTeam.size(); i++)  _problem->_actionCount[i] = 0;
 
   // Obtaining action shift and scales for bounded distributions
@@ -31,23 +32,20 @@ void Continuous::initializeAgent()
     _actionShifts[i].resize(_problem->_actionVectorSize[i]);
     _actionScales[i].resize(_problem->_actionVectorSize[i]);
   }
-
-  
   
   for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
   {
-    size_t currentIndex;
-    currentIndex = std::accumulate(_problem->_agentsPerTeam.begin(), _problem->_agentsPerTeam.begin() + i, 0);
     for (size_t j = 0; j < _problem->_actionVectorSize[i]; j++)
     {
+     auto varIdx = _problem->_actionVectorIndexes[i][j];
      // For bounded distributions, infinite bounds should result in an error message
      if (_policyDistribution == "Squashed Normal" || _policyDistribution == "Beta" || _policyDistribution == "Clipped Normal" || _policyDistribution == "Truncated Normal")
      {
        if (isfinite(_actionLowerBounds[i][j]) == false)
-        KORALI_LOG_ERROR("Provided lower bound (%f) for action variable %lu is non-finite, but the distribution (%s) is bounded.\n", _actionLowerBounds[i][j], currentIndex+j, _policyDistribution.c_str());
+        KORALI_LOG_ERROR("Provided lower bound (%f) for action variable %lu of team %zu is non-finite, but the distribution (%s) is bounded.\n", _actionLowerBounds[i][j], varIdx, i, _policyDistribution.c_str());
 
        if (isfinite(_actionUpperBounds[i][j]) == false)
-        KORALI_LOG_ERROR("Provided upper bound (%f) for action variable %lu is non-finite, but the distribution (%s) is bounded.\n", _actionUpperBounds[i][j], currentIndex+j, _policyDistribution.c_str());
+        KORALI_LOG_ERROR("Provided upper bound (%f) for action variable %lu of team %zu is non-finite, but the distribution (%s) is bounded.\n", _actionUpperBounds[i][j], varIdx, i, _policyDistribution.c_str());
 
        _actionShifts[i][j] = (_actionUpperBounds[i][j] + _actionLowerBounds[i][j]) * 0.5f;
        _actionScales[i][j] = (_actionUpperBounds[i][j] - _actionLowerBounds[i][j]) * 0.5f;
@@ -62,10 +60,11 @@ void Continuous::initializeAgent()
     _policyParameterTransformationMasks.resize(_problem->_agentsPerTeam.size());
     _policyParameterScaling.resize(_problem->_agentsPerTeam.size());
     _policyParameterShifting.resize(_problem->_agentsPerTeam.size());
+    _policyParameterCount.resize(_problem->_agentsPerTeam.size());
 
     for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
     {
-      _policyParameterCount.push_back(2 * _problem->_actionVectorSize[i]); // Mus and Sigmas
+      _policyParameterCount[i] = (2 * _problem->_actionVectorSize[i]); // Mus and Sigmas
 
       _policyParameterTransformationMasks[i].resize(_policyParameterCount[i]);
       _policyParameterScaling[i].resize(_policyParameterCount[i]);
@@ -101,10 +100,11 @@ void Continuous::initializeAgent()
     _policyParameterTransformationMasks.resize(_problem->_agentsPerTeam.size());
     _policyParameterScaling.resize(_problem->_agentsPerTeam.size());
     _policyParameterShifting.resize(_problem->_agentsPerTeam.size());
+    _policyParameterCount.resize(_problem->_agentsPerTeam.size());
 
     for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
     {
-      _policyParameterCount.push_back(2 * _problem->_actionVectorSize[i]); // Mus and Variance
+      _policyParameterCount[i] = (2 * _problem->_actionVectorSize[i]); // Mus and Variance
 
       _policyParameterTransformationMasks[i].resize(_policyParameterCount[i]);
       _policyParameterScaling[i].resize(_policyParameterCount[i]);
@@ -139,10 +139,10 @@ void Continuous::initializeAgent()
 void Continuous::getAction(korali::Sample &sample)
 {
   // Get action for all the agents in the environment
+  size_t currentIndex;
+  currentIndex = 0;
   for (size_t j = 0; j < _problem->_agentsPerTeam.size(); j++)
   {
-    size_t currentIndex;
-    currentIndex = std::accumulate(_problem->_agentsPerTeam.begin(), _problem->_agentsPerTeam.begin() + j, 0);
     for (size_t i = 0; i < _problem->_agentsPerTeam[j]; i++)
     {
       // Getting current state
@@ -161,7 +161,7 @@ void Continuous::getAction(korali::Sample &sample)
       if (_problem->_policiesPerEnvironment == 1)
         runPolicy({_stateTimeSequence[currentIndex+i].getVector()}, policy);
       else
-        runPolicy({_stateTimeSequence[currentIndex+i].getVector()}, policy, currentIndex+i);
+        runPolicy({_stateTimeSequence[currentIndex+i].getVector()}, policy, j);
 
       /*****************************************************************************
       * During Training we select action according to policy's probability
@@ -191,6 +191,7 @@ void Continuous::getAction(korali::Sample &sample)
       sample["Policy"]["Unbounded Action"][currentIndex+i] = policy[0].unboundedAction;
       sample["Policy"]["Distribution Parameters"][currentIndex+i] = policy[0].distributionParameters;
     }
+    currentIndex += _problem->_agentsPerTeam[j];
   }
 }
 

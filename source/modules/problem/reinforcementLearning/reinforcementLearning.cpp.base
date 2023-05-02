@@ -55,6 +55,7 @@ void __className__::initialize()
   
   if(std::accumulate(_agentsPerTeam.begin(), _agentsPerTeam.end(), 0) != _agentsPerEnvironment)
     KORALI_LOG_ERROR("Defined team sizes do not sum up to total number of agents.");
+  
   // Processing state/action variable configuration
   _stateVectorIndexes.clear();
   _actionVectorIndexes.clear();
@@ -79,11 +80,6 @@ void __className__::initialize()
     if (_actionVectorSize[i] == 0) KORALI_LOG_ERROR("No action variables have been defined for team %lu.\n", i);
     if (_stateVectorSize[i] == 0) KORALI_LOG_ERROR("No state variables have been defined for team %lu.\n", i);
   }
-  
-  /**
-  * if ((_policiesPerEnvironment != _agentsPerEnvironment) && (_policiesPerEnvironment != 1))
-  * KORALI_LOG_ERROR("Number of Policies: %lu is neither 1 nor %lu.\n", _policiesPerEnvironment, _agentsPerEnvironment);
-  */
   
   // Setting initial launch id (0)
   _launchId = 0;
@@ -116,6 +112,25 @@ void __environmentWrapper()
   co_switch(worker->_workerThread);
 
   KORALI_LOG_ERROR("Resuming a finished worker\n");
+}
+
+size_t __className__::getTeamIndex(const size_t agentId)
+{
+  size_t bufferTeam;
+  size_t bufferSum;
+
+  bufferSum = _agentsPerTeam[0];
+
+  if(agentId < bufferSum) bufferTeam = 0;
+
+  for (size_t i = 0; i < _agentsPerTeam.size() - 1; i++)
+  {
+    if((agentId < (bufferSum + _agentsPerTeam[i+1])) && (agentId > bufferSum - 1)) 
+      bufferTeam = i+1;
+    bufferSum += _agentsPerTeam[i+1];
+  }
+
+  return bufferTeam;
 }
 
 void __className__::runTrainingEpisode(Sample &worker)
@@ -435,10 +450,11 @@ void __className__::runEnvironment(Sample &worker)
   // Sanity checks for state
   for (size_t i = 0; i < _agentsPerEnvironment; i++)
   {
+    size_t teamId = getTeamIndex(i);
     if (worker["State"][i].is_array() == false) KORALI_LOG_ERROR("Agent state variable returned by the environment is not a vector.\n");
-    if (worker["State"][i].size() != _stateVectorSize[_k->_variables[i]->_teamIndex]) KORALI_LOG_ERROR("Agents state vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["State"][i].size(), _stateVectorSize[_k->_variables[i]->_teamIndex]);
+    if (worker["State"][i].size() != _stateVectorSize[teamId]) KORALI_LOG_ERROR("Agents state vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["State"][i].size(), _stateVectorSize[teamId]);
 
-    for (size_t j = 0; j < _stateVectorSize[_k->_variables[i]->_teamIndex]; j++)
+    for (size_t j = 0; j < _stateVectorSize[teamId]; j++)
       if (std::isfinite(worker["State"][i][j].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu state variable %lu returned an invalid value: %f\n", i, j, worker["State"][i][j].get<float>());
   }
 
@@ -446,9 +462,10 @@ void __className__::runEnvironment(Sample &worker)
   for (size_t i = 0; i < _agentsPerEnvironment; i++)
   {
     auto state = worker["State"][i].get<std::vector<float>>();
+    size_t teamId = getTeamIndex(i);
 
     // Scale the state
-    for (size_t d = 0; d < _stateVectorSize[_k->_variables[i]->_teamIndex]; ++d)
+    for (size_t d = 0; d < _stateVectorSize[teamId]; ++d)
       state[d] = (state[d] - _stateRescalingMeans[i][d]) / _stateRescalingSdevs[i][d];
 
     // Re-storing state into worker
@@ -464,6 +481,7 @@ void __className__::runEnvironment(Sample &worker)
     if (std::isfinite(worker["Reward"][i].get<float>()) == false) KORALI_LOG_ERROR("Agent %lu reward returned an invalid value: %f\n", i, worker["Reward"][i].get<float>());
 
   // If available actions not given, set all 1s
+  // TODO: Suboptimal if available actions are not used
   std::vector<std::vector<size_t>> availableActions;
   availableActions.resize(_agentsPerTeam.size());
   for(size_t i = 0; i < _agentsPerTeam.size(); i++)
@@ -474,7 +492,8 @@ void __className__::runEnvironment(Sample &worker)
   {
     for (size_t i = 0; i < _agentsPerEnvironment; i++)
     {
-      worker["Available Actions"][i] = availableActions[_k->_variables[i]->_teamIndex];
+      size_t teamId = getTeamIndex(i);
+      worker["Available Actions"][i] = availableActions[teamId];
     }
   }
 
@@ -483,7 +502,8 @@ void __className__::runEnvironment(Sample &worker)
 
   for (size_t i = 0; i < _agentsPerEnvironment; i++)
   {
-    if (worker["Available Actions"][i].size() != _actionCount[_k->_variables[i]->_teamIndex]) KORALI_LOG_ERROR("Available Actions vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["Available Actions"][i].size(), _actionCount[_k->_variables[i]->_teamIndex]);
+    size_t teamId = getTeamIndex(i);
+    if (worker["Available Actions"][i].size() != _actionCount[teamId]) KORALI_LOG_ERROR("Available Actions vector %lu returned with the wrong size: %lu, expected: %lu.\n", i, worker["Available Actions"][i].size(), _actionCount[teamId]);
   }
 }
 

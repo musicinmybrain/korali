@@ -19,7 +19,7 @@ namespace continuous
 
 // Declare reduction clause for vectors
 #pragma omp declare reduction(vec_float_plus        \
-                              : std::vector <float> \
+                              : std::vector<float> \
                               : std::transform(omp_out.begin(), omp_out.end(), omp_in.begin(), omp_out.begin(), std::plus <float>())) initializer(omp_priv = decltype(omp_orig)(omp_orig.size()))
 
 void VRACER::initializeAgent()
@@ -35,6 +35,8 @@ void VRACER::initializeAgent()
   _criticPolicyProblem.resize(_problem->_policiesPerEnvironment);
 
   // _effectiveMinibatchSize = _miniBatchSize * _problem->_agentsPerEnvironment;
+
+  _effectiveMinibatchSize.resize(_problem->_policiesPerEnvironment);
 
   for(size_t i = 0; i < _problem->_policiesPerEnvironment; i++)
   {
@@ -122,16 +124,26 @@ void VRACER::trainPolicy()
     // Disable experience sharing by splitting minibatch for competing agents
     if (_multiAgentRelationship == "Competition")
     {
-      std::vector<std::pair<size_t, size_t>> miniBatchCompetition(_miniBatchSize);
-      std::vector<std::vector<std::vector<float>>> stateSequenceCompetition(_miniBatchSize);
-      for (size_t i = 0; i < _miniBatchSize; i++)
+      std::vector<std::pair<size_t, size_t>> miniBatchCompetition(_miniBatchSize * _problem->_agentsPerTeam[p]);
+      std::vector<std::vector<std::vector<float>>> stateSequenceCompetition(_miniBatchSize * _problem->_agentsPerTeam[p]);
+
+      size_t currentIndex = 0;
+      for (size_t i = 0; i < _miniBatchSize * _problem->_agentsPerEnvironment; i++)
       {
-        miniBatchCompetition[i] = miniBatch[i * _problem->_agentsPerTeam[p] + p];
-        stateSequenceCompetition[i] = stateSequenceBatch[i * _problem->_agentsPerTeam[p] + p];
+        // Check if the current agent belongs to the current team
+        size_t agentId = miniBatch[i].second;
+        if (_problem->getTeamIndex(agentId) == p)
+        {
+          // Add the experience and state sequence of the current agent to the team containers
+          miniBatchCompetition[currentIndex] = miniBatch[i];
+          stateSequenceCompetition[currentIndex] = stateSequenceBatch[i];
+          currentIndex++;
+        }
       }
       miniBatchCopy = miniBatchCompetition;
       stateSequenceBatchCopy = stateSequenceCompetition;
     }
+  
 
     // Forward NN
     std::vector<policy_t> policyInfo;
@@ -172,16 +184,19 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
   const size_t miniBatchSize = miniBatch.size();
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
-// Does the schedule for pragma omp parallel remain with numAgents ?
+  // Retreive vector for statistics of team p
+  std::vector<float> & miniBatchPolicyMean = _miniBatchPolicyMean[policyIdx];
+  std::vector<float> & miniBatchPolicyStdDev = _miniBatchPolicyStdDev[policyIdx];
+
+// Should i add outer loop for over teams to then run the reduction for each team ? Like this gives error for parallel reduction
 
 #pragma omp parallel for schedule(guided, numAgents) reduction(vec_float_plus \
-                                                               : _miniBatchPolicyMean, _miniBatchPolicyStdDev)
+                                                               : miniBatchPolicyMean, miniBatchPolicyStdDev)
   for (size_t b = 0; b < miniBatchSize; b++)
   {
     // Getting index of current experiment
     const size_t expId = miniBatch[b].first;
     const size_t agentId = miniBatch[b].second;
-    size_t teamId = getTeamIndex(agentId);
 
     // Get policy and action for this experience
     const auto &expPolicy = _expPolicyBuffer[expId][agentId];
@@ -193,7 +208,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
     const auto &expVtbc = _retraceValueBufferContiguous[expId * numAgents + agentId];
 
     // Storage for the update gradient
-    std::vector<float> gradientLoss(1 + _policyParameterCount[teamId], 0.0f);
+    std::vector<float> gradientLoss(1 + _policyParameterCount[policyIdx], 0.0f);
 
     // Gradient of Value Function V(s) (eq. (9); *-1 because the optimizer is maximizing)
     gradientLoss[0] = (expVtbc - stateValue);
@@ -229,7 +244,7 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       const auto importanceWeight = _importanceWeightBuffer[expId][agentId];
 
       // Compute Off-Policy Gradient
-      auto polGrad = calculateImportanceWeightGradient(expAction, curPolicy, expPolicy, importanceWeight, teamId);
+      auto polGrad = calculateImportanceWeightGradient(expAction, curPolicy, expPolicy, importanceWeight, policyIdx);
 
       // Multi-agent correlation implies additional factor
       if (_multiAgentCorrelation)
@@ -240,37 +255,37 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
       }
 
       // Set Gradient of Loss wrt Params
-      for (size_t i = 0; i < _policyParameterCount[teamId]; i++)
+      for (size_t i = 0; i < _policyParameterCount[policyIdx]; i++)
         gradientLoss[1 + i] = _experienceReplayOffPolicyREFERCurrentBeta[agentId] * lossOffPolicy * polGrad[i];
     }
 
     // Compute derivative of KL divergence
-    const auto klGrad = calculateKLDivergenceGradient(expPolicy, curPolicy, teamId);
+    const auto klGrad = calculateKLDivergenceGradient(expPolicy, curPolicy, policyIdx);
 
     // Compute factor for KL penalization
     const float klGradMultiplier = -(1.0f - _experienceReplayOffPolicyREFERCurrentBeta[agentId]);
 
     // Add KL contribution
-    for (size_t i = 0; i < _problem->_actionVectorSize[teamId]; i++)
+    for (size_t i = 0; i < _problem->_actionVectorSize[policyIdx]; i++)
     {
       gradientLoss[1 + i] += klGradMultiplier * klGrad[i];
-      gradientLoss[1 + i + _problem->_actionVectorSize[teamId]] += klGradMultiplier * klGrad[i + _problem->_actionVectorSize[teamId]];
+      gradientLoss[1 + i + _problem->_actionVectorSize[policyIdx]] += klGradMultiplier * klGrad[i + _problem->_actionVectorSize[policyIdx]];
 
       if (std::isfinite(gradientLoss[i + 1]) == false)
         KORALI_LOG_ERROR("Gradient loss returned an invalid value: %f\n", gradientLoss[i + 1]);
 
-      if (std::isfinite(gradientLoss[i + 1 + _problem->_actionVectorSize[teamId]]) == false)
-        KORALI_LOG_ERROR("Gradient loss returned an invalid value: %f\n", gradientLoss[i + 1 + _problem->_actionVectorSize[teamId]]);
+      if (std::isfinite(gradientLoss[i + 1 + _problem->_actionVectorSize[policyIdx]]) == false)
+        KORALI_LOG_ERROR("Gradient loss returned an invalid value: %f\n", gradientLoss[i + 1 + _problem->_actionVectorSize[policyIdx]]);
     }
 
     // Set Gradient of Loss as Solution
     _criticPolicyProblem[policyIdx]->_solutionData[b] = gradientLoss;
 
     // Compute statistics
-    for (size_t i = 0; i < _problem->_actionVectorSize[teamId]; i++)
+    for (size_t i = 0; i < _problem->_actionVectorSize[policyIdx]; i++)
     {
-      _miniBatchPolicyMean[teamId][i] += curPolicy.distributionParameters[i];
-      _miniBatchPolicyStdDev[teamId][i] += curPolicy.distributionParameters[_problem->_actionVectorSize[teamId] + i];
+      miniBatchPolicyMean[i] += curPolicy.distributionParameters[i];
+      miniBatchPolicyStdDev[i] += curPolicy.distributionParameters[_problem->_actionVectorSize[policyIdx] + i];
     }
   }
 
@@ -332,8 +347,9 @@ void VRACER::printInformation()
   _k->_logger->logInfo("Detailed", " + [VRACER] Policy Parameters (Mu & Sigma):\n");
   for(size_t j = 0; j < _problem->_agentsPerTeam.size(); j++)
   {
+    _k->_logger->logInfo("Detailed", " + [VRACER] Statistics of Team %zu:\n", j);
     for (size_t i = 0; i < _problem->_actionVectorSize[j]; i++)
-     _k->_logger->logInfo("Detailed", " + [VRACER] Action %zu Team %zu: (%.3e,%.3e)\n", i, j, _miniBatchPolicyMean[j][i], _miniBatchPolicyStdDev[j][i]);
+     _k->_logger->logInfo("Detailed", "   + Action %zu: (%.3e,%.3e)\n", i, _miniBatchPolicyMean[j][i], _miniBatchPolicyStdDev[j][i]);
   }
 }
 
