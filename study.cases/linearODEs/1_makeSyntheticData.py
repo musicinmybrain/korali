@@ -17,8 +17,8 @@ import argparse
 parser = argparse.ArgumentParser(
                     prog='makeSyntheticData.py',
                     description='Make dnoisy date from ODE model and plot')
-parser.add_argument('--N', help='Number of data.', default=10, type=int)
-parser.add_argument('--noise', help='Standard deviation of Gaussian noise', default=1.0, type=float)
+parser.add_argument('--N', help='Number of data.', default=20, type=int)
+parser.add_argument('--noise', help='Standard deviation of Gaussian noise', default=2.0, type=float)
 
 args = parser.parse_args()
 N = args.N
