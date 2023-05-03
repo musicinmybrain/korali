@@ -746,10 +746,10 @@ class Agent : public Solver
    */
   inline float getScaledReward(const float reward)
   {
-    float rescaledReward = reward / _rewardRescalingSigma;
+    float rescaledReward = (reward-_rewardRescalingMean) / _rewardRescalingSigma;
 
     if (std::isfinite(rescaledReward) == false)
-      KORALI_LOG_ERROR("Scaled reward is non finite: %f  (Sigma: %f)\n", rescaledReward, _rewardRescalingSigma);
+      KORALI_LOG_ERROR("Scaled reward is non finite: %f  (Mean: %f, Sigma: %f)\n", rescaledReward, _rewardRescalingMean, _rewardRescalingSigma);
 
     return rescaledReward;
   }
@@ -763,7 +763,7 @@ class Agent : public Solver
    * @param miniBatch TODO
    * @param distributionParams evaluated states with external policy
    */
-  virtual std::vector<std::vector<float>> trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributionParams) = 0;
+  virtual std::vector<std::vector<float>> trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<float>& stateValues, const std::vector<std::vector<float>> &distributionParams) = 0;
 
   /**
    * @brief Obtains the policy hyperaparamters from the learner for the agent to generate new actions

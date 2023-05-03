@@ -118,12 +118,12 @@ void __className__::initialize()
     _rewardRescalingSumSquaredRewards = 0.;
 
     // If not given, get agent's initial policy
-    if (not isDefined(_trainingCurrentPolicies, "Policy Hyperparameters"))
-      _trainingCurrentPolicies = getPolicy();
+    //if (not isDefined(_trainingCurrentPolicies, "Policy Hyperparameters"))
+    //  _trainingCurrentPolicies = getPolicy();
   }
 
   // Setting current agent's training state
-  setPolicy(_trainingCurrentPolicies["Policy Hyperparameters"]);
+  //setPolicy(_trainingCurrentPolicies["Policy Hyperparameters"]);
 
   // If this continues a previous training run, deserialize previous input experience replay. Only for the root (engine) rank
   if (_k->_currentGeneration > 0)
@@ -189,8 +189,8 @@ void __className__::trainingGeneration()
             _workers[workerId]["Sample Id"] = _currentEpisode;
             _workers[workerId]["Module"] = "Problem";
             _workers[workerId]["Operation"] = "Run Policy Update";
-            for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-              _workers[workerId]["Policy Hyperparameters"][p] = _trainingCurrentPolicies["Policy Hyperparameters"][p];
+            //for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+            //  _workers[workerId]["Policy Hyperparameters"][p] = _trainingCurrentPolicies["Policy Hyperparameters"][p];
             _workers[workerId]["State Rescaling"]["Means"] = _stateRescalingMeans;
             _workers[workerId]["State Rescaling"]["Standard Deviations"] = _stateRescalingSigmas;
 
@@ -220,8 +220,8 @@ void __className__::trainingGeneration()
         _workers[workerId]["Sample Id"] = _currentEpisode++;
         _workers[workerId]["Module"] = "Problem";
         _workers[workerId]["Operation"] = "Run Training Episode";
-        for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-          _workers[workerId]["Policy Hyperparameters"][p] = _trainingCurrentPolicies["Policy Hyperparameters"][p];
+        //for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
+        //  _workers[workerId]["Policy Hyperparameters"][p] = _trainingCurrentPolicies["Policy Hyperparameters"][p];
         _workers[workerId]["State Rescaling"]["Means"] = _stateRescalingMeans;
         _workers[workerId]["State Rescaling"]["Standard Deviations"] = _stateRescalingSigmas;
 
@@ -245,7 +245,7 @@ void __className__::trainingGeneration()
         attendWorker(workerId);
 
     // Getting new policy hyperparameters (for agents to generate actions)
-    _trainingCurrentPolicies = getPolicy();
+    // _trainingCurrentPolicies = getPolicy();
   }
 
   // Now serializing experience replay database
@@ -326,20 +326,22 @@ void __className__::attendWorker(size_t workerId)
     message["Episodes"]["Sample Id"] = episodeId;
 
     // If agent requested new policy, send the new hyperparameters
+    /*
     if (message["Action"] == "Request New Policy")
     {
       KORALI_SEND_MSG_TO_SAMPLE(_workers[workerId], _trainingCurrentPolicies["Policy Hyperparameters"]);
-    }
+    }*/
 
     if (message["Action"] == "Train Policy")
     {
       const auto beginTime = std::chrono::steady_clock::now(); // Profiling
 
       const auto miniBatch = message["Mini Batch"].get<std::vector<std::pair<size_t, size_t>>>();
+      const auto stateValues = message["State Value"].get<std::vector<float>>();
       const auto distributionParams = message["Distribution Parameters"].get<std::vector<std::vector<float>>>();
 
-      _gradientQueue.push(trainPolicy(miniBatch, distributionParams));
       _miniBatchQueue.push(miniBatch);
+      _gradientQueue.push(trainPolicy(miniBatch, stateValues, distributionParams));
 
       // Updating the off policy cutoff
       _experienceReplayOffPolicyCurrentCutoff = _experienceReplayOffPolicyCutoffScale / (1.0f + _experienceReplayOffPolicyAnnealingRate * (float)_policyUpdateCount);
@@ -357,7 +359,6 @@ void __className__::attendWorker(size_t workerId)
       const auto endTime = std::chrono::steady_clock::now();                                                            // Profiling
       _sessionPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count();    // Profiling
       _generationPolicyUpdateTime += std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count(); // Profiling
-
     }
 
     // Process episode(s) incoming from the agent(s)
@@ -513,6 +514,10 @@ void __className__::processEpisode(knlohmann::json &episode)
       for (size_t a = 0; a < numAgents; a++)
         expPolicy[a].distributionParameters = distParams[a];
     }
+    else
+    {
+      KORALI_LOG_ERROR("Distribution Parameters missing for the current experience.\n");
+    }
 
     if (isDefined(episode["Experiences"][expId], "Policy", "Unbounded Action"))
     {
@@ -611,33 +616,7 @@ void __className__::processEpisode(knlohmann::json &episode)
   // If it was a truncated episode, add the value function for the terminal state to retV
   if (_terminationBuffer[endId] == e_truncated)
   {
-    for (size_t a = 0; a < numAgents; a++)
-    {
-      // Get truncated state
-      auto expTruncatedStateSequence = getTruncatedStateSequence(endId, a);
-
-      // Forward tuncated state. Take policy d if there is multiple policies, otherwise policy 0
-      std::vector<policy_t> truncatedPolicy;
-      if (_problem->_policiesPerEnvironment == 1)
-        retV[a] = calculateStateValue(expTruncatedStateSequence);
-      else
-        retV[a] = calculateStateValue(expTruncatedStateSequence, a);
-
-      // Get value of trucated state
-      if (std::isfinite(retV[a]) == false)
-        KORALI_LOG_ERROR("Calculated state value for truncated state returned an invalid value: %f\n", retV[a]);
-    }
-
-    // For cooporative multi-agent model truncated state-values are averaged
-    if (_multiAgentRelationship == "Cooperation")
-    {
-      float avgRetV = std::accumulate(retV.begin(), retV.end(), 0.);
-      avgRetV /= numAgents;
-      retV = std::vector<float>(numAgents, avgRetV);
-    }
-
-    // The value of the truncated state equals initial retrace Value
-    _truncatedStateValueBuffer[endId] = retV;
+    KORALI_LOG_ERROR("Truncated State deprecated for external policy mode");
   }
 
   // Now going backwards, setting the retrace value of every experience
@@ -800,7 +779,6 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
     // Increment batch counter by the number of same expIds
     b += a;
   }
-  //printf("%zu %zu %zu\n", updateMinibatch.size(), updateBatch.size(), policyData.size());
 
   // Container to compute offpolicy count difference in minibatch
   std::vector<int> offPolicyCountDelta(numAgents, 0);
@@ -855,23 +833,7 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
     // Update truncated state value
     if (_terminationBuffer[expId] == e_truncated)
     {
-      // Get truncated state
-      auto expTruncatedStateSequence = getTruncatedStateSequence(expId, agentId);
-
-      // Forward tuncated state
-      // TODO: other policy for exp-sharing in multi-policy case??
-      float truncatedStateValue;
-      if (_problem->_policiesPerEnvironment == 1)
-        truncatedStateValue = calculateStateValue(expTruncatedStateSequence);
-      else
-        truncatedStateValue = calculateStateValue(expTruncatedStateSequence, agentId);
-
-      // Check value of trucated state
-      if (std::isfinite(truncatedStateValue) == false)
-        KORALI_LOG_ERROR("Calculated state value for truncated state returned an invalid value: %f\n", truncatedStateValue);
-
-      // Write truncated state value
-      _truncatedStateValueBuffer[expId][agentId] = truncatedStateValue;
+      KORALI_LOG_ERROR("Truncated State deprecated for external policy mode");
     }
   }
 
@@ -1200,10 +1162,6 @@ void __className__::serializeExperienceReplay()
     stateJson["Experience Replay"][i]["Current Policy"]["Available Actions"] = curAvailAct;
   }
 
-  // Serialize the optimizer
-  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-    _criticPolicyLearner[p]->_optimizer->getConfiguration(stateJson["Optimizer"][p]);
-
   // Init wmpty gradient queue
   _gradientQueue = std::queue<std::vector<std::vector<float>>>();
   _miniBatchQueue = std::queue<std::vector<std::pair<size_t, size_t>>>();
@@ -1306,10 +1264,6 @@ void __className__::deserializeExperienceReplay()
     _curPolicyBuffer.add(curPolicy);
   }
 
-  // Deserialize the optimizer
-  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-    _criticPolicyLearner[p]->_optimizer->setConfiguration(stateJson["Optimizer"][p]);
-
   auto endTime = std::chrono::steady_clock::now();                                                                         // Profiling
   double deserializationTime = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - beginTime).count() / 1.0e+9; // Profiling
   _k->_logger->logInfo("Normal", "Took %fs to deserialize training state.\n", deserializationTime);
@@ -1350,7 +1304,7 @@ void __className__::printGenerationAfter()
     }
 
     if (_rewardRescalingEnabled)
-      _k->_logger->logInfo("Normal", " + Reward Rescaling: N(0.0, %.3e)\n", _rewardRescalingSigma);
+      _k->_logger->logInfo("Normal", " + Reward Rescaling: N(%.3e, %.3e)\n", _rewardRescalingMean, _rewardRescalingSigma);
 
     if (_problem->_testingFrequency > 0)
     {

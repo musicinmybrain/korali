@@ -34,7 +34,7 @@ parser.add_argument(
 parser.add_argument(
     '--learningRate',
     help='Learning rate for the selected optimizer',
-    default=3e-3,
+    default=3e-4,
     type=float,
     required=False)
 args = parser.parse_args()
@@ -47,7 +47,7 @@ import korali
 k = korali.Engine()
 e = korali.Experiment()
 
-numAgents = 2
+numAgents = 1
 
 ### Defining the Cartpole problem's configuration
 e["Problem"]["Type"] = "Reinforcement Learning / Continuous"

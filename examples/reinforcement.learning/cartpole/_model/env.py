@@ -20,9 +20,10 @@ for i, size in enumerate(hiddenLayers):
         x = tf.keras.layers.Dense(size, kernel_initializer='glorot_uniform', activation='tanh', dtype='float32')(x)
 
 scaledGlorot = lambda shape, dtype : 0.001*tf.keras.initializers.GlorotNormal()(shape)
+value = tf.keras.layers.Dense(1, kernel_initializer=scaledGlorot, activation = "linear", dtype='float32')(x)
 mean  = tf.keras.layers.Dense(numActions, kernel_initializer=scaledGlorot, activation = "linear", dtype='float32')(x)
 sigma = tf.keras.layers.Dense(numActions, kernel_initializer=scaledGlorot, activation = "softplus", dtype='float32')(x)
-outputs = tf.keras.layers.Concatenate()([mean, sigma])
+outputs = tf.keras.layers.Concatenate()([value, mean, sigma])
 policyNetwork = tf.keras.Model(inputs=inputs, outputs=outputs, name='PolicyNetwork')
 policyNetwork.compile(optimizer='adam')
 
@@ -30,10 +31,9 @@ policyNetwork.compile(optimizer='adam')
 def policy(state):
     global policyNetwork
     tfstate = tf.convert_to_tensor([state])
-    meanSigma = policyNetwork(tfstate)
-    meanSigma = meanSigma.numpy().tolist()
-    action = np.clip(np.random.normal(loc=meanSigma[0][:numActions], scale=meanSigma[0][numActions:]), a_min=-10, a_max=10)
-    return action.tolist(), meanSigma[0]
+    valueMeanSigma = policyNetwork(tfstate).numpy().tolist()
+    action = np.clip(np.random.normal(loc=valueMeanSigma[0][1:numActions+1], scale=valueMeanSigma[0][1+numActions:]), a_min=-10, a_max=10)
+    return action.tolist(), valueMeanSigma[0][0], valueMeanSigma[0][1:]
 
 # Very primitive policy update with SGD
 def policyUpdate(sample):
@@ -53,26 +53,31 @@ def policyUpdate(sample):
     # Tmp storage for weight updates
     trainableWeights = policyNetwork.get_weights().copy()
 
+    print(lossGradients)
     for b in range(mb1):
         # here we forward again, this can be optimized
         tfstate = tf.convert_to_tensor([states[b,:]])
         with tf.GradientTape() as tape:
             tape.watch(policyNetwork.trainable_weights)
-            meanSigma = policyNetwork(tfstate)
+            valueMeanSigma = policyNetwork(tfstate)
 
-        gradw = tape.gradient(meanSigma,policyNetwork.trainable_weights)
+        gradw = tape.gradient(valueMeanSigma,policyNetwork.trainable_weights)
         nlay = len(gradw)
 
-        for gw in range(nlay-4):
+        for gw in range(nlay-6):
             trainableWeights[gw] += 1./mb1 * gradw[gw] * lossGradients[b,0]
             trainableWeights[gw] += 1./mb1 * gradw[gw] * lossGradients[b,1]
+            trainableWeights[gw] += 1./mb1 * gradw[gw] * lossGradients[b,2]
 
         # weight updates last layer for mean output
         trainableWeights[4] += 1./mb1 * gradw[4] * lossGradients[b,0]
         trainableWeights[5] += 1./mb1 * gradw[5] * lossGradients[b,0]
-        # weight updates last layer for sigma output
+        # weight updates last layer for mean output
         trainableWeights[6] += 1./mb1 * gradw[6] * lossGradients[b,1]
         trainableWeights[7] += 1./mb1 * gradw[7] * lossGradients[b,1]
+        # weight updates last layer for sigma output
+        trainableWeights[8] += 1./mb1 * gradw[8] * lossGradients[b,2]
+        trainableWeights[9] += 1./mb1 * gradw[9] * lossGradients[b,2]
     
     # Copy back variables
     for w,wtmp  in zip(policyNetwork.trainable_weights, trainableWeights):
@@ -109,10 +114,12 @@ def env(sample):
      stateSequenceBatch = np.array(sample["State Sequence Batch"])
      effectiveMiniBatchSize, numStates, _ = stateSequenceBatch.shape
 
+     values = np.empty(shape = (effectiveMiniBatchSize), dtype=float)
      policyParams = np.empty(shape = (effectiveMiniBatchSize, 2*numActions), dtype=float)
      for s, states in enumerate(stateSequenceBatch):
-         _, policyParams[s,:] = policy(states[0])
-
+         _, values[s], policyParams[s,:] = policy(states[0])
+     
+     sample["State Value"] = values.tolist()
      sample["Distribution Parameters"] = policyParams.tolist()
      sample["Termination"] = "Terminal"
      # Important: Exit after mini batch evaluation, rest will ignored during policy update
@@ -130,8 +137,9 @@ def env(sample):
  # Else run episode
  while not done and step < maxSteps:
   # Calculate policy here and return action
-  action, distParams = policy(cart.getState())
+  action, value, distParams = policy(cart.getState())
   sample["Action"] = action
+  sample["State Value"] = value
   sample["Distribution Parameters"] = distParams
  
   # Getting new action
@@ -149,7 +157,8 @@ def env(sample):
   # Advancing step counter
   step = step + 1
 
- _, distParams = policy(cart.getState())
+ _, value, distParams = policy(cart.getState())
+ sample["State Value"] = value
  sample["Distribution Parameters"] = distParams
  # Setting finalization status
  if (cart.isOver()):

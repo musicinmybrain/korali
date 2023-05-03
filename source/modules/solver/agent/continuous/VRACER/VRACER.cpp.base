@@ -19,82 +19,32 @@ void __className__::initializeAgent()
   // Initializing common discrete agent configuration
   Continuous::initializeAgent();
 
-  /*********************************************************************
-   * Initializing Critic/Policy Neural Network Optimization Experiment
-   *********************************************************************/
-  _criticPolicyLearner.resize(_problem->_policiesPerEnvironment);
-  _criticPolicyExperiment.resize(_problem->_policiesPerEnvironment);
-  _criticPolicyProblem.resize(_problem->_policiesPerEnvironment);
-
   _effectiveMinibatchSize = _miniBatchSize * _problem->_agentsPerEnvironment;
 
   if (_multiAgentRelationship == "Competition")
     _effectiveMinibatchSize = _miniBatchSize;
-
-  for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
-  {
-    _criticPolicyExperiment[p]["Random Seed"] = _k->_randomSeed;
-
-    _criticPolicyExperiment[p]["Problem"]["Type"] = "Supervised Learning";
-    _criticPolicyExperiment[p]["Problem"]["Max Timesteps"] = _timeSequenceLength;
-    _criticPolicyExperiment[p]["Problem"]["Training Batch Size"] = _effectiveMinibatchSize;
-    _criticPolicyExperiment[p]["Problem"]["Testing Batch Size"] = 1;
-    _criticPolicyExperiment[p]["Problem"]["Input"]["Size"] = _problem->_stateVectorSize;
-    _criticPolicyExperiment[p]["Problem"]["Solution"]["Size"] = 1;
-
-    _criticPolicyExperiment[p]["Solver"]["Type"] = "DeepSupervisor";
-    _criticPolicyExperiment[p]["Solver"]["Mode"] = "Training";
-    _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Enabled"] = _l2RegularizationEnabled;
-    _criticPolicyExperiment[p]["Solver"]["L2 Regularization"]["Importance"] = _l2RegularizationImportance;
-    _criticPolicyExperiment[p]["Solver"]["Learning Rate"] = _currentLearningRate;
-    _criticPolicyExperiment[p]["Solver"]["Loss Function"] = "Direct Gradient";
-    _criticPolicyExperiment[p]["Solver"]["Neural Network"]["Optimizer"] = _neuralNetworkOptimizer;
-    _criticPolicyExperiment[p]["Solver"]["Neural Network"]["Engine"] = _neuralNetworkEngine;
-    _criticPolicyExperiment[p]["Solver"]["Neural Network"]["Hidden Layers"] = _neuralNetworkHiddenLayers;
-    _criticPolicyExperiment[p]["Solver"]["Output Weights Scaling"] = 0.001;
-
-    // No transformations for the state value output
-    _criticPolicyExperiment[p]["Solver"]["Neural Network"]["Output Layer"]["Transformation Mask"][0] = "Identity";
-    _criticPolicyExperiment[p]["Solver"]["Neural Network"]["Output Layer"]["Scale"][0] = 1.0f;
-    _criticPolicyExperiment[p]["Solver"]["Neural Network"]["Output Layer"]["Shift"][0] = 0.0f;
-
-    // Running initialization to verify that the configuration is correct
-    _criticPolicyExperiment[p].setEngine(_k->_engine);
-    _criticPolicyExperiment[p].initialize();
-    _criticPolicyProblem[p] = dynamic_cast<problem::SupervisedLearning *>(_criticPolicyExperiment[p]._problem);
-    _criticPolicyLearner[p] = dynamic_cast<solver::DeepSupervisor *>(_criticPolicyExperiment[p]._solver);
-
-    // Preallocating space in the underlying supervised problem's input and solution data structures (for performance, we don't reinitialize it every time)
-    _criticPolicyProblem[p]->_inputData.resize(_effectiveMinibatchSize);
-    _criticPolicyProblem[p]->_solutionData.resize(_effectiveMinibatchSize);
-  }
 
   // Minibatch statistics
   _miniBatchPolicyMean.resize(_problem->_actionVectorSize);
   _miniBatchPolicyStdDev.resize(_problem->_actionVectorSize);
 }
 
-std::vector<std::vector<float>> __className__::trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<std::vector<float>> &distributionParams)
+std::vector<std::vector<float>> __className__::trainPolicy(const std::vector<std::pair<size_t, size_t>> &miniBatch, const std::vector<float>& stateValues, const std::vector<std::vector<float>> &distributionParams)
 {
   // Gathering state sequences for selected minibatch
   const auto stateSequenceBatch = getMiniBatchStateSequence(miniBatch);
   if (stateSequenceBatch.size() != distributionParams.size())
     KORALI_LOG_ERROR("Batch size mismatch between state sequence and distribution params");
-
-  // Get number of policies
-  const size_t numPolicies = _problem->_policiesPerEnvironment;
-  if (numPolicies > 1)
-    KORALI_LOG_ERROR("Multiple policies deprecated");
+  if (stateSequenceBatch.size() != stateValues.size())
+    KORALI_LOG_ERROR("Batch size mismatch between state sequence and state value");
 
   // Forward NN
-  std::vector<policy_t> policyInfo;
-
-  // Evaluate state value
-  runPolicy(stateSequenceBatch, policyInfo, 0);
+  std::vector<policy_t> policyInfo(miniBatch.size());
 
   // Assign external distribution params
   for (size_t b = 0; b < miniBatch.size(); ++b)
   {
+    policyInfo[b].stateValue = stateValues[b];
     policyInfo[b].distributionParameters.assign(distributionParams[b].begin(), distributionParams[b].end());
   }
 
@@ -102,13 +52,8 @@ std::vector<std::vector<float>> __className__::trainPolicy(const std::vector<std
   updateExperienceMetadata(miniBatch, policyInfo);
 
   // Now calculating policy gradients
-  const auto policyGradient = calculatePolicyGradients(miniBatch, 0);
+  const auto& policyGradient = calculatePolicyGradients(miniBatch, 0);
 
-  // Updating learning rate for critic/policy learner guided by REFER
-  _criticPolicyLearner[0]->_learningRate = _currentLearningRate;
-
-  // Now applying gradients to update policy NN
-  _criticPolicyLearner[0]->runGeneration();
   return policyGradient;
 }
 
@@ -122,7 +67,7 @@ std::vector<std::vector<float>> __className__::calculatePolicyGradients(const st
 
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
-  std::vector<std::vector<float>> gradientPolicyParams(miniBatchSize, std::vector<float>(_policyParameterCount, 0.0f));
+  std::vector<std::vector<float>> gradientPolicyParams(miniBatchSize, std::vector<float>(1 + _policyParameterCount, 0.0f));
 
 #pragma omp parallel for schedule(guided, numAgents) reduction(vec_float_plus \
                                                                : _miniBatchPolicyMean, _miniBatchPolicyStdDev)
@@ -141,15 +86,12 @@ std::vector<std::vector<float>> __className__::calculatePolicyGradients(const st
     const auto &curPolicy = _curPolicyBuffer[expId][agentId];
     const auto &expVtbc = _retraceValueBufferContiguous[expId * numAgents + agentId];
 
-    // Storage for the update gradient
-    std::vector<float> gradientStateValue(1, 0.0f);
-
     // Gradient of Value Function V(s) (eq. (9); *-1 because the optimizer is maximizing)
-    gradientStateValue[0] = (expVtbc - stateValue);
+    gradientPolicyParams[b][0] = (expVtbc - stateValue);
 
     // Gradient has to be divided by Number of Agents in Cooperation models
     if (_multiAgentRelationship == "Cooperation")
-      gradientStateValue[0] /= numAgents;
+      gradientPolicyParams[b][0] /= numAgents;
 
     // Compute policy gradient inside trust region
     if (_isOnPolicyBuffer[expId][agentId])
@@ -190,7 +132,7 @@ std::vector<std::vector<float>> __className__::calculatePolicyGradients(const st
 
       // Set Gradient of Loss wrt Params
       for (size_t i = 0; i < _policyParameterCount; i++)
-        gradientPolicyParams[b][i] = _currentLearningRate * _experienceReplayOffPolicyREFERCurrentBeta[agentId] * lossOffPolicy * polGrad[i];
+        gradientPolicyParams[b][1+i] = _currentLearningRate * _experienceReplayOffPolicyREFERCurrentBeta[agentId] * lossOffPolicy * polGrad[i];
     }
 
     // Compute derivative of KL divergence
@@ -212,18 +154,15 @@ std::vector<std::vector<float>> __className__::calculatePolicyGradients(const st
         KORALI_LOG_ERROR("KL gradient returned an invalid value (%f/%f) (exp policy/cur policy): %f\n", expPolicy.distributionParameters[i + _problem->_actionVectorSize], curPolicy.distributionParameters[i + _problem->_actionVectorSize], klGrad[i + _problem->_actionVectorSize]);
       }
 
-      gradientPolicyParams[b][i] += klGradMultiplier * klGrad[i];
-      gradientPolicyParams[b][i + _problem->_actionVectorSize] += klGradMultiplier * klGrad[i + _problem->_actionVectorSize];
+      gradientPolicyParams[b][1+i] += klGradMultiplier * klGrad[i];
+      gradientPolicyParams[b][1+i + _problem->_actionVectorSize] += klGradMultiplier * klGrad[i + _problem->_actionVectorSize];
 
-      if (std::isfinite(gradientPolicyParams[b][i]) == false)
-        KORALI_LOG_ERROR("Gradient loss returned an invalid value: %f\n", gradientPolicyParams[b][i]);
+      if (std::isfinite(gradientPolicyParams[b][1+i]) == false)
+        KORALI_LOG_ERROR("Gradient loss returned an invalid value: %f\n", gradientPolicyParams[b][1+i]);
 
-      if (std::isfinite(gradientPolicyParams[b][i + _problem->_actionVectorSize]) == false)
-        KORALI_LOG_ERROR("Gradient loss returned an invalid value: %f\n", gradientPolicyParams[b][i + _problem->_actionVectorSize]);
+      if (std::isfinite(gradientPolicyParams[b][1+i + _problem->_actionVectorSize]) == false)
+        KORALI_LOG_ERROR("Gradient loss returned an invalid value: %f\n", gradientPolicyParams[b][1+i + _problem->_actionVectorSize]);
     }
-
-    // Set Gradient of Loss as Solution
-    _criticPolicyProblem[policyIdx]->_solutionData[b] = gradientStateValue;
 
     // Compute statistics
     for (size_t i = 0; i < _problem->_actionVectorSize; i++)
@@ -243,15 +182,17 @@ std::vector<std::vector<float>> __className__::calculatePolicyGradients(const st
   return gradientPolicyParams;
 }
 
+
 float __className__::calculateStateValue(const std::vector<std::vector<float>> &stateSequence, size_t policyIdx)
 {
-  // Forward the neural network for this state to get the state value
-  const auto evaluation = _criticPolicyLearner[policyIdx]->getEvaluation({stateSequence});
-  return evaluation[0][0];
+KORALI_LOG_ERROR("calculateStateValue deprecated for external poliy mode");
+  return -1.0;
 }
+
 
 void __className__::runPolicy(const std::vector<std::vector<std::vector<float>>> &stateSequenceBatch, std::vector<policy_t> &policyInfo, size_t policyIdx)
 {
+KORALI_LOG_ERROR("runPolicy deprecated for external poliy mode");
   // Getting batch size
   size_t batchSize = stateSequenceBatch.size();
 
@@ -271,6 +212,7 @@ void __className__::runPolicy(const std::vector<std::vector<std::vector<float>>>
 
 knlohmann::json __className__::getPolicy()
 {
+KORALI_LOG_ERROR("getPolicy deprecated for external poliy mode");
   knlohmann::json hyperparameters;
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
     hyperparameters["Policy Hyperparameters"][p] = _criticPolicyLearner[p]->getHyperparameters();
@@ -279,6 +221,7 @@ knlohmann::json __className__::getPolicy()
 
 void __className__::setPolicy(const knlohmann::json &hyperparameters)
 {
+KORALI_LOG_ERROR("setPolicy deprecated for external poliy mode");
   for (size_t p = 0; p < _problem->_policiesPerEnvironment; p++)
     _criticPolicyLearner[p]->_neuralNetwork->setHyperparameters(hyperparameters[p].get<std::vector<float>>());
 }
