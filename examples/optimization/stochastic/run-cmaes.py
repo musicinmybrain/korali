@@ -20,7 +20,7 @@ e = korali.Experiment()
 # Configuring Problem
 e["Random Seed"] = 0xC0FEE
 e["Problem"]["Type"] = "Optimization"
-e["Problem"]["Objective Function"] = negative_ackley
+e["Problem"]["Objective Function"] = negative_rosenbrock
 
 dim = 2
 
