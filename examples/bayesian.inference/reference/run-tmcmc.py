@@ -38,7 +38,7 @@ e["Variables"][0]["Prior Distribution"] = "Uniform 0"
 e["Variables"][1]["Name"] = "b"
 e["Variables"][1]["Prior Distribution"] = "Uniform 0"
 
-e["Variables"][2]["Name"] = "[Sigma]"
+e["Variables"][2]["Name"] = "Sigma"
 e["Variables"][2]["Prior Distribution"] = "Uniform 0"
 
 # Configuring output settings

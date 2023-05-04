@@ -64,7 +64,7 @@ def plot_upper_triangle(ax, theta, lik=False):
     for j in range(i + 1, dim):
       if lik:
         ax[i, j].scatter(
-            theta[:, j], theta[:, i], marker='o', s=10, c=theta, alpha=0.5)
+            theta[:, j], theta[:, i], marker='o', s=3, alpha=0.5, c=lik)
       else:
         ax[i, j].plot(theta[:, j], theta[:, i], '.', markersize=1)
       ax[i, j].set_xticklabels([])
@@ -107,14 +107,17 @@ def plot(genList, **kwargs):
 
   numdim = len(genList[lastGen]['Variables'])
   samples = genList[lastGen]['Solver']['Sample Database']
+  sampleEvals = genList[lastGen]['Solver']['Sample Evaluation Database']
   numentries = len(samples)
 
+  sampleEvals, samples = zip(*(sorted(zip(sampleEvals, samples))))
+
   fig, ax = plt.subplots(numdim, numdim, figsize=(8, 8))
-  samplesTmp = np.reshape(samples, (numentries, numdim))
+  samples = np.reshape(samples, (numentries, numdim))
   plt.suptitle(
       'MCMC Plotter - \nNumber of Samples {0}\n'.format(str(numentries)),
       fontweight='bold',
       fontsize=12)
-  plot_histogram(ax, samplesTmp)
-  plot_upper_triangle(ax, samplesTmp, False)
-  plot_lower_triangle(ax, samplesTmp)
+  plot_histogram(ax, samples)
+  plot_upper_triangle(ax, samples, sampleEvals)
+  plot_lower_triangle(ax, samples)

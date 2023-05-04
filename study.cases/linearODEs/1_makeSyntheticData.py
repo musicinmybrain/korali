@@ -25,9 +25,9 @@ N = args.N
 noise = args.noise
 
 ## Define initial conditions, parameter and timestamps
-IC = [2, 10]
-theta = [0.3, 0.7]
-tEval = np.linspace(0, 25, num=N)
+IC = [10, 10]
+theta = [0.2, 0.6]
+tEval = np.linspace(0, 5, num=N)
 
 ## Solve model and add error terms
 out = solveLinearODEs(theta, IC, tEval)
@@ -42,7 +42,7 @@ with open("data.json", "w") as outfile:
 ## Plotting
 fig = plt.figure(1)
 plt.plot(tEval, out)
-plt.plot(tEval, obs, 'o')
+plt.plot(tEval, obs, 'o', color='orange')
 plt.xlabel('Time')
 plt.ylabel('Observations')
 plt.show()
