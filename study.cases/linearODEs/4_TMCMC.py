@@ -78,23 +78,3 @@ e["File Output"]["Frequency"] = 1
 
 # Running Korali
 k.run(e)
-
-"""
-# Extracting results
-theta = e["Results"]["Best Sample"]["Parameters"][:2]
-sigma = e["Results"]["Best Sample"]["Parameters"][-1]
-
-## Plotting
-groundTruth= solveLinearODEs(thetaTrue, IC, tEval)
-predict = solveLinearODEs(theta, IC, tEval)
-
-fig = plt.figure(2)
-plt.plot(tEval, groundTruth, 'b--')
-plt.plot(tEval, observations, 'o')
-plt.plot(tEval, predict, 'r')
-plt.fill_between(tEval, predict+sigma, predict-sigma, alpha=0.2, color='r')
-plt.xlabel('Time')
-plt.ylabel('Prediction')
-plt.show()
-fig.savefig("predict.png")
-"""
