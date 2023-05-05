@@ -451,11 +451,12 @@ void Agent::processEpisode(knlohmann::json &episode)
       {
         for (size_t a = 0; a < numAgents; a++)
         {
-          _rewardRescalingSumSquaredRewards += (_rewardBufferContiguous[a] - _rewardRescalingMean) * (_rewardBufferContiguous[a] - _rewardRescalingMean);
+          _rewardRescalingSumSquaredRewards -= (_rewardBufferContiguous[a] - _rewardRescalingMean) * (_rewardBufferContiguous[a] - _rewardRescalingMean);
         }
       }
       else
       {
+        // Update sum of rewards only during exploration phase to estimate an initial mean
         for (size_t a = 0; a < numAgents; a++)
           _rewardRescalingSumRewards += reward[a];
       }

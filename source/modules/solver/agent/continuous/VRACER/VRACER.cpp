@@ -95,7 +95,7 @@ std::vector<std::vector<float>> VRACER::calculatePolicyGradients(const std::vect
     const auto &expVtbc = _retraceValueBufferContiguous[expId * numAgents + agentId];
 
     // Gradient of Value Function V(s) (eq. (9); *-1 because the optimizer is maximizing)
-    gradientPolicyParams[b][0] = (expVtbc - stateValue);
+    gradientPolicyParams[b][0] = _currentLearningRate*(expVtbc - stateValue);
 
     // Gradient has to be divided by Number of Agents in Cooperation models
     if (_multiAgentRelationship == "Cooperation")
