@@ -34,7 +34,7 @@ parser.add_argument(
 parser.add_argument(
     '--learningRate',
     help='Learning rate for the selected optimizer',
-    default=3e-4,
+    default=3e-3,
     type=float,
     required=False)
 args = parser.parse_args()

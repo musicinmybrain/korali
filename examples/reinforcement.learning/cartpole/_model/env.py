@@ -53,7 +53,6 @@ def policyUpdate(sample):
     # Tmp storage for weight updates
     trainableWeights = policyNetwork.get_weights().copy()
 
-    #print(lossGradients)
     for b in range(mb1):
         # here we forward again, this can be optimized
         tfstate = tf.convert_to_tensor([states[b,:]])
