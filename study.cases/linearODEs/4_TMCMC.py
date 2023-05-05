@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-## In this example, we demonstrate how Korali finds values for the
-## variables that maximize the likelihood of the data
+## In this example, we demonstrate how Korali samples the variables from the posterior
+## distribution using TMCMC
 
 # Importing computational model
 import matplotlib.pyplot as plt

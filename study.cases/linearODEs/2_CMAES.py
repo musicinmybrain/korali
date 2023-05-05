@@ -3,7 +3,7 @@
 ## In this example, we demonstrate how Korali finds values for the
 ## variables that maximize the likelihood of the data
 
-# Importing computational model
+## Importing computational model
 import matplotlib.pyplot as plt
 import json
 import sys

@@ -1,7 +1,7 @@
 #!/usr/bin/env py
 
 # In this example, we create synthetic data from a linear system of two ODEs
-# In the following scripts we try to infer the unkown parameter 'theta' 
+# In the following scripts we try to infer the unkown parameter 'theta' and 'sigma'
 # through an MLE approach and Bayesian UQ
 
 import sys

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-## In this example, we show Bayesian prediciotn based on the results from the Nested Sampling
+## In this example, we show Bayesian prediction based on the results from the Nested Sampling (script 5)
 
 # Importing computational model
 import matplotlib.pyplot as plt
@@ -9,6 +9,7 @@ import sys
 sys.path.append('./_model')
 from model import *
 import numpy as np
+import os
 
 ## Load data
 f = open('data.json')
@@ -18,8 +19,12 @@ thetaTrue = data["theta"]
 tEval = np.array(data["t"])
 observations = np.array(data["observations"])
 
-f = open('_korali_result_nested/latest')
-results = json.load(f)
+if os.path.isfile('_korali_result_nested/latest'):
+    f = open('_korali_result_nested/latest')
+    results = json.load(f)
+else:
+    print("[6_BayesPrediction] results not found.., please run 5_Nested.py prior to this sript")
+
 samples = np.array(results["Results"]["Posterior Sample Database"])
 numSamples,_ = samples.shape
 
