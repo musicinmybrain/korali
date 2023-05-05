@@ -714,13 +714,14 @@ void __className__::processEpisode(knlohmann::json &episode)
     {
       // Get truncated state
       auto expTruncatedStateSequence = getTruncatedStateSequence(endId, a);
+      const size_t teamId = _problem->getTeamIndex(a);
 
       // Forward tuncated state. Take policy d if there is multiple policies, otherwise policy 0
       std::vector<policy_t> truncatedPolicy;
       if (_problem->_policiesPerEnvironment == 1)
         retV[a] = calculateStateValue(expTruncatedStateSequence);
       else
-        retV[a] = calculateStateValue(expTruncatedStateSequence, a);
+        retV[a] = calculateStateValue(expTruncatedStateSequence, teamId);
 
       // Get value of trucated state
       if (std::isfinite(retV[a]) == false)
@@ -957,7 +958,7 @@ void __className__::updateExperienceMetadata(const std::vector<std::pair<size_t,
       if (_problem->_policiesPerEnvironment == 1)
         truncatedStateValue = calculateStateValue(expTruncatedStateSequence);
       else
-        truncatedStateValue = calculateStateValue(expTruncatedStateSequence, agentId);
+        truncatedStateValue = calculateStateValue(expTruncatedStateSequence, teamId);
 
       // Check value of trucated state
       if (std::isfinite(truncatedStateValue) == false)

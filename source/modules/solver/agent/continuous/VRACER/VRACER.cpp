@@ -126,7 +126,8 @@ void VRACER::trainPolicy()
     {
       std::vector<std::pair<size_t, size_t>> miniBatchCompetition(_miniBatchSize * _problem->_agentsPerTeam[p]);
       std::vector<std::vector<std::vector<float>>> stateSequenceCompetition(_miniBatchSize * _problem->_agentsPerTeam[p]);
-
+      
+      // TODO: Could be made more efficient reducing overhead
       size_t currentIndex = 0;
       for (size_t i = 0; i < _miniBatchSize * _problem->_agentsPerEnvironment; i++)
       {
@@ -175,12 +176,10 @@ void VRACER::trainPolicy()
 void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t>> &miniBatch, const size_t policyIdx)
 {
   // Resetting statistics
-  for(size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
-  {
-    std::fill(_miniBatchPolicyMean[i].begin(), _miniBatchPolicyMean[i].end(), 0.0);
-    std::fill(_miniBatchPolicyStdDev[i].begin(), _miniBatchPolicyStdDev[i].end(), 0.0);
-  }
+  std::fill(_miniBatchPolicyMean[policyIdx].begin(), _miniBatchPolicyMean[policyIdx].end(), 0.0);
+  std::fill(_miniBatchPolicyStdDev[policyIdx].begin(), _miniBatchPolicyStdDev[policyIdx].end(), 0.0);
   
+  // Get minibatch-size and number of agents
   const size_t miniBatchSize = miniBatch.size();
   const size_t numAgents = _problem->_agentsPerEnvironment;
 
@@ -290,13 +289,10 @@ void VRACER::calculatePolicyGradients(const std::vector<std::pair<size_t, size_t
   }
 
   // Normalize statistics
-  for (size_t i = 0; i < _problem->_agentsPerTeam.size(); i++)
+  for (size_t j = 0; j < _problem->_actionVectorSize[policyIdx]; j++)
   {
-    for (size_t j = 0; j < _problem->_actionVectorSize[i]; j++)
-    {
-      _miniBatchPolicyMean[i][j] /= (float)miniBatchSize;
-      _miniBatchPolicyStdDev[i][j] /= (float)miniBatchSize;
-    }
+    _miniBatchPolicyMean[policyIdx][j] /= (float)miniBatchSize;
+    _miniBatchPolicyStdDev[policyIdx][j] /= (float)miniBatchSize;
   }
 }
 

@@ -7,6 +7,7 @@ import os
 import sys
 from PIL import Image
 import matplotlib.pyplot as plt
+import imageio
 
 def initEnvironment(e, envName, multPolicies):
 
@@ -36,7 +37,7 @@ def initEnvironment(e, envName, multPolicies):
    possibleActions = [ [0], [1], [2], [3], [4] ]
  elif (envName == 'Simpletag'):
    from pettingzoo.mpe import simple_tag_v2
-   env = simple_tag_v2.env(num_good=1, num_adversaries=1,continuous_actions=True)
+   env = simple_tag_v2.env(num_good=1, num_adversaries=1,continuous_actions=True, render_mode='rgb_array')
    stateVariableCount = [12, 10]
    actionVariableCount = [5, 5]
    ac_upper = 1
@@ -46,19 +47,6 @@ def initEnvironment(e, envName, multPolicies):
  else:
    print("Environment '{}' not recognized! Exit..".format(envName))
    sys.exit()
-
-
- ## Defining State Variables
-
- ## what should we do with two different state variable counts in one environment
-#  for i in range(stateVariableCount):
-#     e["Variables"][i]["Name"] = "State Variable " + str(i)
-#     e["Variables"][i]["Type"] = "State"
- 
-#  ## Defining Action Variables
-#  for i in range(actionVariableCount):
-#     e["Variables"][stateVariableCount + i]["Name"] = "Action Variable " + str(i)
-#     e["Variables"][stateVariableCount + i]["Type"] = "Action"
 
  if (envName == 'Simpletag'):
     for i in range(len(stateVariableCount)):
@@ -79,7 +67,10 @@ def initEnvironment(e, envName, multPolicies):
     e["Problem"]["Custom Settings"]["Print Step Information"] = "Disabled"
     e["Problem"]["Agents Per Environment"] = numIndividuals
     if (multPolicies == 1) :
-       e["Problem"]["Policies Per Environment"] = numIndividuals
+       if (envName == 'Simpletag'):
+          e["Problem"]["Policies Per Environment"] = len(agentsPerTeam)
+       else:
+          e["Problem"]["Policies Per Environment"] = numIndividuals
  else:
     ### Defining problem configuration for discrete environments
     e["Problem"]["Type"] = "Reinforcement Learning / Discrete"
@@ -125,7 +116,7 @@ def agent(s, env):
  else:
   printStep = False
 
- env.reset()
+ env.reset(seed=s["Sample Id"])
 
  states = []
 
@@ -152,6 +143,11 @@ def agent(s, env):
  overSteps = 0
  if s["Mode"] == "Testing":
    image_count = 0
+ 
+ if s["Mode"] != "Testing" and env.env.env.metadata['name'] == 'simple_tag_v2':
+    renderings_dir = "Renderings"
+    if not os.path.exists(renderings_dir):
+       os.makedirs(renderings_dir)
 
  while not done and step < 25 :
 
@@ -162,6 +158,8 @@ def agent(s, env):
   
     actions = s["Action"]
     rewards = []
+    sampleId = s["Sample Id"]
+    generation = sampleId // 10
     for agent_id, ag in enumerate(env.agents):
        if s["Mode"] == "Testing" and (env.env.env.metadata['name']== 'waterworld_v4'):
           obs=env.env.env.env.render('rgb_array')
@@ -182,7 +180,6 @@ def agent(s, env):
              action = None
              continue
              
-
        if (env.env.env.metadata['name']== 'pursuit_v4'):
           if done:
              #if persuit is done only action is NONE
@@ -190,6 +187,17 @@ def agent(s, env):
           env.step(action[0])
        else: # Pursuit
           env.step(np.array(action,dtype= 'float32'))
+    
+    # Saving the rendered frames
+    if s["Mode"] != "Testing" and env.env.env.metadata['name'] == 'simple_tag_v2' and generation % 100 == 0:
+        generation_renderings_dir = os.path.join(renderings_dir, f"generation_{generation}")
+        episode_renderings_dir = os.path.join(generation_renderings_dir, f"episode_{sampleId}")
+        os.makedirs(episode_renderings_dir, exist_ok=True)
+        mpe_env = env.env
+        img_array = mpe_env.render()
+        img = Image.fromarray(img_array, 'RGB')
+        frame_path = os.path.join(episode_renderings_dir, f"frame_{step}.png")
+        img.save(frame_path)  
 
     # Getting Reward
     s["Reward"] = rewards
@@ -212,6 +220,23 @@ def agent(s, env):
 
     # Advancing step counter
     step = step + 1
+ 
+ # Creating video from given frames
+ if s["Mode"] != "Testing" and env.env.env.metadata['name'] == 'simple_tag_v2' and generation % 100 == 0:
+    episode_frame_files = sorted([f for f in os.listdir(episode_renderings_dir) if f.endswith('.png')],
+                             key=lambda x: int(x.split("_")[1].split(".")[0]))
+    
+    new_size = (704, 704)
+    episode_frames = []
+    for frame_file in episode_frame_files:
+       frame_path = os.path.join(episode_renderings_dir, frame_file)
+       img = Image.open(frame_path)
+       img_resized = img.resize(new_size)
+       episode_frames.append(np.array(img_resized))
+
+    fps = 6  # Adjust the frames per second as needed
+    video_file = os.path.join(episode_renderings_dir, 'output_video.mp4')
+    imageio.mimsave(video_file, episode_frames, fps=fps)
 
  # Setting termination status
  if (not env.agents):

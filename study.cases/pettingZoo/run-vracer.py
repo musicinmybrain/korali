@@ -54,6 +54,7 @@ numAgents = initEnvironment(e, args.env, args.multpolicies)
 
 ### Defining Agent Configuration
 
+e["Random Seed"] = args.run + 1
 e["Solver"]["Type"] = "Agent / Continuous / VRACER"
 e["Solver"]["Mode"] = "Training"
 e["Solver"]["Episodes Per Generation"] = 10
