@@ -160,10 +160,7 @@ def env(sample):
  sample["State Value"] = value
  sample["Distribution Parameters"] = distParams
  # Setting finalization status
- if (cart.isOver()):
-  sample["Termination"] = "Terminal"
- else:
-  sample["Termination"] = "Truncated"
+ sample["Termination"] = "Terminal"
 
  time3 = time.time()
  tenv += (time3-time2)
