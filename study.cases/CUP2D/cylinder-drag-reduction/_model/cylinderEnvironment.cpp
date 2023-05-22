@@ -6,20 +6,16 @@
 #include <fstream>
 #include <filesystem>
 #include <exception>
+#include <cstdlib>
 
-//For Re=400
-//std::string OPTIONS_testing = "-restart 1 -poissonSolver iterative -bMeanConstraint 2 -CFL 0.5 -bpdx 8 -bpdy 4 -levelMax 6 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 4. -tdump 0 -tend 0. -muteAll 0 -verbose 0 -poissonTol 0. -poissonTolRel 1e-4 -bAdaptChiGradient 1";
-//std::string OPTIONS         = "-restart 1 -poissonSolver iterative -bMeanConstraint 2 -CFL 0.5 -bpdx 8 -bpdy 4 -levelMax 5 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 4. -tdump 0 -tend 0. -muteAll 0 -verbose 0 -poissonTol 0. -poissonTolRel 1e-4 -bAdaptChiGradient 1";
-
-//For Re=4000
 #if modelDIM == 2
-std::string OPTIONS_testing = "-restart 1 -bMeanConstraint 2 -bpdx 4 -bpdy 2 -levelMax 8 -levelStart 4 -Rtol 5.0 -Ctol 1.0 -extent 4 -CFL 0.50 -tdump 0.1 -tend 100 -muteAll 0 -verbose 0 -poissonTol 1e-6 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
-std::string OPTIONS         = "-restart 1 -bMeanConstraint 2 -bpdx 8 -bpdy 4 -levelMax 5 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 2 -CFL 0.50 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-6 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
+std::string OPTIONS_testing    = "-restart 1 -bMeanConstraint 2 -bpdx 4 -bpdy 2 -levelMax 8 -levelStart 4 -Rtol 5.0 -Ctol 1.0 -extent 4 -CFL 0.50 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-6 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
+std::string OPTIONS_testing500 = "-restart 1 -bMeanConstraint 2 -bpdx 4 -bpdy 2 -levelMax 8 -levelStart 4 -Rtol 1.0 -Ctol 0.1 -extent 4 -CFL 0.50 -tdump 0.1 -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-6 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
+std::string OPTIONS            = "-restart 1 -bMeanConstraint 2 -bpdx 4 -bpdy 2 -levelMax 7 -levelStart 4 -Rtol 5.0 -Ctol 1.0 -extent 4 -CFL 0.50 -tdump 0   -tend 0 -muteAll 0 -verbose 0 -poissonTol 1e-6 -poissonTolRel 1e-4 -bAdaptChiGradient 1 -poissonSolver iterative";
 #elif modelDIM == 3
-std::string OPTIONS         = "YOU SHOULD NOT BE TRAINING IN 3D";
-std::string OPTIONS_testing = "-bMeanConstraint 2 -poissonTol 1e-7 -poissonTolRel 1e-4 -bpdx 4 -bpdy 2 -bpdz 2 -extentx 4.0 -poissonSolver cuda_iterative -tdump 0.1 -tend 50 -CFL 0.5 -nu 0.00001 -levelMax 8 -levelStart 4 -Rtol 5.0 -Ctol 1.0 ";
+std::string OPTIONS_testing    = "-bMeanConstraint 2 -bpdx 4 -bpdy 2 -bpdz 2 -levelMax 8 -levelStart 4 -Rtol 5.0 -Ctol 1.0 -extentx 4 -CFL 0.50 -tdump 0.1 -tend 0 -poissonTol 1e-7 -poissonTolRel 1e-4 -poissonSolver iterative   ";
 #endif
-
+using namespace std;
 int _argc;
 char **_argv;
 std::mt19937 _randomGenerator;
@@ -35,16 +31,37 @@ void runEnvironment(korali::Sample &s)
 
   // Set seed
   const size_t sampleId = s["Sample Id"];
+  double c_values [3] = {0.05,0.10,0.15};
+  int    i_values [5] = {0,1,2,3,4};
+  std::string c_names[3] = {"0.05","0.10","0.15"};
+  std::string i_names[5] = {"0500","1000","2000","4000","8000"};
+  int c_idx = 0;
+  int i_idx = 0;
+  std::string testing_name;
+  if (sampleId < 15)
+  {
+    i_idx = sampleId%5;
+    c_idx = sampleId/5;
+    #if modelDIM == 3
+    i_idx = 3;
+    c_idx = 2;
+    #endif
+    testing_name = s["Custom Settings"]["Dump Path"].get<std::string>() + "/Re" + i_names[i_idx] + "_C" + c_names[c_idx];
+  }
+  else
+  {
+    testing_name = s["Custom Settings"]["Dump Path"].get<std::string>() + "/Re" + i_names[i_idx] + "_C" + c_names[c_idx] + "extra";
+  }
   _randomGenerator.seed(sampleId);
 
   // Create results directory
   char resDir[64];
   {
     int rankGlobal;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rankGlobal);
+    MPI_Comm_rank(korali::__KoraliGlobalMPIComm, &rankGlobal);
 
     if( s["Mode"] == "Training" ) sprintf(resDir, "%s/sample%03u" , s["Custom Settings"]["Dump Path"].get<std::string>().c_str(), rankGlobal/size);
-    else                          sprintf(resDir, "%s/sample%04lu", s["Custom Settings"]["Dump Path"].get<std::string>().c_str(), sampleId       );
+    else                          sprintf(resDir, testing_name.c_str());
 
     if( rank == 0 && fs::exists(resDir) == false )
       if( not fs::create_directories(resDir) )
@@ -68,24 +85,47 @@ void runEnvironment(korali::Sample &s)
     }
   }
 
-  int index_ic = 1;
-  //const double nu_ic = 0.000080; //Re= 500
-  //const double nu_ic = 0.000040; //Re=1000
-  //const double nu_ic = 0.000020; //Re=2000
-  const double nu_ic = 0.000010; //Re=4000
-  //const double nu_ic = 0.000005; //Re=8000
+  int index_ic;
+  double ccoef;
+
+  if (rank == 0)
+  {
+     if ( s["Mode"] == "Training")
+     {
+        index_ic = rand() % 3;
+        std::uniform_real_distribution<> disT(0.05, 0.15);
+        ccoef = disT(_randomGenerator);
+     }
+     else
+     {
+        index_ic = i_values[i_idx];
+        ccoef    = c_values[c_idx];
+     }
+  }
+  MPI_Bcast( &index_ic, 1, MPI_INT   , 0, comm );
+  MPI_Bcast( &ccoef   , 1, MPI_DOUBLE, 0, comm );
+
+  double nu_ic;
 
   #if modelDIM == 2
   if ( rank == 0 )
   {
     try
     {
-	   if ( s["Mode"] == "Training") fs::copy("../IC"       +std::to_string(index_ic)+"/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
-	   //else fs::copy("../ICtestingRe0500/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
-	   //else fs::copy("../ICtestingRe1000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
-	   //else fs::copy("../ICtestingRe2000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
-	   else  fs::copy("../ICtestingRe4000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
-	   //else fs::copy("../ICtestingRe8000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive);
+       if ( s["Mode"] == "Training")
+       {
+          if (index_ic == 0)  { fs::copy("/scratch/project_465000158/chatzima/training-runs/Re1000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive); nu_ic = 0.000040;} 
+          if (index_ic == 1)  { fs::copy("/scratch/project_465000158/chatzima/training-runs/Re2000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive); nu_ic = 0.000020;} 
+          if (index_ic == 2)  { fs::copy("/scratch/project_465000158/chatzima/training-runs/Re4000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive); nu_ic = 0.000010;} 
+       }
+       else
+       {
+	  if (index_ic == 0){ fs::copy("/scratch/project_465000158/chatzima/korali/ICtestingRe0500/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive); nu_ic = 0.000080;}
+          if (index_ic == 1){ fs::copy("/scratch/project_465000158/chatzima/korali/ICtestingRe1000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive); nu_ic = 0.000040;}
+	  if (index_ic == 2){ fs::copy("/scratch/project_465000158/chatzima/korali/ICtestingRe2000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive); nu_ic = 0.000020;}
+	  if (index_ic == 3){ fs::copy("/scratch/project_465000158/chatzima/korali/ICtestingRe4000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive); nu_ic = 0.000010;}
+          if (index_ic == 4){ fs::copy("/scratch/project_465000158/chatzima/korali/ICtestingRe8000/", resDir, fs::copy_options::overwrite_existing | fs::copy_options::recursive); nu_ic = 0.000005;}
+       }
     }
     catch (std::exception& e)
     {
@@ -98,7 +138,17 @@ void runEnvironment(korali::Sample &s)
     std::cerr << "You should not be training in 3D\n";
     MPI_Abort(MPI_COMM_WORLD,1);
   }
+  else
+  {
+     if (index_ic == 0){ nu_ic = 0.000080;}
+     if (index_ic == 1){ nu_ic = 0.000040;}
+     if (index_ic == 2){ nu_ic = 0.000020;}
+     if (index_ic == 3){ nu_ic = 0.000010;}
+     if (index_ic == 4){ nu_ic = 0.000005;}
+  }
   #endif
+
+  MPI_Bcast(&nu_ic, 1, MPI_DOUBLE, 0, comm );
 
   // Switch to results directory
   MPI_Barrier(comm);
@@ -106,20 +156,23 @@ void runEnvironment(korali::Sample &s)
   fs::current_path(resDir);
 
   const int nAgents = 1;
-  const double reg = 3.0;
+  const double reg = 0.1;
 
   // Argument string to inititialize Simulation
+  std::string argumentString = "";
   #if modelDIM == 2
-  std::string argumentString = "CUP-RL " + (s["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
-  argumentString += " -nu " + std::to_string(nu_ic);
-  if (s["Mode"] == "Training")
-	  argumentString += " -shapes cylinderNozzle xpos=0.5 bForced=1 bFixed=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 radius=0.1 dumpSurf=1 regularizer=" + std::to_string(reg);
-  else
-	  argumentString += " -shapes cylinderNozzle xpos=1.0 bForced=1 bFixed=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 radius=0.1 dumpSurf=1 regularizer=" + std::to_string(reg);
+    if (index_ic == 0) argumentString = "CUP-RL " + (s["Mode"] == "Training" ? OPTIONS : OPTIONS_testing500);
+    else               argumentString = "CUP-RL " + (s["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
+    argumentString += " -nu " + std::to_string(nu_ic);
+    argumentString += " -shapes cylinderNozzle xpos=1.0 bForced=1 bFixed=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 radius=0.1 dumpSurf=1 ";
+    argumentString += " regularizer=" + std::to_string(reg  );
+    argumentString += " ccoef="       + std::to_string(ccoef);
   #elif modelDIM ==3
-  std::string argumentString = "CUP-RL " + (s["Mode"] == "Training" ? OPTIONS : OPTIONS_testing);
-  argumentString += " -nu " + std::to_string(nu_ic);
-  argumentString += " -shapes CylinderNozzle xpos=1.0 bFixFrameOfRef=1 bForcedInSimFrame=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 L=0.2  halflength=0.25 regularizer=" + std::to_string(reg);
+    argumentString = "CUP-RL " + OPTIONS_testing;
+    argumentString += " -nu " + std::to_string(nu_ic);
+    argumentString += " -shapes CylinderNozzle xpos=1.0 bFixFrameOfRef=1 bForcedInSimFrame=1 xvel=0.2 Nactuators="+std::to_string(NUMACTIONS)+" actuator_theta=8 L=0.2 halflength=0.25 ";
+    argumentString += " regularizer=" + std::to_string(reg  );
+    argumentString += " ccoef="       + std::to_string(ccoef);
   #endif
 
   // Create argc / argv to pass to CUP
@@ -170,7 +223,7 @@ void runEnvironment(korali::Sample &s)
   double tNextAct = t;               // Time of next action
 
   // Setting maximum number of steps before truncation
-  const size_t maxSteps = ( s["Mode"] == "Training" ) ? 500 : 5000; //simulate 500*0.1 = 50T
+  const size_t maxSteps = ( s["Mode"] == "Training" ) ? 500 : 2000; //simulate 500*0.1 = 50T for training and 200T for testing
 
   // Container for actions
   std::vector<std::vector<double>> actions(nAgents, std::vector<double>(NUMACTIONS));
@@ -234,19 +287,18 @@ void runEnvironment(korali::Sample &s)
       myfile.open ("actuators.txt",ios::app);
       myfile << t << " ";
       for( size_t a = 0; a<NUMACTIONS; a++ )
-        myfile << cylinder->actuators[a] << " ";
+        myfile << ccoef*cylinder->actuators[a] << " ";
       myfile << std::endl;
       myfile.close();
     }
 
     // Run the simulation until next action is required
-    //dtAct = 1.0;
     dtAct = 0.10;
     tNextAct += dtAct;
     tNextAct = std::max(5.0,tNextAct);
     while ( t < tNextAct && done == false )
     {
-      const double dt = std::min(_environment->calcMaxTimestep(), dtAct);
+      double dt = std::min(_environment->calcMaxTimestep(), dtAct);
       t += dt;
       _environment->advance(dt);
       done = done || dt < 1e-6;
@@ -314,6 +366,7 @@ void runEnvironment(korali::Sample &s)
   fs::current_path(curPath);
 }
 
+//deprecated function, need to updated initial conditions and argumentstring parameters 
 void runEnvironmentCMAES(korali::Sample &s)
 {
   #if modelDIM == 3
@@ -428,7 +481,7 @@ void runEnvironmentCMAES(korali::Sample &s)
   double tNextAct = t;               // Time of next action
 
   // Setting maximum number of steps before truncation
-  const size_t maxSteps = ( s["Custom Settings"]["Mode"] == "Training" ) ? 500 : 5000; //simulate 500*0.1 = 50T
+  const size_t maxSteps = ( s["Custom Settings"]["Mode"] == "Training" ) ? 500 : 2000; //simulate 500*0.1 = 50T for training, 200T for testing
 
   // Starting main environment loop
   bool done = false;
