@@ -12,8 +12,8 @@ parser.add_argument('--env', help='Specifies which environment to run.', require
 parser.add_argument('--run', help='Run Number', required=False, type=int, default = 0)
 parser.add_argument('--optimizer', help='Optimizer', required=False, type=str, default = "Adam")
 
-parser.add_argument('--nPolicies', help='Number of Policies in Ensemble.', required=False, type=int, default = 5)
-parser.add_argument('--bGaussian', help='Boolean to decide whether we use Gaussian approximation.', required=False, type=bool, default=True)
+parser.add_argument('--nPolicies', help='Number of Policies in Ensemble.', required=False, type=int, default = 1)
+parser.add_argument('--bGaussian', help='Boolean to decide whether we use Gaussian approximation.', required=False, type=bool, default=False)
 parser.add_argument('--bMinimal', help='Boolean to decide whether we use Minimal approximation.', required=False, type=bool, default=False)
 parser.add_argument('--bBayesian', help='Boolean to decide whether we use Bayesian Learning.', required=False, type=bool, default=False)
 parser.add_argument('--nSamples', help='Number of Samples from Posterior that are used to approximate posterior predicitve distribution.', required=False, type=int, default = 1)
@@ -155,8 +155,8 @@ e["Solver"]["Neural Network"]["Hidden Layers"][3]["Function"] = "Elementwise/Sof
 
 ### Setting file output configuration
 
-e["Solver"]["Termination Criteria"]["Max Experiences"] = 5e6
-e["Solver"]["Termination Criteria"]["Max Generations"] = 500
+e["Solver"]["Termination Criteria"]["Max Experiences"] = 1e7
+e["Solver"]["Termination Criteria"]["Max Generations"] = 1e7
 e["Solver"]["Experience Replay"]["Serialize"] = True
 e["Console Output"]["Verbosity"] = "Detailed"
 e["File Output"]["Enabled"] = True

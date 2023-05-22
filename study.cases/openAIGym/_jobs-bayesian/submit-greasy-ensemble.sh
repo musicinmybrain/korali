@@ -1,45 +1,48 @@
 #!/bin/bash -l
 
+# TO PLOT RESULTS
+# for i in Ant-v4 HalfCheetah-v4 Hopper-v4 Humanoid-v4 Swimmer-v4 Walker2d-v4; do python -m korali.rlview --dir baseline/${i} ensemble/${i}/nPolicies=2 ensemble/${i}/nPolicies=4 ensemble/${i}/nPolicies=8 ensemble/${i}/nPolicies=16 --numRuns 10 --showLegend --showObservations --output ${i}.png; done
+
 # create run-folder
-FOLDERNAME=${SCRATCH}/korali/ensemble
+FOLDERNAME=${SCRATCH}/korali/UQRL/ensemble
 mkdir -p ${FOLDERNAME}
 
 # move scripts to basefolder
 cp ../run-b-vracer.py ${FOLDERNAME}
 cp -r ../_model/ ${FOLDERNAME}
 
-# go to base folder
-cd ${FOLDERNAME}
-
-# count number of runs
-let NUMNODES=0
-
-# Remove existing task file
-rm tasks.txt
-
-# Write baseline tasks
-for E in Ant-v4 HalfCheetah-v4 Hopper-v4 Humanoid-v4 HumanoidStandup-v4 Reacher-v4 Swimmer-v4 Walker2d-v4;
+# Write baseline tasks 
+# Ant-v4 Humanoid-v4 Walker2d-v4
+# 2 4 8
+for E in HalfCheetah-v4 Hopper-v4 Swimmer-v4;
 do 
-    for R in {01..05};
+    for NP in 8 16;
     do
-        for NP in {02..05};
+        # Create runfolder, move needed files, and go to runfolder
+        cd ${FOLDERNAME}
+        RUNFOLDER=${FOLDERNAME}/$E/nPolicies=${NP}/
+        mkdir -p ${RUNFOLDER}
+        cp run-b-vracer.py ${RUNFOLDER}
+        cp -r _model/ ${RUNFOLDER}
+        cd ${RUNFOLDER}
+
+        # Remove existing task file
+        rm tasks.txt
+
+        # Create greasy task script
+        let NUMNODES=0
+        for R in {00..09};
         do
-            RUNFOLDER=${FOLDERNAME}/nPolicies=${NP}/$E
-            mkdir -p ${RUNFOLDER}
-            cp run-b-vracer.py ${RUNFOLDER}
-            cp -r _model/ ${RUNFOLDER}
             cat << EOF >> tasks.txt
 [@ ${RUNFOLDER}/ @] python run-b-vracer.py --env $E --run $R --nPolicies $NP > run${R}.txt
 EOF
             let NUMNODES++
         done;
-    done;
-done
 
-# Write and submit sbatch script
-cat << EOF > daint_sbatch
+        # Write sbatch script and submit job
+        cat << EOF > daint_sbatch
 #!/bin/bash -l
-#SBATCH --account=s929
+#SBATCH --account=s1160
 #SBATCH --job-name=ensemble
 #SBATCH --output=ensemble_out_%j.txt
 #SBATCH --error=ensemble_err_%j.txt
@@ -60,5 +63,6 @@ export OMP_NUM_THREADS=12
 
 greasy tasks.txt
 EOF
-
-sbatch daint_sbatch
+        sbatch daint_sbatch
+    done;
+done

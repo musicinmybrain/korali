@@ -1,42 +1,45 @@
 #!/bin/bash -l
 
+# TO PLOT RESULTS
+# for i in Ant-v4 HalfCheetah-v4 Hopper-v4 Humanoid-v4 Swimmer-v4 Walker2d-v4; do python -m korali.rlview --dir baseline/${i} --numRuns 10 --showLegend --showObservations --output ${i}.png; done
+
 # create run-folder
-FOLDERNAME=${SCRATCH}/korali/UQRL
+FOLDERNAME=${SCRATCH}/korali/UQRL/baselineEval
 mkdir -p ${FOLDERNAME}
 
 # move scripts to basefolder
 cp ../run-b-vracer.py ${FOLDERNAME}
 cp -r ../_model/ ${FOLDERNAME}
 
-# go to base folder
-cd ${FOLDERNAME}
+# Write separate Greasy scripts
+# Ant-v4 Humanoid-v4  Walker2d-v4
+for E in HalfCheetah-v4 Hopper-v4 Swimmer-v4;
+do
+    # Create runfolder, move needed files, and go to runfolder
+    cd ${FOLDERNAME}
+    RUNFOLDER=${FOLDERNAME}/$E
+    mkdir -p ${RUNFOLDER}
+    cp run-b-vracer.py ${RUNFOLDER}
+    cp -r _model/ ${RUNFOLDER}
+    cd ${RUNFOLDER}
 
-# count number of runs
-let NUMNODES=0
+    # Remove existing task file
+    rm tasks.txt
 
-# Remove existing task file
-rm tasks.txt
-
-# Write baseline tasks
-for E in Swimmer-v4;
-do 
-    for R in {00..20};
-    do 
-        RUNFOLDER=${FOLDERNAME}/$E
-        mkdir -p ${RUNFOLDER}
-        cp run-b-vracer.py ${RUNFOLDER}
-        cp -r _model/ ${RUNFOLDER}
+    # Create greasy task script
+    let NUMNODES=0
+    for R in {00..15};
+    do
         cat << EOF >> tasks.txt
-[@ ${RUNFOLDER}/ @] python run-b-vracer.py --env $E --run $R > run${R}.txt
+[@ ${RUNFOLDER}/ @] python run-b-vracer.py --env $E --run $R --nHyperparameters 1024 > run${R}.txt
 EOF
         let NUMNODES++
     done;
-done
 
-# Write and submit sbatch script
-cat << EOF > daint_sbatch
+    # Write sbatch script and submit job
+    cat << EOF > daint_sbatch
 #!/bin/bash -l
-#SBATCH --account=s929
+#SBATCH --account=s1160
 #SBATCH --job-name=baseline
 #SBATCH --output=baseline_out_%j.txt
 #SBATCH --error=baseline_err_%j.txt
@@ -57,5 +60,5 @@ export OMP_NUM_THREADS=12
 
 greasy tasks.txt
 EOF
-
-sbatch daint_sbatch
+    sbatch daint_sbatch
+done
