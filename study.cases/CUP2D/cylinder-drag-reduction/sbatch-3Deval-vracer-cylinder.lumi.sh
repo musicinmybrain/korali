@@ -16,11 +16,11 @@ cat <<EOF >lumi_sbatch_testing
 #!/bin/bash -l
 #SBATCH --account=${ACCOUNT}
 #SBATCH --job-name="${RUNNAME}"
-#SBATCH --time=48:00:00
+#SBATCH --time=12:00:00
 #SBATCH --partition=standard
-#SBATCH --nodes=8
+#SBATCH --nodes=32
 #SBATCH --ntasks-per-node=128
-srun ./eval-vracer-cylinder3D -nRanks 1023
+srun ./eval-vracer-cylinder3D
 EOF
 chmod 755 lumi_sbatch_testing
 sbatch lumi_sbatch_testing

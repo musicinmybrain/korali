@@ -1,6 +1,9 @@
 #include "_model/cylinderEnvironment.hpp"
 #include "korali.hpp"
 
+#define ranks_per_node 128
+#define simulations_per_node 8
+
 int main(int argc, char *argv[])
 {
   // Initialize MPI
@@ -11,21 +14,23 @@ int main(int argc, char *argv[])
     printf("Error initializing MPI\n");
     exit(-1);
   }
-
-  // retreiving number of ranks
-  const int nRanks  = atoi(argv[argc-1]);
-  const int nAgents = 1;
-
-  // Storing parameters for environment
   _argc = argc;
   _argv = argv;
 
-  // Getting number of workers
-  int N = 1;
-  MPI_Comm_size(MPI_COMM_WORLD, &N);
-  N = N - 1; // Minus one for Korali's engine
-  N = (int)(N / nRanks); // Divided by the ranks per worker
+  const int nRanks = ranks_per_node/simulations_per_node; //ranks per environment/CFD simulation
+  int rank;
+  int size;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
+  MPI_Comm KoraliComm;
+  MPI_Comm_split(MPI_COMM_WORLD, rank < nRanks-1 ? 1:0, rank, &KoraliComm);
+  const int N = (size-nRanks)/nRanks; //number of environments
 
+  //From the first nRanks, we use one for Korali and the others do not do anything.
+  //Normally, we would use all nRanks in a hybrid job (MPI & OpenMP), but these
+  //jobs crash on LUMI...
+  if (rank >= nRanks-1)
+  {
   // Setting results path
   std::string trainingResultsPath = "_trainingResults/";
 
@@ -43,15 +48,14 @@ int main(int argc, char *argv[])
 
   // Configuring Experiment
   e["Problem"]["Environment Function"] = &runEnvironment;
-  e["Problem"]["Agents Per Environment"] = nAgents;
-  // e["Problem"]["Policies Per Environment"] = nAgents;
+  e["Problem"]["Agents Per Environment"] = 1;
 
   // Setting results path and dumping frequency in CUP
   e["Problem"]["Custom Settings"]["Dump Frequency"] = 0.0;
   e["Problem"]["Custom Settings"]["Dump Path"] = trainingResultsPath;
 
   // Setting up the state variables
-  const size_t numStates = 16*3+2;
+  const size_t numStates = 16*2+2 + 2;
 
   size_t curVariable = 0;
   for (; curVariable < numStates; curVariable++)
@@ -134,8 +138,10 @@ int main(int argc, char *argv[])
   // Configuring conduit / communicator
   k["Conduit"]["Type"] = "Distributed";
   k["Conduit"]["Ranks Per Worker"] = nRanks;
-  korali::setKoraliMPIComm(MPI_COMM_WORLD);
+  //korali::setKoraliMPIComm(MPI_COMM_WORLD);
+  korali::setKoraliMPIComm(KoraliComm);
 
   // ..and run
   k.run(e);
+  }
 }

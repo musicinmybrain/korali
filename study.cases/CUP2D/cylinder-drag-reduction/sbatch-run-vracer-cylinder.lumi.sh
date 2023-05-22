@@ -1,6 +1,6 @@
 #! /usr/bin/env bash
 if [ $# -lt 1 ] ; then
-	echo "Usage: ./sbatch-run-vracer-cylinder.sh [name of run] [number of workers] "
+	echo "Usage: ./sbatch-run-vracer-cylinder.sh [name of run] "
 	exit 1
 fi
 RUNNAME=$1
@@ -21,9 +21,12 @@ cat <<EOF >lumi_sbatch
 #SBATCH --job-name="${RUNNAME}"
 #SBATCH --time=12:00:00
 #SBATCH --partition=standard
-#SBATCH --nodes=16 --ntasks-per-node=128 --cpus-per-task=1 --hint=nomultithread
-srun ./run-vracer-cylinder -nRanks 23
+#SBATCH --nodes=32
+#SBATCH --ntasks-per-node=128
+for i in {1..10} #this loop will restart training if a LUMI job crashes for no reason...
+do
+srun ./run-vracer-cylinder
+done
 EOF
-
 chmod 755 lumi_sbatch
 sbatch lumi_sbatch
